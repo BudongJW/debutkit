@@ -1,0 +1,243 @@
+"""OBS 장면 세트: 버튜버 방송에 필요한 기본 장면 5종을 obs-websocket으로 만든다.
+
+``build_scenes`` 는 화면 크기와 OBS가 가진 소스 종류만 보고 장면 설계도를 만드는 순수
+함수이고, ``apply`` 가 그 설계도를 OBS에 요청으로 보낸다. 이미 있는 장면은 건드리지
+않으므로(``replace=True`` 제외) 쓰던 장면 컬렉션에서 실행해도 안전하다. 그래도 처음에는
+OBS에서 새 장면 컬렉션(장면 모음 > 새로 만들기)을 만든 뒤 실행하기를 권한다.
+
+OBS 연결은 stream2clip의 ``ObsClient`` 를 쓴다(``pip install "debutkit[live]"``).
+"""
+
+from __future__ import annotations
+
+import sys
+from dataclasses import dataclass, field
+from typing import Any, Iterable
+
+PREFIX = "[DK] "  # debutkit이 만든 소스 이름 앞에 붙는 표시
+
+#: 역할별 OBS 소스 종류 후보. 앞에 있는 것부터, OBS가 가진 첫 종류를 쓴다
+KIND_CANDIDATES: dict[str, tuple[str, ...]] = {
+    "color": ("color_source_v3", "color_source_v2", "color_source"),
+    "text": ("text_gdiplus_v3", "text_gdiplus_v2", "text_gdiplus", "text_ft2_source_v2", "text_ft2_source"),
+    "browser": ("browser_source",),
+    "game": ("game_capture", "screen_capture", "display_capture", "pipewire-screen-capture-source", "xshm_input_v2", "xshm_input", "monitor_capture"),
+    "window": ("game_capture", "window_capture", "screen_capture", "xcomposite_input", "pipewire-window-capture-source"),
+}
+
+#: 아바타 프로그램별 창 지정 문자열(OBS 형식 "창 제목:창 클래스:실행 파일"). 버전에 따라 다를 수 있다
+AVATAR_WINDOWS = {
+    "vts": ("VTube Studio", "VTube Studio:UnityWndClass:VTube Studio.exe"),
+    "vseeface": ("VSeeFace", "VSeeFace:UnityWndClass:VSeeFace.exe"),
+    "warudo": ("Warudo", "Warudo:UnityWndClass:Warudo.exe"),
+    "vmagicmirror": ("VMagicMirror", "VMagicMirror:UnityWndClass:VMagicMirror.exe"),
+}
+
+FONTS = {"Windows": "Malgun Gothic", "Darwin": "Apple SD Gothic Neo", "Linux": "Noto Sans CJK KR"}
+
+
+@dataclass(frozen=True)
+class SceneOptions:
+    overlay_url: str = "http://127.0.0.1:8790/chat"
+    alerts_url: str = "http://127.0.0.1:8790/alerts"
+    avatar: str = "vts"  # vts | vseeface | warudo | vmagicmirror | none
+    background: int = 0xFF3D1F2A  # OBS 색은 ABGR 순서: 짙은 남보라
+    os_name: str = field(default_factory=lambda: {"win32": "Windows", "darwin": "Darwin"}.get(sys.platform, "Linux"))
+    starting_text: str = "곧 방송을 시작합니다"
+    brb_text: str = "잠시 자리를 비웠어요"
+    ending_text: str = "오늘도 와 주셔서 고마워요!"
+
+
+@dataclass(frozen=True)
+class Item:
+    """장면 안의 소스 하나. ``source`` 가 OBS 전체에서 이미 있으면 새로 만들지 않고 장면에 추가만 한다."""
+
+    source: str
+    role: str  # KIND_CANDIDATES의 키
+    settings: dict[str, Any]
+    transform: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class Scene:
+    name: str
+    purpose: str
+    items: tuple[Item, ...]
+
+
+def resolve_kinds(available: Iterable[str]) -> dict[str, str]:
+    """역할별로 OBS가 가진 첫 소스 종류. 없는 역할은 빠진다."""
+    have = set(available)
+    return {role: next(kind for kind in candidates if kind in have) for role, candidates in KIND_CANDIDATES.items() if any(kind in have for kind in candidates)}
+
+
+def default_kinds(os_name: str) -> dict[str, str]:
+    """OBS에 연결하지 않고 설계도만 볼 때(--dry-run) 쓰는 종류."""
+    if os_name == "Windows":
+        return {"color": "color_source_v3", "text": "text_gdiplus_v3", "browser": "browser_source", "game": "game_capture", "window": "game_capture"}
+    if os_name == "Darwin":
+        return {"color": "color_source_v3", "text": "text_ft2_source_v2", "browser": "browser_source", "game": "screen_capture", "window": "screen_capture"}
+    return {"color": "color_source_v3", "text": "text_ft2_source_v2", "browser": "browser_source", "game": "pipewire-screen-capture-source",
+            "window": "xcomposite_input"}
+
+
+def _bounds(x: float, y: float, w: float, h: float, *, alignment: int = 5) -> dict[str, Any]:
+    """(x, y)에 ``alignment`` 기준점을 두고 w×h 상자 안에 비율을 유지해 맞춘다. 5 = 왼쪽 위, 0 = 가운데, 9 = 왼쪽 아래."""
+    return {"positionX": round(x), "positionY": round(y), "alignment": alignment, "boundsType": "OBS_BOUNDS_SCALE_INNER",
+            "boundsWidth": max(1, round(w)), "boundsHeight": max(1, round(h)), "boundsAlignment": 0}
+
+
+def _text_settings(kind: str, text: str, size: int, font: str) -> dict[str, Any]:
+    if kind.startswith("text_gdiplus"):
+        return {"text": text, "font": {"face": font, "size": size, "style": "Bold", "flags": 1}, "color": 0xFFFFFFFF, "align": "center",
+                "outline": True, "outline_size": max(2, size // 18), "outline_color": 0xFF000000}
+    return {"text": text, "font": {"face": font, "size": size, "style": "Bold", "flags": 1}, "color1": 0xFFFFFFFF, "color2": 0xFFFFFFFF,
+            "outline": True, "drop_shadow": True}
+
+
+def _avatar_item(options: SceneOptions, kinds: dict[str, str], box: dict[str, Any]) -> Item | None:
+    if options.avatar == "none" or "window" not in kinds:
+        return None
+    title, window = AVATAR_WINDOWS.get(options.avatar, AVATAR_WINDOWS["vts"])
+    kind = kinds["window"]
+    if kind == "game_capture":  # Windows: 투명 배경을 살리는 방법 (VTube Studio, VSeeFace 공식 안내)
+        settings: dict[str, Any] = {"capture_mode": "window", "window": window, "allow_transparency": True}
+    elif kind == "window_capture":
+        settings = {"window": window}
+    else:  # macOS, Linux: 창은 OBS에서 직접 고른다
+        settings = {}
+    return Item(f"{PREFIX}아바타 ({title})", "window", settings, box)
+
+
+def build_scenes(width: int, height: int, kinds: dict[str, str], options: SceneOptions | None = None) -> list[Scene]:
+    """장면 5종의 설계도. 소스는 아래에서 위 순서(먼저 만든 것이 뒤에 깔린다)."""
+    options = options or SceneOptions()
+    W, H = width, height
+    margin = round(H * 0.03)
+    chat_w = round(W * 0.22)
+    font = FONTS.get(options.os_name, FONTS["Linux"])
+    text_size = round(H * 0.065)
+
+    def background() -> Item | None:
+        if "color" not in kinds:
+            return None
+        return Item(f"{PREFIX}배경", "color", {"color": options.background, "width": W, "height": H}, _bounds(0, 0, W, H))
+
+    def chat() -> Item | None:
+        if "browser" not in kinds:
+            return None
+        settings = {"url": options.overlay_url, "width": chat_w, "height": H - 2 * margin, "fps_custom": False, "reroute_audio": False,
+                    "shutdown": False, "restart_when_active": False}
+        return Item(f"{PREFIX}채팅", "browser", settings, _bounds(W - chat_w - margin, margin, chat_w, H - 2 * margin))
+
+    def alerts() -> Item | None:
+        if "browser" not in kinds:
+            return None
+        settings = {"url": options.alerts_url, "width": W, "height": H, "reroute_audio": True, "shutdown": False}
+        return Item(f"{PREFIX}후원 알림", "browser", settings, _bounds(0, 0, W, H))
+
+    def caption(name: str, text: str) -> Item | None:
+        if "text" not in kinds:
+            return None
+        return Item(f"{PREFIX}{name}", "text", _text_settings(kinds["text"], text, text_size, font),
+                    _bounds((W - chat_w - margin) / 2, H / 2, W * 0.6, text_size * 2.5, alignment=0))
+
+    def game() -> Item | None:
+        if "game" not in kinds:
+            return None
+        settings = {"capture_mode": "any_fullscreen"} if kinds["game"] == "game_capture" else {}
+        return Item(f"{PREFIX}게임 화면", "game", settings, _bounds(0, 0, W, H))
+
+    # 본방송: 게임 위 왼쪽 아래에 아바타, 오른쪽에 채팅
+    main_avatar = _avatar_item(options, kinds, _bounds(0, H, W * 0.32, H * 0.62, alignment=9))
+    # 토크: 아바타를 크게 가운데에
+    talk_avatar = _avatar_item(options, kinds, _bounds((W - chat_w - margin) / 2, H, W * 0.6, H * 0.95, alignment=8))
+
+    def scene(name: str, purpose: str, *items: Item | None) -> Scene:
+        return Scene(name, purpose, tuple(item for item in items if item is not None))
+
+    return [
+        scene("대기 화면", "방송 시작 전. 문구와 채팅만", background(), caption("대기 문구", options.starting_text), chat(), alerts()),
+        scene("본방송", "게임 화면 + 아바타 + 채팅 + 후원 알림", background(), game(), main_avatar, chat(), alerts()),
+        scene("토크", "잡담, 노래. 아바타를 크게", background(), talk_avatar, chat(), alerts()),
+        scene("자리 비움", "잠시 쉴 때. 마이크는 직접 음소거", background(), caption("자리 비움 문구", options.brb_text), chat(), alerts()),
+        scene("엔딩", "방송 마무리", background(), caption("엔딩 문구", options.ending_text), chat()),
+    ]
+
+
+@dataclass
+class Report:
+    created_scenes: list[str] = field(default_factory=list)
+    skipped_scenes: list[str] = field(default_factory=list)
+    created_sources: list[str] = field(default_factory=list)
+    reused_sources: list[str] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)
+
+
+def apply(client: Any, scenes: list[Scene], kinds: dict[str, str], *, replace: bool = False, switch_to: str | None = None) -> Report:
+    """설계도를 OBS에 만든다. ``client`` 는 ``request(type, data) -> dict`` 를 가진 객체(stream2clip ``ObsClient``)."""
+    report = Report()
+    existing_scenes = {scene["sceneName"] for scene in client.request("GetSceneList").get("scenes", [])}
+    existing_inputs = {source["inputName"] for source in client.request("GetInputList").get("inputs", [])}
+    for scene in scenes:
+        if scene.name in existing_scenes:
+            if not replace:
+                report.skipped_scenes.append(scene.name)
+                continue
+            client.request("RemoveScene", {"sceneName": scene.name})
+        client.request("CreateScene", {"sceneName": scene.name})
+        report.created_scenes.append(scene.name)
+        for item in scene.items:
+            if item.source in existing_inputs:
+                item_id = client.request("CreateSceneItem", {"sceneName": scene.name, "sourceName": item.source})["sceneItemId"]
+                if item.source not in report.created_sources and item.source not in report.reused_sources:
+                    report.reused_sources.append(item.source)
+            else:
+                item_id = client.request("CreateInput", {"sceneName": scene.name, "inputName": item.source, "inputKind": kinds[item.role],
+                                                         "inputSettings": item.settings, "sceneItemEnabled": True})["sceneItemId"]
+                existing_inputs.add(item.source)
+                report.created_sources.append(item.source)
+            client.request("SetSceneItemTransform", {"sceneName": scene.name, "sceneItemId": item_id, "sceneItemTransform": item.transform})
+    if switch_to:
+        client.request("SetCurrentProgramScene", {"sceneName": switch_to})
+    if any(item.role == "window" for scene in scenes for item in scene.items) and kinds.get("window") != "game_capture":
+        report.notes.append("아바타 소스는 OBS에서 속성을 열어 아바타 프로그램 창을 직접 선택하세요.")
+    return report
+
+
+def connect_and_apply(host: str, port: int, password: str | None, options: SceneOptions, *, replace: bool = False, switch: bool = False) -> tuple[Report, list[Scene]]:
+    try:
+        from stream2clip.obs import ObsClient
+    except ImportError as error:
+        raise RuntimeError('OBS 연결에는 stream2clip이 필요합니다: pip install "debutkit[live]"') from error
+    with ObsClient(host, port, password, events=0) as client:
+        video = client.request("GetVideoSettings")
+        kinds = resolve_kinds(client.request("GetInputKindList", {"unversioned": False}).get("inputKinds", []))
+        scenes = build_scenes(int(video.get("baseWidth", 1920)), int(video.get("baseHeight", 1080)), kinds, options)
+        report = apply(client, scenes, kinds, replace=replace, switch_to=scenes[0].name if switch else None)
+    return report, scenes
+
+
+def format_plan(scenes: list[Scene], kinds: dict[str, str]) -> str:
+    lines = []
+    for scene in scenes:
+        lines.append(f"[{scene.name}] {scene.purpose}")
+        for item in scene.items:
+            t = item.transform
+            lines.append(f"    - {item.source}  ({kinds.get(item.role, '?')}, {t['boundsWidth']}x{t['boundsHeight']})")
+    return "\n".join(lines)
+
+
+def format_report(report: Report) -> str:
+    lines = []
+    if report.created_scenes:
+        lines.append("만든 장면: " + ", ".join(report.created_scenes))
+    if report.skipped_scenes:
+        lines.append("이미 있어 건너뛴 장면: " + ", ".join(report.skipped_scenes) + "  (--replace 로 다시 만들기)")
+    if report.created_sources:
+        lines.append("만든 소스: " + ", ".join(report.created_sources))
+    if report.reused_sources:
+        lines.append("기존 소스 재사용: " + ", ".join(report.reused_sources))
+    lines += report.notes
+    lines.append("채팅, 후원 알림 소스는 debutkit overlay 가 실행 중일 때 표시됩니다.")
+    return "\n".join(lines)

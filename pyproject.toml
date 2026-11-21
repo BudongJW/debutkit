@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "debutkit"
+version = "0.1.0"
+description = "버튜버 데뷔 키트: 방송 준비 점검, OBS 장면 세트 자동 구성, CHZZK·SOOP·Twitch 통합 채팅 오버레이. stream2clip과 연계"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+dependencies = []
+keywords = ["vtuber", "obs-studio", "chzzk", "soop", "overlay", "streaming", "debut"]
+
+[project.optional-dependencies]
+# 방송 플랫폼 채팅 수신과 OBS 제어는 stream2clip의 모듈을 그대로 쓴다
+live = ["stream2clip @ git+https://github.com/BudongJW/stream2clip@v0.14.1", "websocket-client>=1.6"]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[project.scripts]
+debutkit = "debutkit.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+debutkit = ["overlay/static/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 160
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B"]
+ignore = ["E501"]

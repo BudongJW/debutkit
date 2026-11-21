@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>debutkit 오버레이 설정</title>
+  <style>
+    :root { color-scheme: dark; --bg: #15131f; --card: #211d30; --line: #34304a; --text: #f7f4fa; --dim: #a9a3b8; --accent: #ff4f8b; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.6 "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; }
+    main { max-width: 980px; margin: 0 auto; padding: 32px 20px 60px; }
+    h1 { font-size: 24px; margin: 0 0 4px; }
+    h1 b { color: var(--accent); }
+    .lead { color: var(--dim); margin: 0 0 24px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+    section { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
+    h2 { font-size: 16px; margin: 0 0 8px; }
+    .url { display: flex; gap: 8px; margin: 8px 0; }
+    .url input { flex: 1; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font: 13px ui-monospace, Consolas, monospace; }
+    button { background: var(--accent); color: #fff; border: 0; border-radius: 8px; padding: 8px 14px; font: inherit; font-weight: 700; cursor: pointer; }
+    button.ghost { background: transparent; border: 1px solid var(--line); color: var(--text); }
+    .hint { color: var(--dim); font-size: 13px; margin: 6px 0 0; }
+    .preview { position: relative; height: 260px; margin-top: 12px; border-radius: 10px; overflow: hidden;
+      background: repeating-conic-gradient(#2a2638 0% 25%, #221f30 0% 50%) 0 0 / 24px 24px; }
+    /* color-scheme이 바깥 페이지(dark)와 다르면 브라우저가 iframe에 흰 배경을 깐다 */
+    .preview iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; color-scheme: normal; }
+    code { background: var(--bg); padding: 1px 6px; border-radius: 5px; font-size: 13px; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+    #status { color: var(--dim); font-size: 13px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1><b>debutkit</b> 오버레이</h1>
+  <p class="lead">아래 주소를 OBS의 <b>브라우저 소스</b>로 추가하세요. <code>debutkit scenes</code> 로 장면을 만들었다면 이미 연결돼 있습니다. <span id="status"></span></p>
+
+  <div class="grid">
+    <section>
+      <h2>통합 채팅창</h2>
+      <div class="url"><input id="chat-url" readonly><button data-copy="chat-url">복사</button></div>
+      <p class="hint">권장 크기 420×1000. 주소 뒤에 <code>?theme=bubble</code>(말풍선), <code>&amp;font=26</code>(글자 크기), <code>&amp;max=10</code>(줄 수), <code>&amp;fade=30</code>(30초 뒤 사라짐), <code>&amp;platform=0</code>(플랫폼 표시 끄기)</p>
+      <div class="preview"><iframe id="chat-preview" title="채팅창 미리보기"></iframe></div>
+    </section>
+    <section>
+      <h2>후원·구독 알림</h2>
+      <div class="url"><input id="alerts-url" readonly><button data-copy="alerts-url">복사</button></div>
+      <p class="hint">권장 크기는 방송 화면 전체(1920×1080). 소리를 OBS로 보내려면 브라우저 소스의 "OBS를 통해 오디오 제어" 체크. <code>?seconds=8</code> 로 표시 시간 조절</p>
+      <div class="preview"><iframe id="alerts-preview" title="알림 미리보기"></iframe></div>
+    </section>
+  </div>
+
+  <section style="margin-top:16px">
+    <h2>테스트</h2>
+    <p class="hint">방송을 켜지 않고 모양을 확인합니다. 테스트 메시지는 어디에도 보내지지 않고 이 화면과 OBS에만 보입니다.</p>
+    <div class="row">
+      <button id="test-chat">테스트 채팅</button>
+      <button id="test-donation" class="ghost">테스트 후원</button>
+    </div>
+  </section>
+</main>
+<script>
+  "use strict";
+  const base = location.origin;
+  document.getElementById("chat-url").value = `${base}/chat`;
+  document.getElementById("alerts-url").value = `${base}/alerts`;
+  document.getElementById("chat-preview").src = "/chat?theme=bubble&font=18&hide=";
+  document.getElementById("alerts-preview").src = "/alerts?seconds=4";
+  for (const button of document.querySelectorAll("[data-copy]")) {
+    button.addEventListener("click", async () => {
+      const input = document.getElementById(button.dataset.copy);
+      input.select();
+      try { await navigator.clipboard.writeText(input.value); button.textContent = "복사됨"; }
+      catch { document.execCommand("copy"); button.textContent = "복사됨"; }
+      setTimeout(() => (button.textContent = "복사"), 1500);
+    });
+  }
+  const send = (kind) => fetch("/test", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ kind, text: kind === "donation" ? "테스트 후원입니다. 데뷔 축하해요!" : "테스트 채팅입니다 ㅋㅋ" }) });
+  document.getElementById("test-chat").addEventListener("click", () => send("chat"));
+  document.getElementById("test-donation").addEventListener("click", () => send("donation"));
+  const refresh = () => fetch("/status").then((r) => r.json()).then((s) => {
+    document.getElementById("status").textContent = `(연결된 화면 ${s.listeners}개)`;
+  }).catch(() => {});
+  refresh();
+  setInterval(refresh, 3000);
+</script>
+</body>
+</html>
