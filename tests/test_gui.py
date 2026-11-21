@@ -19,6 +19,13 @@ def app():
     application = QApplication.instance() or QApplication([])
     application.setStyleSheet(style_sheet())
     yield application
+    # 파이썬이 끝날 때 Qt 객체가 엉뚱한 순서로 지워지면 Linux·macOS에서 segfault가 난다: 먼저 정리
+    for widget in application.topLevelWidgets():
+        widget.close()
+        widget.deleteLater()
+    application.processEvents()
+    if hasattr(application, "shutdown"):
+        application.shutdown()
 
 
 def wait_for(app, condition, seconds=5.0):

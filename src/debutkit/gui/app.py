@@ -135,6 +135,8 @@ class Wizard(QMainWindow):
         self.bridge.log.connect(self._append_log)
         self.server: Any = None
         self.checked: list[doctor.Check] = []
+        self._threads: list[threading.Thread] = []
+        self._closed = False
         self.setWindowTitle(f"debutkit {__version__} - 첫 방송 준비")
         self.resize(980, 680)
 
@@ -189,7 +191,15 @@ class Wizard(QMainWindow):
             self._refresh_summary()
 
     def _run(self, job: Callable[[], None]) -> None:
-        threading.Thread(target=job, daemon=True).start()
+        self._threads = [thread for thread in self._threads if thread.is_alive()]
+        thread = threading.Thread(target=job, daemon=True)
+        self._threads.append(thread)
+        thread.start()
+
+    def _emit(self, signal: Any, value: Any) -> None:
+        """작업 스레드에서 창으로. 창이 닫힌 뒤에는 보내지 않는다(닫힌 창의 객체를 건드리면 종료 때 충돌)."""
+        if not self._closed:
+            signal.emit(value)
 
     @staticmethod
     def _title(content: str, lead: str) -> QWidget:
@@ -225,7 +235,7 @@ class Wizard(QMainWindow):
         self.check_button.setEnabled(False)
         self.check_summary.setText("점검 중...")
         port = self.port.value() if hasattr(self, "port") else OVERLAY_PORT
-        self._run(lambda: self.bridge.checks.emit(self.backend.run_checks(overlay_port=port)))
+        self._run(lambda: self._emit(self.bridge.checks, self.backend.run_checks(overlay_port=port)))
 
     def _show_checks(self, checks: list[doctor.Check]) -> None:
         self.checked = checks
@@ -286,7 +296,7 @@ class Wizard(QMainWindow):
             self.avatar_result.setText("모델 파일을 먼저 고르세요.")
             return
         agency = self.avatar_agency.isChecked()
-        self._run(lambda: self.bridge.avatar.emit(self.backend.check_avatar(path, agency=agency)))
+        self._run(lambda: self._emit(self.bridge.avatar, self.backend.check_avatar(path, agency=agency)))
 
     def _show_avatar(self, checks: list[doctor.Check]) -> None:
         self.avatar_result.setText("\n".join(f"[{LABELS.get(c.status, c.status)}] {c.detail}" + (f"\n→ {c.hint}" if c.hint else "") for c in checks))
@@ -334,9 +344,9 @@ class Wizard(QMainWindow):
         def job() -> None:
             try:
                 report, _ = self.backend.apply_scenes("127.0.0.1", port, password, options, replay_buffer=replay)
-                self.bridge.scenes.emit(scenes.format_report(report))
+                self._emit(self.bridge.scenes, scenes.format_report(report))
             except Exception as error:
-                self.bridge.scenes.emit(f"만들지 못했습니다: {error}\nOBS가 켜져 있고 WebSocket 서버가 사용 중인지 확인하세요.")
+                self._emit(self.bridge.scenes, f"만들지 못했습니다: {error}\nOBS가 켜져 있고 WebSocket 서버가 사용 중인지 확인하세요.")
 
         self._run(job)
 
@@ -417,7 +427,7 @@ class Wizard(QMainWindow):
         except OSError as error:
             self._append_log(f"{self.port.value()}번 포트를 열지 못했습니다: {error}")
             return
-        server.hub.taps.append(lambda event: event.kind == "system" and self.bridge.log.emit(event.text))
+        server.hub.taps.append(lambda event: event.kind == "system" and self._emit(self.bridge.log, event.text))
         server.start()
         self.server = server
         self._overlay_state(True)
@@ -429,9 +439,9 @@ class Wizard(QMainWindow):
                 try:
                     clipper, message = self.backend.make_autoclipper(server.hub, port, password)
                     server.attach(clipper.start())
-                    self.bridge.log.emit(message)
+                    self._emit(self.bridge.log, message)
                 except Exception as error:
-                    self.bridge.log.emit(f"자동 클립을 켜지 못했습니다: {error}")
+                    self._emit(self.bridge.log, f"자동 클립을 켜지 못했습니다: {error}")
 
             self._run(job)
 
@@ -471,9 +481,12 @@ class Wizard(QMainWindow):
         self.summary.setText("<br>".join(lines))
 
     def closeEvent(self, event: Any) -> None:  # noqa: N802
+        self._closed = True
         if self.server is not None:
             self.server.stop()
             self.server = None
+        for thread in self._threads:  # 점검·OBS 연결이 끝나길 잠깐 기다린다 (끝나지 않으면 데몬 스레드로 버림)
+            thread.join(timeout=1.0)
         super().closeEvent(event)
 
 
@@ -484,8 +497,11 @@ def main(argv: list[str] | None = None) -> int:
     window = Wizard()
     window.show()
     if os.environ.get("DEBUTKIT_SMOKE"):  # 빌드 확인용: 열었다가 곧 닫는다
-        QTimer.singleShot(1500, app.quit)
-    return int(app.exec())
+        QTimer.singleShot(1500, window.close)
+        QTimer.singleShot(1600, app.quit)
+    code = int(app.exec())
+    window.close()
+    return code
 
 
 if __name__ == "__main__":  # pragma: no cover
