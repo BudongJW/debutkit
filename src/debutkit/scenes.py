@@ -205,9 +205,37 @@ def apply(client: Any, scenes: list[Scene], kinds: dict[str, str], *, replace: b
     return report
 
 
-def connect_and_apply(host: str, port: int, password: str | None, options: SceneOptions, *, replace: bool = False, switch: bool = False) -> tuple[Report, list[Scene]]:
+NOT_AVAILABLE = 604  # obs-websocket RequestStatus::InvalidResourceState 계열: 리플레이 버퍼 출력이 아직 없음
+
+
+def enable_replay_buffer(client: Any, seconds: int = 60) -> tuple[bool, str]:
+    """OBS 설정의 리플레이 버퍼를 켜고 길이를 정한 뒤, 가능하면 시작한다(자동 클립에 필요).
+
+    설정 > 출력의 "단순"/"고급" 모드마다 저장 위치가 달라 현재 모드를 먼저 읽는다. 설정을 처음
+    켠 경우 OBS는 재시작해야 리플레이 버퍼를 만든다(OBS 33에서 확인). 그때는 ``(False, 안내)``.
+    """
+    from stream2clip.obs import ObsError
+
+    mode = str(client.request("GetProfileParameter", {"parameterCategory": "Output", "parameterName": "Mode"}).get("parameterValue") or "Simple")
+    category = "AdvOut" if mode.lower().startswith("adv") else "SimpleOutput"
+    client.request("SetProfileParameter", {"parameterCategory": category, "parameterName": "RecRB", "parameterValue": "true"})
+    client.request("SetProfileParameter", {"parameterCategory": category, "parameterName": "RecRBTime", "parameterValue": str(int(seconds))})
     try:
-        from stream2clip.obs import ObsClient
+        if client.request("GetReplayBufferStatus").get("outputActive"):
+            return True, f"리플레이 버퍼 실행 중 (길이 {seconds}초는 다음 시작부터 적용)"
+        client.request("StartReplayBuffer")
+    except ObsError as error:
+        if getattr(error, "code", None) == NOT_AVAILABLE:
+            return False, f"리플레이 버퍼를 켰습니다(최대 {seconds}초). OBS를 한 번 껐다 켜면 사용할 수 있습니다."
+        raise
+    return True, f"리플레이 버퍼 시작 (최대 {seconds}초)"
+
+
+def connect_and_apply(host: str, port: int, password: str | None, options: SceneOptions, *, replace: bool = False, switch: bool = False,
+                      replay_buffer: int | None = None) -> tuple[Report, list[Scene]]:
+    """OBS에 연결해 장면을 만든다. ``replay_buffer`` 초를 주면 자동 클립용 리플레이 버퍼도 켠다."""
+    try:
+        from stream2clip.obs import ObsClient, ObsError
     except ImportError as error:
         raise RuntimeError('OBS 연결에는 stream2clip이 필요합니다: pip install "debutkit[live]"') from error
     with ObsClient(host, port, password, events=0) as client:
@@ -215,6 +243,11 @@ def connect_and_apply(host: str, port: int, password: str | None, options: Scene
         kinds = resolve_kinds(client.request("GetInputKindList", {"unversioned": False}).get("inputKinds", []))
         scenes = build_scenes(int(video.get("baseWidth", 1920)), int(video.get("baseHeight", 1080)), kinds, options)
         report = apply(client, scenes, kinds, replace=replace, switch_to=scenes[0].name if switch else None)
+        if replay_buffer:
+            try:
+                report.notes.append(enable_replay_buffer(client, replay_buffer)[1])
+            except ObsError as error:
+                report.notes.append(f"리플레이 버퍼를 켜지 못함: {error}. OBS 설정 > 출력 > 리플레이 버퍼 사용을 직접 체크하세요.")
     return report, scenes
 
 

@@ -1,0 +1,38 @@
+name: Release
+
+# v* 태그를 올리면 Windows 실행 파일을 만들어 GitHub 릴리스에 붙인다.
+# 직접 실행(workflow_dispatch)하면 릴리스 없이 빌드 결과만 artifact로 남긴다.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: python -m pip install -e ".[gui,build]"
+      - name: Build and smoke test
+        run: python packaging/build_windows.py
+        env:
+          PYTHONIOENCODING: utf-8
+      - uses: actions/upload-artifact@v4
+        with:
+          name: debutkit-windows
+          path: dist/*.zip
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "debutkit $GITHUB_REF_NAME" --generate-notes
+          gh release upload "$GITHUB_REF_NAME" dist/*.zip --clobber

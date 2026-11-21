@@ -16,13 +16,18 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
         python: ["3.10", "3.13"]
     runs-on: ${{ matrix.os }}
+    env:
+      QT_QPA_PLATFORM: offscreen  # 설정 마법사 테스트를 화면 없이
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
+      - name: Qt libraries (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libegl1 libxkbcommon0 libfontconfig1
       - name: Install
-        run: python -m pip install -e ".[live,dev]"
+        run: python -m pip install -e ".[gui,dev]"
       - name: Lint
         run: ruff check .
       - name: Test

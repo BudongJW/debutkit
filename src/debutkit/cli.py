@@ -33,7 +33,7 @@ def _scenes(args: argparse.Namespace) -> int:
         return 0
     try:
         report, scenes = connect_and_apply(args.host, args.port, args.password or os.environ.get("OBS_WEBSOCKET_PASSWORD"), options,
-                                           replace=args.replace, switch=args.switch)
+                                           replace=args.replace, switch=args.switch, replay_buffer=args.replay_buffer)
     except Exception as error:  # 연결 실패, 비밀번호 오류, stream2clip 없음
         print(f"OBS 장면을 만들지 못했습니다: {error}", file=sys.stderr)
         return 1
@@ -67,15 +67,51 @@ def _overlay(args: argparse.Namespace) -> int:
     print("  연결: " + ", ".join(label for label, _ in sources))
     if not (args.chzzk_api or args.chzzk or args.soop or args.twitch):
         print("  방송 채널을 지정하지 않아 데모 채팅을 보여 줍니다. 예: debutkit overlay --chzzk <채널 주소> --soop <방송국 주소>")
+    if args.clip:
+        if not _start_autoclip(server, args):
+            server.stop()
+            return 1
     print("끝내려면 Ctrl+C")
     server.serve_until_interrupted()
     return 0
+
+
+def _start_autoclip(server: Any, args: argparse.Namespace) -> bool:
+    from .clip import AutoClipper, default_clip_dir, replay_clipper
+
+    out = args.clip_dir or default_clip_dir()
+    password = args.obs_password or os.environ.get("OBS_WEBSOCKET_PASSWORD")
+    try:
+        clipper = replay_clipper(out, args.obs_host, args.obs_port, password)
+        version = clipper.check(start_buffer=True)
+    except ImportError:
+        print('자동 클립에는 stream2clip이 필요합니다: pip install "debutkit[live]"', file=sys.stderr)
+        return False
+    except Exception as error:
+        print(f"자동 클립을 켜지 못했습니다: {error}", file=sys.stderr)
+        print("  OBS 실행, WebSocket 서버 사용, 리플레이 버퍼 사용(debutkit scenes --replay-buffer)을 확인하세요.", file=sys.stderr)
+        return False
+    server.attach(AutoClipper(server.hub, clipper).start())
+    print(f"  자동 클립: 켬 (OBS {version}, 저장 위치 {out}). 채팅이 몰리거나 방장이 !clip 을 쓰면 저장")
+    return True
+
+
+def _gui(args: argparse.Namespace) -> int:
+    try:
+        from .gui.app import main as gui_main
+    except ImportError as error:
+        print(f'설정 마법사에는 PySide6가 필요합니다: pip install "debutkit[gui]" ({error})', file=sys.stderr)
+        return 1
+    return gui_main([sys.argv[0]])
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="debutkit", description="버튜버 데뷔 키트: 방송 준비 점검, OBS 장면 세트, 통합 채팅 오버레이")
     parser.add_argument("--version", action="version", version=f"debutkit {__version__}")
     sub = parser.add_subparsers(dest="command", required=True)
+
+    gui = sub.add_parser("gui", help="설정 마법사 창 열기 (PySide6 필요)")
+    gui.set_defaults(func=_gui)
 
     doctor = sub.add_parser("doctor", help="이 PC의 방송 준비 상태 점검")
     doctor.add_argument("--avatar", help="아바타 모델 파일(.vrm)의 사용 조건 점검")
@@ -92,6 +128,8 @@ def build_parser() -> argparse.ArgumentParser:
     scenes.add_argument("--overlay-port", type=int, default=OVERLAY_PORT, help="debutkit overlay 포트 (기본 %(default)s)")
     scenes.add_argument("--replace", action="store_true", help="같은 이름의 장면이 있으면 지우고 다시 만들기")
     scenes.add_argument("--switch", action="store_true", help="다 만든 뒤 '대기 화면'으로 전환")
+    scenes.add_argument("--replay-buffer", type=int, nargs="?", const=60, metavar="초",
+                        help="자동 클립용 리플레이 버퍼 켜기 (길이 기본 60초)")
     scenes.add_argument("--dry-run", action="store_true", help="OBS에 연결하지 않고 설계도만 출력")
     scenes.set_defaults(func=_scenes)
 
@@ -102,6 +140,12 @@ def build_parser() -> argparse.ArgumentParser:
     overlay.add_argument("--twitch", action="append", metavar="채널", help="Twitch 채널 이름")
     overlay.add_argument("--demo", action="store_true", help="가짜 채팅을 함께 보여 주기 (모양 맞추기)")
     overlay.add_argument("--port", type=int, default=OVERLAY_PORT, help="포트 (기본 %(default)s)")
+    clip = overlay.add_argument_group("자동 클립 (stream2clip 라이브 모드)")
+    clip.add_argument("--clip", action="store_true", help="채팅이 몰리면 OBS 리플레이 버퍼를 저장해 클립으로")
+    clip.add_argument("--clip-dir", help="클립 저장 폴더 (기본 동영상/debutkit-clips)")
+    clip.add_argument("--obs-host", default="127.0.0.1")
+    clip.add_argument("--obs-port", type=int, default=4455)
+    clip.add_argument("--obs-password", help="OBS WebSocket 비밀번호 (또는 OBS_WEBSOCKET_PASSWORD)")
     overlay.set_defaults(func=_overlay)
     return parser
 

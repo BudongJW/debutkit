@@ -35,6 +35,8 @@ class Hub:
         self._lock = threading.Lock()
         self._subscribers: list[queue.Queue[OverlayEvent]] = []
         self.history: deque[OverlayEvent] = deque(maxlen=history)
+        #: 화면 말고도 사건을 받을 함수들 (자동 클립 등). 오래 걸리면 안 된다
+        self.taps: list[Callable[[OverlayEvent], None]] = []
 
     def publish(self, event: OverlayEvent) -> None:
         with self._lock:
@@ -44,6 +46,11 @@ class Hub:
                     subscriber.put_nowait(event)
                 except queue.Full:  # 멈춘 화면 때문에 서버가 막히지 않도록 버린다
                     pass
+        for tap in list(self.taps):
+            try:
+                tap(event)
+            except Exception:
+                pass
 
     def subscribe(self) -> tuple[queue.Queue[OverlayEvent], list[OverlayEvent]]:
         subscriber: queue.Queue[OverlayEvent] = queue.Queue(maxsize=500)
@@ -114,8 +121,9 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
             except ValueError:
                 data = {}
             kind = "donation" if data.get("kind") == "donation" else "chat"
+            role = "owner" if data.get("role") == "owner" else ""  # 스트리머 표시 명령(!clip) 시험용
             event = OverlayEvent("demo", kind, "테스트", (("text", str(data.get("text") or "테스트 메시지입니다")[:200]),),
-                                 amount=1000.0 if kind == "donation" else 0.0, unit="원" if kind == "donation" else "")
+                                 amount=1000.0 if kind == "donation" else 0.0, unit="원" if kind == "donation" else "", role=role)
             hub.publish(event)
             self._send(HTTPStatus.OK, b"ok")
 
@@ -160,6 +168,7 @@ class OverlayServer:
         self._retry = retry
         self._stop = threading.Event()
         self._threads: list[threading.Thread] = []
+        self._attached: list[Any] = []
         self.httpd = ThreadingHTTPServer(("127.0.0.1", port), make_handler(self.hub, lambda: self.port))
         self.httpd.daemon_threads = True
 
@@ -205,8 +214,18 @@ class OverlayServer:
             self._threads.append(pump)
         return self
 
+    def attach(self, part: Any) -> Any:
+        """서버와 함께 멈출 부품(자동 클립 등). ``stop()`` 을 가진 객체."""
+        self._attached.append(part)
+        return part
+
     def stop(self) -> None:
         self._stop.set()
+        for part in self._attached:
+            try:
+                part.stop()
+            except Exception:
+                pass
         self.httpd.shutdown()
         self.httpd.server_close()
 

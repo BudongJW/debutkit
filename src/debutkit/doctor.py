@@ -260,7 +260,7 @@ def check_tracking(system: System) -> list[Check]:
         found = [Check("tracking", "트래킹 프로그램", OK, ", ".join(names))]
     else:
         found = [Check("tracking", "트래킹 프로그램", WARN, "Steam에서 찾지 못함",
-                       "Live2D는 VTube Studio, 3D(VRM)는 VSeeFace, Warudo 등. Steam 밖에 설치했다면 무시. 목록: docs/SOFTWARE.md")]
+                       "Live2D는 VTube Studio, 3D(VRM)는 VSeeFace, Warudo 등. Steam 밖에 설치했다면 무시. 목록: https://budongjw.github.io/software/")]
     if system.port_open("127.0.0.1", VTS_API_PORT):
         found.append(Check("vts-api", "VTube Studio API", OK, f"127.0.0.1:{VTS_API_PORT} 응답", "stream2clip 방송 기록기가 아바타 위치를 기록 가능"))
     return found
