@@ -40,9 +40,9 @@ flowchart LR
 
 | 소프트웨어 | 모델 | 라이선스·가격 | 메모 |
 |---|---|---|---|
-| VTube Studio | Live2D | 독점. Steam 무료, 워터마크 제거 유료 DLC | Live2D 표준. 아이폰 얼굴 트래킹 연동. 플러그인 API(포트 8001)를 stream2clip 방송 기록기가 사용 |
-| VSeeFace | VRM | 무료(독점) | 3D 표준. 트래커는 오픈소스 OpenSeeFace |
-| Warudo | VRM 등 | 무료(독점) | 연출·블루프린트 기능이 강함 |
+| VTube Studio | Live2D | 독점. 개인은 무료로 시작, **수익 방송(슈퍼챗, 수익 창출 채널 등)은 유료 버전·DLC 구매 필요**. 회사는 아래 [소속사 운영 시 라이선스](#소속사-운영-시-라이선스) 참고 | Live2D 표준. 아이폰 얼굴 트래킹 연동. 플러그인 API(포트 8001)를 stream2clip 방송 기록기가 사용 |
+| VSeeFace | VRM | 무료(독점). 상업적 이용 포함 허용, 프로그램 수정 금지 | 3D 표준. 트래커는 오픈소스 OpenSeeFace |
+| Warudo | VRM 등 | Steam판 무료(독점). 기업용 Warudo Pro 별도(가격 문의) | 연출·블루프린트 기능이 강함 |
 | VMagicMirror | VRM | MIT | 오픈소스. 키보드·마우스 동작 표현 |
 | OpenSeeFace | 트래킹 엔진 | BSD-2 | 웹캠 얼굴 트래킹 부품 |
 | PNGTuber-Remix, veadotube mini | PNG | 프로그램별 | PNGTuber용 |
@@ -53,7 +53,7 @@ flowchart LR
 
 | 소프트웨어 | 라이선스·가격 | 메모 |
 |---|---|---|
-| OBS Studio | GPL-2.0, 무료 | 표준. 30 이후 버전에 WebSocket 원격 제어 내장 → `debutkit scenes`, stream2clip 리플레이가 사용 |
+| OBS Studio | GPL-2.0, 무료 | 표준. 28 이후 버전에 WebSocket 원격 제어(obs-websocket 5) 내장 → `debutkit scenes`, stream2clip 리플레이가 사용 |
 | PRISM Live Studio (네이버) | 무료 | 국내 플랫폼 동시 송출이 쉬움 |
 | Streamlabs Desktop | 무료 + 유료 구독 | 위젯 일체형 |
 
@@ -91,6 +91,22 @@ flowchart LR
 | SOOP | 자체 위젯 URL. 공식 Open API의 채팅 이벤트는 확인 중 | 시청자 읽기 |
 | YouTube | Live Streaming API(liveChatMessages, 할당량 있음) | 0.3 예정 |
 | Twitch | IRC/EventSub | 익명 IRC 읽기 |
+
+## 소속사 운영 시 라이선스
+
+개인 버튜버에게 무료인 프로그램도 **회사(소속사)가 쓰면 조건이 달라진다.** 소속 계약 전에 확인할 것.
+
+| 대상 | 조건 | 출처 |
+|---|---|---|
+| VTube Studio | 개인: 수익 방송이면 유료 버전·DLC 구매. 회사: 직전 연도 수입 미화 20만 달러 초과 회사는 Company License 필요, 그 기준을 넘는 버튜버 소속사는 **구독형 Company License**(support@denchisoft.com 견적). 모바일 기기는 기기마다 앱 구매 | [VTube Studio EULA (Steam)](https://store.steampowered.com/eula/1325860_eula_0) |
+| Live2D (VTube Studio 경유 포함) | 앱이 사업의 주요 요소이고 연매출 2,000만 엔을 넘는 경우(예: 버튜버 방송 사업) Live2D Inc.의 별도 라이선스가 필요할 수 있음 | 같은 EULA |
+| Warudo | 기업 사용자용 Warudo Pro 별도(가격 문의, info@warudo.app). 인디 가격은 IP와 계정을 본인이 소유하고 방송 시간 의무 계약이 없는 개인 대상. 무료 Steam판의 회사 사용 조건은 이 페이지에 없음 → 문의 필요 | [Warudo Pro 문서](https://docs.warudo.app/docs/pro) (2026-01-13 갱신) |
+| VSeeFace | 상업적 이용 포함 허용. 회사에 대한 별도 제한 없음. 프로그램 수정 금지 | [vseeface.icu](https://www.vseeface.icu/) Terms of use |
+| 아바타 모델 | 판매 모델 대부분 개인 사용만 허락. 법인 사용은 제작자 허락 필요. VRM은 `doctor --avatar --agency` 로 확인 | 모델별 약관 |
+
+## 확인 상태
+
+2026-11-21 1차 출처로 확인: VTube Studio, Warudo Pro, VSeeFace 약관(위 표), OBS·CHZZK 공식 API·SOOP 위젯(유사 프로젝트 조사), Live2D·VRM·VMagicMirror·OpenSeeFace(stream2clip 레퍼런스 조사, 2026-11-18). 그 밖의 가격·라이선스(PRISM, Streamlabs, NVIDIA Broadcast, VoiceMeeter, 투네이션)는 설치 전 공식 페이지에서 다시 확인할 것.
 
 ## debutkit이 만들지 않는 것
 
