@@ -34,6 +34,10 @@
     .opts label.check { flex-direction: row; align-items: center; gap: 6px; padding-top: 18px; }
     .opts select, .opts input[type=number] { background: #fff; color: var(--text); border: 1px solid #c9c3bd; border-radius: 3px; padding: 5px 6px; font: inherit; font-size: 14px; }
     .test { margin-top: 20px; }
+    .meter { height: 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; overflow: hidden; margin-top: 8px; }
+    .meter span { display: block; height: 100%; width: 0; background: #bf3b68; transition: width 80ms linear; }
+    .state { font-size: 13px; color: var(--dim); margin: 6px 0 0; }
+    a.button { display: inline-block; background: #fff; color: var(--text); border: 1px solid #c9c3bd; border-radius: 3px; padding: 7px 14px; font-size: 14px; font-weight: 600; text-decoration: none; }
   </style>
 </head>
 <body>
@@ -43,7 +47,7 @@
   <span id="status"></span>
 </header>
 <main>
-  <p class="lead">아래 주소를 OBS 브라우저 소스로 추가합니다. <code>debutkit scenes</code>로 만든 장면에는 이미 연결되어 있습니다.</p>
+  <p class="lead">아래 주소를 OBS 브라우저 소스로 추가합니다. <code>debutkit scenes</code>로 만든 장면에는 이미 연결되어 있습니다(캐릭터 화면은 아바타 프로그램을 debutkit으로 선택한 경우).</p>
 
   <div class="grid">
     <section>
@@ -70,6 +74,19 @@
       <div class="url"><input id="alerts-url" readonly aria-label="알림 주소"><button data-copy="alerts-url">복사</button></div>
       <p class="hint">권장 크기 1920x1080(방송 화면 전체). 알림 소리를 내보내려면 브라우저 소스 속성의 OBS 오디오 제어 항목을 체크합니다. 표시 시간은 주소에 <code>?seconds=8</code> 형식으로 지정합니다.</p>
       <div class="preview"><iframe id="alerts-preview" title="알림 미리보기"></iframe></div>
+    </section>
+    <section>
+      <h2>캐릭터 화면</h2>
+      <div class="url"><input id="character-url" readonly aria-label="캐릭터 화면 주소"><button data-copy="character-url">복사</button></div>
+      <p class="hint">권장 크기 720x900. 방송에 사용할 캐릭터: <b id="character-name">확인 중</b>. 캐릭터는 설정 마법사 캐릭터 단계 또는 <code>debutkit character use</code>로 바꿉니다.</p>
+      <div class="meter" aria-hidden="true"><span id="voice-bar"></span></div>
+      <p class="state" id="voice-state">OBS 마이크 음량 대기</p>
+      <p class="state" id="tracking-state">얼굴 추적 꺼짐</p>
+      <div class="row">
+        <button id="voice-test" class="secondary">말하기 시험(3초)</button>
+        <a class="button" href="/tracker" target="_blank" rel="noopener">얼굴 추적 창 열기</a>
+      </div>
+      <div class="preview"><iframe id="character-preview" title="캐릭터 미리보기"></iframe></div>
     </section>
   </div>
 
@@ -113,6 +130,27 @@
   updateChat();
   $("alerts-url").value = `${base}/alerts`;
   $("alerts-preview").src = "/alerts?seconds=4";
+  $("character-url").value = `${base}/character`;
+  $("character-preview").src = "/character";
+  fetch("/character/info").then((r) => r.json()).then((info) => {
+    $("character-name").textContent = `${info.name}(${info.kind === "png" ? "PNGTuber" : info.kind === "vrm" ? "3D VRM" : info.kind === "live2d" ? "Live2D, VTube Studio에서 표시" : info.kind})`;
+  }).catch(() => ($("character-name").textContent = "확인하지 못함"));
+  // 음량과 말하기 상태(기준 음량 조정에 사용), 얼굴 추적 상태. 브라우저 동시 연결 수 제한 때문에 연결 하나로 받는다
+  const live = new EventSource("/live");
+  live.addEventListener("voice", (message) => {
+    const voice = JSON.parse(message.data);
+    $("voice-bar").style.width = `${Math.round((voice.level || 0) * 100)}%`;
+    $("voice-state").textContent = voice.source
+      ? `${voice.source}: ${voice.db} dB, ${voice.talking ? "말하는 중" : "조용함"}`
+      : "OBS 마이크 음량 대기(오버레이의 캐릭터 음성 반응과 OBS 연결 확인)";
+  });
+  const tracked = { time: 0, found: false };
+  live.addEventListener("tracking", (message) => Object.assign(tracked, { found: false }, JSON.parse(message.data)));
+  setInterval(() => {
+    const live = Date.now() / 1000 - tracked.time < 1;
+    $("tracking-state").textContent = !live ? "얼굴 추적 꺼짐" : tracked.found ? "얼굴 추적 중" : "얼굴 추적 창 열림, 얼굴을 찾지 못함";
+  }, 500);
+  $("voice-test").addEventListener("click", () => fetch("/voice/test", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ talking: true }) }));
   for (const button of document.querySelectorAll("[data-copy]")) {
     button.addEventListener("click", async () => {
       const input = document.getElementById(button.dataset.copy);

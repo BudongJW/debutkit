@@ -10,7 +10,9 @@ const SEND_INTERVAL = 50;  // 초당 20회
 let landmarker = null;
 let stream = null;
 let running = false;
+let generation = 0;  // 다시 시작할 때마다 증가: 이전 반복을 멈춘다
 let lastSent = 0;
+let lastTime = 0;
 let frames = 0;
 let fpsSince = performance.now();
 
@@ -19,12 +21,13 @@ function setStatus(text) {
 }
 
 // 4x4 열 우선 행렬에서 머리 회전(라디안). MediaPipe 얼굴 좌표: x는 얼굴의 왼쪽, y 위, z 카메라 쪽(VRM과 같은 방향)
+// 회전 순서 Y(좌우), X(위아래), Z(기울기): R = Ry Rx Rz 에서 r02 = sin(yaw)cos(pitch), r12 = -sin(pitch), r10 = cos(pitch)sin(roll), r11 = cos(pitch)cos(roll)
 export function headRotation(m) {
   const r = (row, col) => m[col * 4 + row];
   return {
     yaw: Math.atan2(r(0, 2), r(2, 2)),
     pitch: Math.asin(Math.max(-1, Math.min(1, -r(1, 2)))),
-    roll: Math.atan2(r(1, 0), r(0, 0)),
+    roll: Math.atan2(r(1, 0), r(1, 1)),
   };
 }
 
@@ -87,10 +90,11 @@ async function listCameras() {
   select.value = current;
 }
 
-function loop() {
-  if (!running) return;
-  if (video.readyState >= 2) {
-    const now = performance.now();
+function loop(mine) {
+  if (!running || mine !== generation) return;
+  const now = performance.now();
+  if (video.readyState >= 2 && now > lastTime) {  // MediaPipe는 같은 시각의 영상을 두 번 받지 않음
+    lastTime = now;
     const values = toValues(landmarker.detectForVideo(video, now), $("mirror").checked);
     frames += 1;
     if (now - fpsSince >= 1000) {
@@ -105,10 +109,13 @@ function loop() {
       send(values);
     }
   }
-  video.requestVideoFrameCallback ? video.requestVideoFrameCallback(loop) : requestAnimationFrame(loop);
+  const next = () => loop(mine);
+  video.requestVideoFrameCallback ? video.requestVideoFrameCallback(next) : requestAnimationFrame(next);
 }
 
 async function start() {
+  const mine = ++generation;
+  running = false;
   $("start").disabled = true;
   try {
     if (!landmarker) {
@@ -121,9 +128,10 @@ async function start() {
     video.srcObject = stream;
     await video.play();
     await listCameras();
+    if (mine !== generation) return;
     running = true;
     $("start").textContent = "다시 시작";
-    loop();
+    loop(mine);
   } catch (error) {
     running = false;
     const denied = error && (error.name === "NotAllowedError" || error.name === "SecurityError");

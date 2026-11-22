@@ -82,6 +82,9 @@ QCheckBox:disabled, QLineEdit:disabled, QSpinBox:disabled, QComboBox:disabled {{
 QListWidget#Steps {{ background: {nav}; border: none; border-right: 1px solid {border}; padding: 14px 0; outline: 0; }}
 QListWidget#Steps::item {{ padding: 10px 18px; border: none; border-left: 3px solid transparent; color: {muted}; }}
 QListWidget#Steps::item:selected {{ background: {surface}; color: {text}; font-weight: 700; border-left: 3px solid {pink}; }}
+QListWidget#Characters {{ background: {field}; border: 1px solid {border}; border-radius: 4px; padding: 4px; outline: 0; }}
+QListWidget#Characters::item {{ padding: 6px 8px; border-radius: 3px; color: {text}; }}
+QListWidget#Characters::item:selected {{ background: {border}; color: {text}; }}
 QToolTip {{ background: {field}; color: {text}; border: 1px solid {border}; }}
 """.format(**COLORS)
 EXTRA_STYLE = ""
@@ -503,6 +506,7 @@ class Wizard(QMainWindow):
         layout.addWidget(self._title("캐릭터", "방송에 사용할 캐릭터를 등록하거나 만들고 사용 조건을 확인합니다. "
                                               "PNGTuber와 3D(VRM)는 debutkit 캐릭터 화면으로 바로 방송할 수 있습니다."))
         self.characters = QListWidget()
+        self.characters.setObjectName("Characters")
         self.characters.setMaximumHeight(140)
         self.characters.currentRowChanged.connect(self._show_character)
         self.character_detail = text("", muted=True)
@@ -1098,9 +1102,15 @@ class Wizard(QMainWindow):
             self.vts_hotkey.setEditText(rules[-1].hotkey)
             self.vts_min.setValue(rules[-1].min_won)
 
+    #: 입력란이 없어 collect_settings가 모르는 저장값. 저장할 때 기존 값을 유지한다(캐릭터 단계의 사용 버튼이 따로 저장)
+    KEPT_SETTINGS = ("character",)
+
     def remember(self) -> None:
         try:
-            self.backend.save_settings(self.collect_settings())
+            values = self.collect_settings()
+            saved = self.backend.load_settings()
+            values.update({key: saved[key] for key in self.KEPT_SETTINGS if key in saved})
+            self.backend.save_settings(values)
         except OSError as error:
             self._append_log(f"설정 저장 실패: {error}")
 

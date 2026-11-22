@@ -2,7 +2,9 @@
 
 import http.client
 import json
+import time
 import urllib.parse
+from pathlib import Path
 
 import pytest
 
@@ -87,6 +89,26 @@ def test_test_mode_holds_talking_against_real_levels():
     assert state.current["talking"] is False
 
 
+def test_test_mode_ends_by_itself_without_obs():
+    """OBS 음량이 들어오지 않아도 시험이 끝나면 입을 다문다(시험 중 들어온 실제 값이 있으면 그 값)."""
+    state = voice.VoiceState()
+    state.test(True, seconds=0.1)
+    assert state.current["talking"] is True
+    deadline = time.monotonic() + 3
+    while state.current["talking"] and time.monotonic() < deadline:
+        time.sleep(0.02)
+    assert state.current == {"talking": False, "level": 0.0, "db": -120.0, "source": ""}
+    state.test(True, seconds=0.1)
+    state.publish(True, -25.0, "마이크")  # 시험 중 실제로 말하는 중
+    state.test(True, seconds=0.2)  # 새 시험: 앞 시험의 종료가 끝내지 않음
+    time.sleep(0.15)
+    assert state.current["source"] == "시험"
+    deadline = time.monotonic() + 3
+    while state.current["source"] == "시험" and time.monotonic() < deadline:
+        time.sleep(0.02)
+    assert state.current["talking"] is True and state.current["source"] == "마이크"
+
+
 @pytest.fixture
 def server():
     srv = OverlayServer([], port=0).start()
@@ -129,6 +151,90 @@ def test_voice_stream_and_test_endpoint(server):
     assert state["talking"] is True and state["source"] == "시험"
 
 
+def test_live_stream_carries_voice_and_tracking_on_one_connection(server):
+    """캐릭터 화면, 설정 화면은 /live 연결 하나만 연다(브라우저 같은 주소 동시 연결 6개 제한)."""
+    conn = http.client.HTTPConnection("127.0.0.1", server.port, timeout=5)
+    conn.request("GET", "/live")
+    stream = conn.getresponse()
+    assert stream.status == 200 and stream.getheader("Content-Type").startswith("text/event-stream")
+
+    def event():
+        name = stream.fp.readline().decode().strip().removeprefix("event: ")
+        data = json.loads(stream.fp.readline().decode().removeprefix("data: "))
+        stream.fp.readline()
+        return name, data
+
+    assert event() == ("voice", {"talking": False, "level": 0.0, "db": -120.0, "source": ""})
+    assert event()[0] == "tracking"
+    post = http.client.HTTPConnection("127.0.0.1", server.port, timeout=5)
+    post.request("POST", "/voice/test", body=b'{"talking": true}', headers={"Content-Type": "application/json"})
+    assert post.getresponse().status == 200
+    name, data = event()
+    assert name == "voice" and data["talking"] is True
+    post = http.client.HTTPConnection("127.0.0.1", server.port, timeout=5)
+    post.request("POST", "/tracking", body=b'{"found": true, "yaw": 0.2}', headers={"Content-Type": "application/json"})
+    assert post.getresponse().status == 200
+    name, data = event()
+    assert name == "tracking" and data["found"] is True and data["yaw"] == 0.2
+    stream.close()
+    conn.close()
+    deadline = time.monotonic() + 5  # 연결을 닫으면 두 상태 모두 구독 해제
+    while (server.voice._subscribers or server.tracking._subscribers) and time.monotonic() < deadline:
+        server.voice.publish(False, -90.0, "x", force=True)
+        server.tracking.publish({"found": False})
+        time.sleep(0.05)
+    assert not server.voice._subscribers and not server.tracking._subscribers
+
+
+def test_stopping_the_server_ends_open_streams():
+    """오버레이를 멈추면 열린 연결을 끝내서 OBS 화면이 다시 시작한 서버에 새로 연결한다."""
+    srv = OverlayServer([], port=0).start()
+    streams = []
+    for path in ("/events", "/live", "/voice"):
+        conn = http.client.HTTPConnection("127.0.0.1", srv.port, timeout=5)
+        conn.request("GET", path)
+        response = conn.getresponse()
+        assert response.status == 200
+        streams.append(response)
+    streams[1].fp.readline()
+    started = time.monotonic()
+    srv.stop()
+    for response in streams:
+        while response.fp.readline():  # 서버가 끝내면 빈 줄(연결 종료)
+            pass
+    assert time.monotonic() - started < 3 and srv.hub.listeners == 0 and not srv.voice._subscribers
+
+
+def test_port_in_use_is_refused():
+    """같은 포트에 두 번째 서버가 열리지 않는다(Windows 기본 동작은 함께 열어 줌)."""
+    first = OverlayServer([], port=0)
+    try:
+        with pytest.raises(OSError):
+            OverlayServer([], port=first.port)
+    finally:
+        first.stop()
+
+
+def test_bad_post_bodies_get_answers(server):
+    for body, headers, path, status in ((b"x", {"Content-Length": "abc"}, "/test", 400), (b"[1, 2]", {}, "/test", 200),
+                                        (b"[1, 2]", {}, "/voice/test", 200), (b"[1, 2]", {}, "/tracking", 400)):
+        conn = http.client.HTTPConnection("127.0.0.1", server.port, timeout=5)
+        conn.putrequest("POST", path)
+        conn.putheader("Content-Type", "application/json")
+        conn.putheader("Content-Length", headers.get("Content-Length", str(len(body))))
+        conn.endheaders(body)
+        assert conn.getresponse().status == status, (path, body)
+
+
+def test_settings_page_uses_one_stream():
+    """설정 화면과 미리보기 세 개(채팅, 알림, 캐릭터)가 쓰는 연결은 4개: 브라우저 제한(6개) 안."""
+    static = Path(character.__file__).parent / "overlay" / "static"
+    page = (static / "index.html").read_text(encoding="utf-8")
+    assert page.count("new EventSource(") == 1 and 'new EventSource("/live")' in page
+    script = (static / "character.js").read_text(encoding="utf-8")
+    assert script.count("new EventSource(") == 1 and 'new EventSource("/live")' in script
+
+
 def test_korean_character_ids_are_url_encoded(server, tmp_path):
     from test_character import png
 
@@ -138,6 +244,18 @@ def test_korean_character_ids_are_url_encoded(server, tmp_path):
     assert status == 200 and info["id"] == "고양이-캐릭터" and "%EA%B3%A0" in info["files"]["idle"]
     status, kind, image = get(server, info["files"]["idle"])
     assert status == 200 and kind == "image/png" and image.startswith(b"\x89PNG")
+
+
+def test_vrm_file_names_with_spaces_and_korean_are_served(server, tmp_path):
+    from test_character import vrm1
+
+    for name in ("My Model #2.vrm", "모델.vrm"):
+        added = character.add(vrm1(tmp_path / name))
+        info = json.loads(get(server, "/character/info?id=" + urllib.parse.quote(added.id))[2])
+        assert " " not in info["files"]["model"] and "#" not in info["files"]["model"]
+        status, kind, body = get(server, info["files"]["model"])
+        assert status == 200 and kind == "model/gltf-binary" and body.startswith(b"glTF"), name
+        assert get(server, info["thumbnail"])[0] == 200
 
 
 def test_tracking_values_are_cleaned():

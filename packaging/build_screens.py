@@ -3,6 +3,7 @@
     python packaging/build_screens.py
 
 - 설정 마법사: 화면에 띄우지 않고 창을 그려 저장. 점검 결과는 예시 PC 값(이 PC 정보 미사용)
+- 저장 설정과 캐릭터 보관함은 임시 폴더 사용(이 PC에 등록한 캐릭터, 저장 설정이 이미지에 나오지 않음)
 - 오버레이 설정 화면, 채팅창 표시 형태, 후원 알림: 예시 채팅을 넣은 오버레이 서버를 열고
   Chrome 또는 Edge 헤드리스 모드로 촬영(DEBUTKIT_BROWSER로 다른 브라우저 지정 가능)
 """
@@ -29,13 +30,17 @@ BROWSERS = (
 )
 
 
-def find_browser() -> str:
+def find_browsers() -> list[str]:
+    """설치된 촬영용 브라우저. 앞의 것이 촬영하지 못하면(정책으로 헤드리스 차단 등) 다음 것을 사용."""
     wanted = os.environ.get("DEBUTKIT_BROWSER")
+    found = []
     for name in (wanted,) if wanted else BROWSERS:
-        found = shutil.which(name) or (name if Path(name).is_file() else None)
-        if found:
-            return found
-    raise SystemExit("Chrome 또는 Edge 필요(DEBUTKIT_BROWSER로 지정 가능)")
+        path = shutil.which(name) or (name if Path(name).is_file() else None)
+        if path and path not in found:
+            found.append(path)
+    if not found:
+        raise SystemExit("Chrome 또는 Edge 필요(DEBUTKIT_BROWSER로 지정 가능)")
+    return found
 
 
 def sample_system():
@@ -75,6 +80,12 @@ def wizard_shots() -> list[Path]:
     check = OUT / "wizard-check.png"
     window.grab().save(str(check))
     saved.append(check)
+
+    window.go(1)
+    app.processEvents()
+    character = OUT / "wizard-character.png"
+    window.grab().save(str(character))
+    saved.append(character)
 
     window.go(3)
     window.chzzk.setText("https://chzzk.naver.com/live/0123456789abcdef0123456789abcdef")
@@ -118,15 +129,77 @@ def overlay_server():
     return server
 
 
-def capture(browser: str, url: str, out: Path, size: tuple[int, int]) -> Path:
-    with tempfile.TemporaryDirectory() as profile:
-        # 오버레이 화면은 사건 흐름(SSE) 연결이 계속 열려 있어 virtual-time-budget이 끝나지 않는다: 고정 대기 후 촬영
-        subprocess.run([browser, "--headless=new", "--disable-gpu", "--hide-scrollbars", "--force-device-scale-factor=1", f"--user-data-dir={profile}",
-                        f"--window-size={size[0]},{size[1]}", "--timeout=5000", f"--screenshot={out}", url],
-                       check=True, capture_output=True, timeout=90)
-    if not out.is_file():
-        raise SystemExit(f"촬영 실패: {url}")
-    return out
+def _free_port() -> int:
+    import socket
+
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        return int(probe.getsockname()[1])
+
+
+def _devtools_capture(browser: str, url: str, out: Path, size: tuple[int, int], wait: float) -> bool:
+    """헤드리스 브라우저를 원격 디버깅(DevTools)으로 열고 ``wait`` 초 뒤 촬영.
+
+    오버레이 화면은 사건 흐름(SSE) 연결이 계속 열려 있어 --screenshot, --virtual-time-budget의 촬영 시점이 일정하지 않다
+    (채팅 줄 등장 효과 중간, 캐릭터 이미지를 불러오기 전에 찍힘). 실제 시간으로 기다린 뒤 촬영한다.
+    """
+    import base64
+    import itertools
+    import json
+    import urllib.request
+
+    import websocket  # websocket-client(debutkit[live])
+
+    port = _free_port()
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as profile:  # 브라우저가 끝난 뒤에도 잠시 파일을 씀
+        process = subprocess.Popen([browser, "--headless=new", "--disable-gpu", "--hide-scrollbars", "--force-device-scale-factor=1",
+                                    f"--remote-debugging-port={port}", f"--user-data-dir={profile}", f"--window-size={size[0]},{size[1]}", "about:blank"],
+                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        try:
+            target, end = None, time.monotonic() + 20
+            while target is None and time.monotonic() < end:
+                if process.poll() is not None:  # 정책 등으로 헤드리스 실행이 막힌 브라우저
+                    return False
+                try:
+                    targets = json.loads(urllib.request.urlopen(f"http://127.0.0.1:{port}/json/list", timeout=2).read())
+                    target = next((item for item in targets if item.get("type") == "page"), None)
+                except OSError:
+                    time.sleep(0.2)
+            if target is None:
+                return False
+            socket_ = websocket.create_connection(target["webSocketDebuggerUrl"], timeout=30, suppress_origin=True)
+            numbers = itertools.count(1)
+
+            def call(method: str, **params: object) -> dict:
+                number = next(numbers)
+                socket_.send(json.dumps({"id": number, "method": method, "params": params}))
+                while True:
+                    reply = json.loads(socket_.recv())
+                    if reply.get("id") == number:
+                        return reply.get("result") or {}
+
+            try:
+                call("Emulation.setDeviceMetricsOverride", width=size[0], height=size[1], deviceScaleFactor=1, mobile=False)
+                call("Page.navigate", url=url)
+                time.sleep(wait)
+                out.write_bytes(base64.b64decode(call("Page.captureScreenshot", format="png")["data"]))
+            finally:
+                socket_.close()
+            return True
+        finally:
+            process.terminate()
+            try:
+                process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                process.kill()
+
+
+def capture(browsers: list[str], url: str, out: Path, size: tuple[int, int], wait: float = 4.0) -> Path:
+    out.unlink(missing_ok=True)  # 이전 이미지가 남아 촬영 실패를 놓치지 않도록
+    for browser in browsers:
+        if _devtools_capture(browser, url, out, size, wait) and out.is_file():
+            return out
+    raise SystemExit(f"촬영 실패: {url}")
 
 
 PLATFORM_LABELS = {"chzzk": ("치지직", "#00d68f"), "soop": ("SOOP", "#3d7bff"), "twitch": ("Twitch", "#9146ff"), "youtube": ("YouTube", "#ff0033")}
@@ -168,10 +241,10 @@ iframe {{ position: absolute; inset: 38px 0 0 0; width: 100%; height: calc(100% 
 </style></head><body><div class="cols">{"".join(columns)}</div><div class="alerts">{alert}</div></body></html>"""
 
 
-def overlay_shots(browser: str) -> list[Path]:
+def overlay_shots(browser: list[str]) -> list[Path]:
     server = overlay_server()
     try:
-        settings = capture(browser, server.url + "/", OUT / "overlay-settings.png", (1180, 900))
+        settings = capture(browser, server.url + "/", OUT / "overlay-settings.png", (1180, 1340))
     finally:
         server.stop()
     with tempfile.TemporaryDirectory() as folder:
@@ -192,7 +265,9 @@ def shrink(path: Path, width: int = 1200) -> None:
 
 def main() -> int:
     OUT.mkdir(parents=True, exist_ok=True)
-    shots = wizard_shots() + overlay_shots(find_browser())
+    scratch = tempfile.mkdtemp(prefix="debutkit-screens-")
+    os.environ["DEBUTKIT_SETTINGS"] = str(Path(scratch) / "settings.json")
+    shots = wizard_shots() + overlay_shots(find_browsers())
     for path in shots:
         shrink(path)
         print(f"{path.relative_to(ROOT)}  ({path.stat().st_size / 1024:.0f} KB)")

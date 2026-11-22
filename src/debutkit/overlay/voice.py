@@ -51,13 +51,17 @@ class VoiceState:
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
-        self._subscribers: list[queue.Queue[dict[str, Any]]] = []
+        self._subscribers: list[Any] = []
         self.current: dict[str, Any] = {"talking": False, "level": 0.0, "db": -120.0, "source": ""}
         self._test_until = 0.0
+        self._test_round = 0
+        self._real: tuple[bool, float, str] = (False, -120.0, "")  # 시험 중 들어온 실제 음량(시험이 끝나면 다시 보냄)
 
     def publish(self, talking: bool, db: float, source: str, *, force: bool = False) -> None:
-        if time.monotonic() < self._test_until and not force:
-            return  # 시험 중에는 실제 음량을 덮어쓰지 않음
+        if not force:
+            self._real = (talking, db, source)
+            if time.monotonic() < self._test_until:
+                return  # 시험 중에는 실제 음량을 덮어쓰지 않음
         level = max(0.0, min(1.0, (db - FLOOR_DB) / (-FLOOR_DB)))
         state = {"talking": talking, "level": round(level, 3), "db": round(db, 1), "source": source}
         with self._lock:
@@ -71,17 +75,31 @@ class VoiceState:
                 pass
 
     def test(self, talking: bool, seconds: float = 3.0) -> None:
-        """설정 화면의 말하기 시험: 몇 초 동안 말하는 상태로 표시."""
-        self._test_until = time.monotonic() + (seconds if talking else 0)
-        self.publish(talking, -20.0 if talking else -120.0, "시험", force=True)
+        """설정 화면의 말하기 시험: 몇 초 동안 말하는 상태로 표시하고, 끝나면 실제 음량 상태로 되돌린다."""
+        self._test_round += 1
+        if not talking:
+            self._test_until = 0.0
+            self.publish(*self._real, force=True)
+            return
+        self._test_until = time.monotonic() + seconds
+        self.publish(True, -20.0, "시험", force=True)
+        timer = threading.Timer(seconds, self._end_test, args=(self._test_round,))
+        timer.daemon = True
+        timer.start()
 
-    def subscribe(self) -> tuple[queue.Queue[dict[str, Any]], dict[str, Any]]:
-        subscriber: queue.Queue[dict[str, Any]] = queue.Queue(maxsize=200)
+    def _end_test(self, round_: int) -> None:
+        if round_ == self._test_round:  # 그 사이에 새 시험을 시작하지 않았으면
+            self._test_until = 0.0
+            self.publish(*self._real, force=True)
+
+    def subscribe(self, into: Any = None) -> tuple[Any, dict[str, Any]]:
+        """새 값을 받을 대기열(``into`` 를 주면 그 대기열, ``put_nowait`` 만 사용)과 현재 값."""
+        subscriber = into if into is not None else queue.Queue(maxsize=200)
         with self._lock:
             self._subscribers.append(subscriber)
             return subscriber, dict(self.current)
 
-    def unsubscribe(self, subscriber: queue.Queue[dict[str, Any]]) -> None:
+    def unsubscribe(self, subscriber: Any) -> None:
         with self._lock:
             if subscriber in self._subscribers:
                 self._subscribers.remove(subscriber)

@@ -9,7 +9,7 @@
 PC 점검, OBS 장면 구성, 통합 채팅창과 후원 알림, 방송 중 자동 클립
 
 <a href="LICENSE"><img alt="license" src="https://img.shields.io/badge/license-Apache--2.0-1E2327?style=flat-square"></a>
-<img alt="version" src="https://img.shields.io/badge/version-1.0.0rc4-BF3B68?style=flat-square">
+<img alt="version" src="https://img.shields.io/badge/version-1.0.0rc5-BF3B68?style=flat-square">
 <a href="https://github.com/BudongJW/debutkit/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/BudongJW/debutkit/ci.yml?branch=main&style=flat-square&label=CI"></a>
 <img alt="python" src="https://img.shields.io/badge/Python-3.10%2B-1E2327?style=flat-square">
 

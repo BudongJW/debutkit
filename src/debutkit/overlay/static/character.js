@@ -1,4 +1,4 @@
-// debutkit 캐릭터 화면: OBS 브라우저 소스용. PNGTuber와 VRM을 목소리 크기(/voice)와 얼굴 추적 값(/tracking)에 맞춰 움직인다.
+// debutkit 캐릭터 화면: OBS 브라우저 소스용. PNGTuber와 VRM을 목소리 크기와 얼굴 추적 값(/live 연결 하나로 받음)에 맞춰 움직인다.
 // ?id=캐릭터 로 지정하지 않으면 방송에 사용할 캐릭터를 표시하고, 바뀌면 다시 불러온다. ?demo 는 말하기 시험 표시.
 // 얼굴 추적 값은 별도 브라우저 창의 추적 화면(/tracker)이 보낸다. 0.6초 넘게 오지 않으면 기본 움직임으로 돌아간다.
 
@@ -15,17 +15,16 @@ function tracking() {  // 최근 추적 값이 있으면 그 값, 없으면 null
   return tracked.found && Date.now() / 1000 - tracked.time < 0.6 ? tracked : null;
 }
 
-function listenTracking() {
-  const source = new EventSource("/tracking");
-  source.onmessage = (message) => Object.assign(tracked, { found: false }, JSON.parse(message.data));
-}
 
 function show(text) {
   notice.textContent = text;
   notice.hidden = !text;
 }
 
-function listenVoice() {
+function listen() {
+  // 브라우저의 같은 주소 동시 연결 수 제한(6개, OBS 브라우저 소스끼리 공유) 때문에 연결 하나로 받는다
+  const source = new EventSource("/live");
+  source.addEventListener("tracking", (message) => Object.assign(tracked, { found: false }, JSON.parse(message.data)));
   if (demo) {  // 말하기 시험: 0.6초 말하고 0.6초 쉼
     setInterval(() => {
       voice.talking = !voice.talking;
@@ -33,8 +32,7 @@ function listenVoice() {
     }, 600);
     return;
   }
-  const source = new EventSource("/voice");
-  source.onmessage = (message) => Object.assign(voice, JSON.parse(message.data));
+  source.addEventListener("voice", (message) => Object.assign(voice, JSON.parse(message.data)));
 }
 
 function scheduleBlink(blink) {
@@ -192,9 +190,21 @@ async function info() {
   return response.json();
 }
 
+function watchCharacter() {  // 설정 마법사나 명령줄에서 캐릭터를 바꾸면 다시 불러오기(표시에 실패한 경우도 포함)
+  setInterval(async () => {
+    try {
+      const found = await info();
+      if (currentId && found.id !== currentId) location.reload();
+      if (!currentId) currentId = found.id;
+    } catch (error) {
+      // 오버레이를 다시 시작하는 중
+    }
+  }, 5000);
+}
+
 async function main() {
-  listenVoice();
-  listenTracking();
+  listen();
+  if (!explicit) watchCharacter();
   const found = await info();
   currentId = found.id;
   if (!found.renders) {
@@ -204,15 +214,6 @@ async function main() {
     startPng(found);
   } else {
     await startVrm(found);
-  }
-  if (!explicit) {  // 설정 마법사나 명령줄에서 캐릭터를 바꾸면 다시 불러오기
-    setInterval(async () => {
-      try {
-        if ((await info()).id !== currentId) location.reload();
-      } catch (error) {
-        // 오버레이를 다시 시작하는 중
-      }
-    }, 5000);
   }
 }
 

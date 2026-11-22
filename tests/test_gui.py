@@ -326,6 +326,16 @@ def test_closing_saves_inputs_without_secrets(app):
     assert not any(value in str(saved) for value in ("AIza-secret", "pw", "client-secret"))
 
 
+def test_saving_keeps_the_chosen_character(app):
+    """캐릭터 단계의 사용 버튼이 저장한 캐릭터를 오버레이 시작, 창 닫기 저장이 지우지 않는다."""
+    calls = Calls()
+    calls.stored = {"demo": True, "character": "neko"}
+    window = Wizard(calls.backend())
+    window.soop.setText("https://play.sooplive.co.kr/id")
+    window.close()
+    assert calls.saves[-1]["character"] == "neko" and calls.saves[-1]["soop"] == ["https://play.sooplive.co.kr/id"]
+
+
 def test_forgetting_settings_stops_saving_until_next_start(app):
     calls = Calls()
     window = Wizard(calls.backend())

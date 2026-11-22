@@ -35,7 +35,7 @@ class TrackingState:
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
-        self._subscribers: list[queue.Queue[dict[str, Any]]] = []
+        self._subscribers: list[Any] = []
         self.current: dict[str, Any] = {"found": False, "time": 0.0}
 
     def publish(self, values: dict[str, Any]) -> None:
@@ -49,13 +49,14 @@ class TrackingState:
             except queue.Full:  # 느린 화면 때문에 서버가 막히지 않도록 버린다
                 pass
 
-    def subscribe(self) -> tuple[queue.Queue[dict[str, Any]], dict[str, Any]]:
-        subscriber: queue.Queue[dict[str, Any]] = queue.Queue(maxsize=120)
+    def subscribe(self, into: Any = None) -> tuple[Any, dict[str, Any]]:
+        """새 값을 받을 대기열(``into`` 를 주면 그 대기열, ``put_nowait`` 만 사용)과 현재 값."""
+        subscriber = into if into is not None else queue.Queue(maxsize=120)
         with self._lock:
             self._subscribers.append(subscriber)
             return subscriber, dict(self.current)
 
-    def unsubscribe(self, subscriber: queue.Queue[dict[str, Any]]) -> None:
+    def unsubscribe(self, subscriber: Any) -> None:
         with self._lock:
             if subscriber in self._subscribers:
                 self._subscribers.remove(subscriber)

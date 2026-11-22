@@ -1,6 +1,7 @@
 """VTube Studio 연동: 이 PC의 시험용 WebSocket 서버(tests/vts_fake.py)와 실제 프로토콜로 통신해 확인한다."""
 
 import base64
+import json
 import time
 
 import pytest
@@ -58,6 +59,36 @@ def test_models_load_hotkeys_and_trigger(fake):
             client.trigger("없는 단축키")
     with pytest.raises(vts.VtsError, match="다시 시작해야 표시"):
         vts.find_model([vts.Model("m1", "Hiyori", True)], "새 모델")
+
+
+def test_approval_waits_longer_than_the_connection_timeout():
+    """허용 요청은 사용자가 누를 때까지 기다린다(연결 기본 10초보다 길게). 응답이 없으면 안내 메시지."""
+
+    class SlowWs:
+        def __init__(self):
+            self.timeout, self.timeouts, self.sent = 10.0, [], []
+
+        def gettimeout(self):
+            return self.timeout
+
+        def settimeout(self, value):
+            self.timeout = value
+            self.timeouts.append(value)
+
+        def send(self, text):
+            self.sent.append(json.loads(text))
+
+        def recv(self):
+            raise TimeoutError("timed out")
+
+        def close(self):
+            pass
+
+    ws = SlowWs()
+    client = vts.VtsClient("ws://x", connect=lambda url, timeout: ws)
+    with pytest.raises(vts.VtsError, match="120초 동안 응답 없음"):
+        client.authenticate(None)
+    assert ws.sent[-1]["messageType"] == "AuthenticationTokenRequest" and ws.timeouts == [vts.APPROVAL_SECONDS, 10.0]
 
 
 def test_unreachable_vts():

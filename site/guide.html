@@ -37,7 +37,7 @@
     <header class="dochead">
       <h1>사용 설명서</h1>
       <dl>
-        <dt>대상 버전</dt><dd>debutkit 1.0.0rc4</dd>
+        <dt>대상 버전</dt><dd>debutkit 1.0.0rc5</dd>
         <dt>방송 플랫폼</dt><dd>치지직, SOOP, Twitch, YouTube</dd>
         <dt>지원 환경</dt><dd>Windows 64비트(설치 프로그램, zip), macOS(Apple Silicon), Linux(x64), 파이썬 패키지</dd>
       </dl>
@@ -130,7 +130,7 @@ debutkit-gui</code></pre>
           </table>
         </div>
         <figure>
-          <img src="assets/shots/wizard-chat.png" alt="설정 마법사 채팅과 알림 단계" width="1200" height="912" loading="lazy">
+          <img src="assets/shots/wizard-chat.png" alt="설정 마법사 채팅과 알림 단계" width="1200" height="934" loading="lazy">
           <figcaption>그림 1. 채팅과 알림 단계</figcaption>
         </figure>
         <ul>
@@ -147,6 +147,10 @@ debutkit-gui</code></pre>
 
         <h2 id="character">캐릭터</h2>
         <p>방송에 사용할 캐릭터를 등록하고 사용 조건을 확인합니다. PNGTuber와 3D(VRM)는 debutkit 캐릭터 화면으로 바로 방송하고, Live2D는 VTube Studio로 보내 방송합니다.</p>
+        <figure>
+          <img src="assets/shots/wizard-character.png" alt="설정 마법사 캐릭터 단계. 캐릭터 목록, 사용 조건, 추가, PNG로 만들기, 방송에 사용, 얼굴 추적 창 열기, VTube Studio 연결" width="1200" height="934" loading="lazy">
+          <figcaption>그림 2. 캐릭터 단계</figcaption>
+        </figure>
         <h3 id="character-kinds">종류별 처리</h3>
         <div class="tablewrap">
           <table>
@@ -181,6 +185,7 @@ debutkit-gui</code></pre>
           <li>잡음에 입이 움직이면 기준을 높이고(-30 등), 말해도 반응하지 않으면 낮춥니다. 명령줄: <code>debutkit overlay --voice-threshold -35</code></li>
           <li>OBS 마이크 대신 다른 오디오 소스를 사용하는 경우 <code>--voice-input 소스이름</code>을 지정합니다.</li>
           <li>미리보기: 오버레이 실행 중 설정 마법사의 미리보기 버튼(말하기 동작 반복)</li>
+          <li>기준 조정: 오버레이 설정 화면(<code>http://127.0.0.1:8790</code>)의 캐릭터 화면 카드에서 현재 OBS 마이크 음량(dB)과 말하기 상태를 보면서 기준을 정합니다. 말하기 시험 버튼은 3초 동안 말하는 모습을 표시합니다.</li>
         </ul>
         <h3 id="character-tracking">웹캠 얼굴 추적</h3>
         <p>3D(VRM) 캐릭터의 머리 움직임, 양쪽 눈, 입, 웃음을 웹캠으로 추적합니다. PNGTuber는 눈 깜빡임과 입 벌림에 반영합니다. OBS 브라우저 소스는 카메라를 쓸 수 없어 추적은 일반 브라우저 창에서 합니다.</p>
@@ -302,15 +307,17 @@ debutkit scenes --dry-run</code></pre>
           <table>
             <thead><tr><th>주소</th><th>용도</th></tr></thead>
             <tbody>
-              <tr><th scope="row"><code>http://127.0.0.1:8790</code></th><td>설정 화면. 주소 복사, 표시 형태 선택, 미리보기, 테스트 메시지</td></tr>
+              <tr><th scope="row"><code>http://127.0.0.1:8790</code></th><td>설정 화면. 주소 복사, 표시 형태 선택, 미리보기, 테스트 메시지, 캐릭터 음량과 말하기 시험</td></tr>
               <tr><th scope="row"><code>/chat</code></th><td>통합 채팅창. 권장 크기 420x1000</td></tr>
               <tr><th scope="row"><code>/alerts</code></th><td>후원, 구독 알림. 권장 크기 1920x1080</td></tr>
+              <tr><th scope="row"><code>/character</code></th><td>debutkit 캐릭터 화면(PNGTuber, VRM). 권장 크기 720x900</td></tr>
+              <tr><th scope="row"><code>/tracker</code></th><td>웹캠 얼굴 추적 화면. OBS가 아닌 일반 브라우저(Chrome, Edge)에서 엽니다</td></tr>
             </tbody>
           </table>
         </div>
         <figure>
-          <img src="assets/shots/overlay-settings.png" alt="오버레이 설정 화면" width="1180" height="900" loading="lazy">
-          <figcaption>그림 2. 오버레이 설정 화면</figcaption>
+          <img src="assets/shots/overlay-settings.png" alt="오버레이 설정 화면. 채팅창, 알림, 캐릭터 화면 주소와 미리보기" width="1180" height="1340" loading="lazy">
+          <figcaption>그림 3. 오버레이 설정 화면</figcaption>
         </figure>
         <h3 id="overlay-sources">채널 지정</h3>
         <div class="tablewrap">
@@ -354,7 +361,7 @@ debutkit settings                                # 저장 내용 확인</code></
         </div>
         <figure>
           <img src="assets/shots/overlay-themes.png" alt="채팅창 표시 형태 3종과 후원 알림" width="1200" height="600" loading="lazy">
-          <figcaption>그림 3. 채팅창 표시 형태(shadow, card, light)와 후원 알림</figcaption>
+          <figcaption>그림 4. 채팅창 표시 형태(shadow, card, light)와 후원 알림</figcaption>
         </figure>
         <ul>
           <li>알림 소리를 내보내려면 브라우저 소스 속성의 OBS 오디오 제어 항목을 체크합니다.</li>

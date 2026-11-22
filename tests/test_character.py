@@ -97,6 +97,52 @@ def test_live2d_folder_and_zip(tmp_path):
         character.inspect(model / "hiyori.model3.json")
 
 
+def test_live2d_copies_only_model_files(tmp_path):
+    """다운로드 폴더처럼 다른 파일이 섞인 폴더의 model3.json을 등록해도 모델 파일만 복사."""
+    downloads = tmp_path / "Downloads"
+    model = live2d(downloads)
+    (model / "textures").mkdir()
+    png(model / "textures" / "texture_01.png")
+    data = json.loads((model / "hiyori.model3.json").read_text(encoding="utf-8"))
+    data["FileReferences"]["Textures"].append("textures/texture_01.png")
+    (model / "hiyori.model3.json").write_text(json.dumps(data), encoding="utf-8")
+    (model / "hiyori.vtube.json").write_text("{}", encoding="utf-8")
+    (model / "ico_hiyori.png").write_bytes(png(tmp_path / "icon.png").read_bytes())
+    (model / "개인 문서.txt").write_text("x", encoding="utf-8")
+    (model / "다른 폴더").mkdir()
+    (model / "다른 폴더" / "사진.png").write_bytes(b"x")
+    added = character.add(model / "hiyori.model3.json")
+    folder = character.library_dir() / added.id
+    copied = sorted(path.relative_to(folder).as_posix() for path in folder.rglob("*") if path.is_file())
+    assert copied == sorted(["character.json", "hiyori.model3.json", "hiyori.moc3", "hiyori.physics3.json", "hiyori.vtube.json",
+                             "ico_hiyori.png", "texture_00.png", "textures/texture_01.png"])
+    data["FileReferences"]["Physics"] = "../outside.json"
+    (tmp_path / "outside.json").write_text("{}", encoding="utf-8")
+    (model / "hiyori.model3.json").write_text(json.dumps(data), encoding="utf-8")
+    with pytest.raises(character.CharacterError, match="모델 폴더 밖"):
+        character.inspect(model / "hiyori.model3.json")
+
+
+def test_mac_zip_extras_and_broken_files(tmp_path):
+    """Mac에서 만든 zip의 __MACOSX, ._ 파일은 건너뛰고, 손상된 파일은 안내 메시지(CharacterError)로."""
+    model = live2d(tmp_path / "src" / "hiyori")
+    archive = tmp_path / "mac.zip"
+    with zipfile.ZipFile(archive, "w") as bundle:
+        bundle.writestr("__MACOSX/hiyori/._hiyori.model3.json", b"\x00\x05\x16\x07")
+        bundle.writestr("hiyori/._hiyori.model3.json", b"\x00\x05\x16\x07")
+        for file in model.iterdir():
+            bundle.write(file, f"hiyori/{file.name}")
+    added = character.add(archive, name="맥")
+    folder = character.library_dir() / added.id
+    assert added.files == {"model": "hiyori.model3.json"} and not list(folder.rglob("._*"))
+    (tmp_path / "broken.zip").write_bytes(b"PK\x03\x04 not really")
+    with pytest.raises(character.CharacterError, match="손상"):
+        character.add(tmp_path / "broken.zip")
+    odd = glb(tmp_path / "odd.vrm", {"VRMC_vrm": {"specVersion": "1.0", "meta": ["not", "a", "dict"]}})
+    with pytest.raises(character.CharacterError):
+        character.inspect(odd)
+
+
 def test_zip_with_parent_paths_is_refused(tmp_path):
     archive = tmp_path / "evil.zip"
     with zipfile.ZipFile(archive, "w") as bundle:

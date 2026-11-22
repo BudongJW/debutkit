@@ -5,8 +5,8 @@
 - ``/alerts``  후원, 구독 알림
 - ``/events``  화면들이 받는 사건 흐름 (Server-Sent Events)
 - ``/character`` 캐릭터 화면(PNGTuber, VRM). ``?id=캐릭터`` 로 지정, 없으면 방송에 사용할 캐릭터
-- ``/voice``   캐릭터 화면이 받는 말하기 상태 (Server-Sent Events)
-- ``/tracker`` 얼굴 추적 화면(일반 브라우저에서 열고 카메라 허용). ``POST /tracking`` 으로 값을 보내고 캐릭터 화면은 ``/tracking`` 으로 받는다
+- ``/live``    캐릭터 화면, 설정 화면이 받는 말하기 상태와 얼굴 추적 값 (Server-Sent Events 하나, ``/voice`` 와 ``/tracking`` 은 각각)
+- ``/tracker`` 얼굴 추적 화면(일반 브라우저에서 열고 카메라 허용). ``POST /tracking`` 으로 값을 보낸다
 - ``POST /test`` 설정 화면의 테스트 메시지, ``POST /voice/test`` 말하기 시험
 
 127.0.0.1에만 열리고, 다른 웹사이트가 이 서버에 요청을 끼워 넣지 못하도록 Host와
@@ -18,6 +18,9 @@ from __future__ import annotations
 import json
 import queue
 import re
+import shutil
+import socket
+import sys
 import threading
 import time
 import urllib.parse
@@ -52,9 +55,11 @@ def _vendor(path: str) -> bytes | None:
 
 
 def character_info(character: Any) -> dict[str, Any]:
+    """캐릭터 화면이 받는 정보. ID와 파일 이름은 주소에 쓸 수 있게 바꾼다(한글, 공백, # 등)."""
     base = f"/character/files/{urllib.parse.quote(character.id)}/"
     return {"id": character.id, "name": character.name, "kind": character.kind, "renders": character.renders_in_overlay,
-            "files": {role: base + name for role, name in character.files.items()}, "thumbnail": base + character.thumbnail if character.thumbnail else ""}
+            "files": {role: base + urllib.parse.quote(name) for role, name in character.files.items()},
+            "thumbnail": base + urllib.parse.quote(character.thumbnail) if character.thumbnail else ""}
 
 
 class Hub:
@@ -103,9 +108,12 @@ def _static(name: str) -> bytes:
 
 
 def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.0, voice: VoiceState | None = None,
-                 tracking: TrackingState | None = None) -> type[BaseHTTPRequestHandler]:
+                 tracking: TrackingState | None = None, stopping: threading.Event | None = None) -> type[BaseHTTPRequestHandler]:
+    """``stopping`` 이 설정되면 열린 사건 흐름을 모두 끝낸다(화면은 새 서버에 다시 연결)."""
     voice = voice or VoiceState()
     tracking = tracking or TrackingState()
+    stopping = stopping or threading.Event()
+    step = min(0.5, keepalive)
 
     class Handler(BaseHTTPRequestHandler):
         server_version = "debutkit-overlay"
@@ -142,6 +150,8 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
                 return self._stream(voice)
             if path == "/tracking":
                 return self._stream(tracking)
+            if path == "/live":
+                return self._live()
             if path == "/status":
                 return self._send(HTTPStatus.OK, json.dumps({"listeners": hub.listeners}).encode(), "application/json")
             if path == "/character/info":
@@ -160,7 +170,10 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
 
         def do_POST(self) -> None:  # noqa: N802
             # 응답 전에 요청 본문을 먼저 읽는다(읽지 않고 닫으면 Windows에서 연결이 끊겨 거부 응답이 전달되지 않음)
-            length = min(int(self.headers.get("Content-Length") or 0), 4096)
+            try:
+                length = min(int(self.headers.get("Content-Length") or 0), 4096)
+            except ValueError:
+                return self._send(HTTPStatus.BAD_REQUEST, b"bad length")
             body = self.rfile.read(length) if length > 0 else b""
             if not self._local():
                 return self._send(HTTPStatus.FORBIDDEN, b"forbidden")
@@ -168,14 +181,15 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
             if path not in ("/test", "/voice/test", "/tracking"):
                 return self._send(HTTPStatus.NOT_FOUND, b"not found")
             try:
-                data = json.loads(body or b"{}")
+                raw = json.loads(body or b"{}")
             except ValueError:
-                data = {}
+                raw = {}
+            data = raw if isinstance(raw, dict) else {}
             if path == "/voice/test":
                 voice.test(bool(data.get("talking", True)))
                 return self._send(HTTPStatus.OK, b"ok")
             if path == "/tracking":
-                values = clean(data)
+                values = clean(raw)
                 if values is None:
                     return self._send(HTTPStatus.BAD_REQUEST, b"bad tracking data")
                 tracking.publish(values)
@@ -187,23 +201,35 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
             hub.publish(event)
             self._send(HTTPStatus.OK, b"ok")
 
-        def _events(self) -> None:
+        def _open_stream(self) -> None:
             self.send_response(HTTPStatus.OK)
             self.send_header("Content-Type", "text/event-stream; charset=utf-8")
             self.send_header("Cache-Control", "no-store")
             self.end_headers()
+
+        def _follow(self, subscriber: queue.Queue[Any], write: Callable[[Any], None]) -> None:
+            """서버가 멈출 때까지 새 값을 보낸다. 조용하면 ``keepalive`` 초마다 ping(끊긴 연결 확인)."""
+            quiet = 0.0
+            while not stopping.is_set():
+                try:
+                    item = subscriber.get(timeout=step)
+                except queue.Empty:
+                    quiet += step
+                    if quiet >= keepalive:
+                        quiet = 0.0
+                        self.wfile.write(b": ping\n\n")
+                        self.wfile.flush()
+                    continue
+                quiet = 0.0
+                write(item)
+
+        def _events(self) -> None:
+            self._open_stream()
             subscriber, backlog = hub.subscribe()
             try:
                 for event in backlog:
                     self._write_event(event, replay=True)
-                while True:
-                    try:
-                        event = subscriber.get(timeout=keepalive)
-                    except queue.Empty:
-                        self.wfile.write(b": ping\n\n")
-                        self.wfile.flush()
-                        continue
-                    self._write_event(event)
+                self._follow(subscriber, self._write_event)
             except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError, OSError):
                 pass
             finally:
@@ -220,36 +246,57 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
         def _character_file(self, rest: str) -> None:
             from .. import character
 
+            # 파일 이름은 character.json에 등록한 이름과 정확히 같아야 하고 캐릭터 폴더 안이어야 한다(character.file_path)
             character_id, _, relative = urllib.parse.unquote(rest).partition("/")
             found = character.get(character_id)
-            target = character.file_path(found, relative) if found and _SAFE_PATH.match(relative) else None
+            target = character.file_path(found, relative) if found and "\\" not in relative else None
             if target is None:
                 return self._send(HTTPStatus.NOT_FOUND, b"not found")
-            self._send(HTTPStatus.OK, target.read_bytes(), TYPES.get(target.suffix.lower(), "application/octet-stream"))
+            self.send_response(HTTPStatus.OK)  # VRM은 수백 MB일 수 있어 나눠 보낸다
+            self.send_header("Content-Type", TYPES.get(target.suffix.lower(), "application/octet-stream"))
+            self.send_header("Content-Length", str(target.stat().st_size))
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.end_headers()
+            try:
+                with target.open("rb") as source:
+                    shutil.copyfileobj(source, self.wfile, 1024 * 1024)
+            except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+                pass
 
         def _stream(self, state: Any) -> None:
-            """말하기 상태, 추적 값의 Server-Sent Events. 연결하면 현재 값부터 보낸다."""
-            self.send_response(HTTPStatus.OK)
-            self.send_header("Content-Type", "text/event-stream; charset=utf-8")
-            self.send_header("Cache-Control", "no-store")
-            self.end_headers()
-            subscriber, current = state.subscribe()
-            try:
-                self.wfile.write(b"data: " + json.dumps(current).encode() + b"\n\n")
+            """말하기 상태 또는 추적 값 하나의 Server-Sent Events. 연결하면 현재 값부터 보낸다."""
+            self._feeds({"": state})
+
+        def _live(self) -> None:
+            """캐릭터 화면, 설정 화면용: 말하기 상태(event: voice)와 추적 값(event: tracking)을 연결 하나로 보낸다.
+
+            브라우저는 같은 주소에 동시 연결을 6개까지만 열기 때문에(OBS 브라우저 소스끼리도 공유) 화면 하나가 연결을 여러 개 쓰지 않도록 한다.
+            """
+            self._feeds({"voice": voice, "tracking": tracking})
+
+        def _feeds(self, feeds: dict[str, Any]) -> None:
+            """상태들의 새 값을 연결 하나로. 이름이 있으면 ``event:`` 줄을 붙인다."""
+            self._open_stream()
+            merged: queue.Queue[tuple[str, dict[str, Any]]] = queue.Queue(maxsize=320)
+            joined: dict[str, Any] = {}
+
+            def write(item: tuple[str, dict[str, Any]]) -> None:
+                name, data = item
+                head = f"event: {name}\n".encode() if name else b""
+                self.wfile.write(head + b"data: " + json.dumps(data, ensure_ascii=False).encode() + b"\n\n")
                 self.wfile.flush()
-                while True:
-                    try:
-                        state = subscriber.get(timeout=keepalive)
-                    except queue.Empty:
-                        self.wfile.write(b": ping\n\n")
-                        self.wfile.flush()
-                        continue
-                    self.wfile.write(b"data: " + json.dumps(state, ensure_ascii=False).encode() + b"\n\n")
-                    self.wfile.flush()
+
+            try:
+                for name, feed in feeds.items():
+                    joined[name], current = feed.subscribe(_Tagged(merged, name))
+                    write((name, current))
+                self._follow(merged, write)
             except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError, OSError):
                 pass
             finally:
-                state.unsubscribe(subscriber)
+                for name, subscriber in joined.items():
+                    feeds[name].unsubscribe(subscriber)
 
         def _write_event(self, event: OverlayEvent, *, replay: bool = False) -> None:
             data = event.to_dict()
@@ -258,6 +305,31 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
             self.wfile.flush()
 
     return Handler
+
+
+class _Tagged:
+    """여러 상태의 새 값을 대기열 하나로 모은다: 값마다 이름을 붙여 ``(이름, 값)`` 으로 넣는다."""
+
+    def __init__(self, target: queue.Queue[tuple[str, dict[str, Any]]], name: str) -> None:
+        self.target, self.name = target, name
+
+    def put_nowait(self, item: dict[str, Any]) -> None:
+        self.target.put_nowait((self.name, item))
+
+
+class _HttpServer(ThreadingHTTPServer):
+    """Windows에서는 같은 포트를 다른 프로그램(다른 debutkit 포함)이 함께 열지 못하게 한다.
+
+    기본값(SO_REUSEADDR)으로는 Windows가 두 번째 서버도 같은 포트에 열어 주고, OBS가 어느 쪽에 연결될지 알 수 없다.
+    """
+
+    daemon_threads = True
+
+    def server_bind(self) -> None:
+        if sys.platform == "win32":
+            self.allow_reuse_address = False
+            self.socket.setsockopt(socket.SOL_SOCKET, getattr(socket, "SO_EXCLUSIVEADDRUSE", -5), 1)
+        super().server_bind()
 
 
 class OverlayServer:
@@ -273,8 +345,8 @@ class OverlayServer:
         self._stop = threading.Event()
         self._threads: list[threading.Thread] = []
         self._attached: list[Any] = []
-        self.httpd = ThreadingHTTPServer(("127.0.0.1", port), make_handler(self.hub, lambda: self.port, voice=self.voice, tracking=self.tracking))
-        self.httpd.daemon_threads = True
+        self.httpd = _HttpServer(("127.0.0.1", port), make_handler(self.hub, lambda: self.port, voice=self.voice, tracking=self.tracking,
+                                                                   stopping=self._stop))
 
     @property
     def port(self) -> int:

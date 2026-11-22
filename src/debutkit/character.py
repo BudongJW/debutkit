@@ -197,17 +197,15 @@ _COMMERCIAL_1 = {"personalNonProfit": "개인 비영리만", "personalProfit": "
 _AVATAR_0 = {"OnlyAuthor": "제작자 본인", "ExplicitlyLicensedPerson": "별도 허락을 받은 사람", "Everyone": "모든 사람"}
 
 
-def live2d_details(model: Path) -> dict[str, Any]:
-    """model3.json과 참조 파일 확인. 문제가 있으면 CharacterError."""
+def _live2d_refs(model: Path) -> tuple[dict[str, Any], dict[str, Any], list[str]]:
+    """(model3.json 내용, FileReferences, 참조 파일 상대 경로)."""
     try:
         data = json.loads(model.read_text(encoding="utf-8-sig"))
     except (OSError, ValueError) as error:
         raise CharacterError(f"model3.json을 읽지 못함: {error}") from error
     refs = data.get("FileReferences") if isinstance(data, dict) else None
-    if not isinstance(refs, dict) or not refs.get("Moc") or not refs.get("Textures"):
+    if not isinstance(refs, dict) or not refs.get("Moc") or not isinstance(refs.get("Textures"), list) or not refs["Textures"]:
         raise CharacterError("model3.json에 Moc 또는 Textures 항목 없음(Live2D Cubism 3 이상 모델 필요)")
-    base = model.parent
-    missing = []
     paths = [refs["Moc"], *refs["Textures"]]
     for key in ("Physics", "Pose", "DisplayInfo", "UserData"):
         if refs.get(key):
@@ -219,9 +217,35 @@ def live2d_details(model: Path) -> dict[str, Any]:
         for item in group if isinstance(group, list) else []:
             if isinstance(item, dict) and item.get("File"):
                 paths.append(item["File"])
+            if isinstance(item, dict) and item.get("Sound"):
+                paths.append(item["Sound"])
+    return data, refs, list(dict.fromkeys(str(path) for path in paths))
+
+
+def live2d_files(model: Path) -> list[str]:
+    """등록, 보내기에 복사할 파일(모델 폴더 기준 상대 경로): model3.json, 참조 파일, VTube Studio 설정(.vtube.json)과 아이콘."""
+    _, _, paths = _live2d_refs(model)
+    base = model.parent
+    extras = [item.name for item in sorted(base.iterdir()) if item.is_file() and
+              (item.name.lower().endswith(".vtube.json") or (item.suffix.lower() == ".png" and item.name.lower().startswith("ico_")))]
+    found = []
+    for relative in [model.name, *paths, *extras]:
+        target = (base / relative).resolve()
+        if target.is_file() and target.is_relative_to(base.resolve()) and relative not in found:
+            found.append(relative)
+    return found
+
+
+def live2d_details(model: Path) -> dict[str, Any]:
+    """model3.json과 참조 파일 확인. 문제가 있으면 CharacterError."""
+    data, refs, paths = _live2d_refs(model)
+    base = model.parent
+    missing = []
     for relative in paths:
-        if not (base / str(relative)).is_file():
-            missing.append(str(relative))
+        if not (base / relative).resolve().is_relative_to(base.resolve()):
+            raise CharacterError(f"model3.json이 모델 폴더 밖 파일을 가리킴: {relative}")
+        if not (base / relative).is_file():
+            missing.append(relative)
     if missing:
         raise CharacterError("model3.json이 가리키는 파일 없음: " + ", ".join(missing[:5]) + (" 외" if len(missing) > 5 else ""))
     with (base / refs["Moc"]).open("rb") as handle:
@@ -247,17 +271,33 @@ def _slug(name: str, taken: set[str]) -> str:
 
 
 def _extract(archive: Path, target: Path) -> Path:
-    """zip 압축을 안전하게 풀기(상위 폴더 경로, 지나치게 큰 압축 거부)."""
-    with zipfile.ZipFile(archive) as bundle:
-        total = sum(info.file_size for info in bundle.infolist())
-        if total > MAX_ZIP_BYTES:
-            raise CharacterError("압축 해제 크기가 1 GB를 넘음")
-        for info in bundle.infolist():
-            destination = (target / info.filename).resolve()
-            if not str(destination).startswith(str(target.resolve())):
-                raise CharacterError(f"압축 파일에 허용하지 않는 경로: {info.filename}")
-        bundle.extractall(target)
+    """zip 압축을 안전하게 풀기(상위 폴더 경로, 지나치게 큰 압축 거부). Mac에서 만든 압축의 __MACOSX 폴더는 풀지 않는다."""
+    try:
+        with zipfile.ZipFile(archive) as bundle:
+            members = [info for info in bundle.infolist() if not _mac_junk(Path(info.filename))]
+            if sum(info.file_size for info in members) > MAX_ZIP_BYTES:
+                raise CharacterError("압축 해제 크기가 1 GB를 넘음")
+            for info in members:
+                destination = (target / info.filename).resolve()
+                if not destination.is_relative_to(target.resolve()):
+                    raise CharacterError(f"압축 파일에 허용하지 않는 경로: {info.filename}")
+            bundle.extractall(target, members)
+    except CharacterError:
+        raise
+    except zipfile.BadZipFile as error:
+        raise CharacterError(f"zip 압축 파일이 아니거나 손상됨: {archive.name}") from error
+    except (RuntimeError, NotImplementedError) as error:  # 암호, 지원하지 않는 압축 방식
+        raise CharacterError(f"풀 수 없는 압축(암호 또는 지원하지 않는 방식, 일반 zip으로 다시 압축 필요): {error}") from error
     return target
+
+
+def _mac_junk(path: Path) -> bool:
+    """Mac이 압축에 함께 넣는 부가 파일(__MACOSX 폴더, ._ 로 시작하는 파일)."""
+    return "__MACOSX" in path.parts or path.name.startswith("._") or path.name == ".DS_Store"
+
+
+def _find(folder: Path, pattern: str) -> list[Path]:
+    return sorted(path for path in folder.rglob(pattern) if not _mac_junk(path.relative_to(folder)))
 
 
 def detect(path: Path) -> tuple[str, Path]:
@@ -274,10 +314,10 @@ def detect(path: Path) -> tuple[str, Path]:
             raise CharacterError("PNG 이미지는 상태별로 지정해야 함: debutkit character png --idle 입다문.png --talk 입벌린.png")
         raise CharacterError(f"지원하지 않는 파일: {path.name}(VRM, Live2D model3.json 또는 zip, 이미지 폴더, Inochi2D)")
     if path.is_dir():
-        models = sorted(path.rglob("*.model3.json"))
+        models = _find(path, "*.model3.json")
         if models:
             return "live2d", models[0]
-        vrms = sorted(path.rglob("*.vrm"))
+        vrms = _find(path, "*.vrm")
         if vrms:
             return "vrm", vrms[0]
         if any((path / f"{state}.png").is_file() for state in ("idle", "talk")):
@@ -296,8 +336,13 @@ def inspect(path: str | Path) -> Character:
     if kind == "png":
         return png_character(*(model / f"{state}.png" if (model / f"{state}.png").is_file() else None for state in PNG_STATES))
     if kind == "vrm":
-        gltf, binary = read_glb(model)
-        details = vrm_details(gltf, binary)
+        try:
+            gltf, binary = read_glb(model)
+            details = vrm_details(gltf, binary)
+        except CharacterError:
+            raise
+        except (ValueError, TypeError, KeyError, AttributeError, IndexError, struct.error) as error:  # 형식이 어긋난 glTF JSON
+            raise CharacterError(f"VRM 파일 정보를 읽지 못함(손상 또는 다른 형식): {model.name}") from error
         return Character("", details["name"] or model.stem, "vrm", {"model": model.name}, author=details["author"], version=details["version"],
                          license=details["license"], warnings=details["warnings"])
     if kind == "live2d":
@@ -351,10 +396,12 @@ def add(path: str | Path, name: str = "") -> Character:
         if kind == "png":
             sources = {state: model / f"{state}.png" for state in character.files}
             return _store(character, name, lambda folder: [shutil.copy2(src, folder / f"{state}.png") for state, src in sources.items()])
-        if kind == "live2d":  # 모델 폴더 전체(참조 파일이 하위 폴더에 있음)
+        if kind == "live2d":  # model3.json이 가리키는 파일만(하위 폴더 구조 유지). 같은 폴더의 다른 파일은 복사하지 않음
             def copy_live2d(folder: Path) -> None:
-                shutil.copytree(model.parent, folder, dirs_exist_ok=True)
-            return _store(character, name, copy_live2d, model=model.name)
+                for relative in live2d_files(model):
+                    (folder / relative).parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(model.parent / relative, folder / relative)
+            return _store(character, name, copy_live2d)
         if kind == "vrm":
             gltf, binary = read_glb(model)
             thumb = vrm_details(gltf, binary)["thumbnail"]
@@ -375,7 +422,7 @@ def add_png(idle: Path, talk: Path, blink: Path | None = None, talk_blink: Path 
     return _store(character, name, lambda folder: [shutil.copy2(Path(sources[state]), folder / f"{state}.png") for state in character.files])
 
 
-def _store(character: Character, name: str, copy: Any, *, model: str = "") -> Character:
+def _store(character: Character, name: str, copy: Any) -> Character:
     library = library_dir()
     library.mkdir(parents=True, exist_ok=True)
     taken = {item.name for item in library.iterdir() if item.is_dir()}
@@ -385,8 +432,6 @@ def _store(character: Character, name: str, copy: Any, *, model: str = "") -> Ch
     folder.mkdir()
     try:
         copy(folder)
-        if model:
-            character.files = {"model": str(next(folder.rglob(model)).relative_to(folder).as_posix())}
         _save(character, folder)
     except Exception:
         shutil.rmtree(folder, ignore_errors=True)
@@ -451,7 +496,7 @@ def file_path(character: Character, relative: str) -> Path | None:
     if relative not in allowed:
         return None
     target = (folder / relative).resolve()
-    return target if target.is_file() and str(target).startswith(str(folder)) else None
+    return target if target.is_file() and target.is_relative_to(folder) else None
 
 
 # --------------------------------------------------------------------------- 방송 프로그램으로 보내기

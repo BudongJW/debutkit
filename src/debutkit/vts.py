@@ -21,6 +21,8 @@ from typing import Any, Callable
 from . import settings
 
 DEFAULT_URL = "ws://127.0.0.1:8001"
+#: 허용 요청 창에서 사용자가 허용을 누를 때까지 기다리는 시간
+APPROVAL_SECONDS = 120.0
 PLUGIN = {"pluginName": "debutkit", "pluginDeveloper": "debutkit"}
 ERRORS = {
     8: "VTube Studio 설정에서 플러그인 API 사용 필요",
@@ -113,11 +115,15 @@ class VtsClient:
         except Exception:
             pass
 
-    def request(self, kind: str, data: dict[str, Any] | None = None) -> dict[str, Any]:
+    def request(self, kind: str, data: dict[str, Any] | None = None, *, timeout: float | None = None) -> dict[str, Any]:
+        """요청 하나. ``timeout`` 을 주면 이 요청만 그 시간까지 응답을 기다린다(사용자의 허용 클릭 등)."""
         request_id = uuid.uuid4().hex[:16]
         message = {"apiName": "VTubeStudioPublicAPI", "apiVersion": "1.0", "requestID": request_id, "messageType": f"{kind}Request"}
         if data is not None:
             message["data"] = data
+        previous = self._ws.gettimeout() if timeout is not None and hasattr(self._ws, "gettimeout") else None
+        if timeout is not None and hasattr(self._ws, "settimeout"):
+            self._ws.settimeout(timeout)
         try:
             self._ws.send(json.dumps(message))
             while True:
@@ -127,7 +133,12 @@ class VtsClient:
         except VtsError:
             raise
         except Exception as error:
+            if timeout is not None and "timed out" in str(error).lower():
+                raise VtsError(f"VTube Studio 화면의 허용 요청에 {timeout:.0f}초 동안 응답 없음: 다시 연결을 누른 뒤 VTube Studio 화면에서 허용") from error
             raise VtsError(f"VTube Studio 연결 끊김: {error}") from error
+        finally:
+            if timeout is not None and hasattr(self._ws, "settimeout"):
+                self._ws.settimeout(previous)
         body = reply.get("data") or {}
         if reply.get("messageType") == "APIError":
             code = body.get("errorID")
@@ -145,7 +156,7 @@ class VtsClient:
         if not request_new:
             raise VtsError("VTube Studio 연결 전: debutkit vts login 또는 설정 마법사의 VTube Studio 연결")
         on_prompt()
-        token = str(self.request("AuthenticationToken", {**PLUGIN, "pluginIcon": icon()}).get("authenticationToken") or "")
+        token = str(self.request("AuthenticationToken", {**PLUGIN, "pluginIcon": icon()}, timeout=APPROVAL_SECONDS).get("authenticationToken") or "")
         if not token or not self.request("Authentication", {**PLUGIN, "authenticationToken": token}).get("authenticated"):
             raise VtsError("VTube Studio 인증 실패")
         return token
