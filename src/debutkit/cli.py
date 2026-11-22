@@ -40,7 +40,7 @@ def _scenes(args: argparse.Namespace) -> int:
     from .scenes import SceneOptions, build_scenes, connect_and_apply, default_kinds, format_plan, format_report
 
     base = f"http://127.0.0.1:{args.overlay_port}"
-    options = SceneOptions(overlay_url=f"{base}/chat", alerts_url=f"{base}/alerts", avatar=args.avatar)
+    options = SceneOptions(overlay_url=f"{base}/chat", alerts_url=f"{base}/alerts", character_url=f"{base}/character", avatar=args.avatar)
     if args.dry_run:
         kinds = default_kinds(options.os_name)
         print(format_plan(build_scenes(1920, 1080, kinds, options), kinds))
@@ -59,7 +59,7 @@ def _scenes(args: argparse.Namespace) -> int:
 #: overlay 옵션과 저장 설정 항목의 대응(API 키, 비밀번호는 저장하지 않음)
 OVERLAY_SETTINGS = {"chzzk": "chzzk", "chzzk_api": "chzzk_api", "soop": "soop", "twitch": "twitch", "youtube": "youtube",
                     "youtube_mode": "youtube_mode", "youtube_interval": "youtube_interval", "demo": "demo", "port": "overlay_port",
-                    "clip": "clip", "clip_dir": "clip_dir", "obs_port": "obs_port"}
+                    "clip": "clip", "clip_dir": "clip_dir", "obs_port": "obs_port", "voice_input": "voice_input", "voice_threshold": "voice_threshold"}
 
 
 def apply_saved(args: argparse.Namespace, saved: dict[str, Any], defaults: dict[str, Any]) -> list[str]:
@@ -122,6 +122,7 @@ def _overlay(args: argparse.Namespace) -> int:
     print("  연결: " + ", ".join(label for label, _ in sources))
     if not (args.chzzk_api or args.chzzk or args.soop or args.twitch or args.youtube):
         print("  채널 미지정, 데모 채팅 표시. 예: debutkit overlay --chzzk 채널주소 --soop 방송국주소")
+    _start_voice(server, args)
     if args.clip:
         if not _start_autoclip(server, args):
             server.stop()
@@ -133,6 +134,25 @@ def _overlay(args: argparse.Namespace) -> int:
     finally:
         logs.close(record)
     return 0
+
+
+def _start_voice(server: Any, args: argparse.Namespace) -> None:
+    """캐릭터 화면의 입 움직임: OBS 마이크 음량을 받는다(채팅 연결 모듈 필요)."""
+    if args.no_voice:
+        return
+    try:
+        import stream2clip.obs  # noqa: F401
+    except ImportError:
+        print('  캐릭터 음성 반응: 채팅 연결 모듈 없음(pip install "debutkit[live]")')
+        return
+    from .overlay.events import system_event
+    from .overlay.voice import VoiceMeter
+
+    password = args.obs_password or os.environ.get("OBS_WEBSOCKET_PASSWORD")
+    meter = VoiceMeter(server.voice, args.obs_host, args.obs_port, password, input_name=args.voice_input, threshold=args.voice_threshold,
+                       notify=lambda text: server.hub.publish(system_event(text)))
+    server.attach(meter.start())
+    print(f"  캐릭터 화면: {server.url}/character (OBS 마이크 음량으로 입 움직임, 기준 {args.voice_threshold:.0f} dB)")
 
 
 def _start_autoclip(server: Any, args: argparse.Namespace) -> bool:
@@ -212,6 +232,62 @@ def _chzzk_logout(args: argparse.Namespace) -> int:
     return 0
 
 
+def _describe(item: Any, active_id: str) -> str:
+    mark = "* " if item.id == active_id else "  "
+    note = f"  확인 필요 {len(item.warnings)}건" if item.warnings else ""
+    return f"{mark}{item.id:20} {item.kind_name:10} {item.name}{note}"
+
+
+def _character(args: argparse.Namespace) -> int:
+    from . import character
+
+    command = args.character_command
+    try:
+        if command == "list":
+            active_id = character.active().id
+            print("등록한 캐릭터(* 방송에 사용)")
+            for item in character.all_characters():
+                print(_describe(item, active_id))
+            print(f"보관 위치: {character.library_dir()}")
+            return 0
+        if command in ("add", "png"):
+            if command == "add":
+                item = character.add(args.path, name=args.name or "")
+            else:
+                item = character.add_png(args.idle, args.talk, args.blink, args.talk_blink, name=args.name)
+            print(f"등록: {item.id} ({item.kind_name}, {item.name})")
+        else:
+            item = character.get(args.id)
+            if item is None:
+                print(f"등록한 캐릭터 없음: {args.id}. debutkit character list 로 확인", file=sys.stderr)
+                return 1
+        if command == "use":
+            character.use(item.id)
+            print(f"방송에 사용: {item.name}. " + (f"OBS 브라우저 소스 주소 http://127.0.0.1:{OVERLAY_PORT}/character" if item.renders_in_overlay
+                                                 else f"{item.broadcast}에서 표시"))
+            return 0
+        if command == "remove":
+            print(f"삭제: {character.remove(item.id)}")
+            return 0
+        if command == "send":
+            target = character.send(item, args.to, args.folder)
+            app = character.APP_FOLDERS[args.to][0]
+            print(f"{app}로 복사: {target}\n{app}를 다시 시작하면 모델 목록에 표시")
+            return 0
+    except (character.CharacterError, OSError) as error:
+        print(f"캐릭터 작업 실패: {error}", file=sys.stderr)
+        return 1
+    print(f"  종류: {item.kind_name}" + (f" ({item.version})" if item.version else ""))
+    if item.author:
+        print(f"  제작자: {item.author}")
+    print(f"  방송: {item.broadcast}")
+    for line in item.license:
+        print(f"  사용 조건: {line}")
+    for line in item.warnings:
+        print(f"  확인 필요: {line}")
+    return 0
+
+
 def _settings(args: argparse.Namespace) -> int:
     from . import settings
 
@@ -269,7 +345,8 @@ def build_parser() -> argparse.ArgumentParser:
     scenes.add_argument("--host", default="127.0.0.1")
     scenes.add_argument("--port", type=int, default=4455, help="OBS WebSocket 포트 (기본 %(default)s)")
     scenes.add_argument("--password", help="OBS WebSocket 비밀번호 (또는 OBS_WEBSOCKET_PASSWORD)")
-    scenes.add_argument("--avatar", default="vts", choices=["vts", "vseeface", "warudo", "vmagicmirror", "none"], help="아바타 프로그램 (기본 %(default)s)")
+    scenes.add_argument("--avatar", default="vts", choices=["vts", "vseeface", "warudo", "vmagicmirror", "debutkit", "none"],
+                        help="아바타 프로그램. debutkit: debutkit 캐릭터 화면(PNGTuber, VRM) (기본 %(default)s)")
     scenes.add_argument("--overlay-port", type=int, default=OVERLAY_PORT, help="debutkit overlay 포트 (기본 %(default)s)")
     scenes.add_argument("--replace", action="store_true", help="같은 이름의 장면을 삭제 후 다시 생성")
     scenes.add_argument("--switch", action="store_true", help="생성 후 대기 화면으로 전환")
@@ -306,10 +383,34 @@ def build_parser() -> argparse.ArgumentParser:
     clip.add_argument("--obs-host", default="127.0.0.1")
     clip.add_argument("--obs-port", type=int, default=4455)
     clip.add_argument("--obs-password", help="OBS WebSocket 비밀번호 (또는 OBS_WEBSOCKET_PASSWORD)")
+    voice = overlay.add_argument_group("캐릭터 음성 반응(debutkit 캐릭터 화면)")
+    voice.add_argument("--no-voice", action="store_true", help="OBS 마이크 음량으로 캐릭터 입 움직이기 끄기")
+    voice.add_argument("--voice-input", metavar="소스", help="음량을 읽을 OBS 오디오 소스 이름 (기본: OBS 설정의 마이크)")
+    voice.add_argument("--voice-threshold", type=float, default=-40.0, metavar="dB", help="말하는 것으로 판단할 음량 (기본 %(default)s dBFS)")
     saved = overlay.add_argument_group("저장한 설정")
     saved.add_argument("--saved", action="store_true", help="저장한 설정(채널, 포트, 자동 클립 등) 사용. 명령줄에 지정한 항목이 우선")
     saved.add_argument("--save", action="store_true", help="이번 실행의 채널과 옵션을 저장 (API 키, 비밀번호 제외)")
     overlay.set_defaults(func=_overlay, overlay_defaults={dest: overlay.get_default(dest) for dest in OVERLAY_SETTINGS})
+
+    chars = sub.add_parser("character", help="캐릭터 등록, 확인, 방송 사용(PNGTuber, VRM, Live2D)")
+    chars_sub = chars.add_subparsers(dest="character_command", required=True)
+    chars_sub.add_parser("list", help="등록한 캐릭터 목록")
+    add = chars_sub.add_parser("add", help="캐릭터 등록: VRM 파일, Live2D 폴더나 zip(model3.json), PNG 폴더(idle.png, talk.png), Inochi2D")
+    add.add_argument("path", metavar="경로")
+    add.add_argument("--name", help="표시할 이름")
+    png = chars_sub.add_parser("png", help="상태별 PNG 이미지로 PNGTuber 캐릭터 만들기")
+    png.add_argument("--idle", required=True, metavar="PNG", help="입 다문 이미지")
+    png.add_argument("--talk", required=True, metavar="PNG", help="입 벌린 이미지")
+    png.add_argument("--blink", metavar="PNG", help="눈 감은 이미지(선택)")
+    png.add_argument("--talk-blink", metavar="PNG", help="입 벌리고 눈 감은 이미지(선택)")
+    png.add_argument("--name", required=True, help="캐릭터 이름")
+    for command, text in (("show", "사용 조건, 확인 필요 사항 보기"), ("use", "방송에 사용할 캐릭터로 지정"), ("remove", "등록 삭제")):
+        chars_sub.add_parser(command, help=text).add_argument("id", metavar="캐릭터")
+    send = chars_sub.add_parser("send", help="방송 프로그램의 모델 폴더로 복사: Live2D는 VTube Studio, VRM은 Warudo")
+    send.add_argument("id", metavar="캐릭터")
+    send.add_argument("--to", required=True, choices=["vts", "warudo"])
+    send.add_argument("--folder", help="모델 폴더(자동으로 찾지 못한 경우)")
+    chars.set_defaults(func=_character)
 
     stored = sub.add_parser("settings", help="저장한 설정 보기 또는 삭제")
     stored.add_argument("--clear", action="store_true", help="저장한 설정 삭제")

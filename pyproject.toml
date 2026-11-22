@@ -38,7 +38,7 @@ debutkit-gui = "debutkit.gui.app:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-debutkit = ["overlay/static/*", "gui/icon.png"]
+debutkit = ["overlay/static/*", "overlay/static/**/*", "gui/icon.png"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

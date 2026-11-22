@@ -166,7 +166,7 @@ def programs(item: Path, platform_name: str | None = None) -> tuple[Path, Path]:
 def smoke_test(cli: Path, gui: Path) -> None:
     """파이썬 없이 켜지는지: 명령줄은 버전, 점검, 장면 설계, 준비 도구, 설정 마법사는 화면 없이 띄웠다 닫기."""
     env = {**os.environ, "PYTHONIOENCODING": "utf-8"}
-    for args in (["--version"], ["doctor", "--json"], ["scenes", "--dry-run"], ["setup"]):
+    for args in (["--version"], ["doctor", "--json"], ["scenes", "--dry-run"], ["setup"], ["character", "list"]):
         done = subprocess.run([str(cli), *args], capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, timeout=180)
         if done.returncode not in (0, 1):  # doctor는 필요 항목이, setup은 ffmpeg가 없으면 1
             raise SystemExit(f"debutkit {' '.join(args)} 실패 ({done.returncode}): {done.stderr[-800:]}")
@@ -241,6 +241,18 @@ def notarize(app: Path, dist: Path, config: tuple[str, str, str], *, run: Callab
     return str(result.get("id", ""))
 
 
+#: 캐릭터 화면에 필요한 함께 배포 파일(빠지면 PNGTuber, VRM 표시 불가)
+BUNDLED = ("character.html", "character.js", "three.module.js", "three.core.js", "GLTFLoader.js", "three-vrm.module.min.js", "idle.svg", "talk_blink.svg")
+
+
+def check_bundled(item: Path) -> None:
+    names = {path.name for path in item.rglob("*") if path.is_file()}
+    missing = [name for name in BUNDLED if name not in names]
+    if missing:
+        raise SystemExit("실행 파일 묶음에 캐릭터 화면 파일 없음: " + ", ".join(missing))
+    print("  캐릭터 화면 파일: 정상")
+
+
 def size_mb(item: Path) -> float:
     return sum(path.stat().st_size for path in item.rglob("*") if path.is_file()) / 1024**2
 
@@ -262,6 +274,7 @@ def main(argv: list[str] | None = None) -> int:
     for name in ("LICENSE", "README.md"):
         target = item / "Contents" / "Resources" if sys.platform == "darwin" else item
         shutil.copy2(ROOT / name, target / name)
+    check_bundled(item)
     broken = remove_broken_links(item)
     if broken:
         print(f"  대상이 없는 바로 가기 {len(broken)}개 삭제: " + ", ".join(broken[:8]))

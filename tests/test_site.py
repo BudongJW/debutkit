@@ -16,7 +16,8 @@ FORBIDDEN = "·・‧∙→←↔⇒⇐〈〉《》「」『』【】※×—–
 DOCS = [ROOT / "README.md", ROOT / "CHANGELOG.md", ROOT / "CONTRIBUTING.md", *sorted((ROOT / "docs").glob("*.md")),
         *sorted((ROOT / "membership").glob("*.md"))]
 PAGES = sorted((ROOT / "site").rglob("*.html"))
-SOURCES = sorted((ROOT / "src").rglob("*.py")) + sorted((ROOT / "src").rglob("*.html")) + sorted((ROOT / "src").rglob("*.js"))
+SOURCES = [path for path in sorted((ROOT / "src").rglob("*.py")) + sorted((ROOT / "src").rglob("*.html")) + sorted((ROOT / "src").rglob("*.js"))
+           if "vendor" not in path.parts]  # 함께 배포하는 외부 라이브러리(three.js 등)는 표기 원칙 대상 아님
 
 
 def _prose_markdown(text: str) -> str:

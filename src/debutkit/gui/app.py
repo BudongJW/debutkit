@@ -11,6 +11,7 @@ import os
 import platform
 import sys
 import threading
+import urllib.parse
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
@@ -21,8 +22,11 @@ from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
     QComboBox,
+    QDialog,
+    QDialogButtonBox,
     QFileDialog,
     QFormLayout,
+    QFrame,
     QGridLayout,
     QHBoxLayout,
     QLabel,
@@ -31,17 +35,19 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QPlainTextEdit,
     QPushButton,
+    QScrollArea,
     QSpinBox,
     QStackedWidget,
     QVBoxLayout,
     QWidget,
 )
 
-from .. import __version__, chzzk, clip, doctor, logs, scenes, settings, speed, tools
+from .. import __version__, character, chzzk, clip, doctor, logs, scenes, settings, speed, tools
 from ..doctor import FAIL, INFO, JOIN_URL, LABELS, OK, OVERLAY_PORT, SOFTWARE_URL, WARN
 
-STEPS = ["1  PC 점검", "2  아바타", "3  OBS 장면", "4  채팅과 알림", "5  마무리"]
-AVATARS = [("VTube Studio (Live2D)", "vts"), ("VSeeFace (VRM)", "vseeface"), ("Warudo", "warudo"), ("VMagicMirror", "vmagicmirror"), ("아바타 사용 안 함", "none")]
+STEPS = ["1  PC 점검", "2  캐릭터", "3  OBS 장면", "4  채팅과 알림", "5  마무리"]
+AVATARS = [("VTube Studio (Live2D)", "vts"), ("VSeeFace (VRM)", "vseeface"), ("Warudo", "warudo"), ("VMagicMirror", "vmagicmirror"),
+           ("debutkit 캐릭터 화면(PNGTuber, VRM)", "debutkit"), ("아바타 사용 안 함", "none")]
 STATE_STYLE = {OK: "StateOk", FAIL: "StateMissing", WARN: "StateWarn", INFO: "StateOther"}
 #: 브랜드 컬러(assets/brand): Slate 배경, Cream 글자, Pink는 현재 단계와 선택 표시에만 사용
 COLORS = {"ink": "#1E2327", "surface": "#262C31", "field": "#2E353B", "border": "#3A4249", "text": "#FAF7F5", "muted": "#A7B0B7",
@@ -50,6 +56,7 @@ STYLE_SHEET = """
 QMainWindow, QDialog, QWidget#Root {{ background: {ink}; }}
 * {{ color: {text}; font-size: 14px; }}
 QWidget#Card {{ background: {surface}; border: 1px solid {border}; border-radius: 6px; }}
+QScrollArea#PageScroll, QWidget#PageBody {{ background: transparent; border: none; }}
 QLabel#Title {{ font-size: 21px; font-weight: 700; }}
 QLabel#Muted {{ color: {muted}; }}
 QLabel#Eyebrow {{ color: {muted}; font-size: 12px; font-weight: 700; }}
@@ -117,6 +124,65 @@ def diagnostics(checks: list[doctor.Check]) -> str:
     return head + "\n\n" + doctor.format_report(checks)
 
 
+class PngDialog(QDialog):
+    """PNGTuber 만들기: 이름과 상태별 이미지(입 다묾, 입 벌림 필수)."""
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("PNG로 캐릭터 만들기")
+        form = QFormLayout(self)
+        self.name = QLineEdit()
+        self.name.setPlaceholderText("캐릭터 이름")
+        form.addRow("이름", self.name)
+        self.fields: dict[str, QLineEdit] = {}
+        for state in character.PNG_STATES:
+            path_field = QLineEdit()
+            path_field.setPlaceholderText("필수" if state in ("idle", "talk") else "선택")
+            pick = QPushButton("선택")
+            pick.clicked.connect(lambda _=False, target=path_field: self._pick(target))
+            form.addRow(character.STATE_NAMES[state], row(path_field, pick, stretch=0))
+            self.fields[state] = path_field
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        form.addRow(buttons)
+
+    def _pick(self, target: QLineEdit) -> None:
+        path, _ = QFileDialog.getOpenFileName(self, "이미지 선택", "", "PNG 이미지 (*.png)")
+        if path:
+            target.setText(path)
+
+    def values(self) -> tuple[str, dict[str, Path]]:
+        return self.name.text().strip() or "PNGTuber", {state: Path(field_.text().strip()) for state, field_ in self.fields.items() if field_.text().strip()}
+
+
+def _pick_png() -> tuple[str, dict[str, Path]] | None:
+    dialog = PngDialog(QApplication.activeWindow())
+    return dialog.values() if dialog.exec() == QDialog.DialogCode.Accepted else None
+
+
+def _pick_character() -> str | None:
+    path, _ = QFileDialog.getOpenFileName(None, "캐릭터 파일", "", "캐릭터 (*.vrm *.zip *.model3.json *.inp *.inx);;모든 파일 (*)")
+    return path or None
+
+
+def _pick_folder(title: str) -> str | None:
+    return QFileDialog.getExistingDirectory(None, title) or None
+
+
+def _make_voice_meter(server: Any, port: int, password: str | None, threshold: float, input_name: str | None = None) -> Any:
+    """캐릭터 화면의 입 움직임: OBS 마이크 음량(채팅 연결 모듈 필요). 없으면 None."""
+    try:
+        import stream2clip.obs  # noqa: F401
+    except ImportError:
+        return None
+    from ..overlay.events import system_event
+    from ..overlay.voice import VoiceMeter
+
+    return VoiceMeter(server.voice, "127.0.0.1", port, password, input_name=input_name, threshold=threshold,
+                      notify=lambda text: server.hub.publish(system_event(text))).start()
+
+
 def _copy_text(text_: str) -> None:
     QGuiApplication.clipboard().setText(text_)
 
@@ -150,6 +216,17 @@ class Backend:
     clear_settings: Callable[[], Any] = settings.clear
     copy_text: Callable[[str], Any] = _copy_text
     log_dir: Callable[[], Path] = logs.log_dir
+    list_characters: Callable[[], list[Any]] = character.all_characters
+    active_character: Callable[[], str] = field(default=lambda: character.active().id)
+    add_character: Callable[..., Any] = character.add
+    add_png_character: Callable[..., Any] = character.add_png
+    use_character: Callable[[str], Any] = character.use
+    remove_character: Callable[[str], Any] = character.remove
+    send_character: Callable[..., Path] = character.send
+    pick_character: Callable[[], str | None] = _pick_character
+    pick_png: Callable[[], Any] = _pick_png
+    pick_folder: Callable[[str], str | None] = _pick_folder
+    make_voice_meter: Callable[..., Any] = _make_voice_meter
 
 
 class Bridge(QObject):
@@ -260,6 +337,7 @@ class Wizard(QMainWindow):
         self.pages.currentChanged.connect(self._on_page)
         # 저장한 설정: 채널을 저장해 둔 경우 채팅과 알림 단계에서 시작(방송마다 오버레이 시작만 누르면 되도록)
         self._keep_settings = True
+        self._voice_input = ""
         saved = self.backend.load_settings()
         self.apply_settings(saved)
         start = 3 if any(saved.get(name) for name in ("chzzk", "soop", "twitch", "youtube", "chzzk_api", "demo")) else 0
@@ -405,15 +483,44 @@ class Wizard(QMainWindow):
             if "완료" in message:
                 self.run_checks()
 
-    # ------------------------------------------------------------------ 2. 아바타
+    # ------------------------------------------------------------------ 2. 캐릭터
     def _page_avatar(self) -> QWidget:
         page = QWidget()
         layout = QVBoxLayout(page)
-        layout.addWidget(self._title("아바타", "모델 종류에 맞는 트래킹 프로그램을 안내하고 모델 파일의 사용 조건을 확인합니다."))
+        layout.addWidget(self._title("캐릭터", "방송에 사용할 캐릭터를 등록하거나 만들고 사용 조건을 확인합니다. "
+                                              "PNGTuber와 3D(VRM)는 debutkit 캐릭터 화면으로 바로 방송할 수 있습니다."))
+        self.characters = QListWidget()
+        self.characters.setMaximumHeight(140)
+        self.characters.currentRowChanged.connect(self._show_character)
+        self.character_detail = text("", muted=True)
+        add = QPushButton("파일, 폴더 추가")
+        add.clicked.connect(self.add_character)
+        make = QPushButton("PNG로 만들기")
+        make.clicked.connect(self.make_png_character)
+        self.use_button = QPushButton("방송에 사용")
+        self.use_button.setObjectName("Primary")
+        self.use_button.clicked.connect(self.use_character)
+        self.send_button = QPushButton("방송 프로그램으로 보내기")
+        self.send_button.clicked.connect(self.send_character)
+        self.preview_button = QPushButton("미리보기")
+        self.preview_button.clicked.connect(self.preview_character)
+        self.remove_button = QPushButton("삭제")
+        self.remove_button.clicked.connect(self.remove_character)
+        layout.addWidget(card(self.characters, self.character_detail, row(add, make, self.use_button), row(self.send_button, self.preview_button, self.remove_button),
+                              title="내 캐릭터"))
+        create = text(
+            "<b>PNGTuber</b>: 입 다문 이미지와 입 벌린 이미지(투명 PNG, 같은 크기) 2장으로 시작. 눈 감은 이미지를 더하면 눈 깜빡임 표시<br>"
+            '<b>3D(VRM)</b>: <a href="https://store.steampowered.com/app/1486350/VRoid_Studio/" style="{0}">VRoid Studio</a>(무료, 한국어) 또는 '
+            '<a href="https://account.vket.com/" style="{0}">Vket Avatar Maker</a>(웹, 무료)로 제작<br>'
+            '<b>Live2D</b>: <a href="https://www.live2d.com/en/cubism/about/" style="{0}">Live2D Cubism Editor</a>(FREE 버전 제한 있음). '
+            "일러스트 PSD를 리거에게 의뢰하는 방식이 일반적<br>"
+            '<a href="https://github.com/BudongJW/debutkit/blob/main/docs/CHARACTER.md" style="{0}">제작 도구, 파일 형식, 라이선스 정리</a>'.format(LINK),
+            links=True)
+        layout.addWidget(card(create, title="캐릭터 만들기"))
         guide = text(
-            "<b>Live2D 모델</b>: VTube Studio(수익 방송 시 유료 버전 필요)<br>"
-            "<b>3D(VRM) 모델</b>: VSeeFace(무료, 상업적 이용 허용) 또는 Warudo<br>"
-            "<b>모델이 없는 경우</b>: VRoid Studio(무료)로 3D 모델 제작 또는 PNG 이미지 2장으로 시작<br>"
+            "<b>PNGTuber, 3D(VRM)</b>: debutkit 캐릭터 화면(OBS 마이크 음량으로 입 움직임). OBS 장면 단계에서 아바타 프로그램을 debutkit으로 선택<br>"
+            "<b>Live2D 모델</b>: VTube Studio(수익 방송 시 유료 버전 필요). 방송 프로그램으로 보내기로 모델 폴더에 복사<br>"
+            "<b>3D(VRM) 얼굴 추적</b>: Warudo, VMagicMirror, VSeeFace(VRM 0.x만)<br>"
             f'<a href="{SOFTWARE_URL}" style="{LINK}">프로그램 목록과 라이선스</a>', links=True)
         self.avatar_path = QLineEdit()
         self.avatar_path.setPlaceholderText("모델 파일(.vrm 등)")
@@ -424,10 +531,122 @@ class Wizard(QMainWindow):
         check = QPushButton("사용 조건 확인")
         check.clicked.connect(self.check_avatar)
         self.avatar_result = text("", muted=True)
-        layout.addWidget(card(guide, title="트래킹 프로그램"))
-        layout.addWidget(card(row(self.avatar_path, pick, stretch=0), self.avatar_agency, check, self.avatar_result, title="모델 사용 조건"))
+        layout.addWidget(card(row(self.avatar_path, pick, stretch=0), self.avatar_agency, check, self.avatar_result, title="모델 사용 조건(소속사 활동 기준 확인)"))
+        layout.addWidget(card(guide, title="방송 프로그램"))
         layout.addStretch(1)
-        return page
+        self.refresh_characters()
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setObjectName("PageScroll")
+        page.setObjectName("PageBody")
+        scroll.setWidget(page)
+        return scroll
+
+    # 캐릭터 목록과 작업
+    def refresh_characters(self, select: str | None = None) -> None:
+        self._character_list = self.backend.list_characters()
+        active = self.backend.active_character()
+        self.characters.blockSignals(True)
+        self.characters.clear()
+        for item in self._character_list:
+            mark = "  [방송 사용 중]" if item.id == active else ""
+            warn = f"  확인 필요 {len(item.warnings)}건" if item.warnings else ""
+            self.characters.addItem(f"{item.name}  ({item.kind_name}){mark}{warn}")
+        self.characters.blockSignals(False)
+        ids = [item.id for item in self._character_list]
+        target = select if select in ids else active if active in ids else (ids[0] if ids else None)
+        if target is not None:
+            self.characters.setCurrentRow(ids.index(target))
+            self._show_character(ids.index(target))
+
+    def selected_character(self) -> Any:
+        row_ = self.characters.currentRow()
+        return self._character_list[row_] if 0 <= row_ < len(self._character_list) else None
+
+    def _show_character(self, row_: int) -> None:
+        item = self._character_list[row_] if 0 <= row_ < len(self._character_list) else None
+        if item is None:
+            self.character_detail.setText("")
+            return
+        lines = [f"{item.kind_name}" + (f" {item.version}" if item.version else "") + (f", 제작자 {item.author}" if item.author else ""),
+                 f"방송: {item.broadcast}"]
+        lines += [f"사용 조건: {line}" for line in item.license] + [f"확인 필요: {line}" for line in item.warnings]
+        self.character_detail.setText("\n".join(lines))
+        self.send_button.setEnabled(item.kind in ("live2d", "vrm"))
+        self.send_button.setText("VTube Studio로 보내기" if item.kind == "live2d" else "Warudo로 보내기" if item.kind == "vrm" else "방송 프로그램으로 보내기")
+        self.remove_button.setEnabled(not item.builtin)
+        self.preview_button.setEnabled(item.renders_in_overlay)
+
+    def _character_message(self, message: str) -> None:
+        self.character_detail.setText(message)
+
+    def add_character(self) -> None:
+        path = self.backend.pick_character()
+        if not path:
+            return
+        try:
+            added = self.backend.add_character(path)
+        except (ValueError, OSError) as error:
+            return self._character_message(f"등록 실패: {error}")
+        self.refresh_characters(added.id)
+
+    def make_png_character(self) -> None:
+        picked = self.backend.pick_png()
+        if not picked:
+            return
+        name, images = picked
+        try:
+            added = self.backend.add_png_character(images.get("idle"), images.get("talk"), images.get("blink"), images.get("talk_blink"), name=name)
+        except (ValueError, OSError) as error:
+            return self._character_message(f"만들기 실패: {error}")
+        self.refresh_characters(added.id)
+
+    def use_character(self) -> None:
+        item = self.selected_character()
+        if item is None:
+            return
+        self.backend.use_character(item.id)
+        if item.renders_in_overlay:  # OBS 장면의 아바타를 debutkit 캐릭터 화면으로
+            self.avatar_app.setCurrentIndex(self.avatar_app.findData("debutkit"))
+        elif item.kind == "live2d":
+            self.avatar_app.setCurrentIndex(self.avatar_app.findData("vts"))
+        self.refresh_characters(item.id)
+
+    def remove_character(self) -> None:
+        item = self.selected_character()
+        if item is None or item.builtin:
+            return
+        self.backend.remove_character(item.id)
+        self.refresh_characters()
+
+    def send_character(self) -> None:
+        item = self.selected_character()
+        if item is None or item.kind not in ("live2d", "vrm"):
+            return
+        app = "vts" if item.kind == "live2d" else "warudo"
+        title = "VTube Studio" if app == "vts" else "Warudo"
+        try:
+            target = self.backend.send_character(item, app, None)
+        except ValueError:
+            folder = self.backend.pick_folder(f"{title} 모델 폴더 선택({title}의 모델 폴더 열기 기능으로 위치 확인)")
+            if not folder:
+                return self._character_message(f"{title} 모델 폴더를 찾지 못해 보내지 않았습니다.")
+            try:
+                target = self.backend.send_character(item, app, folder)
+            except (ValueError, OSError) as error:
+                return self._character_message(f"보내기 실패: {error}")
+        except OSError as error:
+            return self._character_message(f"보내기 실패: {error}")
+        self._character_message(f"{title}로 복사했습니다: {target}\n{title}를 다시 시작하면 모델 목록에 표시됩니다.")
+
+    def preview_character(self) -> None:
+        item = self.selected_character()
+        if item is None:
+            return
+        if self.server is None:
+            return self._character_message("채팅과 알림 단계에서 오버레이를 시작한 뒤 미리보기를 열 수 있습니다.")
+        self.backend.open_url(f"{self.server.url}/character?id={urllib.parse.quote(item.id)}&demo")
 
     def _pick_avatar(self) -> None:
         path, _ = QFileDialog.getOpenFileName(self, "아바타 모델", "", "모델 (*.vrm *.model3.json *.moc3);;모든 파일 (*)")
@@ -485,7 +704,8 @@ class Wizard(QMainWindow):
         self.scenes_button.setEnabled(False)
         self.scenes_result.setText("OBS 연결 중")
         base = f"http://127.0.0.1:{self.port.value()}"
-        options = scenes.SceneOptions(overlay_url=f"{base}/chat", alerts_url=f"{base}/alerts", avatar=str(self.avatar_app.currentData()))
+        options = scenes.SceneOptions(overlay_url=f"{base}/chat", alerts_url=f"{base}/alerts", character_url=f"{base}/character",
+                                       avatar=str(self.avatar_app.currentData()))
         port, password, replay = self.obs_port.value(), self.obs_password.text() or None, 60 if self.replay.isChecked() else None
 
         def job() -> None:
@@ -549,6 +769,12 @@ class Wizard(QMainWindow):
         form.addRow("", self.chzzk_state)
         form.addRow("", self.demo)
         form.addRow("", self.autoclip)
+        self.voice_threshold = QSpinBox()
+        self.voice_threshold.setRange(-70, -10)
+        self.voice_threshold.setValue(-40)
+        self.voice_threshold.setSuffix(" dB")
+        self.voice_threshold.setToolTip("OBS 마이크 음량이 이 값을 넘으면 캐릭터가 말하는 것으로 표시. 잡음에 반응하면 높이고(-30 등), 말해도 반응이 없으면 낮춤")
+        form.addRow("캐릭터 입 움직임 기준", self.voice_threshold)
         form.addRow("포트", self.port)
         fields = QWidget()
         fields.setLayout(form)
@@ -647,6 +873,11 @@ class Wizard(QMainWindow):
         self._overlay_state(True)
         self._keep_settings = True
         self.remember()
+        meter = self.backend.make_voice_meter(server, self.obs_port.value(), self.obs_password.text() or None, float(self.voice_threshold.value()),
+                                              self._voice_input or None)
+        if meter is not None:
+            server.attach(meter)
+            self._append_log(f"캐릭터 화면: {server.url}/character (OBS 마이크 음량으로 입 움직임)")
         self._append_log(f"오버레이 실행 중: {server.url}/chat (채팅창), {server.url}/alerts (알림)")
         if self.autoclip.isChecked():
             port, password = self.obs_port.value(), self.obs_password.text() or None
@@ -665,7 +896,7 @@ class Wizard(QMainWindow):
         self.overlay_button.setText("오버레이 중지" if running else "오버레이 시작")
         self.open_button.setEnabled(running)
         for widget in (self.chzzk, self.soop, self.twitch, self.youtube, self.youtube_key, self.youtube_check_button, self.chzzk_api, self.chzzk_id, self.chzzk_secret, self.chzzk_login_button,
-                       self.demo, self.autoclip, self.port):
+                       self.demo, self.autoclip, self.voice_threshold, self.port):
             widget.setEnabled(not running)
 
     def _append_log(self, line: str) -> None:
@@ -740,7 +971,8 @@ class Wizard(QMainWindow):
         values.update(chzzk_api=self.chzzk_api.isChecked(), chzzk_client_id=self.chzzk_id.text().strip(), demo=self.demo.isChecked(),
                       clip=self.autoclip.isChecked(), overlay_port=self.port.value(), obs_port=self.obs_port.value(),
                       avatar_app=str(self.avatar_app.currentData()), replay_buffer=60 if self.replay.isChecked() else 0,
-                      avatar_path=self.avatar_path.text().strip(), agency=self.avatar_agency.isChecked())
+                      avatar_path=self.avatar_path.text().strip(), agency=self.avatar_agency.isChecked(),
+                      voice_threshold=float(self.voice_threshold.value()), voice_input=self._voice_input)
         return settings.clean(values)
 
     def apply_settings(self, values: dict[str, Any]) -> None:
@@ -761,6 +993,9 @@ class Wizard(QMainWindow):
             self.avatar_app.setCurrentIndex(self.avatar_app.findData(values["avatar_app"]))
         if values.get("avatar_path"):
             self.avatar_path.setText(values["avatar_path"])
+        if "voice_threshold" in values and -70 <= values["voice_threshold"] <= -10:
+            self.voice_threshold.setValue(round(values["voice_threshold"]))
+        self._voice_input = values.get("voice_input", "")  # 명령줄에서 지정한 OBS 소스 이름 유지
 
     def remember(self) -> None:
         try:

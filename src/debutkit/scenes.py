@@ -40,7 +40,8 @@ FONTS = {"Windows": "Malgun Gothic", "Darwin": "Apple SD Gothic Neo", "Linux": "
 class SceneOptions:
     overlay_url: str = "http://127.0.0.1:8790/chat"
     alerts_url: str = "http://127.0.0.1:8790/alerts"
-    avatar: str = "vts"  # vts | vseeface | warudo | vmagicmirror | none
+    character_url: str = "http://127.0.0.1:8790/character"
+    avatar: str = "vts"  # vts | vseeface | warudo | vmagicmirror | debutkit(캐릭터 화면) | none
     background: int = 0xFF3D1F2A  # OBS 색은 ABGR 순서: 짙은 남보라
     os_name: str = field(default_factory=lambda: {"win32": "Windows", "darwin": "Darwin"}.get(sys.platform, "Linux"))
     starting_text: str = "곧 방송을 시작합니다"
@@ -96,7 +97,15 @@ def _text_settings(kind: str, text: str, size: int, font: str) -> dict[str, Any]
 
 
 def _avatar_item(options: SceneOptions, kinds: dict[str, str], box: dict[str, Any]) -> Item | None:
-    if options.avatar == "none" or "window" not in kinds:
+    if options.avatar == "none":
+        return None
+    if options.avatar == "debutkit":  # debutkit 캐릭터 화면(PNGTuber, VRM): 브라우저 소스, 투명 배경
+        if "browser" not in kinds:
+            return None
+        settings_ = {"url": options.character_url, "width": round(box["boundsWidth"]), "height": round(box["boundsHeight"]), "shutdown": False,
+                     "reroute_audio": False, "fps_custom": True, "fps": 30}
+        return Item(f"{PREFIX}캐릭터", "browser", settings_, box)
+    if "window" not in kinds:
         return None
     title, window = AVATAR_WINDOWS.get(options.avatar, AVATAR_WINDOWS["vts"])
     kind = kinds["window"]
@@ -243,7 +252,7 @@ def connect_and_apply(host: str, port: int, password: str | None, options: Scene
         kinds = resolve_kinds(client.request("GetInputKindList", {"unversioned": False}).get("inputKinds", []))
         scenes = build_scenes(int(video.get("baseWidth", 1920)), int(video.get("baseHeight", 1080)), kinds, options)
         report = apply(client, scenes, kinds, replace=replace, switch_to=scenes[0].name if switch else None)
-        if options.avatar != "none" and "window" not in kinds:
+        if options.avatar not in ("none", "debutkit") and "window" not in kinds:
             report.notes.append("이 OBS에는 창 캡처 소스가 없어 아바타 소스 생략. OBS에서 아바타 프로그램 창 캡처를 직접 추가 필요")
         if replay_buffer:
             try:

@@ -35,6 +35,9 @@ FIELDS: dict[str, type] = {
     "replay_buffer": int,
     "avatar_path": str,
     "agency": bool,
+    "character": str,
+    "voice_input": str,
+    "voice_threshold": float,
 }
 
 #: 이 단어가 들어간 항목은 저장하지 않는다(실수로 FIELDS에 추가해도 막음)

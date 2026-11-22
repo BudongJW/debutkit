@@ -72,6 +72,9 @@ jobs:
       - name: Auto clip end to end
         timeout-minutes: 6
         run: python packaging/verify_obs.py clip
+      - name: Character voice reaction (OBS volume meters)
+        timeout-minutes: 3
+        run: python packaging/verify_obs.py voice
       - name: OBS logs
         if: always()
         run: python packaging/verify_obs.py logs || true

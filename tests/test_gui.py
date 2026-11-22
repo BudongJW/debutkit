@@ -71,7 +71,8 @@ class Calls:
         base = dict(run_checks=run_checks, check_avatar=lambda path, agency: [Check("avatar", "아바타", WARN, f"{path} 법인 {agency}")],
                     apply_scenes=apply_scenes, make_autoclipper=make_autoclipper, open_url=self.urls.append,
                     chzzk_signed_in=lambda: False, can_download_ffmpeg=lambda: True,
-                    load_settings=lambda: dict(self.stored), save_settings=self.saves.append, clear_settings=lambda: self.cleared.append(1) or True)
+                    load_settings=lambda: dict(self.stored), save_settings=self.saves.append, clear_settings=lambda: self.cleared.append(1) or True,
+                    make_voice_meter=lambda *a, **k: None)
         base.update(overrides)
         return Backend(**base)
 
@@ -368,5 +369,75 @@ def test_report_buttons_copy_diagnostics_and_open_pages(app):
         buttons["문제 제보, 확인 보고(GitHub)"].click()
         buttons["기록 폴더 열기"].click()
         assert calls.urls[-1].endswith("/issues/new/choose") and opened == [Path("logs-folder")]
+    finally:
+        window.close()
+
+
+def test_character_page_add_make_use_send_and_preview(app, tmp_path):
+    from test_character import live2d, png, vrm1
+
+    from debutkit import character
+
+    vrm = vrm1(tmp_path / "hero.vrm", commercialUsage="corporation", avatarPermission="everyone")
+    folder = tmp_path / "vts-models"
+    folder.mkdir()
+    picks = {"file": str(vrm), "folder": str(folder)}
+    calls = Calls()
+    window = Wizard(calls.backend(pick_character=lambda: picks["file"], pick_folder=lambda title: picks["folder"],
+                                  pick_png=lambda: ("Cat", {"idle": png(tmp_path / "i.png"), "talk": png(tmp_path / "t.png")})))
+    try:
+        assert window.characters.count() == 1 and "[방송 사용 중]" in window.characters.item(0).text()  # 기본 캐릭터
+        assert not window.remove_button.isEnabled() and not window.send_button.isEnabled()
+        window.add_character()
+        assert window.selected_character().kind == "vrm" and "Warudo로 보내기" == window.send_button.text()
+        assert "상업적 이용: 법인 포함 가능" in window.character_detail.text()
+        window.use_character()
+        assert character.active().kind == "vrm" and window.avatar_app.currentData() == "debutkit"
+        window.make_png_character()
+        assert window.selected_character().id == "cat" and window.characters.count() == 3
+        picks["file"] = str(live2d(tmp_path / "l2d" / "hiyori") / "hiyori.model3.json")
+        window.add_character()
+        window.send_character()  # 자동으로 찾지 못하면 폴더를 물어본다
+        assert (folder / window.selected_character().id / "hiyori.model3.json").is_file() and "VTube Studio로 복사" in window.character_detail.text()
+        window.use_character()
+        assert window.avatar_app.currentData() == "vts"
+        window.characters.setCurrentRow(2)
+        window.preview_character()
+        assert "오버레이를 시작한 뒤" in window.character_detail.text()
+        picks["file"] = str(tmp_path / "missing.vrm")
+        window.add_character()
+        assert "등록 실패" in window.character_detail.text()
+    finally:
+        window.close()
+
+
+def test_overlay_start_attaches_voice_meter(app):
+    meters = []
+
+    class FakeServer:
+        url = "http://127.0.0.1:8790"
+
+        def __init__(self):
+            self.hub = type("Hub", (), {"taps": []})()
+            self.attached = []
+
+        def start(self):
+            return self
+
+        def stop(self):
+            pass
+
+        def attach(self, part):
+            self.attached.append(part)
+
+    server = FakeServer()
+    calls = Calls()
+    window = Wizard(calls.backend(make_overlay=lambda sources, port: server,
+                                  make_voice_meter=lambda srv, port, password, threshold, name: meters.append((port, threshold)) or "meter"))
+    try:
+        window.voice_threshold.setValue(-35)
+        window.toggle_overlay()
+        assert meters == [(4455, -35.0)] and "meter" in server.attached and "/character" in window.overlay_log.toPlainText()
+        assert calls.saves[-1]["voice_threshold"] == -35.0
     finally:
         window.close()

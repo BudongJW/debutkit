@@ -6,6 +6,7 @@
     python packaging/verify_obs.py scenes      # debutkit scenes --replay-buffer 30 실행과 결과 확인
     python packaging/verify_obs.py stop        # OBS 종료(정상 종료 요청 후 30초가 지나면 강제 종료)
     python packaging/verify_obs.py clip        # debutkit overlay --clip 실행, 스트리머 !clip 입력, 클립 파일 확인
+    python packaging/verify_obs.py voice       # 시험음을 재생하는 미디어 소스로 캐릭터 음성 반응(InputVolumeMeters) 확인
     python packaging/verify_obs.py logs        # OBS 출력과 로그 파일의 마지막 부분 출력
 
 Windows, macOS, Linux에서 같은 순서로 실행한다. configure는 이 PC의 OBS 설정을 덮어쓰므로
@@ -254,9 +255,44 @@ def clip(timeout: float = 120.0) -> None:
             print("  " + lines.get().rstrip())
 
 
+def voice(timeout: float = 30.0) -> None:
+    """캐릭터 음성 반응: OBS 미디어 소스로 시험음(440 Hz)을 재생하고, 음량 이벤트로 말하는 상태가 되는지 확인."""
+    from stream2clip.ffmpeg import find_ffmpeg
+
+    from debutkit.overlay.voice import VoiceMeter, VoiceState
+
+    tone = TEMP / "debutkit-tone.wav"
+    subprocess.run([find_ffmpeg(), "-y", "-loglevel", "error", "-f", "lavfi", "-i", "sine=frequency=440:duration=60", "-ac", "2", str(tone)], check=True)
+    name = "debutkit 음성 시험"
+    with client() as obs:
+        scene = obs.request("GetCurrentProgramScene").get("currentProgramSceneName")
+        obs.request("CreateInput", {"sceneName": scene, "inputName": name, "inputKind": "ffmpeg_source",
+                                    "inputSettings": {"is_local_file": True, "local_file": str(tone), "looping": True, "restart_on_activate": True}})
+    state = VoiceState()
+    subscriber, _ = state.subscribe()
+    notes: list[str] = []
+    meter = VoiceMeter(state, HOST, PORT, None, input_name=name, threshold=-40.0, notify=notes.append).start()
+    try:
+        end = time.monotonic() + timeout
+        while time.monotonic() < end:
+            try:
+                update = subscriber.get(timeout=1)
+            except Exception:
+                continue
+            if update["talking"]:
+                print(f"말하는 상태 확인: {update['source']}, {update['db']} dBFS")
+                print("  " + "\n  ".join(notes))
+                return
+        raise SystemExit("OBS 음량 이벤트로 말하는 상태가 되지 않음: " + "; ".join(notes))
+    finally:
+        meter.stop()
+        with client() as obs:
+            obs.request("RemoveInput", {"inputName": name})
+
+
 def main(argv: list[str]) -> int:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # Windows 기본 코드 페이지로는 한국어 출력 불가
-    steps = {"configure": configure, "start": start, "wait": wait, "scenes": scenes, "stop": stop, "clip": clip, "logs": logs}
+    steps = {"configure": configure, "start": start, "wait": wait, "scenes": scenes, "stop": stop, "clip": clip, "voice": voice, "logs": logs}
     if not argv or argv[0] not in steps or len(argv) != (2 if argv[0] == "start" else 1):
         print(__doc__)
         return 2

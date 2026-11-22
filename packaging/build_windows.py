@@ -167,6 +167,7 @@ def main(argv: list[str] | None = None) -> int:
         for name in ("LICENSE", "README.md"):
             shutil.copy2(ROOT / name, folder / name)
         build_app.check_version_info([cli, gui], version)
+        build_app.check_bundled(folder)
         if args.stage == "build":
             return 0
     elif not cli.is_file():

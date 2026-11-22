@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>debutkit 캐릭터</title>
+<script type="importmap">{"imports": {"three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/"}}</script>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  #stage { position: fixed; inset: 0; }
+  .png { position: absolute; inset: 0; display: flex; align-items: flex-end; justify-content: center; }
+  .png img { position: absolute; bottom: 0; max-width: 100%; max-height: 100%; object-fit: contain; transform-origin: 50% 100%; transition: transform 90ms ease-out; }
+  .png.talking img { transform: translateY(-2.5%) scale(1.01); }
+  #notice { position: fixed; left: 12px; bottom: 12px; padding: 8px 12px; border-radius: 6px; background: rgba(30, 35, 39, 0.85); color: #FAF7F5;
+            font: 14px/1.4 "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans CJK KR", sans-serif; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="notice" hidden></div>
+<script type="module" src="/character.js"></script>
+</body>
+</html>
