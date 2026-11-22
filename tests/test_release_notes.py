@@ -91,4 +91,3 @@ def test_version_helpers():
 
     assert build_app.numeric_version("1.0.0rc1") == "1.0.0" and build_app.numeric_version("0.9.0") == "0.9.0"
     assert build_app.is_prerelease("1.0.0rc1") and not build_app.is_prerelease("1.0.0")
-    assert "filevers=(1, 0, 0, 0)" in str(build_app.windows_version_info("1.0.0rc1", "x", "debutkit.exe"))

@@ -183,6 +183,7 @@ def test_windows_version_info_names_product_and_version():
     for expected in ("filevers=(0, 8, 0, 0)", "'ProductName', 'debutkit'", "'ProductVersion', '0.8.0'", "'OriginalFilename', 'debutkit-gui.exe'",
                      "'FileDescription', 'debutkit 설정 마법사'", "[1042, 1200]"):
         assert expected in info
+    assert "filevers=(1, 0, 0, 0)" in str(build_app.windows_version_info("1.0.0rc1", "x", "debutkit.exe"))  # 사전 릴리스는 숫자 부분만
     text = build_windows.INSTALLER.read_text(encoding="utf-8-sig")
     assert "VersionInfoProductName=debutkit" in text and "VersionInfoProductVersion={#AppNumericVersion}" in text and "VersionInfoProductTextVersion={#AppVersion}" in text
 
