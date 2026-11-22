@@ -1,17 +1,22 @@
 """실제 OBS로 장면 생성, 고급 출력 모드 리플레이 버퍼, 자동 클립을 검증한다(CI용, .github/workflows/verify.yml).
 
     python packaging/verify_obs.py configure   # OBS 설정 파일 준비(첫 실행 안내 생략, WebSocket 사용, 고급 출력 모드)
+    python packaging/verify_obs.py start 이름  # OBS 실행(출력은 RUNNER_TEMP/obs-이름.log)과 WebSocket 응답 대기
     python packaging/verify_obs.py wait        # OBS WebSocket 응답 대기
     python packaging/verify_obs.py scenes      # debutkit scenes --replay-buffer 30 실행과 결과 확인
+    python packaging/verify_obs.py stop        # OBS 종료(정상 종료 요청 후 30초가 지나면 강제 종료)
     python packaging/verify_obs.py clip        # debutkit overlay --clip 실행, 스트리머 !clip 입력, 클립 파일 확인
+    python packaging/verify_obs.py logs        # OBS 출력과 로그 파일의 마지막 부분 출력
 
-configure는 이 PC의 OBS 설정을 덮어쓰므로 CI 전용 컴퓨터에서만 실행한다(DEBUTKIT_VERIFY_OBS=1 필요).
+Windows, macOS, Linux에서 같은 순서로 실행한다. configure는 이 PC의 OBS 설정을 덮어쓰므로
+CI 전용 컴퓨터에서만 실행한다(DEBUTKIT_VERIFY_OBS=1 필요).
 """
 
 from __future__ import annotations
 
 import json
 import os
+import signal
 import socket
 import subprocess
 import sys
@@ -21,8 +26,10 @@ from pathlib import Path
 
 HOST, PORT = "127.0.0.1", 4455
 OVERLAY_PORT = 8791
-RECORDINGS = Path(os.environ.get("RUNNER_TEMP", "/tmp")) / "obs-recordings"
-CLIPS = Path(os.environ.get("RUNNER_TEMP", "/tmp")) / "debutkit-clips"
+TEMP = Path(os.environ.get("RUNNER_TEMP") or "/tmp")
+RECORDINGS = TEMP / "obs-recordings"
+CLIPS = TEMP / "debutkit-clips"
+PID_FILE = TEMP / "obs.pid"
 SCENES = ["대기 화면", "본방송", "토크", "자리 비움", "엔딩"]
 
 
@@ -40,7 +47,9 @@ def configure() -> None:
     root = config_dir()
     RECORDINGS.mkdir(parents=True, exist_ok=True)
     # 브라우저 소스 하드웨어 가속 끔: 가상 화면(Xvfb)에서 Chromium GPU 프로세스가 실패하면 OBS 전체가 종료됨
-    general = "[General]\nFirstRun=true\nEnableAutoUpdates=false\nBrowserHWAccel=false\n\n[Basic]\nProfile=Untitled\nProfileDir=Untitled\nSceneCollection=Untitled\nSceneCollectionFile=Untitled\n"
+    # MacOSPermissionsDialogLastShown: macOS 첫 실행의 권한 안내 창 생략
+    general = ("[General]\nFirstRun=true\nEnableAutoUpdates=false\nBrowserHWAccel=false\nMacOSPermissionsDialogLastShown=99\n\n"
+               "[Basic]\nProfile=Untitled\nProfileDir=Untitled\nSceneCollection=Untitled\nSceneCollectionFile=Untitled\n")
     for name in ("global.ini", "user.ini"):  # OBS 31부터 사용자 설정은 user.ini
         (root / name).parent.mkdir(parents=True, exist_ok=True)
         (root / name).write_text(general, encoding="utf-8")
@@ -48,12 +57,74 @@ def configure() -> None:
     profile.mkdir(parents=True, exist_ok=True)
     (profile / "basic.ini").write_text(
         "[General]\nName=Untitled\n\n[Video]\nBaseCX=1280\nBaseCY=720\nOutputCX=1280\nOutputCY=720\nFPSType=0\nFPSCommon=30\n\n"
-        f"[Output]\nMode=Advanced\n\n[AdvOut]\nRecType=Standard\nRecFilePath={RECORDINGS}\nRecFormat2=mkv\nRecEncoder=obs_x264\n", encoding="utf-8")
+        f"[Output]\nMode=Advanced\n\n[AdvOut]\nRecType=Standard\nRecFilePath={RECORDINGS.as_posix()}\nRecFormat2=mkv\nRecEncoder=obs_x264\n", encoding="utf-8")
     websocket = root / "plugin_config" / "obs-websocket"
     websocket.mkdir(parents=True, exist_ok=True)
     (websocket / "config.json").write_text(json.dumps({"alerts_enabled": False, "auth_required": False, "first_load": False,
                                                        "server_enabled": True, "server_password": "", "server_port": PORT}), encoding="utf-8")
     print(f"OBS 설정 준비: {root} (고급 출력 모드, 녹화 위치 {RECORDINGS})")
+
+
+def obs_command() -> tuple[list[str], Path | None]:
+    """(실행 명령, 실행 폴더). Windows OBS는 실행 폴더를 기준으로 data 폴더를 찾는다."""
+    if sys.platform == "win32":
+        folder = Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "obs-studio" / "bin" / "64bit"
+        return [str(folder / "obs64.exe"), "--disable-shutdown-check", "--disable-updater"], folder
+    if sys.platform == "darwin":
+        return ["/Applications/OBS.app/Contents/MacOS/OBS", "--disable-shutdown-check"], None
+    return ["obs", "--disable-shutdown-check", "--minimize-to-tray"], None
+
+
+def running(pid: int) -> bool:
+    if sys.platform == "win32":
+        found = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/NH", "/FO", "CSV"], capture_output=True, text=True, errors="replace").stdout
+        return f'"{pid}"' in found
+    try:
+        os.kill(pid, 0)
+    except OSError:
+        return False
+    return True
+
+
+def start(name: str) -> None:
+    command, folder = obs_command()
+    log = open(TEMP / f"obs-{name}.log", "w", encoding="utf-8")  # noqa: SIM115 - OBS가 계속 기록
+    if sys.platform == "win32":
+        detach = {"creationflags": subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP}
+    else:
+        detach = {"start_new_session": True}
+    process = subprocess.Popen(command, cwd=folder, stdout=log, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, **detach)
+    PID_FILE.write_text(str(process.pid), encoding="utf-8")
+    print(f"OBS 실행: {command[0]} (PID {process.pid})")
+    wait()
+
+
+def stop(timeout: float = 30.0) -> None:
+    pid = int(PID_FILE.read_text(encoding="utf-8"))
+    if sys.platform == "win32":
+        subprocess.run(["taskkill", "/PID", str(pid)], capture_output=True)
+    elif running(pid):
+        os.kill(pid, signal.SIGTERM)
+    end = time.monotonic() + timeout
+    while running(pid) and time.monotonic() < end:
+        time.sleep(1)
+    if running(pid):
+        print("정상 종료되지 않아 강제 종료")
+        if sys.platform == "win32":
+            subprocess.run(["taskkill", "/F", "/PID", str(pid)], capture_output=True)
+        else:
+            os.kill(pid, signal.SIGKILL)
+        time.sleep(2)
+    print("OBS 종료")
+
+
+def logs(lines: int = 80) -> None:
+    files = sorted(TEMP.glob("obs-*.log"))
+    newest = sorted((config_dir() / "logs").glob("*.txt"), key=lambda path: path.stat().st_mtime)[-2:]
+    for path in [*files, *newest]:
+        text = path.read_text(encoding="utf-8", errors="replace").splitlines()
+        print(f"==> {path} <==")
+        print("\n".join(text[-lines:]))
 
 
 def client():
@@ -158,7 +229,9 @@ def clip(timeout: float = 120.0) -> None:
             found = sorted(CLIPS.glob("*.mp4"))
             if found and found[-1].stat().st_size > 0:
                 time.sleep(2)
-                probe = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=nw=1:nk=1", str(found[-1])],
+                from stream2clip.ffmpeg import find_ffprobe
+
+                probe = subprocess.run([find_ffprobe(), "-v", "error", "-show_entries", "format=duration", "-of", "default=nw=1:nk=1", str(found[-1])],
                                        capture_output=True, text=True)
                 duration = float(probe.stdout.strip() or 0)
                 print(f"클립 저장 확인: {found[-1].name}, {found[-1].stat().st_size / 1024:.0f} KB, {duration:.1f}초")
@@ -182,11 +255,12 @@ def clip(timeout: float = 120.0) -> None:
 
 
 def main(argv: list[str]) -> int:
-    steps = {"configure": configure, "wait": wait, "scenes": scenes, "clip": clip}
-    if len(argv) != 1 or argv[0] not in steps:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # Windows 기본 코드 페이지로는 한국어 출력 불가
+    steps = {"configure": configure, "start": start, "wait": wait, "scenes": scenes, "stop": stop, "clip": clip, "logs": logs}
+    if not argv or argv[0] not in steps or len(argv) != (2 if argv[0] == "start" else 1):
         print(__doc__)
         return 2
-    steps[argv[0]]()
+    steps[argv[0]](*argv[1:])
     return 0
 
 
