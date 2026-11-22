@@ -25,15 +25,48 @@
 
 ### 권장 순서
 
-1. SignPath Foundation 신청(무료, 오픈소스 대상): 지원 조건(OSI 승인 라이선스, 공개 저장소 등)을 신청 전 SignPath Foundation 안내에서 확인 후 신청서 제출. debutkit은 Apache-2.0, 공개 저장소, CI 빌드
-2. 승인되면 SignPath 프로젝트와 서명 정책 구성, GitHub Actions 연동(SignPath 제출 단계를 release.yml의 Windows 작업에 추가)
+1. SignPath Foundation 신청(무료, 오픈소스 대상, https://signpath.org/apply)
+2. 승인되면 아래 SignPath 연동 절차로 설정
 3. 승인되지 않으면 상용 OV 인증서 구매 후 아래 PFX 방식으로 등록. EV 인증서와 하드웨어 토큰 방식은 클라우드 서명 서비스가 필요
+
+### SignPath Foundation 신청 전 확인 사항
+
+SignPath Foundation 조건(https://signpath.org/terms, 2026-11-22 확인)과 debutkit의 대응 현황.
+
+| 조건 | debutkit 현황 |
+|---|---|
+| OSI 승인 라이선스, 독점 구성 요소 없음 | Apache-2.0. 함께 배포하는 Python, Qt for Python, gRPC 등도 오픈소스 |
+| 서명할 형태로 이미 배포 중, 활발한 유지 관리 | 0.7.1부터 같은 형태(설치 프로그램, zip)로 릴리스 |
+| 다운로드 페이지의 기능 설명 | 프로젝트 사이트, 사용 설명서 |
+| 홈페이지의 코드 서명 정책(Code signing policy) | `site/signing.html`. 사이트 하단과 릴리스 노트에서 링크 |
+| 역할 지정(Authors, Reviewers, Approvers) | 코드 서명 정책 페이지의 담당 역할 표 |
+| 개인정보 정책 | 코드 서명 정책 페이지의 개인정보 항목(자동 전송 없음, 연결 조건 표) |
+| 제거 방법 제공, 알리지 않은 시스템 변경 금지 | 제거 프로그램 제공, 현재 사용자 계정에만 설치 |
+| 제품 이름과 버전 메타데이터 | 0.7.1부터 실행 파일과 설치 프로그램에 기록. SignPath 아티팩트 구성에서 일치 여부 강제 |
+| CI에서 소스로 빌드, 릴리스별 수동 승인 | GitHub Actions 빌드. 서명 정책에서 승인자 수동 승인 지정 |
+| 모든 담당자의 다단계 인증(GitHub, SignPath) | 저장소 소유자가 GitHub 다단계 인증 사용 여부 확인 필요 |
+
+### SignPath 연동 절차(승인 후)
+
+1. SignPath에서 프로젝트 생성(슬러그 `debutkit`). 신뢰 빌드 시스템 GitHub.com을 조직에 추가하고 프로젝트에 연결. SignPath GitHub App 설치
+2. 아티팩트 구성 2개 생성: 슬러그 `programs`(내용 `packaging/signpath/programs.xml`), `installer`(내용 `packaging/signpath/installer.xml`)
+3. 서명 정책 생성(슬러그 `release-signing`). 승인자 수동 승인 지정
+4. GitHub 저장소 설정의 Secrets and variables, Actions 화면에서 등록
+   - 변수 `SIGNPATH_ORGANIZATION_ID`: SignPath 조직 ID(등록하면 태그 릴리스에서 SignPath 서명 사용)
+   - 변수 `SIGNPATH_PROJECT_SLUG`, `SIGNPATH_POLICY_SLUG`: 슬러그가 `debutkit`, `release-signing`과 다를 때만
+   - 비밀값 `SIGNPATH_API_TOKEN`: 서명 요청 제출 권한이 있는 SignPath 사용자의 API 토큰
+5. `site/signing.html`의 서명 현황 갱신, 정책 첫머리에 SignPath가 요구하는 문구 추가: `Free code signing provided by SignPath.io, certificate by SignPath Foundation`(각 이름에 https://about.signpath.io, https://signpath.org 링크)
+6. 태그 릴리스 실행 중 SignPath에서 서명 요청 2건(실행 파일, 설치 프로그램) 승인. 승인 대기 제한 시간 1시간
+
+- 릴리스 작업 순서: 빌드와 버전 정보 확인, 실행 파일 서명 요청, 실행 확인과 압축, 설치 프로그램 빌드, 설치 프로그램 서명 요청, 설치와 제거 검증, 릴리스 첨부
+- SignPath 방식은 제거 프로그램(unins000.exe)에 서명하지 않음. 인증서 파일(PFX) 방식만 제거 프로그램까지 서명
+- 직접 실행한 릴리스 작업(서명 시험)에는 SignPath를 사용하지 않음
 
 ### 인증서 확보 방법
 
 | 방법 | 비용 | 특징 |
 |---|---|---|
-| SignPath Foundation | 무료(오픈소스 대상, 심사 필요) | 오픈소스 프로젝트에 인증서와 서명 서비스 제공. 서명은 SignPath 서비스에서 진행하므로 별도 워크플로 단계 필요 |
+| SignPath Foundation | 무료(오픈소스 대상, 심사 필요) | 오픈소스 프로젝트에 인증서와 서명 서비스 제공. 릴리스 작업에 연동 단계 구현 완료(저장소 변수 등록 시 사용) |
 | Azure Trusted Signing | 월 사용료 | Microsoft 관리형 서명. 신원 확인 절차 필요 |
 | 상용 코드 서명 인증서(OV, EV) | 연 단위 구매 | PFX 파일 또는 하드웨어 토큰. PFX 방식은 아래 비밀값으로 바로 사용 가능 |
 

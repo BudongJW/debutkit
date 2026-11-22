@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>코드 서명 정책 - debutkit</title>
+<meta name="description" content="debutkit 배포 파일의 코드 서명 대상, 빌드와 승인 절차, 담당 역할, 개인정보 처리 원칙.">
+<meta name="theme-color" content="#ffffff">
+<meta property="og:image" content="https://budongjw.github.io/debutkit/assets/social.png">
+<link rel="canonical" href="https://budongjw.github.io/debutkit/signing.html">
+<link rel="icon" href="assets/favicon.ico" sizes="48x48">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Noto+Sans+KR:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="css/site.css">
+</head>
+<body>
+<a class="skip" href="#main">본문으로 이동</a>
+
+<header class="top">
+  <div class="wrap">
+    <a class="lockup" href="./" aria-label="debutkit 홈"><img src="assets/lockup.svg" alt="debutkit" width="110" height="40"></a>
+    <nav class="nav" aria-label="주요 메뉴">
+      <a href="guide.html">사용 설명서</a>
+      <a href="software.html">방송 소프트웨어</a>
+      <a href="news.html">릴리스 노트</a>
+      <a href="join.html">참여 안내</a>
+      <a href="https://github.com/BudongJW/debutkit">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+  <div class="wrap">
+    <header class="dochead">
+      <h1>코드 서명 정책</h1>
+      <p>debutkit 배포 파일의 서명 대상, 빌드와 승인 절차, 담당 역할, 개인정보 처리 원칙을 정리합니다. 기준일은 2026-11-22입니다.</p>
+    </header>
+
+    <div class="doc">
+      <nav class="toc" aria-label="목차">
+        <h2>목차</h2>
+        <ul>
+          <li><a href="#status">서명 현황</a></li>
+          <li><a href="#scope">서명 대상</a></li>
+          <li><a href="#process">빌드와 승인 절차</a></li>
+          <li><a href="#roles">담당 역할</a></li>
+          <li><a href="#privacy">개인정보</a></li>
+          <li><a href="#system">시스템 변경과 제거</a></li>
+          <li><a href="#contact">문의</a></li>
+        </ul>
+      </nav>
+
+      <article>
+        <h2 id="status">서명 현황</h2>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>배포 파일</th><th>현재 상태</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">Windows 설치 프로그램, 압축 파일</th><td>인증서 확보 전으로 서명 없이 배포. 실행 시 SmartScreen 경고가 표시될 수 있음</td></tr>
+              <tr><th scope="row">macOS 앱(debutkit.app)</th><td>임시 서명(ad-hoc)과 강화된 런타임 적용. 공증 미적용으로 첫 실행 시 Gatekeeper 경고 표시</td></tr>
+              <tr><th scope="row">Linux 압축 파일</th><td>서명 대상 아님</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>서명 상태가 바뀌면 이 페이지와 <a href="news.html">릴리스 노트</a>에 반영합니다.</p>
+
+        <h2 id="scope">서명 대상</h2>
+        <ul>
+          <li>debutkit 프로젝트가 소스와 빌드 절차를 관리하는 파일만 서명합니다: <code>debutkit.exe</code>, <code>debutkit-gui.exe</code>, 설치 프로그램(<code>setup.exe</code>), 제거 프로그램(<code>unins000.exe</code>), macOS <code>debutkit.app</code></li>
+          <li>함께 배포하는 외부 오픈소스 구성 요소(Python, Qt for Python, gRPC, NumPy, Pillow 등)는 각 제작자가 배포한 파일을 그대로 포함하며 debutkit의 서명 대상이 아닙니다.</li>
+          <li>Windows 파일에는 제품 이름(debutkit)과 릴리스 버전을 기록합니다. 서명 시 이 값이 릴리스 버전과 일치하는지 확인합니다.</li>
+        </ul>
+
+        <h2 id="process">빌드와 승인 절차</h2>
+        <ol class="procedure">
+          <li>공개 저장소의 릴리스 태그(<code>v버전</code>)에서 GitHub Actions가 GitHub 제공 실행 환경으로 빌드합니다.</li>
+          <li>빌드 결과를 서명 서비스에 제출하고, 승인자가 릴리스마다 서명 요청을 직접 승인합니다.</li>
+          <li>서명한 파일로 설치, 실행, 제거를 자동 검증한 뒤 <a href="https://github.com/BudongJW/debutkit/releases">릴리스 페이지</a>에 첨부합니다.</li>
+        </ol>
+        <ul>
+          <li>개인 PC에서 만든 파일은 서명하지 않습니다.</li>
+          <li>빌드 절차는 저장소의 <code>.github/workflows/release.yml</code>, 서명 절차는 <code>docs/RELEASING.md</code>에서 확인할 수 있습니다.</li>
+        </ul>
+
+        <h2 id="roles">담당 역할</h2>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>역할</th><th>담당</th><th>내용</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">작성자(Authors)</th><td><a href="https://github.com/BudongJW">BudongJW</a></td><td>저장소에 변경을 직접 반영할 수 있는 개발자</td></tr>
+              <tr><th scope="row">검토자(Reviewers)</th><td><a href="https://github.com/BudongJW">BudongJW</a></td><td>외부 기여(풀 리퀘스트)를 병합 전에 검토</td></tr>
+              <tr><th scope="row">승인자(Approvers)</th><td><a href="https://github.com/BudongJW">BudongJW</a>(저장소 소유자)</td><td>릴리스별 서명 요청 승인</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>담당자는 GitHub와 서명 서비스 계정에 다단계 인증을 사용해야 합니다. 담당자가 바뀌면 이 표를 갱신합니다.</p>
+
+        <h2 id="privacy">개인정보</h2>
+        <p>debutkit은 사용자 또는 프로그램을 설치, 운영하는 사람이 명시적으로 요청한 경우를 제외하고 어떠한 정보도 다른 네트워크 시스템으로 전송하지 않습니다.</p>
+        <p lang="en">This program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it.</p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>기능</th><th>연결 대상</th><th>연결 조건</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">채팅 수신</th><td>치지직, SOOP, Twitch, YouTube 서버</td><td>채널 또는 방송 주소를 입력하고 오버레이를 시작한 경우</td></tr>
+              <tr><th scope="row">치지직 로그인</th><td>치지직 Open API</td><td>로그인을 실행한 경우</td></tr>
+              <tr><th scope="row">YouTube 연결 확인</th><td>YouTube Data API</td><td>연결 확인을 실행한 경우</td></tr>
+              <tr><th scope="row">업로드 속도 측정</th><td>speed.cloudflare.com</td><td>측정을 실행한 경우</td></tr>
+              <tr><th scope="row">새 버전 확인</th><td>api.github.com</td><td>확인 버튼 또는 <code>--check-update</code>를 실행한 경우</td></tr>
+              <tr><th scope="row">ffmpeg 다운로드</th><td>github.com</td><td>다운로드를 실행하거나 설치 과정에서 선택한 경우</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ul>
+          <li>사용 통계, 오류 보고, PC 정보를 자동으로 전송하지 않습니다.</li>
+          <li>채팅은 저장하지 않습니다. 세부 내용은 <a href="guide.html#privacy">사용 설명서의 개인정보와 보안</a>을 참고합니다.</li>
+        </ul>
+
+        <h2 id="system">시스템 변경과 제거</h2>
+        <ul>
+          <li>설치 프로그램은 현재 사용자 계정에만 설치하며 관리자 권한과 시스템 설정 변경이 필요하지 않습니다.</li>
+          <li>Windows 설정의 앱 목록 또는 시작 메뉴에서 제거할 수 있습니다. 제거 시 프로그램 파일과 시작 메뉴 항목을 삭제합니다.</li>
+          <li>다른 프로그램과 함께 쓰는 ffmpeg 폴더, 사용자가 저장한 클립은 제거 시 삭제하지 않습니다.</li>
+        </ul>
+
+        <h2 id="contact">문의</h2>
+        <p>서명된 파일의 이상 동작이나 정책 위반 의심 사항은 <a href="https://github.com/BudongJW/debutkit/issues">GitHub 이슈</a>로 제보합니다.</p>
+      </article>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <strong>debutkit</strong>
+    <a href="https://github.com/BudongJW/debutkit">GitHub</a>
+    <a href="https://github.com/BudongJW/debutkit/releases">릴리스</a>
+    <a href="https://github.com/BudongJW/debutkit/blob/main/CHANGELOG.md">변경 내역</a>
+    <a href="https://github.com/BudongJW/debutkit/blob/main/LICENSE">라이선스</a>
+    <a href="signing.html">코드 서명 정책</a>
+    <p>Apache-2.0 오픈소스 소프트웨어. 본 페이지는 Google Fonts 서체를 사용합니다.</p>
+  </div>
+</footer>
+</body>
+</html>

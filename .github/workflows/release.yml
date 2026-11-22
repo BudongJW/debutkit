@@ -18,7 +18,13 @@ permissions:
 jobs:
   windows:
     runs-on: windows-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
+    outputs:
+      signed: ${{ steps.state.outputs.signed }}
+    env:
+      PYTHONIOENCODING: utf-8
+      # SignPath(오픈소스 무료 서명): 저장소 변수 SIGNPATH_ORGANIZATION_ID가 있고 태그 릴리스일 때만. 요청마다 승인자가 직접 승인
+      SIGNPATH: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' && startsWith(github.ref, 'refs/tags/') }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -26,6 +32,10 @@ jobs:
           python-version: "3.12"
       - name: Install
         run: python -m pip install -e ".[gui,build]"
+      - name: Version
+        id: meta
+        shell: bash
+        run: echo "version=$(python -c 'from debutkit import __version__; print(__version__)')" >> "$GITHUB_OUTPUT"
       - name: Signing certificate (optional)
         shell: pwsh
         env:
@@ -34,7 +44,9 @@ jobs:
           EVENT: ${{ github.event_name }}
         run: |
           $pfx = Join-Path $env:RUNNER_TEMP "signing.pfx"
-          if ($env:PFX_BASE64) {
+          if ($env:SIGNPATH -eq "true") {
+            Write-Host "SignPath 서명 사용(실행 파일, 설치 프로그램)"
+          } elseif ($env:PFX_BASE64) {
             [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:PFX_BASE64))
             "DEBUTKIT_SIGN_PFX=$pfx" >> $env:GITHUB_ENV
             "DEBUTKIT_SIGN_PASSWORD=$env:PFX_PASSWORD" >> $env:GITHUB_ENV
@@ -52,20 +64,78 @@ jobs:
           } else {
             Write-Host "서명 인증서 없음: 서명 없이 빌드"
           }
-      - name: Build and smoke test
-        run: python packaging/build_windows.py
-        env:
-          PYTHONIOENCODING: utf-8
-      - name: Installer
+      - name: Build (version information check)
+        run: python packaging/build_windows.py --stage build
+      - name: Upload programs for SignPath
+        if: env.SIGNPATH == 'true'
+        id: upload-programs
+        uses: actions/upload-artifact@v7
+        with:
+          name: unsigned-programs
+          path: |
+            dist/debutkit/debutkit.exe
+            dist/debutkit/debutkit-gui.exe
+          if-no-files-found: error
+      - name: Sign programs (SignPath)
+        if: env.SIGNPATH == 'true'
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG || 'debutkit' }}
+          signing-policy-slug: ${{ vars.SIGNPATH_POLICY_SLUG || 'release-signing' }}
+          artifact-configuration-slug: programs
+          github-artifact-id: ${{ steps.upload-programs.outputs.artifact-id }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 3600
+          output-artifact-directory: dist/signed-programs
+          parameters: |
+            version: "${{ steps.meta.outputs.version }}"
+      - name: Use signed programs
+        if: env.SIGNPATH == 'true'
         shell: pwsh
-        env:
-          PYTHONIOENCODING: utf-8
+        run: Copy-Item dist\signed-programs\*.exe dist\debutkit\ -Force
+      - name: Sign (certificate file), smoke test, archive
+        run: python packaging/build_windows.py --stage package
+      - name: Installer build
+        shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
           if (-not (Get-Command iscc -ErrorAction SilentlyContinue) -and -not (Test-Path "C:\Program Files (x86)\Inno Setup 6\ISCC.exe")) {
             choco install innosetup -y --no-progress
           }
           python packaging/build_windows.py --installer-only
+      - name: Upload installer for SignPath
+        if: env.SIGNPATH == 'true'
+        id: upload-installer
+        uses: actions/upload-artifact@v7
+        with:
+          name: unsigned-installer
+          path: dist/*-setup.exe
+          if-no-files-found: error
+      - name: Sign installer (SignPath)
+        if: env.SIGNPATH == 'true'
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG || 'debutkit' }}
+          signing-policy-slug: ${{ vars.SIGNPATH_POLICY_SLUG || 'release-signing' }}
+          artifact-configuration-slug: installer
+          github-artifact-id: ${{ steps.upload-installer.outputs.artifact-id }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 3600
+          output-artifact-directory: dist/signed-installer
+          parameters: |
+            version: "${{ steps.meta.outputs.version }}"
+      - name: Use signed installer
+        if: env.SIGNPATH == 'true'
+        shell: pwsh
+        run: Copy-Item dist\signed-installer\*-setup.exe dist\ -Force
+      - name: Installer test
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
           $setup = Get-ChildItem "dist\*-setup.exe" | Select-Object -First 1
           if (-not $setup) { throw "설치 프로그램 없음" }
           Write-Host "installer: $($setup.Name) $([math]::Round($setup.Length / 1MB)) MB"
@@ -77,8 +147,10 @@ jobs:
           foreach ($file in "debutkit-gui.exe", "debutkit.exe", "unins000.exe") {
             if (-not (Test-Path "$target\$file")) { throw "설치 후 $file 없음" }
           }
-          if ($env:DEBUTKIT_SIGN_PFX) {  # 서명 확인: 실행 파일 2개, 설치 프로그램, 설치된 제거 프로그램
-            foreach ($file in "dist\debutkit\debutkit.exe", "dist\debutkit\debutkit-gui.exe", $setup.FullName, "$target\debutkit.exe", "$target\unins000.exe") {
+          if ($env:DEBUTKIT_SIGN_PFX -or $env:SIGNPATH -eq "true") {  # 서명 확인: 실행 파일 2개, 설치 프로그램, 설치된 실행 파일, 제거 프로그램(인증서 파일 방식만)
+            $files = @("dist\debutkit\debutkit.exe", "dist\debutkit\debutkit-gui.exe", $setup.FullName, "$target\debutkit.exe")
+            if ($env:DEBUTKIT_SIGN_PFX) { $files += "$target\unins000.exe" }
+            foreach ($file in $files) {
               $signature = Get-AuthenticodeSignature $file
               if (-not $signature.SignerCertificate) { throw "서명 없음: $file" }
               if (-not $signature.TimeStamperCertificate) { throw "타임스탬프 없음: $file" }
@@ -123,6 +195,14 @@ jobs:
           if (-not (Test-Path "$tools\ffmpeg.exe")) { throw "제거 시 같이 쓰는 ffmpeg 폴더까지 삭제됨" }
           Remove-Item $tools -Recurse -Force
           Write-Host "설치 중 ffmpeg 다운로드, 사용, 제거 후 보존 확인"
+      - name: Signing state
+        id: state
+        shell: pwsh
+        run: |
+          # 릴리스 노트용: 실제 인증서(SignPath 또는 인증서 파일)로 서명했는지. 서명 시험용 자체 서명은 제외
+          $signed = ($env:SIGNPATH -eq "true") -or ($env:DEBUTKIT_SIGN_PFX -and -not $env:DEBUTKIT_SIGN_TEST)
+          "signed=$($signed.ToString().ToLower())" >> $env:GITHUB_OUTPUT
+          Write-Host "Windows 서명: $signed"
       - uses: actions/upload-artifact@v7
         with:
           name: debutkit-windows
@@ -134,6 +214,8 @@ jobs:
   macos:
     runs-on: macos-latest  # Apple Silicon(arm64)
     timeout-minutes: 40
+    outputs:
+      notarized: ${{ steps.build.outputs.notarized }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -162,6 +244,7 @@ jobs:
           echo "DEBUTKIT_MACOS_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
           echo "Developer ID 서명 사용"
       - name: Build, sign, smoke test, notarize
+        id: build
         env:
           DEBUTKIT_NOTARY_APPLE_ID: ${{ secrets.APPLE_ID }}
           DEBUTKIT_NOTARY_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
@@ -205,13 +288,16 @@ jobs:
       - uses: actions/download-artifact@v7
         with:
           path: dist
+          pattern: debutkit-*  # 배포 파일만(서명 전 파일 artifact 제외)
           merge-multiple: true
       - name: Attach to release
         env:
           GH_TOKEN: ${{ github.token }}
+          SIGNED: ${{ needs.windows.outputs.signed == 'true' && '--windows-signed' || '' }}
+          NOTARIZED: ${{ needs.macos.outputs.notarized == 'true' && '--macos-notarized' || '' }}
         run: |
           ls -la dist
-          python packaging/release_notes.py "$GITHUB_REF_NAME" > notes.md  # CHANGELOG.md의 해당 버전 항목
+          python packaging/release_notes.py "$GITHUB_REF_NAME" $SIGNED $NOTARIZED > notes.md  # CHANGELOG.md의 해당 버전 항목, 실제 서명 상태
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
             gh release edit "$GITHUB_REF_NAME" --notes-file notes.md
           else

@@ -58,3 +58,21 @@ def test_real_changelog_has_the_current_version():
 
     text = release_notes.notes(f"v{__version__}", (ROOT / "CHANGELOG.md").read_text(encoding="utf-8"))
     assert "claude" not in text.lower() and "anthropic" not in text.lower()
+
+
+def test_signing_state_follows_the_release_job():
+    unsigned = release_notes.notes("v0.3.0", CHANGELOG)
+    assert "Windows 서명 미적용" in unsigned and "macOS 공증 미적용" in unsigned and "우클릭 후 열기" in unsigned
+    assert "[코드 서명 정책](https://budongjw.github.io/debutkit/signing.html)" in unsigned
+    signed = release_notes.notes("v0.3.0", CHANGELOG, windows_signed=True, macos_notarized=True)
+    assert "Windows 서명 적용, macOS 공증 적용" in signed and "경고" not in signed and "우클릭" not in signed
+    assert "코드 서명 정책" in signed
+
+
+def test_cli_flags(capsys, monkeypatch):
+    monkeypatch.setattr(release_notes, "ROOT", ROOT)
+    from debutkit import __version__
+
+    assert release_notes.main([f"v{__version__}", "--windows-signed"]) == 0
+    out = capsys.readouterr().out
+    assert "Windows 서명 적용" in out and "macOS 공증 미적용" in out

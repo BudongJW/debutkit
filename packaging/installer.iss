@@ -45,6 +45,14 @@ Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
 CloseApplications=yes
+; 버전 정보: 제품 이름과 버전(코드 서명 서비스가 서명 대상 확인에 사용)
+VersionInfoVersion={#AppVersion}
+VersionInfoProductName=debutkit
+VersionInfoProductVersion={#AppVersion}
+VersionInfoProductTextVersion={#AppVersion}
+VersionInfoCompany=debutkit
+VersionInfoDescription=debutkit 설치 프로그램
+VersionInfoCopyright=Apache-2.0
 #ifdef Sign
 ; 서명 설정이 있을 때(build_windows.py가 /DSign, /Sdebutkit=서명 명령 전달): 설치 프로그램과 제거 프로그램에 서명
 SignTool=debutkit

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SignPath 아티팩트 구성 "installer": release.yml이 올리는 설치 프로그램(zip)을 서명. 제품 이름과 버전이 맞는 파일만 서명 -->
+<artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
+  <parameters>
+    <parameter name="version" required="true" />
+  </parameters>
+  <zip-file>
+    <pe-file path="debutkit-${version}-windows-x64-setup.exe" product-name="debutkit" product-version="${version}">
+      <authenticode-sign />
+    </pe-file>
+  </zip-file>
+</artifact-configuration>

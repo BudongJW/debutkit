@@ -171,3 +171,47 @@ def test_broken_links_are_removed(tmp_path):
         pytest.skip("이 PC는 바로 가기(symlink) 생성 권한 없음")
     assert build_app.remove_broken_links(tmp_path) == ["broken"]
     assert (tmp_path / "good").is_symlink() and not (tmp_path / "broken").is_symlink()
+
+
+def test_windows_version_info_names_product_and_version():
+    import pytest
+
+    pytest.importorskip("PyInstaller")
+    import build_app
+
+    info = str(build_app.windows_version_info("0.8.0", "debutkit 설정 마법사", "debutkit-gui.exe"))
+    for expected in ("filevers=(0, 8, 0, 0)", "'ProductName', 'debutkit'", "'ProductVersion', '0.8.0'", "'OriginalFilename', 'debutkit-gui.exe'",
+                     "'FileDescription', 'debutkit 설정 마법사'", "[1042, 1200]"):
+        assert expected in info
+    text = build_windows.INSTALLER.read_text(encoding="utf-8-sig")
+    assert "VersionInfoProductName=debutkit" in text and "VersionInfoProductVersion={#AppVersion}" in text
+
+
+def test_version_strings_reads_a_real_executable():
+    import pytest
+
+    if sys.platform != "win32":
+        pytest.skip("Windows 전용")
+    import build_app
+
+    found = build_app.version_strings(Path(sys.executable).resolve())
+    assert "Python" in found.get("ProductName", "")
+    with pytest.raises(SystemExit, match="버전 정보 누락"):
+        build_app.check_version_info([Path(sys.executable).resolve()], "0.8.0")
+
+
+def test_signpath_configurations_match_the_release_workflow():
+    import xml.etree.ElementTree as ET
+
+    namespace = {"a": "http://signpath.io/artifact-configuration/v1"}
+    workflow = (ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
+    expected = {"programs": ["debutkit.exe", "debutkit-gui.exe"], "installer": ["debutkit-${version}-windows-x64-setup.exe"]}
+    for slug, paths in expected.items():
+        root = ET.parse(ROOT / "packaging" / "signpath" / f"{slug}.xml").getroot()
+        files = root.findall("a:zip-file/a:pe-file", namespace)
+        assert [item.get("path") for item in files] == paths
+        assert all(item.get("product-name") == "debutkit" and item.get("product-version") == "${version}" for item in files)
+        assert all(item.find("a:authenticode-sign", namespace) is not None for item in files)
+        assert f"artifact-configuration-slug: {slug}" in workflow
+    assert build_windows.installer_name("0.8.0", "AMD64") == expected["installer"][0].replace("${version}", "0.8.0").removesuffix(".exe")
+    assert "pattern: debutkit-*" in workflow  # 서명 전 파일 artifact를 릴리스에 섞지 않음

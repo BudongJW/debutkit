@@ -136,6 +136,7 @@ def make_signed_installer(folder: Path, dist: Path, version: str) -> Path:
     """설치 프로그램 만들기. 서명 설정이 있으면 설치 프로그램과 제거 프로그램에 서명."""
     tool = inno_sign_tool()
     setup = make_installer(folder, dist, version, sign_tool=tool)
+    build_app.check_version_info([setup], version)
     if tool:
         print(f"  코드 서명: {setup.name}, 제거 프로그램(unins000.exe)")
     return setup
@@ -147,6 +148,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--no-smoke", action="store_true", help="만든 프로그램 실행 확인 생략")
     parser.add_argument("--installer", action="store_true", help="설치 프로그램도 만들기 (Inno Setup 6 필요)")
     parser.add_argument("--installer-only", action="store_true", help="빌드 없이 이미 만든 dist/debutkit 폴더로 설치 프로그램만")
+    parser.add_argument("--stage", choices=["all", "build", "package"], default="all",
+                        help="build: 빌드와 버전 정보 확인까지, package: 이미 만든 폴더의 서명, 실행 확인, 압축 (사이에 외부 서명 서비스 사용)")
     args = parser.parse_args(argv)
     dist = Path(args.dist)
     folder = dist / "debutkit"
@@ -158,10 +161,16 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.installer and not find_iscc():  # 긴 빌드 전에 확인
         parser.error("--installer 에는 Inno Setup 6(ISCC.exe) 필요: 설치하거나 DEBUTKIT_ISCC 에 경로 지정")
-    build_app.build(dist, ROOT / "build" / "pyinstaller")
-    for name in ("LICENSE", "README.md"):
-        shutil.copy2(ROOT / name, folder / name)
     cli, gui = build_app.programs(folder, "win32")
+    if args.stage in ("all", "build"):
+        build_app.build(dist, ROOT / "build" / "pyinstaller")
+        for name in ("LICENSE", "README.md"):
+            shutil.copy2(ROOT / name, folder / name)
+        build_app.check_version_info([cli, gui], version)
+        if args.stage == "build":
+            return 0
+    elif not cli.is_file():
+        parser.error("--stage package 에는 먼저 만든 dist/debutkit 폴더 필요")
     sign([cli, gui])
     if not args.no_smoke:
         build_app.smoke_test(cli, gui)

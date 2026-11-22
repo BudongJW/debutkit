@@ -52,6 +52,58 @@ def dropped(entry: tuple[Any, ...]) -> bool:
     return unused(dest) or (kind == "SYMLINK" and unused(source))
 
 
+def windows_version_info(version: str, description: str, filename: str) -> Any:
+    """Windows 실행 파일의 버전 정보(제품 이름, 제품 버전 등). 코드 서명 서비스가 이 값으로 서명 대상을 확인한다."""
+    from PyInstaller.utils.win32.versioninfo import (
+        FixedFileInfo,
+        StringFileInfo,
+        StringStruct,
+        StringTable,
+        VarFileInfo,
+        VarStruct,
+        VSVersionInfo,
+    )
+
+    numbers = tuple((list(map(int, version.split(".")[:3])) + [0, 0, 0, 0])[:4])
+    strings = [("CompanyName", "debutkit"), ("FileDescription", description), ("FileVersion", version), ("InternalName", Path(filename).stem),
+               ("LegalCopyright", "Apache-2.0"), ("OriginalFilename", filename), ("ProductName", "debutkit"), ("ProductVersion", version)]
+    return VSVersionInfo(ffi=FixedFileInfo(filevers=numbers, prodvers=numbers),
+                         kids=[StringFileInfo([StringTable("041204B0", [StringStruct(name, value) for name, value in strings])]),
+                               VarFileInfo([VarStruct("Translation", [0x0412, 1200])])])
+
+
+def version_strings(path: Path) -> dict[str, str]:
+    """Windows 실행 파일에 기록된 버전 정보 문자열(Windows 전용)."""
+    import ctypes
+    from ctypes import wintypes
+
+    api = ctypes.windll.version  # type: ignore[attr-defined]
+    size = api.GetFileVersionInfoSizeW(str(path), None)
+    if not size:
+        return {}
+    data = ctypes.create_string_buffer(size)
+    api.GetFileVersionInfoW(str(path), 0, size, data)
+    pointer, length = ctypes.c_void_p(), wintypes.UINT()
+    if not api.VerQueryValueW(data, "\\VarFileInfo\\Translation", ctypes.byref(pointer), ctypes.byref(length)) or not length.value:
+        return {}
+    language, codepage = ctypes.cast(pointer, ctypes.POINTER(ctypes.c_ushort * 2)).contents
+    found = {}
+    for name in ("ProductName", "ProductVersion", "FileDescription", "OriginalFilename", "CompanyName"):
+        value = ctypes.c_void_p()
+        if api.VerQueryValueW(data, f"\\StringFileInfo\\{language:04x}{codepage:04x}\\{name}", ctypes.byref(value), ctypes.byref(length)) and length.value:
+            found[name] = ctypes.wstring_at(value, length.value - 1)
+    return found
+
+
+def check_version_info(files: list[Path], version: str) -> None:
+    """서명 전에 제품 이름과 버전이 기록되었는지 확인(Windows)."""
+    for path in files:
+        found = version_strings(path)
+        if found.get("ProductName") != "debutkit" or found.get("ProductVersion") != version:
+            raise SystemExit(f"버전 정보 누락 또는 불일치: {path.name} {found}")
+        print(f"  버전 정보: {path.name}, {found['ProductName']} {found['ProductVersion']}, {found.get('FileDescription', '')}")
+
+
 def remove_broken_links(item: Path) -> list[str]:
     """대상이 없는 바로 가기 삭제(서명 검증과 공증은 이를 오류로 처리)."""
     removed = []
@@ -199,7 +251,12 @@ def main(argv: list[str] | None = None) -> int:
     if not args.no_smoke:
         smoke_test(*programs(item))
     if sys.platform == "darwin" and (config := notary_config()):
+        if identity == "-":
+            raise SystemExit("공증에는 Developer ID 서명 필요: DEBUTKIT_MACOS_IDENTITY(인증서) 확인")
         print(f"  공증 완료: 제출 {notarize(item, dist, config)}, 스테이플, Gatekeeper 확인")
+        if os.environ.get("GITHUB_OUTPUT"):  # 릴리스 노트용
+            with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+                output.write("notarized=true\n")
     out = archive(item, dist, archive_name(project_version()))
     print(f"{out}  (압축 해제 시 {size_mb(item):.0f} MB)")
     print("큰 파일:\n  " + "\n  ".join(largest(item)))

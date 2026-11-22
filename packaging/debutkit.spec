@@ -16,7 +16,7 @@ from PyInstaller.utils.hooks import collect_data_files, collect_submodules, copy
 
 ROOT = Path(SPECPATH).parent
 sys.path.insert(0, SPECPATH)
-from build_app import dropped  # noqa: E402
+from build_app import dropped, windows_version_info  # noqa: E402
 
 VERSION = re.search(r'__version__ = "([^"]+)"', (ROOT / "src" / "debutkit" / "__init__.py").read_text(encoding="utf-8")).group(1)
 
@@ -51,8 +51,15 @@ def analysis(script):
 
 gui = analysis("entry_gui.py")
 cli = analysis("entry_cli.py")
-gui_exe = EXE(PYZ(gui.pure), gui.scripts, [], exclude_binaries=True, name="debutkit-gui", console=False, icon=icon)
-cli_exe = EXE(PYZ(cli.pure), cli.scripts, [], exclude_binaries=True, name="debutkit", console=True, icon=icon)
+def version(description, filename):
+    """Windows 실행 파일의 제품 이름과 버전(코드 서명 서비스가 서명 대상 확인에 사용)."""
+    return windows_version_info(VERSION, description, filename) if sys.platform == "win32" else None
+
+
+gui_exe = EXE(PYZ(gui.pure), gui.scripts, [], exclude_binaries=True, name="debutkit-gui", console=False, icon=icon,
+              version=version("debutkit 설정 마법사", "debutkit-gui.exe"))
+cli_exe = EXE(PYZ(cli.pure), cli.scripts, [], exclude_binaries=True, name="debutkit", console=True, icon=icon,
+              version=version("debutkit 명령줄 도구", "debutkit.exe"))
 folder = COLLECT(gui_exe, gui.binaries, gui.datas, cli_exe, cli.binaries, cli.datas, name="debutkit")
 
 if sys.platform == "darwin":
