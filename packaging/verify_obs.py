@@ -89,6 +89,8 @@ def scenes() -> None:
     report, planned = connect_and_apply(HOST, PORT, None, SceneOptions(avatar="vts"), switch=True, replay_buffer=30)
     print(format_report(report))
     with client() as obs:
+        kinds = obs.request("GetInputKindList", {"unversioned": False}).get("inputKinds", [])
+        print("사용 가능한 캡처 소스:", ", ".join(kind for kind in kinds if "capture" in kind or "input" in kind))
         names = [scene["sceneName"] for scene in obs.request("GetSceneList").get("scenes", [])]
         inputs = {item["inputName"]: item.get("inputKind") for item in obs.request("GetInputList").get("inputs", [])}
         mode = obs.request("GetProfileParameter", {"parameterCategory": "Output", "parameterName": "Mode"}).get("parameterValue")
@@ -105,28 +107,44 @@ def scenes() -> None:
     print(f"출력 모드 {mode}, 리플레이 버퍼 설정 {replay}")
     if str(mode).lower() != "advanced" or str(replay["RecRB"]).lower() not in ("true", "1") or str(replay["RecRBTime"]) != "30":
         raise SystemExit("고급 출력 모드의 리플레이 버퍼 설정이 저장되지 않음")
-    if len(created) < 6:
+    if len(created) < 7:
         raise SystemExit(f"debutkit 소스가 부족함: {len(created)}개")
+    if not any(name.startswith("[DK] 아바타") for name in created):
+        if not any(note.startswith("이 OBS에는 창 캡처 소스가 없어") for note in report.notes):
+            raise SystemExit("아바타 소스가 없는데 안내도 없음")
+        print("아바타 소스: 창 캡처 소스 종류가 없어 생략(안내 표시 확인)")
 
 
 def clip(timeout: float = 120.0) -> None:
+    import queue
+    import threading
+
     CLIPS.mkdir(parents=True, exist_ok=True)
-    env = {**os.environ, "PYTHONIOENCODING": "utf-8"}
+    # 파이프로 받는 출력은 기본으로 블록 단위 버퍼링: 줄 단위로 받도록 버퍼링 해제
+    env = {**os.environ, "PYTHONIOENCODING": "utf-8", "PYTHONUNBUFFERED": "1"}
     overlay = subprocess.Popen([sys.executable, "-m", "debutkit", "overlay", "--port", str(OVERLAY_PORT), "--clip", "--clip-dir", str(CLIPS)],
                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", env=env)
+    lines: queue.Queue[str] = queue.Queue()
+
+    def pump() -> None:
+        for line in overlay.stdout or []:
+            lines.put(line)
+
+    threading.Thread(target=pump, daemon=True).start()
     try:
-        started = time.monotonic()
-        lines = []
-        while time.monotonic() - started < 60:
-            line = overlay.stdout.readline() if overlay.stdout else ""
-            if not line and overlay.poll() is not None:
-                raise SystemExit("overlay 종료:\n" + "".join(lines))
-            lines.append(line)
+        deadline = time.monotonic() + 60
+        while True:
+            if time.monotonic() > deadline:
+                raise SystemExit("자동 클립이 60초 안에 시작되지 않음")
+            try:
+                line = lines.get(timeout=1)
+            except queue.Empty:
+                if overlay.poll() is not None:
+                    raise SystemExit(f"overlay 종료({overlay.returncode})") from None
+                continue
             print("  " + line.rstrip())
             if "자동 클립: 사용" in line:
                 break
-        else:
-            raise SystemExit("자동 클립이 시작되지 않음")
         request = urllib.request.Request(f"http://127.0.0.1:{OVERLAY_PORT}/test", data=json.dumps({"kind": "chat", "role": "owner", "text": "!clip"}).encode(),
                                          headers={"Content-Type": "application/json"}, method="POST")
         time.sleep(8)  # 리플레이 버퍼에 영상이 쌓일 시간
@@ -134,6 +152,8 @@ def clip(timeout: float = 120.0) -> None:
         print("스트리머 !clip 입력")
         end = time.monotonic() + timeout
         while time.monotonic() < end:
+            while not lines.empty():
+                print("  " + lines.get().rstrip())
             found = sorted(CLIPS.glob("*.mp4"))
             if found and found[-1].stat().st_size > 0:
                 time.sleep(2)
@@ -149,12 +169,11 @@ def clip(timeout: float = 120.0) -> None:
     finally:
         overlay.terminate()
         try:
-            rest = overlay.communicate(timeout=10)[0] or ""
+            overlay.wait(timeout=10)
         except subprocess.TimeoutExpired:
             overlay.kill()
-            rest = ""
-        for line in rest.splitlines()[-20:]:
-            print("  " + line)
+        while not lines.empty():
+            print("  " + lines.get().rstrip())
 
 
 def main(argv: list[str]) -> int:

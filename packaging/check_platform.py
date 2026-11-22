@@ -24,6 +24,7 @@ def run(*args: str) -> subprocess.CompletedProcess[str]:
 
 
 def main() -> int:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]  # Windows 콘솔 기본 인코딩에서도 한국어 출력
     print(f"{platform.system()} {platform.release()} {platform.machine()}, Python {platform.python_version()}")
     doctor = run("doctor", "--json")
     if doctor.returncode not in (0, 1):

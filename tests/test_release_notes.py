@@ -34,8 +34,14 @@ def test_notes_take_the_version_section_with_install_and_compare_link():
 
 
 def test_zip_only_releases_omit_the_installer():
-    text = release_notes.notes("v0.3.0", CHANGELOG, installer=False)
-    assert "setup.exe" not in text and "debutkit-0.3.0-windows-x64.zip" in text
+    text = release_notes.notes("v0.3.0", CHANGELOG, installer=False, unix=False)
+    assert "setup.exe" not in text and "macos" not in text and "debutkit-0.3.0-windows-x64.zip" in text
+
+
+def test_current_releases_list_every_platform():
+    text = release_notes.notes("v0.3.0", CHANGELOG)
+    for name in ("windows-x64-setup.exe", "windows-x64.zip", "macos-arm64.zip", "linux-x64.tar.gz"):
+        assert f"debutkit-0.3.0-{name}" in text
 
 
 def test_oldest_version_has_no_compare_link():

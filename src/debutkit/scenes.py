@@ -243,6 +243,8 @@ def connect_and_apply(host: str, port: int, password: str | None, options: Scene
         kinds = resolve_kinds(client.request("GetInputKindList", {"unversioned": False}).get("inputKinds", []))
         scenes = build_scenes(int(video.get("baseWidth", 1920)), int(video.get("baseHeight", 1080)), kinds, options)
         report = apply(client, scenes, kinds, replace=replace, switch_to=scenes[0].name if switch else None)
+        if options.avatar != "none" and "window" not in kinds:
+            report.notes.append("이 OBS에는 창 캡처 소스가 없어 아바타 소스 생략. OBS에서 아바타 프로그램 창 캡처를 직접 추가 필요")
         if replay_buffer:
             try:
                 report.notes.append(enable_replay_buffer(client, replay_buffer)[1])

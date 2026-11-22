@@ -37,7 +37,7 @@ jobs:
         run: python packaging/verify_obs.py configure
       - name: Start OBS
         run: |
-          Xvfb :99 -screen 0 1920x1080x24 > /dev/null 2>&1 &
+          Xvfb :99 -screen 0 1920x1080x24 +extension Composite > /dev/null 2>&1 &
           sleep 2
           nohup obs --disable-shutdown-check --minimize-to-tray > "$RUNNER_TEMP/obs-1.log" 2>&1 &
           python packaging/verify_obs.py wait
@@ -51,6 +51,7 @@ jobs:
           nohup obs --disable-shutdown-check --minimize-to-tray > "$RUNNER_TEMP/obs-2.log" 2>&1 &
           python packaging/verify_obs.py wait
       - name: Auto clip end to end
+        timeout-minutes: 6
         run: python packaging/verify_obs.py clip
       - name: OBS logs
         if: always()

@@ -37,6 +37,36 @@ def test_make_installer_runs_iscc_and_finds_the_file(tmp_path):
     assert setup.name.endswith("-setup.exe") and ran
 
 
+def test_signing_is_skipped_without_a_certificate(monkeypatch, tmp_path):
+    monkeypatch.delenv("DEBUTKIT_SIGN_PFX", raising=False)
+    ran = []
+    assert build_windows.sign([tmp_path / "debutkit.exe"], run=lambda *a, **k: ran.append(a)) is False and ran == []
+
+
+def test_signing_uses_signtool_with_timestamp(monkeypatch, tmp_path):
+    pfx = tmp_path / "cert.pfx"
+    pfx.write_bytes(b"x")
+    monkeypatch.setenv("DEBUTKIT_SIGN_PFX", str(pfx))
+    monkeypatch.setenv("DEBUTKIT_SIGN_PASSWORD", "pw")
+    monkeypatch.setattr(build_windows, "find_signtool", lambda: "signtool.exe")
+    ran = []
+    assert build_windows.sign([tmp_path / "a.exe", tmp_path / "b.exe"], run=lambda command, check: ran.append(command))
+    command = ran[0]
+    assert command[:3] == ["signtool.exe", "sign", "/fd"] and "/tr" in command and "/td" in command
+    assert command[-2:] == [str(tmp_path / "a.exe"), str(tmp_path / "b.exe")]
+
+
+def test_archive_names_per_system():
+    import build_app
+
+    assert build_app.archive_name("0.6.0", "AMD64", "win32") == "debutkit-0.6.0-windows-x64"
+    assert build_app.archive_name("0.6.0", "arm64", "darwin") == "debutkit-0.6.0-macos-arm64"
+    assert build_app.archive_name("0.6.0", "x86_64", "linux") == "debutkit-0.6.0-linux-x64"
+    cli, gui = build_app.programs(Path("dist/debutkit.app"), "darwin")
+    assert cli.parts[-3:] == ("Contents", "MacOS", "debutkit") and gui.name == "debutkit-gui"
+    assert build_app.programs(Path("dist/debutkit"), "linux")[0].name == "debutkit"
+
+
 def test_installer_script_is_utf8_with_bom_and_has_no_claude():
     raw = (ROOT / "packaging" / "installer.iss").read_bytes()
     assert raw.startswith(b"\xef\xbb\xbf")  # Inno Setup이 한국어 문구를 UTF-8로 읽도록

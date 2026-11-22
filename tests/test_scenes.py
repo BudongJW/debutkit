@@ -167,3 +167,32 @@ def test_plan_text_lists_every_scene():
     text = format_plan(build_scenes(1920, 1080, kinds), kinds)
     for name in ("대기 화면", "본방송", "토크", "자리 비움", "엔딩", "game_capture"):
         assert name in text
+
+
+def test_missing_window_capture_is_reported(monkeypatch):
+    """창 캡처 소스가 없는 OBS(예: 컴포지트 없는 X 서버)에서는 아바타를 생략하고 안내한다."""
+    import stream2clip.obs as obs_module
+
+    from debutkit.scenes import SceneOptions, connect_and_apply
+
+    class FakeClient(FakeObs):
+        def __init__(self, *args, **kwargs):
+            super().__init__()
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def request(self, kind, data=None):
+            if kind == "GetVideoSettings":
+                return {"baseWidth": 1280, "baseHeight": 720}
+            if kind == "GetInputKindList":
+                return {"inputKinds": ["color_source_v3", "text_ft2_source_v2", "browser_source", "xshm_input_v2"]}
+            return super().request(kind, data)
+
+    monkeypatch.setattr(obs_module, "ObsClient", FakeClient)
+    report, scenes = connect_and_apply("127.0.0.1", 4455, None, SceneOptions(avatar="vts", os_name="Linux"))
+    assert not any("아바타" in item.source for scene in scenes for item in scene.items)
+    assert any("창 캡처 소스가 없어 아바타 소스 생략" in note for note in report.notes)
