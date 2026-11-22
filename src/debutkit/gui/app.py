@@ -42,7 +42,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from .. import __version__, character, chzzk, clip, doctor, logs, scenes, settings, speed, tools
+from .. import __version__, character, chzzk, clip, doctor, logs, scenes, settings, speed, tools, vts
 from ..doctor import FAIL, INFO, JOIN_URL, LABELS, OK, OVERLAY_PORT, SOFTWARE_URL, WARN
 
 STEPS = ["1  PC 점검", "2  캐릭터", "3  OBS 장면", "4  채팅과 알림", "5  마무리"]
@@ -183,6 +183,14 @@ def _make_voice_meter(server: Any, port: int, password: str | None, threshold: f
                       notify=lambda text: server.hub.publish(system_event(text))).start()
 
 
+def _make_vts_reactor(server: Any, reactions: list[Any]) -> Any:
+    from ..overlay.events import system_event
+
+    reactor = vts.VtsReactor(reactions, notify=lambda text: server.hub.publish(system_event(text))).start()
+    server.hub.taps.append(reactor)
+    return reactor
+
+
 def _copy_text(text_: str) -> None:
     QGuiApplication.clipboard().setText(text_)
 
@@ -227,6 +235,9 @@ class Backend:
     pick_png: Callable[[], Any] = _pick_png
     pick_folder: Callable[[str], str | None] = _pick_folder
     make_voice_meter: Callable[..., Any] = _make_voice_meter
+    vts_connect: Callable[..., Any] = vts.connect
+    vts_token: Callable[[], str | None] = vts.load_token
+    make_vts_reactor: Callable[..., Any] = _make_vts_reactor
 
 
 class Bridge(QObject):
@@ -240,6 +251,7 @@ class Bridge(QObject):
     chzzk = Signal(str)
     update = Signal(str)
     speed = Signal(object)  # doctor.Check
+    vts = Signal(object)  # {"message": 안내, "models": [...], "hotkeys": [...]}
     youtube = Signal(str)
 
 
@@ -295,6 +307,7 @@ class Wizard(QMainWindow):
         self.bridge.update.connect(self._show_update)
         self.bridge.speed.connect(self._show_speed)
         self.bridge.youtube.connect(self._show_youtube)
+        self.bridge.vts.connect(self._show_vts)
         self.server: Any = None
         self.checked: list[doctor.Check] = []
         self._threads: list[threading.Thread] = []
@@ -520,6 +533,28 @@ class Wizard(QMainWindow):
             '<a href="https://github.com/BudongJW/debutkit/blob/main/docs/CHARACTER.md" style="{0}">제작 도구, 파일 형식, 라이선스 정리</a>'.format(LINK),
             links=True)
         layout.addWidget(card(create, title="캐릭터 만들기"))
+        self.vts_state = text("VTube Studio 플러그인 API를 켠 뒤 연결하면 모델 불러오기와 후원 반응(단축키 실행)을 사용할 수 있습니다.", muted=True)
+        connect_vts = QPushButton("VTube Studio 연결")
+        connect_vts.clicked.connect(lambda: self.vts_action("login"))
+        refresh = QPushButton("모델, 단축키 불러오기")
+        refresh.clicked.connect(lambda: self.vts_action("list"))
+        self.vts_models = QComboBox()
+        self.vts_models.setMinimumWidth(200)
+        load_model = QPushButton("모델 불러오기")
+        load_model.clicked.connect(lambda: self.vts_action("load"))
+        self.vts_hotkey = QComboBox()
+        self.vts_hotkey.setEditable(True)
+        self.vts_hotkey.setMinimumWidth(160)
+        self.vts_hotkey.setToolTip("후원이 오면 실행할 VTube Studio 단축키 이름. 비워 두면 후원 반응 사용 안 함")
+        self.vts_min = QSpinBox()
+        self.vts_min.setRange(0, 1_000_000)
+        self.vts_min.setSingleStep(1000)
+        self.vts_min.setSuffix(" 원 이상")
+        self.vts_min.setToolTip("이 금액 이상의 후원에 반응(별풍선은 1개 100원으로 계산). 0은 모든 후원과 멤버십")
+        try_hotkey = QPushButton("시험 실행")
+        try_hotkey.clicked.connect(lambda: self.vts_action("trigger"))
+        layout.addWidget(card(self.vts_state, row(connect_vts, refresh), row(self.vts_models, load_model, stretch=0),
+                              row(QLabel("후원 반응"), self.vts_hotkey, self.vts_min, try_hotkey), title="VTube Studio(Live2D)"))
         guide = text(
             "<b>PNGTuber, 3D(VRM)</b>: debutkit 캐릭터 화면(OBS 마이크 음량으로 입 움직임). OBS 장면 단계에서 아바타 프로그램을 debutkit으로 선택<br>"
             "<b>Live2D 모델</b>: VTube Studio(수익 방송 시 유료 버전 필요). 방송 프로그램으로 보내기로 모델 폴더에 복사<br>"
@@ -651,6 +686,51 @@ class Wizard(QMainWindow):
         if self.server is None:
             return self._character_message("채팅과 알림 단계에서 오버레이를 시작한 뒤 미리보기를 열 수 있습니다.")
         self.backend.open_url(f"{self.server.url}/character?id={urllib.parse.quote(item.id)}&demo")
+
+    # VTube Studio
+    def vts_reaction_rules(self) -> list[str]:
+        hotkey = self.vts_hotkey.currentText().strip()
+        return [f"{self.vts_min.value()}:{hotkey}"] if hotkey else []
+
+    def vts_action(self, action: str) -> None:
+        model_id = self.vts_models.currentData()
+        hotkey = self.vts_hotkey.currentText().strip()
+        if action == "trigger" and not hotkey:
+            return self._show_vts({"message": "실행할 단축키 이름을 입력하거나 목록에서 선택하십시오."})
+        if action == "login":
+            self.vts_state.setText("VTube Studio 화면에서 debutkit 플러그인 허용을 누르십시오.")
+
+        def job() -> None:
+            result: dict[str, Any] = {}
+            try:
+                with self.backend.vts_connect(request_new=action == "login") as client:
+                    if action == "load" and model_id:
+                        client.load_model(model_id)
+                        result["message"] = f"불러옴: {self.vts_models.currentText()}"
+                    elif action == "trigger":
+                        client.trigger(hotkey)
+                        result["message"] = f"단축키 실행: {hotkey}"
+                    else:
+                        result["models"] = [(model.name, model.id, model.loaded) for model in client.models()]
+                        result["hotkeys"] = [hotkey_.name for hotkey_ in client.hotkeys()]
+                        result["message"] = "VTube Studio 연결됨. 모델과 현재 모델의 단축키를 불러왔습니다."
+            except Exception as error:
+                result["message"] = f"VTube Studio: {error}"
+            self._emit(self.bridge.vts, result)
+
+        self._run(job)
+
+    def _show_vts(self, result: dict[str, Any]) -> None:
+        self.vts_state.setText(result.get("message", ""))
+        if "models" in result:
+            self.vts_models.clear()
+            for name, model_id, loaded in result["models"]:
+                self.vts_models.addItem(name + (" (현재)" if loaded else ""), model_id)
+        if result.get("hotkeys"):
+            current = self.vts_hotkey.currentText()
+            self.vts_hotkey.clear()
+            self.vts_hotkey.addItems(result["hotkeys"])
+            self.vts_hotkey.setEditText(current or result["hotkeys"][0])
 
     def open_tracker(self) -> None:
         """얼굴 추적 화면은 카메라를 쓰므로 OBS가 아닌 일반 브라우저에서 연다."""
@@ -889,6 +969,12 @@ class Wizard(QMainWindow):
         if meter is not None:
             server.attach(meter)
             self._append_log(f"캐릭터 화면: {server.url}/character (OBS 마이크 음량으로 입 움직임). 얼굴 추적: {server.url}/tracker(일반 브라우저)")
+        reactions = vts.parse_reactions(self.vts_reaction_rules())
+        if reactions and self.backend.vts_token():
+            server.attach(self.backend.make_vts_reactor(server, reactions))
+            self._append_log(f"VTube Studio 후원 반응: {self.vts_min.value():,}원 이상 후원 시 {reactions[0].hotkey} 실행")
+        elif reactions:
+            self._append_log("VTube Studio 후원 반응: 연결 전(캐릭터 단계의 VTube Studio 연결 필요)")
         self._append_log(f"오버레이 실행 중: {server.url}/chat (채팅창), {server.url}/alerts (알림)")
         if self.autoclip.isChecked():
             port, password = self.obs_port.value(), self.obs_password.text() or None
@@ -983,7 +1069,7 @@ class Wizard(QMainWindow):
                       clip=self.autoclip.isChecked(), overlay_port=self.port.value(), obs_port=self.obs_port.value(),
                       avatar_app=str(self.avatar_app.currentData()), replay_buffer=60 if self.replay.isChecked() else 0,
                       avatar_path=self.avatar_path.text().strip(), agency=self.avatar_agency.isChecked(),
-                      voice_threshold=float(self.voice_threshold.value()), voice_input=self._voice_input)
+                      voice_threshold=float(self.voice_threshold.value()), voice_input=self._voice_input, vts_reactions=self.vts_reaction_rules())
         return settings.clean(values)
 
     def apply_settings(self, values: dict[str, Any]) -> None:
@@ -1007,6 +1093,10 @@ class Wizard(QMainWindow):
         if "voice_threshold" in values and -70 <= values["voice_threshold"] <= -10:
             self.voice_threshold.setValue(round(values["voice_threshold"]))
         self._voice_input = values.get("voice_input", "")  # 명령줄에서 지정한 OBS 소스 이름 유지
+        rules = vts.parse_reactions(values.get("vts_reactions"))
+        if rules:  # 설정 마법사는 규칙 하나를 보여 준다(명령줄은 여러 개 가능)
+            self.vts_hotkey.setEditText(rules[-1].hotkey)
+            self.vts_min.setValue(rules[-1].min_won)
 
     def remember(self) -> None:
         try:

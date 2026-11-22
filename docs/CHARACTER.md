@@ -62,7 +62,7 @@
 
 | 프로그램 | 모델 | 불러오기 | 연계 방식 |
 |---|---|---|---|
-| VTube Studio | Live2D | 모델별 폴더를 `Live2DModels`에 넣으면 다음 실행 시 인식. 위치는 프로그램 안의 폴더 열기 버튼으로 확인 | debutkit이 모델 폴더 복사. 공개 API(ws://localhost:8001)는 등록된 모델 전환만 가능하고 파일 가져오기 불가. https://github.com/DenchiSoft/VTubeStudio/wiki/Loading-your-own-Models |
+| VTube Studio | Live2D | 모델별 폴더를 `Live2DModels`에 넣으면 다음 실행 시 인식. 위치는 프로그램 안의 폴더 열기 버튼으로 확인 | debutkit이 모델 폴더 복사. 공개 API(ws://localhost:8001, MIT)로 인증, 모델 불러오기, 단축키 실행(후원 반응). 파일 가져오기는 API에 없음. https://github.com/DenchiSoft/VTubeStudio |
 | Warudo | VRM | 데이터 폴더의 `Characters` 폴더 | debutkit이 VRM 복사. https://docs.warudo.app/docs/assets/character |
 | VSeeFace | VRM 0.x만 | 아바타 목록에서 파일 선택 | 안내. VRM 1.0은 사용 불가 안내. https://www.vseeface.icu/ |
 | VMagicMirror | VRM 0.x, 1.0 | 파일에서 불러오기 | 안내. https://malaybaku.github.io/VMagicMirror/en/ |

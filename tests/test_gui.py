@@ -447,3 +447,53 @@ def test_overlay_start_attaches_voice_meter(app):
         assert calls.saves[-1]["voice_threshold"] == -35.0
     finally:
         window.close()
+
+
+def test_vts_card_connects_loads_triggers_and_saves_reaction(app):
+    pytest.importorskip("websocket")
+    from vts_fake import FakeVts
+
+    from debutkit import vts
+
+    fake = FakeVts()
+    reactors = []
+
+    class FakeServer:
+        url = "http://127.0.0.1:8790"
+
+        def __init__(self):
+            self.hub = type("Hub", (), {"taps": []})()
+            self.attached = []
+
+        def start(self):
+            return self
+
+        def stop(self):
+            pass
+
+        def attach(self, part):
+            self.attached.append(part)
+
+    server = FakeServer()
+    calls = Calls()
+    window = Wizard(calls.backend(vts_connect=lambda request_new=False: vts.connect(fake.url, request_new=request_new),
+                                  make_overlay=lambda sources, port: server,
+                                  make_vts_reactor=lambda srv, reactions: reactors.append(reactions) or "reactor"))
+    try:
+        window.vts_action("login")
+        assert wait_for(app, lambda: window.vts_models.count() == 2), window.vts_state.text()
+        assert "연결됨" in window.vts_state.text() and window.vts_hotkey.count() == 2 and vts.load_token() == "new-token"
+        window.vts_models.setCurrentIndex(1)
+        window.vts_action("load")
+        assert wait_for(app, lambda: fake.loaded == ["m2"])
+        window.vts_hotkey.setEditText("Heart")
+        window.vts_min.setValue(1000)
+        window.vts_action("trigger")
+        assert wait_for(app, lambda: fake.triggered == ["Heart"])
+        assert window.collect_settings()["vts_reactions"] == ["1000:Heart"]
+        window.toggle_overlay()
+        assert reactors and reactors[0][0].hotkey == "Heart" and "reactor" in server.attached
+        assert "1,000원 이상 후원 시 Heart" in window.overlay_log.toPlainText()
+    finally:
+        window.close()
+        fake.close()

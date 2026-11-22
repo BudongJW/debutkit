@@ -1,5 +1,14 @@
 # 변경 내역
 
+## 1.0.0rc4 (2026-11-22)
+
+1.0 후보 4차(사전 릴리스). VTube Studio 연동 추가.
+
+### 추가
+- VTube Studio 연동(공개 API): 연결(VTube Studio 화면에서 허용), 모델 목록과 불러오기, 단축키 목록과 실행(`debutkit vts`, 설정 마법사 캐릭터 단계의 VTube Studio 카드)
+- 후원 반응: 후원, 멤버십 알림 때 금액 조건에 맞는 VTube Studio 단축키 실행(`overlay --vts-reaction 1000:Heart`, 설정 마법사). 원과 별풍선(1개 100원)은 최소 금액 비교, 그 밖의 단위는 모든 후원 규칙에만 반응
+- VTube Studio 토큰은 설정 폴더의 `vts-token.json`에 따로 보관(`debutkit vts logout`으로 삭제)
+
 ## 1.0.0rc3 (2026-11-22)
 
 1.0 후보 3차(사전 릴리스). 웹캠 얼굴 추적 추가.

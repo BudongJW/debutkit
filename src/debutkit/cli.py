@@ -59,7 +59,8 @@ def _scenes(args: argparse.Namespace) -> int:
 #: overlay 옵션과 저장 설정 항목의 대응(API 키, 비밀번호는 저장하지 않음)
 OVERLAY_SETTINGS = {"chzzk": "chzzk", "chzzk_api": "chzzk_api", "soop": "soop", "twitch": "twitch", "youtube": "youtube",
                     "youtube_mode": "youtube_mode", "youtube_interval": "youtube_interval", "demo": "demo", "port": "overlay_port",
-                    "clip": "clip", "clip_dir": "clip_dir", "obs_port": "obs_port", "voice_input": "voice_input", "voice_threshold": "voice_threshold"}
+                    "clip": "clip", "clip_dir": "clip_dir", "obs_port": "obs_port", "voice_input": "voice_input", "voice_threshold": "voice_threshold",
+                    "vts_reaction": "vts_reactions"}
 
 
 def apply_saved(args: argparse.Namespace, saved: dict[str, Any], defaults: dict[str, Any]) -> list[str]:
@@ -123,6 +124,7 @@ def _overlay(args: argparse.Namespace) -> int:
     if not (args.chzzk_api or args.chzzk or args.soop or args.twitch or args.youtube):
         print("  채널 미지정, 데모 채팅 표시. 예: debutkit overlay --chzzk 채널주소 --soop 방송국주소")
     _start_voice(server, args)
+    _start_vts_reactions(server, args)
     if args.clip:
         if not _start_autoclip(server, args):
             server.stop()
@@ -289,6 +291,56 @@ def _character(args: argparse.Namespace) -> int:
     return 0
 
 
+def _vts(args: argparse.Namespace) -> int:
+    from . import vts
+
+    command = args.vts_command
+    if command == "logout":
+        removed = vts.forget_token()
+        print(f"VTube Studio 토큰 삭제: {removed}" if removed else "VTube Studio 연결 전")
+        return 0
+    try:
+        prompt = lambda: print("VTube Studio 화면에서 debutkit 플러그인 허용을 누르십시오(제한 시간 약 1분)", flush=True)  # noqa: E731
+        with vts.connect(args.url, request_new=command == "login", on_prompt=prompt) as client:
+            if command == "login":
+                print(f"VTube Studio 연결 완료. 토큰 저장 위치: {vts.token_path()}")
+            elif command == "models":
+                for model in client.models():
+                    print(("* " if model.loaded else "  ") + model.name)
+            elif command == "load":
+                model = vts.find_model(client.models(), args.name)
+                client.load_model(model.id)
+                print(f"불러옴: {model.name}")
+            elif command == "hotkeys":
+                for hotkey in client.hotkeys():
+                    print(f"  {hotkey.name}  ({hotkey.kind})")
+            elif command == "trigger":
+                client.trigger(args.name)
+                print(f"실행: {args.name}")
+    except vts.VtsError as error:
+        print(f"VTube Studio: {error}", file=sys.stderr)
+        return 1
+    return 0
+
+
+def _start_vts_reactions(server: Any, args: argparse.Namespace) -> None:
+    """후원, 멤버십 알림 때 VTube Studio 단축키 실행(debutkit vts login 필요)."""
+    from . import vts
+    from .overlay.events import system_event
+
+    reactions = vts.parse_reactions(args.vts_reaction)
+    if not reactions:
+        return
+    if vts.load_token() is None:
+        print("  VTube Studio 후원 반응: 연결 전(debutkit vts login 실행 필요)")
+        return
+    reactor = vts.VtsReactor(reactions, notify=lambda text: server.hub.publish(system_event(text))).start()
+    server.hub.taps.append(reactor)
+    server.attach(reactor)
+    rules = ", ".join(f"{reaction.min_won:,}원 이상 {reaction.hotkey}" if reaction.min_won else f"모든 후원 {reaction.hotkey}" for reaction in reactions)
+    print(f"  VTube Studio 후원 반응: {rules}")
+
+
 def _settings(args: argparse.Namespace) -> int:
     from . import settings
 
@@ -388,6 +440,9 @@ def build_parser() -> argparse.ArgumentParser:
     voice.add_argument("--no-voice", action="store_true", help="OBS 마이크 음량으로 캐릭터 입 움직이기 끄기")
     voice.add_argument("--voice-input", metavar="소스", help="음량을 읽을 OBS 오디오 소스 이름 (기본: OBS 설정의 마이크)")
     voice.add_argument("--voice-threshold", type=float, default=-40.0, metavar="dB", help="말하는 것으로 판단할 음량 (기본 %(default)s dBFS)")
+    reaction = overlay.add_argument_group("VTube Studio 후원 반응")
+    reaction.add_argument("--vts-reaction", action="append", metavar="금액:단축키",
+                          help="후원이 금액(원) 이상이면 VTube Studio 단축키 실행. 예: 1000:Heart. 0은 모든 후원. 여러 번 지정 가능 (debutkit vts login 필요)")
     saved = overlay.add_argument_group("저장한 설정")
     saved.add_argument("--saved", action="store_true", help="저장한 설정(채널, 포트, 자동 클립 등) 사용. 명령줄에 지정한 항목이 우선")
     saved.add_argument("--save", action="store_true", help="이번 실행의 채널과 옵션을 저장 (API 키, 비밀번호 제외)")
@@ -412,6 +467,17 @@ def build_parser() -> argparse.ArgumentParser:
     send.add_argument("--to", required=True, choices=["vts", "warudo"])
     send.add_argument("--folder", help="모델 폴더(자동으로 찾지 못한 경우)")
     chars.set_defaults(func=_character)
+
+    vts_parser = sub.add_parser("vts", help="VTube Studio 연동: 연결, 모델 불러오기, 단축키 실행")
+    vts_parser.add_argument("--url", default="ws://127.0.0.1:8001", help="VTube Studio API 주소 (기본 %(default)s)")
+    vts_sub = vts_parser.add_subparsers(dest="vts_command", required=True)
+    vts_sub.add_parser("login", help="연결(VTube Studio 화면에서 허용)")
+    vts_sub.add_parser("logout", help="저장한 토큰 삭제")
+    vts_sub.add_parser("models", help="모델 목록(* 현재 모델)")
+    vts_sub.add_parser("load", help="모델 불러오기(이름 일부 또는 ID)").add_argument("name", metavar="모델")
+    vts_sub.add_parser("hotkeys", help="현재 모델의 단축키 목록")
+    vts_sub.add_parser("trigger", help="단축키 실행(이름 또는 ID)").add_argument("name", metavar="단축키")
+    vts_parser.set_defaults(func=_vts)
 
     stored = sub.add_parser("settings", help="저장한 설정 보기 또는 삭제")
     stored.add_argument("--clear", action="store_true", help="저장한 설정 삭제")
