@@ -1,0 +1,59 @@
+name: Verify
+
+# 실제 OBS를 설치해 debutkit을 검증한다(가짜 구현 없음).
+# - 장면 생성(Linux 소스 종류), 고급 출력 모드의 리플레이 버퍼 설정, OBS 재시작 후 자동 클립 저장까지
+# 릴리스 작업 브랜치에 push하거나 직접 실행할 때, 그리고 v* 태그에서 실행한다.
+on:
+  push:
+    branches: ["release/**"]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  obs-linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      DEBUTKIT_VERIFY_OBS: "1"
+      LIBGL_ALWAYS_SOFTWARE: "1"
+      PYTHONIOENCODING: utf-8
+      DISPLAY: ":99"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: OBS, Xvfb, ffmpeg
+        run: |
+          sudo add-apt-repository -y ppa:obsproject/obs-studio
+          sudo apt-get update
+          sudo apt-get install -y obs-studio xvfb ffmpeg
+      - name: Install
+        run: python -m pip install -e ".[live]"
+      - name: OBS settings
+        run: python packaging/verify_obs.py configure
+      - name: Start OBS
+        run: |
+          Xvfb :99 -screen 0 1920x1080x24 > /dev/null 2>&1 &
+          sleep 2
+          nohup obs --disable-shutdown-check --minimize-to-tray > "$RUNNER_TEMP/obs-1.log" 2>&1 &
+          python packaging/verify_obs.py wait
+      - name: Scenes and replay buffer setting (advanced output)
+        run: python packaging/verify_obs.py scenes
+      - name: Restart OBS (the replay buffer setting takes effect after a restart)
+        run: |
+          pkill -TERM -x obs || true
+          for i in $(seq 1 20); do pgrep -x obs > /dev/null || break; sleep 1; done
+          pkill -KILL -x obs || true
+          nohup obs --disable-shutdown-check --minimize-to-tray > "$RUNNER_TEMP/obs-2.log" 2>&1 &
+          python packaging/verify_obs.py wait
+      - name: Auto clip end to end
+        run: python packaging/verify_obs.py clip
+      - name: OBS logs
+        if: always()
+        run: |
+          tail -n 60 "$RUNNER_TEMP"/obs-*.log || true
+          tail -n 120 ~/.config/obs-studio/logs/*.txt 2>/dev/null | tail -n 120 || true
