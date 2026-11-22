@@ -1,13 +1,14 @@
 import os
 import time
 import urllib.request
+from pathlib import Path
 
 import pytest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 pytest.importorskip("PySide6.QtWidgets")
 
-from PySide6.QtWidgets import QApplication  # noqa: E402
+from PySide6.QtWidgets import QApplication, QPushButton  # noqa: E402
 
 from debutkit.doctor import FAIL, OK, WARN, Check  # noqa: E402
 from debutkit.gui.app import Backend, Wizard, style_sheet  # noqa: E402
@@ -348,3 +349,24 @@ def test_release_waits_for_workers_and_deletes_the_window(app):
     window.close()
     release(window, None)  # 테스트의 Qt 앱은 그대로 둔다
     assert finished.is_set() and destroyed == [True]
+
+
+def test_report_buttons_copy_diagnostics_and_open_pages(app):
+    calls = Calls()
+    calls.stored = {"demo": True}  # 채팅과 알림 단계에서 시작: PC 점검이 자동으로 돌지 않음
+    copied = []
+    opened = []
+    window = Wizard(calls.backend(copy_text=copied.append, open_folder=opened.append, log_dir=lambda: Path("logs-folder")))
+    try:
+        window.copy_button.click()
+        assert not copied and "먼저 실행" in window.report_state.text()
+        window.run_checks()
+        assert wait_for(app, lambda: bool(window.checked))
+        window.copy_button.click()
+        assert copied and copied[0].startswith("debutkit ") and "OBS Studio" in copied[0] and "복사했습니다" in window.report_state.text()
+        buttons = {button.text(): button for button in window.findChildren(QPushButton)}
+        buttons["문제 제보, 확인 보고(GitHub)"].click()
+        buttons["기록 폴더 열기"].click()
+        assert calls.urls[-1].endswith("/issues/new/choose") and opened == [Path("logs-folder")]
+    finally:
+        window.close()

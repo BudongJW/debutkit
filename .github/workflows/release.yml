@@ -298,9 +298,11 @@ jobs:
         run: |
           ls -la dist
           python packaging/release_notes.py "$GITHUB_REF_NAME" $SIGNED $NOTARIZED > notes.md  # CHANGELOG.md의 해당 버전 항목, 실제 서명 상태
+          prerelease=""
+          if [[ "$GITHUB_REF_NAME" =~ [0-9](a|b|rc)[0-9]+$ ]]; then prerelease="--prerelease"; fi  # 1.0.0rc1 등: 최신 릴리스로 표시하지 않음
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release edit "$GITHUB_REF_NAME" --notes-file notes.md
+            gh release edit "$GITHUB_REF_NAME" --notes-file notes.md $prerelease
           else
-            gh release create "$GITHUB_REF_NAME" --title "debutkit $GITHUB_REF_NAME" --notes-file notes.md
+            gh release create "$GITHUB_REF_NAME" --title "debutkit $GITHUB_REF_NAME" --notes-file notes.md $prerelease
           fi
           gh release upload "$GITHUB_REF_NAME" dist/*.zip dist/*.tar.gz dist/*-setup.exe --clobber

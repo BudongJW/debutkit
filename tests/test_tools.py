@@ -55,6 +55,8 @@ class _Response:
 def test_version_compare():
     assert tools.is_newer("v0.3.1", "0.3.0") and tools.is_newer("0.10.0", "0.9.9")
     assert not tools.is_newer("0.3.0", "0.3.0") and not tools.is_newer("v0.2.0", "0.3.0")
+    assert tools.is_newer("v1.0.0", "1.0.0rc1") and tools.is_newer("1.0.0rc2", "1.0.0rc1") and tools.is_newer("1.0.0rc1", "0.9.0")
+    assert not tools.is_newer("v0.9.0", "1.0.0rc1") and not tools.is_newer("1.0.0rc1", "1.0.0") and tools.is_newer("v1.0.0-rc.2", "1.0.0rc1")
 
 
 def test_update_message_from_latest_release():

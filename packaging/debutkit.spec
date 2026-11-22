@@ -16,7 +16,7 @@ from PyInstaller.utils.hooks import collect_data_files, collect_submodules, copy
 
 ROOT = Path(SPECPATH).parent
 sys.path.insert(0, SPECPATH)
-from build_app import dropped, windows_version_info  # noqa: E402
+from build_app import dropped, numeric_version, windows_version_info  # noqa: E402
 
 VERSION = re.search(r'__version__ = "([^"]+)"', (ROOT / "src" / "debutkit" / "__init__.py").read_text(encoding="utf-8")).group(1)
 
@@ -64,5 +64,5 @@ folder = COLLECT(gui_exe, gui.binaries, gui.datas, cli_exe, cli.binaries, cli.da
 
 if sys.platform == "darwin":
     BUNDLE(folder, name="debutkit.app", icon=icon, bundle_identifier="io.github.budongjw.debutkit",
-           info_plist={"CFBundleName": "debutkit", "CFBundleDisplayName": "debutkit", "CFBundleShortVersionString": VERSION,
-                       "CFBundleVersion": VERSION, "NSHighResolutionCapable": True, "LSMinimumSystemVersion": "11.0"})
+           info_plist={"CFBundleName": "debutkit", "CFBundleDisplayName": "debutkit", "CFBundleShortVersionString": numeric_version(VERSION),
+                       "CFBundleVersion": numeric_version(VERSION), "NSHighResolutionCapable": True, "LSMinimumSystemVersion": "11.0"})

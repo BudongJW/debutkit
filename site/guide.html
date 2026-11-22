@@ -37,7 +37,7 @@
     <header class="dochead">
       <h1>사용 설명서</h1>
       <dl>
-        <dt>대상 버전</dt><dd>debutkit 0.9.0</dd>
+        <dt>대상 버전</dt><dd>debutkit 1.0.0rc1</dd>
         <dt>방송 플랫폼</dt><dd>치지직, SOOP, Twitch, YouTube</dd>
         <dt>지원 환경</dt><dd>Windows 64비트(설치 프로그램, zip), macOS(Apple Silicon), Linux(x64), 파이썬 패키지</dd>
       </dl>
@@ -124,7 +124,7 @@ debutkit-gui</code></pre>
               <tr><th scope="row">아바타</th><td>모델 종류별 트래킹 프로그램 안내. 모델 파일을 선택해 사용 조건 확인</td></tr>
               <tr><th scope="row">OBS 장면</th><td>WebSocket 포트, 비밀번호, 아바타 프로그램을 지정해 장면 생성</td></tr>
               <tr><th scope="row">채팅과 알림</th><td>플랫폼별 채널 입력, 치지직 로그인, 자동 클립 선택 후 오버레이 시작</td></tr>
-              <tr><th scope="row">마무리</th><td>단계별 준비 상태, 자동 클립 저장 폴더, 새 버전 확인</td></tr>
+              <tr><th scope="row">마무리</th><td>단계별 준비 상태, 자동 클립 저장 폴더, 새 버전 확인, 저장한 설정 삭제, 문제 제보(점검 결과 복사, 기록 폴더 열기)</td></tr>
             </tbody>
           </table>
         </div>
@@ -428,7 +428,7 @@ debutkit overlay --youtube 영상ID --youtube-interval 15</code></pre>
             </tbody>
           </table>
         </div>
-        <p>해결되지 않는 문제는 <a href="https://github.com/BudongJW/debutkit/issues">GitHub 이슈</a>에 <code>debutkit doctor --json</code> 결과와 함께 등록합니다.</p>
+        <p>해결되지 않는 문제는 <a href="https://github.com/BudongJW/debutkit/issues/new/choose">GitHub 이슈</a>에 점검 결과(설정 마법사 마무리 단계의 점검 결과 복사 또는 <code>debutkit doctor --json</code>)와 함께 등록합니다. 오류 기록 파일(설정 폴더의 <code>logs</code>)을 첨부하면 원인 확인에 도움이 됩니다.</p>
 
         <h2 id="privacy">개인정보와 보안</h2>
         <ul>
@@ -438,6 +438,7 @@ debutkit overlay --youtube 영상ID --youtube-interval 15</code></pre>
           <li>채팅은 저장하지 않으며 화면 표시용 최근 30개만 메모리에 유지합니다. 자동 클립의 급증 판단에는 닉네임을 해시로만 사용합니다.</li>
           <li>치지직 토큰은 이 PC의 사용자 설정 폴더에만 보관합니다. YouTube API 키와 치지직 Client Secret은 실행 중에만 사용합니다.</li>
           <li>저장한 설정(채널 주소, 포트, 선택 항목)은 이 PC의 사용자 설정 폴더에만 보관하며 외부로 전송하지 않습니다. API 키, 비밀번호는 저장하지 않습니다.</li>
+          <li>오류 기록은 설정 폴더의 <code>logs</code> 폴더에 저장합니다(파일당 1 MB, 최근 3개). 처리되지 않은 오류와 상태 안내만 기록하며 채팅 내용은 기록하지 않습니다.</li>
           <li>비공식 수신(<code>--chzzk</code>, <code>--soop</code>)은 플랫폼이 승인한 방식이 아닙니다. 본인 치지직 채널은 공식 API 사용을 권장합니다.</li>
         </ul>
       </article>

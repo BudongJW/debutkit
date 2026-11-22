@@ -66,7 +66,7 @@ def installer_command(iscc: str, folder: Path, dist: Path, version: str, ffmpeg:
     """
     signed = ["/DSign", f"/Sdebutkit={sign_tool}"] if sign_tool else []
     return [
-        iscc, "/Qp", f"/DAppVersion={version}", f"/DSourceDir={folder.resolve()}", f"/DOutputDir={dist.resolve()}",
+        iscc, "/Qp", f"/DAppVersion={version}", f"/DAppNumericVersion={build_app.numeric_version(version)}", f"/DSourceDir={folder.resolve()}", f"/DOutputDir={dist.resolve()}",
         f"/DOutputName={installer_name(version, machine)}",
         f"/DFfmpegUrl={ffmpeg.url}", f"/DFfmpegFile={ffmpeg.filename}", f"/DFfmpegSha256={ffmpeg.sha256}", f"/DFfmpegSize={ffmpeg.megabytes}",
         *signed, str(INSTALLER),

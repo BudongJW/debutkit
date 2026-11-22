@@ -22,12 +22,20 @@ LATEST_RELEASE_API = "https://api.github.com/repos/BudongJW/debutkit/releases/la
 RELEASES_PAGE = "https://github.com/BudongJW/debutkit/releases/latest"
 
 
+_STAGES = {"a": 0, "b": 1, "rc": 2}
+
+
 def _version_tuple(text: str) -> tuple[int, ...]:
-    return tuple(int(part) for part in re.findall(r"\d+", text)[:3])
+    """비교용 값. 사전 릴리스(a, b, rc)는 같은 번호의 정식 버전보다 낮다(1.0.0rc1 < 1.0.0)."""
+    found = re.search(r"(\d+)\.(\d+)\.(\d+)(?:[-.]?(a|b|rc)\.?(\d+))?", text)
+    if not found:
+        return (0,)
+    major, minor, patch, stage, number = found.groups()
+    return (int(major), int(minor), int(patch), _STAGES[stage] if stage else 3, int(number or 0))
 
 
 def is_newer(latest: str, current: str) -> bool:
-    """``latest`` 가 ``current`` 보다 높은 버전인지(v0.3.1 > 0.3.0)."""
+    """``latest`` 가 ``current`` 보다 높은 버전인지(v0.3.1 > 0.3.0, 1.0.0 > 1.0.0rc1)."""
     return _version_tuple(latest) > _version_tuple(current)
 
 

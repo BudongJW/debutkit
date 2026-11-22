@@ -22,6 +22,7 @@ import argparse
 import json
 import os
 import platform
+import re
 import shutil
 import subprocess
 import sys
@@ -52,6 +53,16 @@ def dropped(entry: tuple[Any, ...]) -> bool:
     return unused(dest) or (kind == "SYMLINK" and unused(source))
 
 
+def numeric_version(version: str) -> str:
+    """숫자 부분(1.0.0rc1 -> 1.0.0). Windows 버전 정보와 macOS 번들 버전은 숫자만 허용."""
+    found = re.match(r"\d+(?:\.\d+){0,2}", version)
+    return found.group() if found else "0.0.0"
+
+
+def is_prerelease(version: str) -> bool:
+    return bool(re.search(r"\d(?:[-.]?(?:a|b|rc)\.?\d+)$", version))
+
+
 def windows_version_info(version: str, description: str, filename: str) -> Any:
     """Windows 실행 파일의 버전 정보(제품 이름, 제품 버전 등). 코드 서명 서비스가 이 값으로 서명 대상을 확인한다."""
     from PyInstaller.utils.win32.versioninfo import (
@@ -64,7 +75,7 @@ def windows_version_info(version: str, description: str, filename: str) -> Any:
         VSVersionInfo,
     )
 
-    numbers = tuple((list(map(int, version.split(".")[:3])) + [0, 0, 0, 0])[:4])
+    numbers = tuple((list(map(int, numeric_version(version).split("."))) + [0, 0, 0, 0])[:4])
     strings = [("CompanyName", "debutkit"), ("FileDescription", description), ("FileVersion", version), ("InternalName", Path(filename).stem),
                ("LegalCopyright", "Apache-2.0"), ("OriginalFilename", filename), ("ProductName", "debutkit"), ("ProductVersion", version)]
     return VSVersionInfo(ffi=FixedFileInfo(filevers=numbers, prodvers=numbers),

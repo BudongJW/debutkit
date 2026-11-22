@@ -8,6 +8,7 @@ Qt 시그널로 창에 돌려준다. 스타일 시트는 채팅 연결 모듈에
 from __future__ import annotations
 
 import os
+import platform
 import sys
 import threading
 from dataclasses import dataclass, field
@@ -36,7 +37,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from .. import __version__, chzzk, clip, doctor, scenes, settings, speed, tools
+from .. import __version__, chzzk, clip, doctor, logs, scenes, settings, speed, tools
 from ..doctor import FAIL, INFO, JOIN_URL, LABELS, OK, OVERLAY_PORT, SOFTWARE_URL, WARN
 
 STEPS = ["1  PC 점검", "2  아바타", "3  OBS 장면", "4  채팅과 알림", "5  마무리"]
@@ -107,6 +108,19 @@ def _check_youtube(address: str, api_key: str | None) -> str:
     return "YouTube 연결 확인(할당량 약 11 단위 사용)\n" + format_steps(check(address, api_key))
 
 
+ISSUE_URL = "https://github.com/BudongJW/debutkit/issues/new/choose"
+
+
+def diagnostics(checks: list[doctor.Check]) -> str:
+    """문제 제보, 확인 보고에 붙여 넣을 점검 결과. 사용자가 직접 복사해 붙여 넣는다(자동 전송 없음)."""
+    head = f"debutkit {__version__}, {platform.platform()}, Python {platform.python_version()}"
+    return head + "\n\n" + doctor.format_report(checks)
+
+
+def _copy_text(text_: str) -> None:
+    QGuiApplication.clipboard().setText(text_)
+
+
 def _open_folder(path: Path) -> Any:
     path.mkdir(parents=True, exist_ok=True)
     return QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
@@ -134,6 +148,8 @@ class Backend:
     load_settings: Callable[[], dict[str, Any]] = settings.load
     save_settings: Callable[[dict[str, Any]], Any] = settings.save
     clear_settings: Callable[[], Any] = settings.clear
+    copy_text: Callable[[str], Any] = _copy_text
+    log_dir: Callable[[], Path] = logs.log_dir
 
 
 class Bridge(QObject):
@@ -625,6 +641,7 @@ class Wizard(QMainWindow):
             self._append_log(f"{self.port.value()}번 포트 열기 실패: {error}")
             return
         server.hub.taps.append(lambda event: event.kind == "system" and self._emit(self.bridge.log, event.text))
+        server.hub.taps.append(logs.status)  # 상태 안내만 이 PC의 기록 파일에
         server.start()
         self.server = server
         self._overlay_state(True)
@@ -674,10 +691,26 @@ class Wizard(QMainWindow):
         self.settings_state = text(f"채널 주소와 선택 항목은 이 PC에 저장해 다음 실행 때 불러옵니다. API 키와 비밀번호는 저장하지 않습니다.\n{settings.settings_path()}",
                                    muted=True)
         layout.addWidget(card(self.settings_state, self.forget_button, title="저장한 설정"))
+        self.copy_button = QPushButton("점검 결과 복사")
+        self.copy_button.clicked.connect(self.copy_diagnostics)
+        report = QPushButton("문제 제보, 확인 보고(GitHub)")
+        report.clicked.connect(lambda: self.backend.open_url(ISSUE_URL))
+        logs_button = QPushButton("기록 폴더 열기")
+        logs_button.clicked.connect(lambda: self.backend.open_folder(self.backend.log_dir()))
+        self.report_state = text("점검 결과를 복사해 제보 양식에 붙여 넣습니다. 자동으로 전송하지 않습니다. "
+                                 "오류 기록은 이 PC의 기록 폴더에만 저장합니다.", muted=True)
+        layout.addWidget(card(self.report_state, row(self.copy_button, report, logs_button), title="문제 제보"))
         layout.addWidget(text(f'소속 버튜버 프로그램(선택, 키트 사용과 무관): <a href="{JOIN_URL}" style="color:#A7B0B7">참여 안내</a>',
                               muted=True, links=True))
         layout.addStretch(1)
         return page
+
+    def copy_diagnostics(self) -> None:
+        if not self.checked:
+            self.report_state.setText("PC 점검을 먼저 실행하십시오(PC 점검 단계).")
+            return
+        self.backend.copy_text(diagnostics(self.checked))
+        self.report_state.setText("점검 결과를 복사했습니다. 제보 양식의 PC 점검 결과 칸에 붙여 넣으십시오.")
 
     def check_update(self) -> None:
         self.update_button.setEnabled(False)
@@ -768,6 +801,7 @@ def release(window: Wizard, app: QApplication | None, *, wait: float = 5.0) -> N
 
 
 def main(argv: list[str] | None = None) -> int:
+    record = logs.setup("gui")
     existing = QApplication.instance()
     app = existing or QApplication(sys.argv if argv is None else argv)
     QGuiApplication.setApplicationDisplayName("debutkit")
@@ -781,6 +815,7 @@ def main(argv: list[str] | None = None) -> int:
     code = int(app.exec())
     window.close()
     release(window, None if existing else app)
+    logs.close(record)
     return code
 
 

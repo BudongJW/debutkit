@@ -112,6 +112,10 @@ def _overlay(args: argparse.Namespace) -> int:
     except OSError as error:
         print(f"{args.port}번 포트 열기 실패 ({error}). --port 로 다른 번호 지정", file=sys.stderr)
         return 1
+    from . import logs
+
+    record = logs.setup("overlay")
+    server.hub.taps.append(logs.status)  # 상태 안내(연결, 클립 저장, 오류)만 이 PC의 기록 파일에. 채팅 내용은 기록하지 않음
     print(f"오버레이 실행 중: {server.url}  (설정 화면)")
     print(f"  채팅창  {server.url}/chat")
     print(f"  알림    {server.url}/alerts")
@@ -121,9 +125,13 @@ def _overlay(args: argparse.Namespace) -> int:
     if args.clip:
         if not _start_autoclip(server, args):
             server.stop()
+            logs.close(record)
             return 1
     print("종료: Ctrl+C")
-    server.serve_until_interrupted()
+    try:
+        server.serve_until_interrupted()
+    finally:
+        logs.close(record)
     return 0
 
 

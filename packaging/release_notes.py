@@ -24,13 +24,14 @@ def section(changelog: str, version: str) -> str:
 
 
 def previous(changelog: str, version: str) -> str | None:
-    versions = re.findall(r"^## (\d+\.\d+\.\d+)\b", changelog, flags=re.M)
+    versions = re.findall(r"^## (\d+\.\d+\.\d+(?:(?:a|b|rc)\d+)?)\b", changelog, flags=re.M)
     if version in versions and versions.index(version) + 1 < len(versions):
         return versions[versions.index(version) + 1]
     return None
 
 
 SIGNING_POLICY = "https://budongjw.github.io/debutkit/signing.html"
+VERIFY_URL = "https://budongjw.github.io/debutkit/join.html#verify"
 
 
 def signing_line(windows_signed: bool, macos_notarized: bool) -> str:
@@ -47,7 +48,10 @@ def notes(tag: str, changelog: str, *, installer: bool = True, unix: bool = True
     """
     version = tag.lstrip("v")
     body = section(changelog, version)
-    lines = ["## 설치", ""]
+    lines = []
+    if re.search(r"\d(?:a|b|rc)\d+$", version):
+        lines += [f"사전 릴리스(1.0 후보). 실제 PC와 방송 계정으로 확인할 사용자를 위한 버전이며, 확인 방법과 보고 양식은 [실제 환경 확인]({VERIFY_URL}) 참고", ""]
+    lines += ["## 설치", ""]
     if installer:
         lines.append(f"- Windows 설치 프로그램: `debutkit-{version}-windows-x64-setup.exe` 실행. 시작 메뉴에 debutkit 등록")
     lines.append(f"- Windows 압축 파일: `debutkit-{version}-windows-x64.zip` 압축 해제 후 `debutkit-gui.exe` 실행")

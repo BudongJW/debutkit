@@ -184,7 +184,7 @@ def test_windows_version_info_names_product_and_version():
                      "'FileDescription', 'debutkit 설정 마법사'", "[1042, 1200]"):
         assert expected in info
     text = build_windows.INSTALLER.read_text(encoding="utf-8-sig")
-    assert "VersionInfoProductName=debutkit" in text and "VersionInfoProductVersion={#AppVersion}" in text
+    assert "VersionInfoProductName=debutkit" in text and "VersionInfoProductVersion={#AppNumericVersion}" in text and "VersionInfoProductTextVersion={#AppVersion}" in text
 
 
 def test_version_strings_reads_a_real_executable():

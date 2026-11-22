@@ -1,0 +1,64 @@
+name: 실제 환경 확인 보고
+description: 실제 PC, 방송 계정으로 확인한 결과(1.0 출시 기준 확인용)
+labels: [verification]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        - 확인 절차: https://budongjw.github.io/debutkit/join.html#verify
+        - 시청자 닉네임, 채팅 내용, 치지직 토큰, Client Secret, OBS 비밀번호, YouTube API 키 입력 금지
+        - 문제를 발견한 경우 문제 제보 양식을 함께 사용
+  - type: input
+    id: version
+    attributes:
+      label: debutkit 버전
+      placeholder: debutkit 1.0.0rc1
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: 설치 형태
+      options:
+        - Windows 설치 프로그램(setup.exe)
+        - Windows 실행 파일(zip)
+        - macOS 앱(debutkit.app)
+        - Linux 실행 파일(tar.gz)
+        - 파이썬 패키지
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: 운영체제, OBS 버전, 아바타 프로그램
+      placeholder: macOS 15, OBS 32.0, VTube Studio
+    validations:
+      required: true
+  - type: checkboxes
+    id: passed
+    attributes:
+      label: 정상 동작 확인 항목
+      description: 실제로 확인한 항목만 선택
+      options:
+        - label: PC 점검의 마이크, 웹캠 이름이 실제 장치와 일치
+        - label: 설정 마법사 실행과 종료(비정상 종료 없음)
+        - label: OBS 장면 생성과 아바타 소스 배치
+        - label: 치지직 채팅 표시
+        - label: SOOP 채팅, 별풍선 알림 표시(후원자 닉네임 포함)
+        - label: Twitch 채팅 표시
+        - label: YouTube 연결 확인(youtube check) 단계 모두 정상
+        - label: YouTube 채팅 표시
+        - label: 치지직 공식 API 로그인과 채팅 수신
+        - label: 자동 클립 저장(스트리머 !clip 입력 또는 채팅 급증)
+        - label: 저장한 설정으로 다음 실행 시 바로 시작
+  - type: textarea
+    id: notes
+    attributes:
+      label: 확인 내용과 다른 점
+      description: 확인하지 못한 항목, 예상과 다른 표시, 소요 시간 등
+  - type: textarea
+    id: doctor
+    attributes:
+      label: PC 점검 결과
+      description: "설정 마법사 마무리 단계의 점검 결과 복사 버튼 또는 debutkit doctor --json 출력"
+      render: text

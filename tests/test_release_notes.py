@@ -76,3 +76,19 @@ def test_cli_flags(capsys, monkeypatch):
     assert release_notes.main([f"v{__version__}", "--windows-signed"]) == 0
     out = capsys.readouterr().out
     assert "Windows 서명 적용" in out and "macOS 공증 미적용" in out
+
+
+def test_prerelease_notes_and_compare_link():
+    changelog = CHANGELOG.replace("# 변경 내역\n", "# 변경 내역\n\n## 1.0.0rc1 (2026-11-23)\n\n- 후보\n")
+    text = release_notes.notes("v1.0.0rc1", changelog)
+    assert text.startswith("사전 릴리스(1.0 후보)") and "join.html#verify" in text and "compare/v0.3.0...v1.0.0rc1" in text
+    assert "debutkit-1.0.0rc1-windows-x64-setup.exe" in text
+    assert "사전 릴리스" not in release_notes.notes("v0.3.0", changelog)
+
+
+def test_version_helpers():
+    import build_app
+
+    assert build_app.numeric_version("1.0.0rc1") == "1.0.0" and build_app.numeric_version("0.9.0") == "0.9.0"
+    assert build_app.is_prerelease("1.0.0rc1") and not build_app.is_prerelease("1.0.0")
+    assert "filevers=(1, 0, 0, 0)" in str(build_app.windows_version_info("1.0.0rc1", "x", "debutkit.exe"))

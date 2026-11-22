@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "debutkit"
-version = "0.9.0"
+version = "1.0.0rc1"
 description = "버튜버 방송 준비용 오픈소스 소프트웨어. PC 점검, OBS 장면 구성, 치지직 SOOP Twitch YouTube 통합 채팅창과 후원 알림, 방송 중 자동 클립"
 readme = "README.md"
 license = "Apache-2.0"

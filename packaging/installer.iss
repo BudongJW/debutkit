@@ -23,6 +23,9 @@
   #error ffmpeg 빌드 정보 없음: packaging/build_windows.py 로 만들기(/DFfmpegUrl, /DFfmpegFile, /DFfmpegSha256, /DFfmpegSize 전달)
 #endif
 
+#ifndef AppNumericVersion
+  #define AppNumericVersion AppVersion
+#endif
 [Setup]
 AppId={{B0BD66EB-12CF-41E4-BB56-15BE91830796}
 AppName=debutkit
@@ -46,9 +49,9 @@ SolidCompression=yes
 WizardStyle=modern
 CloseApplications=yes
 ; 버전 정보: 제품 이름과 버전(코드 서명 서비스가 서명 대상 확인에 사용)
-VersionInfoVersion={#AppVersion}
+VersionInfoVersion={#AppNumericVersion}
 VersionInfoProductName=debutkit
-VersionInfoProductVersion={#AppVersion}
+VersionInfoProductVersion={#AppNumericVersion}
 VersionInfoProductTextVersion={#AppVersion}
 VersionInfoCompany=debutkit
 VersionInfoDescription=debutkit 설치 프로그램
