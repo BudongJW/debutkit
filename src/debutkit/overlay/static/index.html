@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>debutkit 오버레이 설정</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <style>
     :root { color-scheme: dark; --bg: #15131f; --card: #211d30; --line: #34304a; --text: #f7f4fa; --dim: #a9a3b8; --accent: #ff4f8b; }
     * { box-sizing: border-box; }
@@ -32,29 +33,30 @@
 <body>
 <main>
   <h1><b>debutkit</b> 오버레이</h1>
-  <p class="lead">아래 주소를 OBS의 <b>브라우저 소스</b>로 추가하세요. <code>debutkit scenes</code> 로 장면을 만들었다면 이미 연결돼 있습니다. <span id="status"></span></p>
+  <p class="lead">아래 주소를 OBS <b>브라우저 소스</b>로 추가. <code>debutkit scenes</code> 로 만든 장면은 연결 완료 상태 <span id="status"></span></p>
 
   <div class="grid">
     <section>
       <h2>통합 채팅창</h2>
       <div class="url"><input id="chat-url" readonly><button data-copy="chat-url">복사</button></div>
-      <p class="hint">권장 크기 420×1000. 주소 뒤에 <code>?theme=bubble</code>(말풍선), <code>&amp;font=26</code>(글자 크기), <code>&amp;max=10</code>(줄 수), <code>&amp;fade=30</code>(30초 뒤 사라짐), <code>&amp;platform=0</code>(플랫폼 표시 끄기)</p>
+      <p class="hint">권장 크기 420x1000. 주소 뒤 옵션: <code>?theme=bubble</code>(말풍선), <code>&amp;font=26</code>(글자 크기), <code>&amp;max=10</code>(줄 수), <code>&amp;fade=30</code>(30초 뒤 사라짐), <code>&amp;platform=0</code>(플랫폼 표시 끄기)</p>
       <div class="preview"><iframe id="chat-preview" title="채팅창 미리보기"></iframe></div>
     </section>
     <section>
-      <h2>후원·구독 알림</h2>
+      <h2>후원, 구독 알림</h2>
       <div class="url"><input id="alerts-url" readonly><button data-copy="alerts-url">복사</button></div>
-      <p class="hint">권장 크기는 방송 화면 전체(1920×1080). 소리를 OBS로 보내려면 브라우저 소스의 "OBS를 통해 오디오 제어" 체크. <code>?seconds=8</code> 로 표시 시간 조절</p>
+      <p class="hint">권장 크기 1920x1080(방송 화면 전체). 알림 소리는 브라우저 소스의 OBS를 통해 오디오 제어 체크. <code>?seconds=8</code> 로 표시 시간 조절</p>
       <div class="preview"><iframe id="alerts-preview" title="알림 미리보기"></iframe></div>
     </section>
   </div>
 
   <section style="margin-top:16px">
     <h2>테스트</h2>
-    <p class="hint">방송을 켜지 않고 모양을 확인합니다. 테스트 메시지는 어디에도 보내지지 않고 이 화면과 OBS에만 보입니다.</p>
+    <p class="hint">방송 없이 모양 확인. 테스트 메시지는 외부로 보내지 않고 이 화면과 OBS에만 표시. 자동 클립 실행 중이면 방장 !clip 버튼으로 클립 저장 시험</p>
     <div class="row">
       <button id="test-chat">테스트 채팅</button>
       <button id="test-donation" class="ghost">테스트 후원</button>
+      <button id="test-clip" class="ghost">방장 !clip</button>
     </div>
   </section>
 </main>
@@ -74,10 +76,10 @@
       setTimeout(() => (button.textContent = "복사"), 1500);
     });
   }
-  const send = (kind) => fetch("/test", { method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ kind, text: kind === "donation" ? "테스트 후원입니다. 데뷔 축하해요!" : "테스트 채팅입니다 ㅋㅋ" }) });
-  document.getElementById("test-chat").addEventListener("click", () => send("chat"));
-  document.getElementById("test-donation").addEventListener("click", () => send("donation"));
+  const send = (body) => fetch("/test", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  document.getElementById("test-chat").addEventListener("click", () => send({ kind: "chat", text: "테스트 채팅" }));
+  document.getElementById("test-donation").addEventListener("click", () => send({ kind: "donation", text: "테스트 후원" }));
+  document.getElementById("test-clip").addEventListener("click", () => send({ kind: "chat", role: "owner", text: "!clip" }));
   const refresh = () => fetch("/status").then((r) => r.json()).then((s) => {
     document.getElementById("status").textContent = `(연결된 화면 ${s.listeners}개)`;
   }).catch(() => {});

@@ -32,9 +32,9 @@ def archive_name(version: str, machine: str | None = None) -> str:
 def smoke_test(folder: Path) -> None:
     """만든 프로그램이 파이썬 없이 켜지는지: 명령줄은 버전·점검·설계도, 창은 화면 없이 띄웠다 닫기."""
     env = {**os.environ, "PYTHONIOENCODING": "utf-8"}
-    for args in (["--version"], ["doctor", "--json"], ["scenes", "--dry-run"]):
+    for args in (["--version"], ["doctor", "--json"], ["scenes", "--dry-run"], ["setup"]):
         done = subprocess.run([str(folder / "debutkit.exe"), *args], capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, timeout=120)
-        if done.returncode not in (0, 1):  # doctor는 '필요' 항목이 있으면 1
+        if done.returncode not in (0, 1):  # doctor는 필요 항목이, setup은 ffmpeg가 없으면 1
             raise SystemExit(f"debutkit {' '.join(args)} 실패 ({done.returncode}): {done.stderr[-500:]}")
         print(f"  debutkit {' '.join(args)}: ok")
     gui = subprocess.Popen([str(folder / "debutkit-gui.exe")], env={**env, "QT_QPA_PLATFORM": "offscreen", "DEBUTKIT_SMOKE": "1"})

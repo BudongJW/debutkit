@@ -1,33 +1,45 @@
 # 기여 안내
 
-버그 제보, 문서, 번역, 장면 디자인, 코드 모두 환영합니다. **기여는 소속사 프로그램과 무관합니다.** 기여한다고 소속 의무가 생기지 않고, 소속하려고 기여할 필요도 없습니다.
+- 대상: 버그 제보, 문서, 번역, 장면 디자인, 코드
+- **소속사 프로그램과 무관**: 기여해도 소속 의무 없음, 소속에 기여 조건 없음
 
 ## DCO 서명
 
-별도의 기여자 라이선스 계약(CLA)은 받지 않습니다. 대신 커밋마다 [Developer Certificate of Origin](https://developercertificate.org/)에 동의한다는 서명을 붙입니다. "이 코드를 기여할 권리가 내게 있고, 프로젝트 라이선스(Apache-2.0)로 공개되는 데 동의한다"는 뜻입니다.
+- 별도 기여자 라이선스 계약(CLA) 없음
+- 커밋마다 [Developer Certificate of Origin](https://developercertificate.org/) 동의 서명 첨부
+- 의미: 기여할 권리 보유, 프로젝트 라이선스(Apache-2.0) 공개 동의
 
 ```bash
 git commit -s -m "변경 내용"
 ```
 
-`-s` 를 붙이면 커밋 메시지 끝에 `Signed-off-by: 이름 <이메일>` 이 들어갑니다. 활동명과 GitHub의 noreply 이메일을 써도 됩니다(실명 불필요).
+- `-s` 사용 시 커밋 메시지 끝에 `Signed-off-by: 이름 이메일` 추가
+- 활동명, GitHub noreply 이메일 사용 가능(실명 불필요)
 
 ## 개발 환경
 
 ```bash
-pip install -e ".[live,dev]"
+pip install -e ".[gui,dev]"
 pytest -q
 ruff check .
 ```
 
 | 기준 | 내용 |
 |---|---|
-| 테스트 | 새 기능에는 테스트. OBS, 치지직, SOOP 같은 외부 서비스는 가짜 구현으로 대체하고, 실제 서비스로 확인했는지 PR에 적기 |
-| 개인정보 | 테스트 데이터에 실제 시청자 닉네임, 채팅을 넣지 않기 |
-| 라이선스 | GPL 코드(Social Stream Ninja, OBS 플러그인 등)를 복사해 넣지 않기. 참고만 |
-| 문서 | 사용법이 바뀌면 README와 `docs/` 를 함께 수정 |
+| 테스트 | 새 기능에 테스트 추가. OBS, 치지직, SOOP 등 외부 서비스는 가짜 구현으로 대체. 실제 서비스 확인 여부는 PR에 기재 |
+| 개인정보 | 테스트 데이터에 실제 시청자 닉네임, 채팅 사용 금지 |
+| 라이선스 | GPL 코드(Social Stream Ninja, OBS 플러그인 등) 복사 금지. 참고만 허용 |
+| 문서 | 사용법 변경 시 README, `docs/`, `site/` 함께 수정 |
+| 표기 | 개조식. 중간점, 꺽쇠, 화살표 등 특수문자 미사용(`tests/test_site.py` 로 확인) |
 
-## 하지 말아야 할 것
+## 프로젝트 사이트
 
-- 사용자의 동의 없이 정보를 밖으로 보내는 기능(텔레메트리, 자동 신청 등)
-- 소속 신청을 기능 사용의 조건으로 만드는 변경
+- 위치: `site/` (HTML, CSS만 사용)
+- 확인: `python packaging/build_site.py` 후 `dist/site/index.html` 열기. 깨진 내부 링크가 있으면 실패
+- 배포: main 반영 시 `.github/workflows/pages.yml` 이 https://budongjw.github.io/debutkit/ 에 게시
+- 소식 글 추가: `site/news.html` 맨 위에 `article class="post"` 추가, `site/index.html` 소식 목록 갱신
+
+## 금지 사항
+
+- 사용자 동의 없이 정보를 외부로 보내는 기능(텔레메트리, 자동 신청 등)
+- 소속 신청을 기능 사용 조건으로 만드는 변경

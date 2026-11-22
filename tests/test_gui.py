@@ -65,7 +65,8 @@ class Calls:
             return Fake(), "자동 클립 켬 (OBS 33.0.1)"
 
         base = dict(run_checks=run_checks, check_avatar=lambda path, agency: [Check("avatar", "아바타", WARN, f"{path} 법인 {agency}")],
-                    apply_scenes=apply_scenes, make_autoclipper=make_autoclipper, open_url=self.urls.append)
+                    apply_scenes=apply_scenes, make_autoclipper=make_autoclipper, open_url=self.urls.append,
+                    chzzk_signed_in=lambda: False, can_download_ffmpeg=lambda: True)
         base.update(overrides)
         return Backend(**base)
 
@@ -78,7 +79,74 @@ def test_checks_run_on_open_and_show_states(app):
         assert "준비 필요 1건" in window.check_summary.text()
         names = [window.check_rows.itemAtPosition(row, 0).widget().objectName() for row in range(3)]
         assert names == ["StateOk", "StateWarn", "StateMissing"]
-        assert "→ 정리" in window.check_rows.itemAtPosition(2, 2).widget().text()
+        assert "해결: 정리" in window.check_rows.itemAtPosition(2, 2).widget().text()
+        assert not window.ffmpeg_button.isVisibleTo(window)  # ffmpeg 항목이 없으면 버튼도 없음
+    finally:
+        window.close()
+
+
+def test_missing_ffmpeg_offers_download_and_rechecks(app):
+    runs = []
+
+    def run_checks(**kw):
+        runs.append(1)
+        status = OK if len(runs) > 1 else "info"
+        return [Check("ffmpeg", "ffmpeg", status, "찾지 못함", "내려받기")]
+
+    def download(on_progress, cancelled):
+        on_progress(50, 100)
+        return [r"C:\tools\ffmpeg.exe", r"C:\tools\ffprobe.exe"]
+
+    window = Wizard(Calls().backend(run_checks=run_checks, download_ffmpeg=download))
+    try:
+        assert wait_for(app, lambda: bool(window.checked))
+        assert window.ffmpeg_button.isVisibleTo(window)
+        window.ffmpeg_button.click()
+        assert wait_for(app, lambda: "준비 완료" in window.ffmpeg_status.text())
+        assert wait_for(app, lambda: len(runs) == 2 and not window.ffmpeg_button.isVisibleTo(window))  # 받은 뒤 다시 점검
+    finally:
+        window.close()
+
+
+def test_chzzk_login_uses_fields_and_checks_api(app):
+    seen = []
+
+    def login(client_id, client_secret):
+        seen.append((client_id, client_secret))
+
+    window = Wizard(Calls().backend(chzzk_login=login))
+    try:
+        assert not window.chzzk_api.isChecked()
+        window.chzzk_id.setText("id")
+        window.chzzk_secret.setText("secret")
+        window.chzzk_login_button.click()
+        assert wait_for(app, lambda: window.chzzk_state.text() == "로그인됨")
+        assert seen == [("id", "secret")] and window.chzzk_api.isChecked()
+    finally:
+        window.close()
+
+
+def test_chzzk_login_error_is_shown(app):
+    def login(client_id, client_secret):
+        raise RuntimeError("Client ID 필요")
+
+    window = Wizard(Calls().backend(chzzk_login=login))
+    try:
+        window.login_chzzk()
+        assert wait_for(app, lambda: "로그인 실패: Client ID 필요" in window.chzzk_state.text())
+        assert window.chzzk_login_button.isEnabled()
+    finally:
+        window.close()
+
+
+def test_finish_page_opens_clip_folder(app, tmp_path):
+    opened = []
+    window = Wizard(Calls().backend(clip_dir=lambda: tmp_path / "clips", open_folder=opened.append))
+    try:
+        window.go(4)
+        assert str(tmp_path / "clips") in window.clip_folder.text()
+        next(b for b in window.findChildren(type(window.next)) if b.text() == "클립 폴더 열기").click()
+        assert opened == [tmp_path / "clips"]
     finally:
         window.close()
 

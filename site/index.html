@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>debutkit - 버튜버 첫 방송 준비 키트</title>
+<meta name="description" content="버튜버 첫 방송 준비를 묶은 오픈소스 키트. PC 점검, OBS 장면 자동 구성, 치지직 SOOP Twitch 통합 채팅창과 후원 알림, 방송 중 자동 클립.">
+<meta name="theme-color" content="#15131F">
+<meta property="og:type" content="website">
+<meta property="og:title" content="debutkit - 첫 방송까지, 한 번에.">
+<meta property="og:description" content="버튜버 첫 방송 준비를 묶은 오픈소스 키트">
+<meta property="og:url" content="https://budongjw.github.io/debutkit/">
+<link rel="canonical" href="https://budongjw.github.io/debutkit/">
+<link rel="icon" href="assets/favicon.ico" sizes="48x48">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta property="og:image" content="https://budongjw.github.io/debutkit/assets/social.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Noto+Sans+KR:wght@400;500;700;900&family=Outfit:wght@300;700&display=swap">
+<link rel="stylesheet" href="css/site.css">
+</head>
+<body>
+<a class="skip" href="#main">본문으로 이동</a>
+
+<header class="top">
+  <div class="wrap">
+    <a class="lockup" href="./" aria-label="debutkit 홈">
+      <img src="assets/lockup.svg" alt="debutkit" width="120" height="44">
+    </a>
+    <nav class="nav" aria-label="주요 메뉴">
+      <a href="guide.html">사용 설명서</a>
+      <a href="software.html">방송 소프트웨어</a>
+      <a href="news.html">소식</a>
+      <a href="join.html">참여 안내</a>
+      <a href="https://github.com/BudongJW/debutkit">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+  <section class="hero">
+    <div class="wrap">
+      <div>
+        <h1>첫 방송까지,<br><em>한 번에.</em></h1>
+        <p class="summary">버튜버 첫 방송 준비를 묶은 오픈소스 키트. PC 점검, OBS 장면 구성, 통합 채팅창, 후원 알림, 방송 중 자동 클립</p>
+        <div class="actions">
+          <a class="btn" href="https://github.com/BudongJW/debutkit/releases/latest">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="m7 11 5 5 5-5"/><path d="M5 20h14"/></svg>
+            Windows용 다운로드
+          </a>
+          <a class="text" href="guide.html">사용 설명서</a>
+        </div>
+        <dl class="facts">
+          <dt>버전</dt><dd>0.3.0</dd>
+          <dt>지원 환경</dt><dd>Windows 64비트 실행 파일, macOS와 Linux는 파이썬 패키지</dd>
+          <dt>방송 플랫폼</dt><dd>치지직, SOOP, Twitch</dd>
+          <dt>라이선스</dt><dd>Apache-2.0</dd>
+        </dl>
+      </div>
+
+      <ol class="steps" aria-label="설정 마법사 5단계">
+        <li><div><b>PC 점검</b><span>사양, OBS, 트래킹 프로그램, ffmpeg</span></div><span class="chip ok">정상</span></li>
+        <li><div><b>아바타</b><span>트래킹 프로그램 안내, 모델 사용 조건</span></div><span class="chip">VRM</span></li>
+        <li><div><b>OBS 장면</b><span>장면 5종, 리플레이 버퍼</span></div><span class="chip ok">5종</span></li>
+        <li><div><b>채팅과 알림</b><span>통합 채팅창, 후원 알림, 자동 클립</span></div><span class="chip on">실행 중</span></li>
+        <li><div><b>마무리</b><span>준비 상태, 클립 폴더</span></div><span class="chip">확인</span></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="block" id="download">
+    <div class="wrap">
+      <h2>다운로드</h2>
+      <div class="split">
+        <div class="tablewrap">
+          <table>
+            <tbody>
+              <tr><th scope="row">배포 형태</th><td>Windows용 압축 파일(zip). 설정 마법사 <code>debutkit-gui.exe</code>, 명령줄 도구 <code>debutkit.exe</code> 포함</td></tr>
+              <tr><th scope="row">지원 환경</th><td>Windows 64비트. Windows 11에서 검증</td></tr>
+              <tr><th scope="row">필요 프로그램</th><td>OBS Studio 28 이상(WebSocket 원격 제어 내장)</td></tr>
+              <tr><th scope="row">선택 프로그램</th><td>ffmpeg(자동 클립). 설정 마법사 PC 점검 화면에서 내려받기</td></tr>
+              <tr><th scope="row">설치 방식</th><td>압축 해제 후 실행. 관리자 권한, 파이썬 불필요</td></tr>
+              <tr><th scope="row">코드 서명</th><td>미적용. Windows SmartScreen 경고 표시 가능</td></tr>
+              <tr><th scope="row">기타 운영체제</th><td>macOS, Linux는 파이썬 패키지로 설치. Python 3.10 이상</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div>
+          <h3>설치 절차</h3>
+          <ol class="procedure">
+            <li><a href="https://github.com/BudongJW/debutkit/releases/latest">릴리스 페이지</a>에서 <code>debutkit-버전-windows-x64.zip</code> 다운로드</li>
+            <li>압축 해제</li>
+            <li><code>debutkit-gui.exe</code> 실행</li>
+            <li>마법사 순서대로 진행</li>
+          </ol>
+          <h3 class="spaced">파이썬 패키지 설치</h3>
+          <pre class="wrap"><code>pip install "debutkit[gui] @ git+https://github.com/BudongJW/debutkit"
+debutkit-gui</code></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" id="features">
+    <div class="wrap">
+      <h2>주요 기능</h2>
+      <dl class="features">
+        <div>
+          <dt>설정 마법사<code>debutkit-gui</code></dt>
+          <dd><ul>
+            <li>명령줄 없이 PC 점검부터 오버레이 실행까지 5단계 안내</li>
+            <li>ffmpeg 내려받기, 치지직 로그인을 창 안에서 처리</li>
+          </ul></dd>
+        </div>
+        <div>
+          <dt>PC 점검<code>debutkit doctor</code></dt>
+          <dd><ul>
+            <li>메모리, CPU, 그래픽카드, 저장 공간, OBS와 원격 제어, 트래킹 프로그램, ffmpeg 점검</li>
+            <li>항목별 해결 방법 표시. 설치나 설정 변경 없음</li>
+            <li>VRM 모델의 수익화, 법인(기획사) 사용 허락 확인</li>
+          </ul></dd>
+        </div>
+        <div>
+          <dt>OBS 장면 세트<code>debutkit scenes</code></dt>
+          <dd><ul>
+            <li>대기 화면, 본방송, 토크, 자리 비움, 엔딩 장면 자동 생성</li>
+            <li>아바타 투명 배경 캡처, 채팅창과 후원 알림 연결</li>
+            <li>기존 장면 유지. 자동 클립용 리플레이 버퍼 설정</li>
+          </ul></dd>
+        </div>
+        <div>
+          <dt>통합 채팅창과 후원 알림<code>debutkit overlay</code></dt>
+          <dd><ul>
+            <li>치지직, SOOP, Twitch 채팅을 OBS 브라우저 소스 한 화면에 표시</li>
+            <li>후원, 구독 알림. 테마, 글자 크기, 줄 수, 사라짐 시간 조절</li>
+            <li>방송 없이 데모 채팅과 테스트 버튼으로 모양 확인</li>
+          </ul></dd>
+        </div>
+        <div>
+          <dt>방송 중 자동 클립<code>overlay --clip</code></dt>
+          <dd><ul>
+            <li>채팅이 방송별 평소 수준보다 크게 몰리면 OBS 리플레이 버퍼를 클립으로 저장</li>
+            <li>방장, 매니저의 <code>!clip</code> 명령으로 즉시 저장</li>
+            <li>동시 송출 시 모든 플랫폼 채팅 합산</li>
+          </ul></dd>
+        </div>
+        <div>
+          <dt>치지직 공식 API<code>debutkit chzzk login</code></dt>
+          <dd><ul>
+            <li>내 채널의 채팅, 후원, 구독을 공식 Open API로 수신</li>
+            <li>토큰은 이 PC 사용자 설정 폴더에 보관, 만료 시 자동 갱신</li>
+          </ul></dd>
+        </div>
+      </dl>
+    </div>
+  </section>
+
+  <section class="block" id="principles">
+    <div class="wrap">
+      <h2>원칙</h2>
+      <div class="tablewrap">
+        <table>
+          <tbody>
+            <tr><th scope="row">조건 없는 오픈소스</th><td>모든 기능 무료 공개. 소속사 프로그램 참여 여부와 무관</td></tr>
+            <tr><th scope="row">수집 없음</th><td>사용 통계 전송 없음. 오버레이는 이 PC(127.0.0.1)에서만 열림. 채팅 저장 없음</td></tr>
+            <tr><th scope="row">공식 경로 우선</th><td>치지직은 공식 Open API 우선. 시청자 읽기는 다른 채널 시험용</td></tr>
+            <tr><th scope="row">연결 중심</th><td>트래킹(VTube Studio, VSeeFace 등)과 송출(OBS)은 기존 프로그램 사용. 키트는 그 사이 연결</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" id="news">
+    <div class="wrap">
+      <h2>소식</h2>
+      <ul class="cards">
+        <li><time datetime="2026-11-22">2026-11-22</time><a href="news.html#v0-3">debutkit 0.3</a><p>ffmpeg 내려받기, 치지직 로그인, 자동 클립 사전 점검, 프로젝트 사이트 개설</p></li>
+        <li><time datetime="2026-11-21">2026-11-21</time><a href="news.html#v0-2">debutkit 0.2</a><p>설정 마법사, 방송 중 자동 클립, Windows 실행 파일</p></li>
+        <li><time datetime="2026-11-21">2026-11-21</time><a href="news.html#v0-1">debutkit 0.1</a><p>PC 점검, OBS 장면 세트, 통합 채팅창 첫 공개</p></li>
+      </ul>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span class="tagline">첫 방송까지, 한 번에.</span>
+    <a href="https://github.com/BudongJW/debutkit">GitHub</a>
+    <a href="https://github.com/BudongJW/debutkit/releases">릴리스</a>
+    <a href="https://github.com/BudongJW/debutkit/blob/main/CHANGELOG.md">변경 내역</a>
+    <a href="https://github.com/BudongJW/debutkit/blob/main/LICENSE">라이선스</a>
+    <p>오픈소스 소프트웨어(Apache-2.0). 본 페이지는 Google Fonts 서체 사용</p>
+  </div>
+</footer>
+</body>
+</html>

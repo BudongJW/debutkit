@@ -227,3 +227,18 @@ def test_bad_source_reports_and_stops():
         assert "Not a CHZZK channel" in srv.hub.history[-1].text
     finally:
         srv.stop()
+
+
+def test_stop_before_start_returns():
+    srv = OverlayServer([], port=0)
+    worker = threading.Thread(target=srv.stop, daemon=True)
+    worker.start()
+    worker.join(3)
+    assert not worker.is_alive()  # 시작 전 shutdown()은 영원히 기다리므로 건너뛰어야 한다
+
+
+def test_settings_page_has_streamer_clip_test(server):
+    conn = http.client.HTTPConnection("127.0.0.1", server.port, timeout=5)
+    conn.request("GET", "/")
+    page = conn.getresponse().read().decode("utf-8")
+    assert 'id="test-clip"' in page and '"owner"' in page

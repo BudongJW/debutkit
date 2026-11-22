@@ -131,3 +131,51 @@ def test_enable_replay_buffer_leaves_running_buffer():
     obs = FakeObs(active=True)
     assert enable_replay_buffer(obs)[0]
     assert "StartReplayBuffer" not in obs.calls
+
+
+def test_english_notes_become_korean():
+    from debutkit.clip import korean
+
+    note = "the replay buffer holds 30 s but the clip wanted 45 s: raise Settings > Output > Replay Buffer > Maximum Replay Time in OBS"
+    assert korean(note) == "리플레이 버퍼 길이 30초, 필요한 길이 45초. OBS 설정의 출력 탭에서 리플레이 버퍼 최대 시간 늘리기"
+    assert "리플레이 버퍼 꺼짐" in korean("The replay buffer is not running. Start it in OBS")
+    assert "debutkit setup --ffmpeg" in korean("ffprobe not found: run ...")
+    assert korean("그대로") == "그대로"
+
+
+def test_saved_note_is_reported_in_korean():
+    from stream2clip.live import LiveConfig
+
+    now = [0.0]
+
+    class Short(FakeSaved):
+        def __init__(self):
+            super().__init__(1)
+            self.note = "the replay buffer holds 20 s but the clip wanted 40 s: raise ..."
+
+    hub = Hub()
+    auto = AutoClipper(hub, lambda trigger: Short(), config=LiveConfig(lag=0.5, chat_delay=0.0, tail=0.0), clock=lambda: now[0], poll=0.01).start()
+    try:
+        hub.publish(OverlayEvent("twitch", "chat", "me", (("text", "!clip"),), role="owner", time=1.0))
+        now[0] = 20.0
+        assert wait_for(lambda: any("리플레이 버퍼 길이 20초" in e.text for e in hub.history))
+    finally:
+        auto.stop()
+
+
+def test_preflight_needs_ffmpeg():
+    from debutkit.clip import preflight
+
+    assert "ffmpeg 필요" in preflight(lambda: None)
+    assert preflight(lambda: "ffmpeg") is None
+
+
+def test_clipper_check_errors_are_korean():
+    from debutkit.clip import _KoreanClipper
+
+    class Inner:
+        def check(self, *, start_buffer=False):
+            raise RuntimeError("OBS accepted the request, but the replay buffer did not start.")
+
+    with pytest.raises(RuntimeError, match="리플레이 버퍼를 시작하지 않음"):
+        _KoreanClipper(Inner()).check(start_buffer=True)

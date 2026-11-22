@@ -1,9 +1,9 @@
 """오버레이에 띄울 사건(채팅, 후원)과 플랫폼별 변환.
 
-stream2clip의 채팅 수신기는 하이라이트 분석용이라 작성자를 해시로만 남긴다. 오버레이는
-닉네임과 이모티콘이 필요하므로, 연결·토큰·재접속은 stream2clip 수신기를 그대로 쓰고
-받은 원본 프레임만 여기서 화면용 :class:`OverlayEvent` 로 바꾼다. 이 모듈의 변환 함수는
-네트워크 없이 테스트할 수 있는 순수 함수다.
+채팅 연결 모듈의 수신기는 분석용이라 작성자를 해시로만 남긴다. 오버레이는 닉네임과
+이모티콘이 필요하므로 연결, 토큰, 재접속은 그 수신기를 그대로 쓰고 받은 원본 프레임만
+여기서 화면용 :class:`OverlayEvent` 로 바꾼다. 이 모듈의 변환 함수는 네트워크 없이
+테스트할 수 있는 순수 함수다.
 
 오버레이는 받은 채팅을 저장하지 않는다(메모리의 최근 몇십 개만 유지).
 """
@@ -136,7 +136,7 @@ def soop_event(packet: bytes, streamer: str = "") -> OverlayEvent | None:
     """SOOP 라이브 채팅 패킷 하나. 필드 위치는 stream2clip ``soop_live_message`` 와 같고 닉네임 칸을 더 읽는다.
 
     닉네임 위치는 공개 문서가 없다. 채팅의 6번째 칸은 2026-11-21 실제 방송 채팅으로 확인했고,
-    별풍선 3번째, 애드벌룬·영상풍선 4번째 칸은 커뮤니티 구현을 따른 것으로 아직 실방송 확인 전이다.
+    별풍선 3번째, 애드벌룬과 영상풍선 4번째 칸은 커뮤니티 구현을 따른 것으로 아직 실방송 확인 전이다.
     칸이 비어 있으면 아이디를 이름으로 쓴다.
     """
     if len(packet) < 14 or packet[:2] != b"\x1b\t":
@@ -168,7 +168,7 @@ _IRC_ESCAPES = {r"\s": " ", r"\:": ";", r"\\": "\\", r"\r": "\r", r"\n": "\n"}
 
 
 def twitch_event(line: str) -> OverlayEvent | None:
-    """Twitch IRC 한 줄(태그 포함). 채팅(PRIVMSG), 구독·선물(USERNOTICE)만."""
+    """Twitch IRC 한 줄(태그 포함). 채팅(PRIVMSG), 구독과 선물(USERNOTICE)만."""
     match = _IRC.match(line.strip())
     if not match or match.group("command") not in ("PRIVMSG", "USERNOTICE"):
         return None
@@ -212,11 +212,14 @@ def chzzk_source(channel: str) -> Any:
 
 
 def chzzk_api_source() -> Any:
-    """내 CHZZK 채널의 채팅, 후원, 구독(공식 Open API). 먼저 ``stream2clip chzzk login`` 으로 한 번 로그인해 둔다.
+    """내 CHZZK 채널의 채팅, 후원, 구독(공식 Open API). 먼저 ``debutkit chzzk login`` 으로 한 번 로그인해 둔다.
 
-    세션 연결과 이벤트 구독은 stream2clip ``ChzzkApiChat`` 이 하고, 이벤트 내용만 여기서 바꾼다.
+    세션 연결과 이벤트 구독은 ``ChzzkApiChat`` 이 하고, 이벤트 내용만 여기서 바꾼다.
     """
-    from stream2clip.chzzk_api import ChzzkApi, ChzzkApiChat
+    from ..chzzk import make_api
+
+    api = make_api(None, None)  # Client ID, Secret이 없으면 한국어 안내와 함께 ChzzkLoginError
+    from stream2clip.chzzk_api import ChzzkApiChat
 
     class ChzzkApiOverlayChat(ChzzkApiChat):
         def _frame(self, frame: str) -> list[Any]:  # type: ignore[override]
@@ -230,7 +233,7 @@ def chzzk_api_source() -> Any:
                     return [event] if event is not None else []
             return super()._frame(frame)  # 연결, 구독 같은 SYSTEM 프레임
 
-    return ChzzkApiOverlayChat(ChzzkApi(), events=("chat", "donation", "subscription"))
+    return ChzzkApiOverlayChat(api, events=("chat", "donation", "subscription"))
 
 
 def soop_source(channel: str) -> Any:

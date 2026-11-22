@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>사용 설명서 - debutkit</title>
+<meta name="description" content="debutkit 설치, 설정 마법사, PC 점검, OBS 장면, 통합 채팅창, 자동 클립, 치지직 공식 API, 문제 해결.">
+<meta name="theme-color" content="#15131F">
+<link rel="canonical" href="https://budongjw.github.io/debutkit/guide.html">
+<link rel="icon" href="assets/favicon.ico" sizes="48x48">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta property="og:image" content="https://budongjw.github.io/debutkit/assets/social.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Noto+Sans+KR:wght@400;500;700;900&family=Outfit:wght@300;700&display=swap">
+<link rel="stylesheet" href="css/site.css">
+</head>
+<body>
+<a class="skip" href="#main">본문으로 이동</a>
+
+<header class="top">
+  <div class="wrap">
+    <a class="lockup" href="./" aria-label="debutkit 홈">
+      <img src="assets/lockup.svg" alt="debutkit" width="120" height="44">
+    </a>
+    <nav class="nav" aria-label="주요 메뉴">
+      <a href="guide.html" aria-current="page">사용 설명서</a>
+      <a href="software.html">방송 소프트웨어</a>
+      <a href="news.html">소식</a>
+      <a href="join.html">참여 안내</a>
+      <a href="https://github.com/BudongJW/debutkit">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+  <div class="wrap">
+    <header class="dochead">
+      <h1>사용 설명서</h1>
+      <dl>
+        <dt>대상 버전</dt><dd>debutkit 0.3.0</dd>
+        <dt>지원 환경</dt><dd>Windows 64비트(실행 파일), macOS와 Linux(파이썬 패키지)</dd>
+      </dl>
+    </header>
+
+    <div class="doc">
+      <nav class="toc" aria-label="목차">
+        <h2>목차</h2>
+        <ol>
+          <li><a href="#install">설치</a></li>
+          <li><a href="#wizard">설정 마법사</a></li>
+          <li><a href="#doctor">PC 점검</a></li>
+          <li><a href="#scenes">OBS 장면</a></li>
+          <li><a href="#overlay">채팅창과 후원 알림</a></li>
+          <li><a href="#clip">자동 클립</a></li>
+          <li><a href="#chzzk">치지직 공식 API</a></li>
+          <li><a href="#cli">명령줄 요약</a></li>
+          <li><a href="#trouble">문제 해결</a></li>
+          <li><a href="#privacy">개인정보와 보안</a></li>
+        </ol>
+      </nav>
+
+      <article class="numbered">
+        <h2 id="install">설치</h2>
+        <h3 id="install-windows">Windows 실행 파일</h3>
+        <ol>
+          <li><a href="https://github.com/BudongJW/debutkit/releases/latest">릴리스 페이지</a>에서 <code>debutkit-버전-windows-x64.zip</code> 다운로드</li>
+          <li>원하는 폴더에 압축 해제</li>
+          <li><code>debutkit-gui.exe</code> 실행(설정 마법사). 명령줄은 같은 폴더의 <code>debutkit.exe</code></li>
+        </ol>
+        <ul>
+          <li>파이썬, 관리자 권한 불필요</li>
+          <li>코드 서명 미적용. SmartScreen 경고 시 추가 정보 선택 후 실행</li>
+        </ul>
+
+        <h3 id="install-python">파이썬 패키지</h3>
+        <pre class="wrap"><code>pip install "debutkit[gui] @ git+https://github.com/BudongJW/debutkit"
+debutkit-gui</code></pre>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>설치 옵션</th><th>내용</th></tr></thead>
+            <tbody>
+              <tr><th scope="row"><code>[live]</code></th><td>채팅 연결 모듈. OBS 제어, 채팅 수신, 자동 클립, ffmpeg 내려받기, 치지직 로그인</td></tr>
+              <tr><th scope="row"><code>[gui]</code></th><td>설정 마법사(PySide6). <code>[live]</code> 포함</td></tr>
+              <tr><th scope="row">옵션 없음</th><td>PC 점검(<code>doctor</code>), 장면 설계도 출력(<code>scenes --dry-run</code>)만 사용 가능</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="wizard">설정 마법사</h2>
+        <p><code>debutkit-gui</code> 또는 <code>debutkit gui</code> 실행. 왼쪽 단계 목록이나 다음 버튼으로 이동</p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>단계</th><th>내용</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">PC 점검</th><td>창을 열면 자동 점검. ffmpeg 없음 표시 시 ffmpeg 내려받기 버튼(Windows)</td></tr>
+              <tr><th scope="row">아바타</th><td>모델 종류별 트래킹 프로그램 안내. 모델 파일 선택 후 사용 조건 확인</td></tr>
+              <tr><th scope="row">OBS 장면</th><td>WebSocket 포트, 비밀번호, 아바타 프로그램 선택 후 장면 만들기</td></tr>
+              <tr><th scope="row">채팅과 알림</th><td>채널 주소 입력, 치지직 로그인, 자동 클립 선택 후 오버레이 시작</td></tr>
+              <tr><th scope="row">마무리</th><td>단계별 준비 상태, 자동 클립 저장 폴더 열기</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ul>
+          <li>마법사 창을 닫으면 오버레이와 자동 클립도 종료</li>
+          <li>OBS 비밀번호, 치지직 Client Secret은 파일에 저장하지 않음</li>
+        </ul>
+
+        <h2 id="doctor">PC 점검</h2>
+        <pre><code>debutkit doctor
+debutkit doctor --avatar model.vrm --agency
+debutkit doctor --json</code></pre>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>항목</th><th>기준</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">메모리</th><td>16 GB 이상 정상, 8 GB 이상 주의, 8 GB 미만 필요</td></tr>
+              <tr><th scope="row">CPU</th><td>논리 코어 6개 이상 정상, 4개 이상 주의(그래픽카드 인코더 권장)</td></tr>
+              <tr><th scope="row">그래픽카드</th><td>NVIDIA NVENC, AMD AMF, Apple VT 인코더 안내. 내장 그래픽은 주의</td></tr>
+              <tr><th scope="row">저장 공간</th><td>동영상 폴더 여유 50 GB 이상 정상, 10 GB 이상 주의</td></tr>
+              <tr><th scope="row">OBS Studio</th><td>설치 여부. 없으면 필요</td></tr>
+              <tr><th scope="row">OBS 원격 제어</th><td>127.0.0.1:4455 응답 여부(장면 자동 구성, 자동 클립에 필요)</td></tr>
+              <tr><th scope="row">트래킹 프로그램</th><td>Steam 라이브러리의 VTube Studio, Warudo, VMagicMirror, VNyan, PrprLive. VTube Studio API(8001) 응답</td></tr>
+              <tr><th scope="row">채팅 연결 모듈</th><td>설치 여부. 실행 파일은 기본 포함</td></tr>
+              <tr><th scope="row">ffmpeg</th><td>PATH 또는 내려받은 위치. 자동 클립에만 필요</td></tr>
+              <tr><th scope="row">오버레이 포트</th><td>8790 사용 가능 여부</td></tr>
+              <tr><th scope="row">아바타 사용 조건</th><td><code>--avatar</code> 지정 시. VRM 파일의 수익화 허용, <code>--agency</code> 지정 시 법인(기획사) 사용 허용 확인</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ul>
+          <li>결과 등급: 정상, 주의, 필요, 참고</li>
+          <li>필요 항목이 있으면 종료 코드 1</li>
+          <li>점검은 읽기만 함. 네트워크는 이 PC 안의 포트만 확인</li>
+          <li>Live2D 등 VRM 외 모델: 판매처 약관에서 영리 사용, 법인 사용, 개변, 크레딧 표기 직접 확인</li>
+        </ul>
+
+        <h2 id="scenes">OBS 장면</h2>
+        <h3 id="scenes-ready">준비</h3>
+        <ol>
+          <li>OBS 실행</li>
+          <li>도구 메뉴의 WebSocket 서버 설정에서 WebSocket 서버 사용 체크</li>
+          <li>비밀번호 사용 시 <code>--password</code> 또는 환경 변수 <code>OBS_WEBSOCKET_PASSWORD</code></li>
+          <li>처음 구성 시 장면 모음 메뉴에서 새 장면 모음 생성 권장</li>
+        </ol>
+        <pre><code>debutkit scenes --replay-buffer
+debutkit scenes --dry-run</code></pre>
+        <h3 id="scenes-list">장면 구성</h3>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>장면</th><th>소스</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">대기 화면</th><td>배경, 대기 문구, 채팅, 후원 알림</td></tr>
+              <tr><th scope="row">본방송</th><td>배경, 게임 화면, 아바타(왼쪽 아래), 채팅, 후원 알림</td></tr>
+              <tr><th scope="row">토크</th><td>배경, 큰 아바타(가운데), 채팅, 후원 알림</td></tr>
+              <tr><th scope="row">자리 비움</th><td>배경, 자리 비움 문구, 채팅, 후원 알림. 마이크는 직접 음소거</td></tr>
+              <tr><th scope="row">엔딩</th><td>배경, 엔딩 문구, 채팅</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <h3 id="scenes-options">옵션</h3>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>옵션</th><th>내용</th></tr></thead>
+            <tbody>
+              <tr><th scope="row"><code>--avatar</code></th><td><code>vts</code>(기본), <code>vseeface</code>, <code>warudo</code>, <code>vmagicmirror</code>, <code>none</code></td></tr>
+              <tr><th scope="row"><code>--replay-buffer 초</code></th><td>자동 클립용 리플레이 버퍼 켜기. 기본 60초</td></tr>
+              <tr><th scope="row"><code>--replace</code></th><td>같은 이름의 장면을 지우고 다시 생성</td></tr>
+              <tr><th scope="row"><code>--switch</code></th><td>생성 후 대기 화면으로 전환</td></tr>
+              <tr><th scope="row"><code>--overlay-port</code></th><td>채팅창, 알림 주소의 포트. 기본 8790</td></tr>
+              <tr><th scope="row"><code>--dry-run</code></th><td>OBS 연결 없이 설계도만 출력</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ul>
+          <li>만든 소스 이름 앞에 <code>[DK]</code> 표시. 이미 있는 소스는 재사용</li>
+          <li>Windows는 게임 캡처의 투명도 허용으로 아바타 캡처(VTube Studio, VSeeFace 공식 권장 방식)</li>
+          <li>macOS, Linux는 아바타 소스 속성에서 창 직접 선택</li>
+          <li>리플레이 버퍼를 처음 켠 경우 OBS 재시작 후 사용 가능</li>
+        </ul>
+
+        <h2 id="overlay">채팅창과 후원 알림</h2>
+        <pre class="wrap"><code>debutkit overlay --chzzk https://chzzk.naver.com/live/채널ID --soop https://play.sooplive.co.kr/아이디 --twitch 채널이름</code></pre>
+        <h3 id="overlay-urls">주소</h3>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>주소</th><th>용도</th></tr></thead>
+            <tbody>
+              <tr><th scope="row"><code>http://127.0.0.1:8790</code></th><td>설정 화면. 주소 복사, 미리보기, 테스트 버튼</td></tr>
+              <tr><th scope="row"><code>/chat</code></th><td>통합 채팅창. 권장 크기 420x1000</td></tr>
+              <tr><th scope="row"><code>/alerts</code></th><td>후원, 구독 알림. 권장 크기 1920x1080</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <h3 id="overlay-sources">채널 지정</h3>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>옵션</th><th>내용</th></tr></thead>
+            <tbody>
+              <tr><th scope="row"><code>--chzzk-api</code></th><td>내 치지직 채널, 공식 Open API(권장). 7장 참고</td></tr>
+              <tr><th scope="row"><code>--chzzk</code></th><td>치지직 채널 주소 또는 ID. 로그인 없는 시청자 읽기</td></tr>
+              <tr><th scope="row"><code>--soop</code></th><td>SOOP 방송국 주소 또는 아이디</td></tr>
+              <tr><th scope="row"><code>--twitch</code></th><td>Twitch 채널 이름. 익명 읽기</td></tr>
+              <tr><th scope="row"><code>--demo</code></th><td>데모 채팅 함께 표시. 채널 미지정 시 자동 사용</td></tr>
+              <tr><th scope="row"><code>--port</code></th><td>서버 포트. 기본 8790</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>같은 옵션을 여러 번 지정하면 여러 채널 동시 표시</p>
+        <h3 id="overlay-options">채팅창 모양</h3>
+        <p>채팅창 주소 뒤에 붙임. 예: <code>/chat?theme=bubble&amp;font=26&amp;max=10&amp;fade=30</code></p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>값</th><th>내용</th><th>기본</th></tr></thead>
+            <tbody>
+              <tr><th scope="row"><code>theme</code></th><td><code>shadow</code>(글자 그림자), <code>bubble</code>(말풍선)</td><td>shadow</td></tr>
+              <tr><th scope="row"><code>font</code></th><td>글자 크기(px)</td><td>22</td></tr>
+              <tr><th scope="row"><code>max</code></th><td>표시 줄 수</td><td>12</td></tr>
+              <tr><th scope="row"><code>fade</code></th><td>지정 초 뒤 사라짐. 0은 유지</td><td>0</td></tr>
+              <tr><th scope="row"><code>platform</code></th><td>0이면 플랫폼 표시 끄기</td><td>1</td></tr>
+              <tr><th scope="row"><code>hide</code></th><td>숨길 종류 또는 플랫폼(쉼표 구분)</td><td>system</td></tr>
+              <tr><th scope="row"><code>seconds</code></th><td>알림 표시 시간(<code>/alerts</code>)</td><td>6</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ul>
+          <li>알림 소리: 브라우저 소스 속성에서 OBS를 통해 오디오 제어 체크</li>
+          <li>세부 꾸밈: 브라우저 소스 속성의 사용자 지정 CSS</li>
+          <li>테스트 채팅, 테스트 후원: 외부 전송 없이 설정 화면과 OBS에만 표시</li>
+        </ul>
+
+        <h2 id="clip">자동 클립</h2>
+        <h3 id="clip-ready">준비</h3>
+        <ol>
+          <li>ffmpeg 준비: <code>debutkit setup --ffmpeg</code> 또는 마법사 PC 점검 화면의 ffmpeg 내려받기(Windows, 약 115 MB, SHA-256 확인). macOS는 <code>brew install ffmpeg</code>, Linux는 패키지 관리자</li>
+          <li>OBS 리플레이 버퍼 켜기: <code>debutkit scenes --replay-buffer</code> 후 OBS 재시작</li>
+          <li>오버레이와 함께 실행: <code>debutkit overlay --chzzk-api --clip</code></li>
+        </ol>
+        <h3 id="clip-rules">저장 기준</h3>
+        <ul>
+          <li>채팅 급증: 방송별 평소 채팅량 대비 크게 증가한 순간. 시청자가 적은 방송에도 적용</li>
+          <li>표시 명령: 방장, 매니저의 <code>!clip</code>, <code>!클립</code>. 시청자 명령은 무시</li>
+          <li>동시 송출: 모든 플랫폼 채팅 합산</li>
+          <li>저장 위치: <code>동영상/debutkit-clips</code>. <code>--clip-dir</code> 로 변경</li>
+          <li>결과: 설정 화면 채팅 미리보기와 마법사 기록 칸에 표시</li>
+          <li>방송 없이 시험: 설정 화면의 방장 !clip 버튼</li>
+        </ul>
+        <div class="note">
+          <h4>클립 길이</h4>
+          <ul>
+            <li>리플레이 버퍼 최대 시간보다 긴 클립은 버퍼 길이로 저장, 안내 표시</li>
+            <li>늘리는 방법: OBS 설정의 출력 탭에서 리플레이 버퍼 최대 시간 변경 또는 <code>scenes --replay-buffer 120</code></li>
+          </ul>
+        </div>
+
+        <h2 id="chzzk">치지직 공식 API</h2>
+        <p>내 채널의 채팅, 후원, 구독을 네이버 공식 Open API로 수신. 시청자 읽기보다 안정적이고 후원 정보 정확</p>
+        <h3 id="chzzk-app">애플리케이션 등록</h3>
+        <ol>
+          <li>치지직 개발자 센터에서 애플리케이션 등록</li>
+          <li>로그인 리디렉션 주소에 <code>http://localhost:8765/callback</code> 등록</li>
+          <li>API 사용 범위에서 채팅, 후원, 구독 관련 항목 선택</li>
+          <li>Client ID, Client Secret 확인</li>
+        </ol>
+        <h3 id="chzzk-login">로그인</h3>
+        <p>마법사: 채팅과 알림 단계의 치지직 API 칸에 Client ID, Client Secret 입력 후 치지직 로그인. 명령줄:</p>
+        <pre class="wrap"><code>$env:CHZZK_CLIENT_ID = "Client ID"
+$env:CHZZK_CLIENT_SECRET = "Client Secret"
+debutkit chzzk login
+debutkit overlay --chzzk-api</code></pre>
+        <ul>
+          <li>브라우저에서 동의하면 토큰 발급. 이 PC 사용자 설정 폴더에 보관, 만료 시 자동 갱신</li>
+          <li>Client ID, Client Secret은 토큰 갱신에 사용. 실행할 때마다 환경 변수 또는 마법사 입력 칸 필요, 파일 저장 없음</li>
+          <li>로그아웃(토큰 삭제): <code>debutkit chzzk logout</code></li>
+        </ul>
+
+        <h2 id="cli">명령줄 요약</h2>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>명령</th><th>내용</th></tr></thead>
+            <tbody>
+              <tr><th scope="row"><code>debutkit gui</code></th><td>설정 마법사</td></tr>
+              <tr><th scope="row"><code>debutkit doctor</code></th><td>PC 점검</td></tr>
+              <tr><th scope="row"><code>debutkit scenes</code></th><td>OBS 장면 세트 생성</td></tr>
+              <tr><th scope="row"><code>debutkit overlay</code></th><td>채팅창, 후원 알림 서버. <code>--clip</code> 으로 자동 클립</td></tr>
+              <tr><th scope="row"><code>debutkit setup</code></th><td>ffmpeg, 채팅 연결 모듈 확인. <code>--ffmpeg</code> 로 내려받기</td></tr>
+              <tr><th scope="row"><code>debutkit chzzk login</code></th><td>치지직 공식 API 로그인. <code>logout</code> 으로 토큰 삭제</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>각 명령의 전체 옵션: <code>debutkit 명령 --help</code></p>
+
+        <h2 id="trouble">문제 해결</h2>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>증상</th><th>조치</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">장면 생성 실패</th><td>OBS 실행, WebSocket 서버 사용 체크, 포트 4455, 비밀번호 확인</td></tr>
+              <tr><th scope="row">채팅창이 빈 화면</th><td>overlay 실행 여부 확인. 장면 생성 포트와 overlay 포트 일치(<code>--overlay-port</code>, <code>--port</code>)</td></tr>
+              <tr><th scope="row">포트 사용 중</th><td>다른 프로그램이 8790 사용. overlay <code>--port</code>, scenes <code>--overlay-port</code> 에 같은 새 번호 지정</td></tr>
+              <tr><th scope="row">리플레이 버퍼 사용 불가</th><td>설정을 처음 켠 경우 OBS 재시작</td></tr>
+              <tr><th scope="row">자동 클립 ffmpeg 필요</th><td><code>debutkit setup --ffmpeg</code> 실행 또는 마법사 ffmpeg 내려받기</td></tr>
+              <tr><th scope="row">클립이 짧음</th><td>OBS 리플레이 버퍼 최대 시간 늘리기</td></tr>
+              <tr><th scope="row">치지직 로그인 실패</th><td>Client ID, Secret 확인. 개발자 센터 리디렉션 주소와 <code>--redirect</code> 일치. 8765 포트 사용 프로그램 종료</td></tr>
+              <tr><th scope="row">아바타가 안 보임</th><td>아바타 프로그램 실행 확인. 게임 캡처 속성의 투명도 허용, 창 선택 확인</td></tr>
+              <tr><th scope="row">SmartScreen 경고</th><td>추가 정보 선택 후 실행. 불안하면 파이썬 패키지로 설치</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>해결되지 않는 문제: <a href="https://github.com/BudongJW/debutkit/issues">GitHub 이슈</a>에 <code>debutkit doctor --json</code> 결과와 함께 등록</p>
+
+        <h2 id="privacy">개인정보와 보안</h2>
+        <ul>
+          <li>사용 통계 전송 없음</li>
+          <li>오버레이 서버는 127.0.0.1에서만 열림. 다른 웹사이트의 요청은 Host, Origin 확인으로 차단</li>
+          <li>채팅 저장 없음. 화면 표시용 최근 30개만 메모리에 유지</li>
+          <li>자동 클립의 급증 판단은 닉네임을 해시로만 사용</li>
+          <li>치지직 토큰은 이 PC 사용자 설정 폴더에만 보관</li>
+          <li>비공식 시청자 읽기(<code>--chzzk</code>, <code>--soop</code>)는 플랫폼 승인 방식 아님. 내 치지직 채널은 공식 API 권장</li>
+        </ul>
+      </article>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span class="tagline">첫 방송까지, 한 번에.</span>
+    <a href="https://github.com/BudongJW/debutkit">GitHub</a>
+    <a href="https://github.com/BudongJW/debutkit/releases">릴리스</a>
+    <a href="https://github.com/BudongJW/debutkit/blob/main/CHANGELOG.md">변경 내역</a>
+    <a href="https://github.com/BudongJW/debutkit/blob/main/LICENSE">라이선스</a>
+    <p>오픈소스 소프트웨어(Apache-2.0). 본 페이지는 Google Fonts 서체 사용</p>
+  </div>
+</footer>
+</body>
+</html>

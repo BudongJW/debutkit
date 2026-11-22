@@ -1,4 +1,4 @@
-/* debutkit overlay. OBS 브라우저 소스 > 사용자 지정 CSS 로 덮어써서 꾸밀 수 있다 */
+/* debutkit overlay. OBS 브라우저 소스 속성의 사용자 지정 CSS 로 덮어써서 꾸밀 수 있다 */
 :root {
   --font-size: 22px;
   --font: "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans CJK KR", sans-serif;

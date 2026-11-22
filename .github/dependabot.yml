@@ -1,0 +1,9 @@
+version: 2
+updates:
+  # 워크플로 액션을 지원되는 런타임으로 유지
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "Bump"

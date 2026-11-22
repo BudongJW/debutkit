@@ -2,7 +2,7 @@
 
 - ``/``        설정 화면: OBS에 붙일 주소, 미리보기, 테스트 메시지 버튼
 - ``/chat``    통합 채팅창 (주소 뒤 ``?theme=bubble&max=12&font=22`` 로 모양 조절)
-- ``/alerts``  후원·구독 알림
+- ``/alerts``  후원, 구독 알림
 - ``/events``  화면들이 받는 사건 흐름 (Server-Sent Events)
 - ``POST /test`` 설정 화면의 테스트 메시지
 
@@ -24,8 +24,9 @@ from typing import Any, Callable, Iterable
 
 from .events import OverlayEvent, system_event
 
-STATIC = {"/": "index.html", "/chat": "chat.html", "/alerts": "alerts.html", "/overlay.css": "overlay.css", "/overlay.js": "overlay.js"}
-TYPES = {".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8"}
+STATIC = {"/": "index.html", "/chat": "chat.html", "/alerts": "alerts.html", "/overlay.css": "overlay.css", "/overlay.js": "overlay.js",
+          "/favicon.svg": "favicon.svg"}
+TYPES = {".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".svg": "image/svg+xml"}
 
 
 class Hub:
@@ -220,13 +221,15 @@ class OverlayServer:
         return part
 
     def stop(self) -> None:
+        """멈추고 포트를 닫는다. ``start`` 전에 불러도 된다(시작 전 ``shutdown`` 은 영원히 기다리므로 건너뜀)."""
         self._stop.set()
         for part in self._attached:
             try:
                 part.stop()
             except Exception:
                 pass
-        self.httpd.shutdown()
+        if self._threads:
+            self.httpd.shutdown()
         self.httpd.server_close()
 
     def serve_until_interrupted(self) -> None:

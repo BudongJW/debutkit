@@ -25,9 +25,13 @@ LABELS = {OK: "정상", WARN: "주의", FAIL: "필요", INFO: "참고"}
 
 OBS_WEBSOCKET_PORT = 4455
 VTS_API_PORT = 8001  # VTube Studio 플러그인 API 기본 포트
-OVERLAY_PORT = 8790  # debutkit overlay 기본 포트 (stream2clip의 CHZZK 로그인은 8765 사용)
+OVERLAY_PORT = 8790  # debutkit overlay 기본 포트. 치지직 로그인은 8765 사용
 
-#: Steam 라이브러리의 ``steamapps/common`` 아래 폴더 이름 → 표시 이름
+SITE_URL = "https://budongjw.github.io/debutkit/"
+SOFTWARE_URL = SITE_URL + "software.html"
+JOIN_URL = SITE_URL + "join.html"
+
+#: Steam 라이브러리의 ``steamapps/common`` 아래 폴더 이름과 표시 이름
 STEAM_TRACKERS = {
     "VTube Studio": "VTube Studio (Live2D)",
     "Warudo": "Warudo (3D)",
@@ -127,6 +131,12 @@ def _steam_root() -> str | None:
         return fallback if os.path.isdir(fallback) else None
 
 
+def _find_ffmpeg() -> str | None:
+    from .tools import ffmpeg_path
+
+    return ffmpeg_path()
+
+
 def _gpu_names() -> list[str]:
     out = _run(["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"])
     if out:
@@ -157,6 +167,7 @@ class System:
     package_version: Callable[[str], str | None] = _import_version
     steam_root: Callable[[], str | None] = _steam_root
     read_text: Callable[[str], str | None] = _read_text
+    find_ffmpeg: Callable[[], str | None] = _find_ffmpeg  # PATH 밖에 내려받은 ffmpeg까지 찾는다
     home: str = field(default_factory=lambda: str(Path.home()))
 
 
@@ -171,9 +182,9 @@ def check_hardware(system: System) -> list[Check]:
     elif memory >= 15.5:
         found.append(Check("memory", "메모리", OK, f"{memory:.0f} GB"))
     elif memory >= 7.5:
-        found.append(Check("memory", "메모리", WARN, f"{memory:.0f} GB", "트래킹, 게임, 송출을 함께 돌리려면 16 GB 이상 권장"))
+        found.append(Check("memory", "메모리", WARN, f"{memory:.0f} GB", "트래킹, 게임, 송출 동시 실행 시 16 GB 이상 권장"))
     else:
-        found.append(Check("memory", "메모리", FAIL, f"{memory:.0f} GB", "8 GB 미만은 송출 중 끊김 위험. 게임 없는 토크 방송부터 시작 권장"))
+        found.append(Check("memory", "메모리", FAIL, f"{memory:.0f} GB", "8 GB 미만은 송출 끊김 위험. 게임 없는 토크 방송부터 시작 권장"))
     cores = system.cpu_count()
     if cores is None:
         found.append(Check("cpu", "CPU", INFO, "확인하지 못함"))
@@ -182,20 +193,20 @@ def check_hardware(system: System) -> list[Check]:
     elif cores >= 4:
         found.append(Check("cpu", "CPU", WARN, f"논리 코어 {cores}개", "x264(CPU) 인코딩 대신 그래픽카드 인코더(NVENC, AMF, QSV) 사용 권장"))
     else:
-        found.append(Check("cpu", "CPU", FAIL, f"논리 코어 {cores}개", "트래킹과 송출을 함께 돌리기 어려움"))
+        found.append(Check("cpu", "CPU", FAIL, f"논리 코어 {cores}개", "트래킹과 송출 동시 실행 어려움"))
     gpus = system.gpu_names()
     if not gpus:
         found.append(Check("gpu", "그래픽카드", INFO, "확인하지 못함"))
     else:
         joined = ", ".join(gpus)
         if any(re.search(r"nvidia|geforce|rtx|gtx", name, re.I) for name in gpus):
-            found.append(Check("gpu", "그래픽카드", OK, joined, "OBS 설정 > 출력에서 NVENC 인코더 선택 가능"))
+            found.append(Check("gpu", "그래픽카드", OK, joined, "OBS 설정의 출력 탭에서 NVENC 인코더 선택 가능"))
         elif any(re.search(r"radeon|amd", name, re.I) for name in gpus):
-            found.append(Check("gpu", "그래픽카드", OK, joined, "OBS 설정 > 출력에서 AMF 인코더 선택 가능"))
+            found.append(Check("gpu", "그래픽카드", OK, joined, "OBS 설정의 출력 탭에서 AMF 인코더 선택 가능"))
         elif any(re.search(r"apple|m\d", name, re.I) for name in gpus):
-            found.append(Check("gpu", "그래픽카드", OK, joined, "OBS 설정 > 출력에서 Apple VT 하드웨어 인코더 선택 가능"))
+            found.append(Check("gpu", "그래픽카드", OK, joined, "OBS 설정의 출력 탭에서 Apple VT 하드웨어 인코더 선택 가능"))
         else:
-            found.append(Check("gpu", "그래픽카드", WARN, joined, "내장 그래픽은 트래킹 프로그램과 게임을 함께 돌리면 버거울 수 있음. Intel QSV 인코더 사용 권장"))
+            found.append(Check("gpu", "그래픽카드", WARN, joined, "내장 그래픽은 트래킹과 게임 동시 실행 시 부하 큼. Intel QSV 인코더 권장"))
     videos = os.path.join(system.home, "Videos")
     free = system.disk_free_gb(videos if system.exists(videos) else system.home)
     if free is None:
@@ -203,9 +214,9 @@ def check_hardware(system: System) -> list[Check]:
     elif free >= 50:
         found.append(Check("disk", "저장 공간", OK, f"여유 {free:.0f} GB"))
     elif free >= 10:
-        found.append(Check("disk", "저장 공간", WARN, f"여유 {free:.0f} GB", "1080p 녹화는 1시간에 약 3~8 GB. 방송 녹화본을 남기려면 50 GB 이상 권장"))
+        found.append(Check("disk", "저장 공간", WARN, f"여유 {free:.0f} GB", "1080p 녹화는 1시간에 약 3에서 8 GB. 녹화본 보관 시 50 GB 이상 권장"))
     else:
-        found.append(Check("disk", "저장 공간", FAIL, f"여유 {free:.0f} GB", "녹화, 리플레이 저장이 실패할 수 있음"))
+        found.append(Check("disk", "저장 공간", FAIL, f"여유 {free:.0f} GB", "녹화, 리플레이 저장 실패 위험"))
     return found
 
 
@@ -231,7 +242,7 @@ def check_obs(system: System) -> list[Check]:
         found.append(Check("obs-websocket", "OBS 원격 제어", OK, f"127.0.0.1:{OBS_WEBSOCKET_PORT} 응답", "debutkit scenes 로 장면 세트 구성 가능"))
     else:
         found.append(Check("obs-websocket", "OBS 원격 제어", WARN, "응답 없음",
-                           "OBS 실행 후 도구 > WebSocket 서버 설정 > WebSocket 서버 사용 체크 (장면 자동 구성, stream2clip 리플레이에 필요)"))
+                           "OBS 실행, 도구 메뉴의 WebSocket 서버 설정에서 WebSocket 서버 사용 체크 (장면 자동 구성, 자동 클립에 필요)"))
     return found
 
 
@@ -260,42 +271,47 @@ def check_tracking(system: System) -> list[Check]:
         found = [Check("tracking", "트래킹 프로그램", OK, ", ".join(names))]
     else:
         found = [Check("tracking", "트래킹 프로그램", WARN, "Steam에서 찾지 못함",
-                       "Live2D는 VTube Studio, 3D(VRM)는 VSeeFace, Warudo 등. Steam 밖에 설치했다면 무시. 목록: https://budongjw.github.io/software/")]
+                       f"Live2D는 VTube Studio, 3D(VRM)는 VSeeFace, Warudo 등. Steam 밖에 설치한 경우 무시. 목록: {SOFTWARE_URL}")]
     if system.port_open("127.0.0.1", VTS_API_PORT):
-        found.append(Check("vts-api", "VTube Studio API", OK, f"127.0.0.1:{VTS_API_PORT} 응답", "stream2clip 방송 기록기가 아바타 위치를 기록 가능"))
+        found.append(Check("vts-api", "VTube Studio API", OK, f"127.0.0.1:{VTS_API_PORT} 응답"))
     return found
 
 
-def check_clipping(system: System) -> list[Check]:
+def check_live_tools(system: System) -> list[Check]:
+    """채팅 연결 모듈(OBS 제어, 채팅 수신, 자동 클립)과 ffmpeg(자동 클립)."""
     found: list[Check] = []
     version = system.package_version("stream2clip")
     if version:
-        found.append(Check("stream2clip", "stream2clip", OK, f"v{version}", "방송 후 stream2clip auto 로 하이라이트 클립 제작"))
+        found.append(Check("live", "채팅 연결 모듈", OK, f"설치됨 ({version})"))
     else:
-        found.append(Check("stream2clip", "stream2clip", INFO, "설치 안 됨",
-                           "방송 하이라이트 자동 클립: https://budongjw.github.io/stream2clip/ (선택)"))
-    if system.which("ffmpeg"):
-        found.append(Check("ffmpeg", "ffmpeg", OK, str(system.which("ffmpeg"))))
+        found.append(Check("live", "채팅 연결 모듈", WARN, "설치 안 됨", 'pip install "debutkit[live]" (OBS 장면, 채팅창, 자동 클립에 필요)'))
+    ffmpeg = system.which("ffmpeg") or system.find_ffmpeg()
+    if ffmpeg:
+        found.append(Check("ffmpeg", "ffmpeg", OK, str(ffmpeg)))
     else:
-        found.append(Check("ffmpeg", "ffmpeg", INFO, "PATH에 없음", "클립 제작에 필요. stream2clip setup 으로 내려받기 가능 (방송 자체에는 불필요)"))
+        from .tools import install_hint
+
+        platform_name = {"Windows": "win32", "Darwin": "darwin"}.get(system.os_name, "linux")
+        found.append(Check("ffmpeg", "ffmpeg", INFO, "찾지 못함", f"자동 클립에만 필요 (방송에는 불필요). {install_hint(platform_name)}"))
     return found
 
 
 def check_overlay_port(system: System, port: int = OVERLAY_PORT) -> list[Check]:
     if system.port_open("127.0.0.1", port):
-        return [Check("overlay-port", "오버레이 포트", WARN, f"{port} 사용 중", "이미 overlay가 실행 중이거나 다른 프로그램이 사용. debutkit overlay --port 로 다른 번호 지정")]
+        return [Check("overlay-port", "오버레이 포트", WARN, f"{port} 사용 중",
+                      "overlay 실행 중이거나 다른 프로그램이 사용. 다른 프로그램이면 debutkit overlay --port 로 다른 번호 지정")]
     return [Check("overlay-port", "오버레이 포트", OK, f"{port} 사용 가능")]
 
 
 def check_avatar(path: str, *, agency: bool) -> list[Check]:
-    """VRM 모델의 사용 조건을 stream2clip의 VRM 검사로 확인한다. 소속(기획사) 활동은 법인 사용으로 본다."""
+    """VRM 모델 파일에 들어 있는 사용 조건 확인. 소속(기획사) 활동은 법인 사용으로 본다."""
     if not path.lower().endswith(".vrm"):
         return [Check("avatar", "아바타 사용 조건", INFO, os.path.basename(path),
-                      "Live2D 등 VRM이 아닌 모델은 판매처 약관을 직접 확인: 영리 사용, 법인(기획사) 사용, 개변, 크레딧 표기")]
+                      "Live2D 등 VRM 외 모델은 판매처 약관 직접 확인: 영리 사용, 법인(기획사) 사용, 개변, 크레딧 표기")]
     try:
         from stream2clip.vrm import check_vrm, read_vrm_meta
     except ImportError:
-        return [Check("avatar", "아바타 사용 조건", INFO, "stream2clip 없음", 'pip install "debutkit[live]" 후 다시 실행')]
+        return [Check("avatar", "아바타 사용 조건", INFO, "채팅 연결 모듈 없음", 'pip install "debutkit[live]" 후 다시 실행')]
     try:
         meta = read_vrm_meta(path)
     except (OSError, ValueError) as error:
@@ -304,16 +320,16 @@ def check_avatar(path: str, *, agency: bool) -> list[Check]:
     errors = [issue.message for issue in issues if issue.level == "error"]
     warnings = [issue.message for issue in issues if issue.level == "warning"]
     if errors:
-        return [Check("avatar", "아바타 사용 조건", FAIL, " / ".join(errors), "모델 제작자에게 사용 허락을 받거나 다른 모델 사용")]
+        return [Check("avatar", "아바타 사용 조건", FAIL, ", ".join(errors), "모델 제작자에게 사용 허락 요청 또는 다른 모델 사용")]
     if warnings:
-        return [Check("avatar", "아바타 사용 조건", WARN, " / ".join(warnings))]
+        return [Check("avatar", "아바타 사용 조건", WARN, ", ".join(warnings))]
     return [Check("avatar", "아바타 사용 조건", OK, "수익화" + (", 법인(기획사) 사용" if agency else "") + " 허용")]
 
 
 def run_checks(system: System | None = None, *, avatar: str | None = None, agency: bool = False, overlay_port: int = OVERLAY_PORT) -> list[Check]:
     system = system or System()
     found: list[Check] = []
-    for step in (check_hardware, check_obs, check_tracking, check_clipping):
+    for step in (check_hardware, check_obs, check_tracking, check_live_tools):
         try:
             found.extend(step(system))
         except Exception as error:  # 한 항목이 실패해도 나머지 점검은 계속
@@ -327,10 +343,10 @@ def run_checks(system: System | None = None, *, avatar: str | None = None, agenc
 def summary(checks: list[Check]) -> str:
     counts = {status: sum(1 for c in checks if c.status == status) for status in (OK, WARN, FAIL)}
     if counts[FAIL]:
-        return f"준비 필요 {counts[FAIL]}건, 주의 {counts[WARN]}건. '필요' 항목부터 해결하세요."
+        return f"준비 필요 {counts[FAIL]}건, 주의 {counts[WARN]}건. 필요 항목부터 해결"
     if counts[WARN]:
-        return f"방송 가능. 주의 {counts[WARN]}건은 확인을 권장합니다."
-    return "방송 준비 완료."
+        return f"방송 가능. 주의 {counts[WARN]}건 확인 권장"
+    return "방송 준비 완료"
 
 
 def _display_width(text: str) -> int:
@@ -345,7 +361,7 @@ def format_report(checks: list[Check]) -> str:
         title = check.title + " " * (width - _display_width(check.title))
         lines.append(f"  [{LABELS.get(check.status, check.status)}] {title}  {check.detail}".rstrip())
         if check.hint and check.status != OK:
-            lines.append(f"         -> {check.hint}")
+            lines.append(f"         해결: {check.hint}")
     lines += ["", summary(checks)]
     return "\n".join(lines)
 

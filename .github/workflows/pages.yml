@@ -1,0 +1,43 @@
+name: Pages
+
+# site/ 를 GitHub Pages(https://budongjw.github.io/debutkit/)로 배포한다.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - "assets/brand/**"
+      - "packaging/build_site.py"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 배포는 한 번에 하나. 새 배포는 진행 중인 배포를 끊지 않고 기다린다.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Build the site
+        run: python packaging/build_site.py -o _site
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v5

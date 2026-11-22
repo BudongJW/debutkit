@@ -4,9 +4,15 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
+
+# 같은 브랜치에 새로 push하면 이전 실행은 취소
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
@@ -14,13 +20,14 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        python: ["3.10", "3.13"]
+        # pyproject.toml의 최저 버전, Windows 빌드 버전, 최신 버전
+        python: ["3.10", "3.12", "3.14"]
     runs-on: ${{ matrix.os }}
     env:
       QT_QPA_PLATFORM: offscreen  # 설정 마법사 테스트를 화면 없이
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
       - name: Qt libraries (Linux)
@@ -32,3 +39,5 @@ jobs:
         run: ruff check .
       - name: Test
         run: pytest -q
+      - name: Site
+        run: python packaging/build_site.py -o _site

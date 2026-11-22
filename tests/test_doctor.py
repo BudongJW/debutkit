@@ -26,6 +26,7 @@ def fake_system(**overrides):
         package_version=lambda name: "0.14.1" if name == "stream2clip" else None,
         steam_root=lambda: steam,
         read_text=lambda path: vdf if path.endswith("libraryfolders.vdf") else None,
+        find_ffmpeg=lambda: None,
         home=r"C:\Users\vt",
     )
     base.update(overrides)
@@ -44,8 +45,22 @@ def test_ready_pc_is_all_ok():
     assert checks["obs-websocket"].status == OK
     assert checks["tracking"].status == OK
     assert "VTube Studio" in checks["tracking"].detail and "Warudo" in checks["tracking"].detail  # 두 번째 Steam 라이브러리까지 본다
-    assert checks["stream2clip"].status == OK
+    assert checks["live"].status == OK
+    assert checks["ffmpeg"].status == OK
     assert checks["overlay-port"].status == OK
+
+
+def test_downloaded_ffmpeg_outside_path_counts():
+    found = by_key(run_checks(fake_system(which=lambda name: None, find_ffmpeg=lambda: r"C:\Users\vt\.cache\tools\ffmpeg.exe")))
+    assert found["ffmpeg"].status == OK and "tools" in found["ffmpeg"].detail
+
+
+def test_missing_live_module_and_ffmpeg_hints():
+    found = by_key(run_checks(fake_system(which=lambda name: None, package_version=lambda name: None)))
+    assert found["live"].status == WARN and "debutkit[live]" in found["live"].hint
+    assert "debutkit setup --ffmpeg" in found["ffmpeg"].hint  # Windows는 내려받기 안내
+    mac = by_key(run_checks(fake_system(os_name="Darwin", which=lambda name: None)))
+    assert "brew install ffmpeg" in mac["ffmpeg"].hint
 
 
 def test_missing_obs_is_required_and_exit_message():
@@ -107,6 +122,6 @@ def test_report_and_json():
     checks = run_checks(fake_system(port_open=lambda h, p: False))
     text = format_report(checks)
     assert "[정상]" in text and "[주의]" in text
-    assert "->" in text  # 주의 항목에는 해결 방법을 붙인다
+    assert "해결:" in text  # 주의 항목에는 해결 방법을 붙인다
     data = json.loads(to_json(checks))
     assert {"key", "title", "status", "detail", "hint"} <= set(data[0])

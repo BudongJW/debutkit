@@ -24,7 +24,8 @@ excludes = [
 
 # 메타데이터: doctor가 stream2clip 버전을 importlib.metadata로 읽는다
 datas = collect_data_files("debutkit") + collect_data_files("stream2clip") + copy_metadata("stream2clip") + copy_metadata("debutkit")
-hiddenimports = collect_submodules("debutkit") + ["stream2clip.live", "stream2clip.chzzk_api", "stream2clip.vrm", "stream2clip.obs", "stream2clip.gui.theme", "websocket"]
+hiddenimports = collect_submodules("debutkit") + ["stream2clip.live", "stream2clip.chzzk_api", "stream2clip.vrm", "stream2clip.obs", "stream2clip.gui.theme",
+                                                  "stream2clip.tools", "stream2clip.ffmpeg", "stream2clip.export", "websocket"]
 
 
 def analysis(script):
@@ -33,6 +34,7 @@ def analysis(script):
 
 gui = analysis("entry_gui.py")
 cli = analysis("entry_cli.py")
-gui_exe = EXE(PYZ(gui.pure), gui.scripts, [], exclude_binaries=True, name="debutkit-gui", console=False)
-cli_exe = EXE(PYZ(cli.pure), cli.scripts, [], exclude_binaries=True, name="debutkit", console=True)
+icon = str(ROOT / "assets" / "brand" / "app-icon" / "debutkit.ico")  # packaging/build_brand.py 로 생성
+gui_exe = EXE(PYZ(gui.pure), gui.scripts, [], exclude_binaries=True, name="debutkit-gui", console=False, icon=icon)
+cli_exe = EXE(PYZ(cli.pure), cli.scripts, [], exclude_binaries=True, name="debutkit", console=True, icon=icon)
 COLLECT(gui_exe, gui.binaries, gui.datas, cli_exe, cli.binaries, cli.datas, name="debutkit")

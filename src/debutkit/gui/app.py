@@ -1,8 +1,8 @@
-"""설정 마법사: 명령줄 없이 PC 점검 → 아바타 → OBS 장면 → 채팅·알림 → 마무리 순서로 안내한다.
+"""설정 마법사: 명령줄 없이 PC 점검, 아바타, OBS 장면, 채팅과 알림, 마무리 순서로 안내한다.
 
-창은 입력을 모으고 결과를 보여 주기만 하고, 실제 일은 doctor / scenes / overlay / clip 모듈이 한다.
-느린 일(점검, OBS 연결)은 작업 스레드에서 돌리고 결과는 Qt 시그널로 창에 돌려준다.
-모양은 stream2clip 앱의 스타일 시트를 그대로 써서 두 프로그램이 한 가족처럼 보이게 한다.
+창은 입력을 모으고 결과를 보여 주기만 하고, 실제 일은 doctor, scenes, overlay, clip, tools,
+chzzk 모듈이 한다. 느린 일(점검, OBS 연결, 내려받기, 로그인)은 작업 스레드에서 돌리고 결과는
+Qt 시그널로 창에 돌려준다. 스타일 시트는 채팅 연결 모듈에 있는 것을 쓰고, 없으면 기본 색만 쓴다.
 """
 
 from __future__ import annotations
@@ -11,10 +11,11 @@ import os
 import sys
 import threading
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Callable
 
 from PySide6.QtCore import QObject, Qt, QTimer, QUrl, Signal
-from PySide6.QtGui import QDesktopServices, QGuiApplication
+from PySide6.QtGui import QDesktopServices, QGuiApplication, QIcon
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -35,22 +36,21 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from .. import __version__, doctor, scenes
-from ..doctor import FAIL, INFO, LABELS, OK, OVERLAY_PORT, WARN
+from .. import __version__, chzzk, clip, doctor, scenes, tools
+from ..doctor import FAIL, INFO, JOIN_URL, LABELS, OK, OVERLAY_PORT, SOFTWARE_URL, WARN
 
-STEPS = ["1  PC 점검", "2  아바타", "3  OBS 장면", "4  채팅·알림", "5  마무리"]
+STEPS = ["1  PC 점검", "2  아바타", "3  OBS 장면", "4  채팅과 알림", "5  마무리"]
 AVATARS = [("VTube Studio (Live2D)", "vts"), ("VSeeFace (VRM)", "vseeface"), ("Warudo", "warudo"), ("VMagicMirror", "vmagicmirror"), ("아바타 없이", "none")]
 STATE_STYLE = {OK: "StateOk", FAIL: "StateMissing", WARN: "StateWarn", INFO: "StateOther"}
-#: stream2clip 스타일 시트에 없는 것만 더한다
+#: 기본 스타일 시트에 없는 것만 더한다
 EXTRA_STYLE = """
 QLabel#StateWarn { background: #3A3218; color: #FFD84D; border-radius: 6px; padding: 2px 8px; font-weight: 700; }
 QListWidget#Steps { background: #1D1A29; border: none; padding: 16px 8px; font-size: 14px; outline: 0; }
 QListWidget#Steps::item { padding: 10px 12px; border-radius: 8px; border: none; }
 QListWidget#Steps::item:selected { background: #FF4F8B; color: #15131F; font-weight: 800; border: none; }
 """
-MEMBERSHIP_URL = "https://budongjw.github.io/join/"
-STREAM2CLIP_URL = "https://budongjw.github.io/stream2clip/"
-SOFTWARE_URL = "https://budongjw.github.io/software/"
+LINK = "color:#FF7AA8"
+ICON = Path(__file__).with_name("icon.png")  # packaging/build_brand.py 로 생성
 
 
 def style_sheet() -> str:
@@ -58,7 +58,7 @@ def style_sheet() -> str:
         from stream2clip.gui.theme import STYLE_SHEET
 
         return STYLE_SHEET
-    except Exception:  # stream2clip 없이도 동작
+    except Exception:  # 채팅 연결 모듈 없이도 동작
         return "QMainWindow, QWidget#Root { background: #15131F; } * { color: #F7F4FA; }"
 
 
@@ -69,12 +69,18 @@ def _make_overlay(sources: list[tuple[str, Callable[[], Any]]], port: int) -> An
 
 
 def _make_autoclipper(hub: Any, port: int, password: str | None) -> tuple[Any, str]:
-    from ..clip import AutoClipper, default_clip_dir, replay_clipper
-
-    out = default_clip_dir()
-    clipper = replay_clipper(out, "127.0.0.1", port, password)
+    problem = clip.preflight()
+    if problem:
+        raise RuntimeError(problem)
+    out = clip.default_clip_dir()
+    clipper = clip.replay_clipper(out, "127.0.0.1", port, password)
     version = clipper.check(start_buffer=True)
-    return AutoClipper(hub, clipper), f"자동 클립 켬 (OBS {version}). 저장 위치: {out}"
+    return clip.AutoClipper(hub, clipper), f"자동 클립 켬 (OBS {version}). 저장 위치: {out}"
+
+
+def _open_folder(path: Path) -> Any:
+    path.mkdir(parents=True, exist_ok=True)
+    return QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
 
 
 @dataclass
@@ -86,16 +92,24 @@ class Backend:
     apply_scenes: Callable[..., Any] = scenes.connect_and_apply
     make_overlay: Callable[..., Any] = _make_overlay
     make_autoclipper: Callable[..., Any] = _make_autoclipper
+    can_download_ffmpeg: Callable[[], bool] = tools.can_download_ffmpeg
+    download_ffmpeg: Callable[..., Any] = tools.download_ffmpeg
+    chzzk_login: Callable[..., Path] = chzzk.login
+    chzzk_signed_in: Callable[[], bool] = chzzk.signed_in
+    clip_dir: Callable[[], Path] = clip.default_clip_dir
     open_url: Callable[[str], Any] = field(default=lambda url: QDesktopServices.openUrl(QUrl(url)))
+    open_folder: Callable[[Path], Any] = _open_folder
 
 
 class Bridge(QObject):
-    """작업 스레드 → 창. 시그널은 창의 스레드에서 처리된다."""
+    """작업 스레드에서 창으로. 시그널은 창의 스레드에서 처리된다."""
 
     checks = Signal(object)
     avatar = Signal(object)
     scenes = Signal(str)
     log = Signal(str)
+    ffmpeg = Signal(str, bool)  # 안내 문장, 끝났는지
+    chzzk = Signal(str)
 
 
 def card(*widgets: QWidget, title: str = "") -> QWidget:
@@ -124,6 +138,18 @@ def text(content: str, *, muted: bool = False, links: bool = False) -> QLabel:
     return label
 
 
+def row(*widgets: QWidget, stretch: int | None = None) -> QWidget:
+    """가로 한 줄. ``stretch`` 번째 칸이 남는 폭을 차지하고, 없으면 오른쪽을 비운다."""
+    box = QWidget()
+    layout = QHBoxLayout(box)
+    layout.setContentsMargins(0, 0, 0, 0)
+    for index, widget in enumerate(widgets):
+        layout.addWidget(widget, 1 if index == stretch else 0)
+    if stretch is None:
+        layout.addStretch(1)
+    return box
+
+
 class Wizard(QMainWindow):
     def __init__(self, backend: Backend | None = None) -> None:
         super().__init__()
@@ -133,12 +159,14 @@ class Wizard(QMainWindow):
         self.bridge.avatar.connect(self._show_avatar)
         self.bridge.scenes.connect(self._show_scenes)
         self.bridge.log.connect(self._append_log)
+        self.bridge.ffmpeg.connect(self._show_ffmpeg)
+        self.bridge.chzzk.connect(self._show_chzzk)
         self.server: Any = None
         self.checked: list[doctor.Check] = []
         self._threads: list[threading.Thread] = []
         self._closed = False
         self.setWindowTitle(f"debutkit {__version__} - 첫 방송 준비")
-        self.resize(980, 680)
+        self.resize(980, 700)
 
         root = QWidget()
         root.setObjectName("Root")
@@ -196,10 +224,10 @@ class Wizard(QMainWindow):
         self._threads.append(thread)
         thread.start()
 
-    def _emit(self, signal: Any, value: Any) -> None:
+    def _emit(self, signal: Any, *values: Any) -> None:
         """작업 스레드에서 창으로. 창이 닫힌 뒤에는 보내지 않는다(닫힌 창의 객체를 건드리면 종료 때 충돌)."""
         if not self._closed:
-            signal.emit(value)
+            signal.emit(*values)
 
     @staticmethod
     def _title(content: str, lead: str) -> QWidget:
@@ -216,7 +244,7 @@ class Wizard(QMainWindow):
     def _page_checks(self) -> QWidget:
         page = QWidget()
         layout = QVBoxLayout(page)
-        layout.addWidget(self._title("PC 점검", "방송에 필요한 사양과 프로그램을 확인합니다. 아무것도 설치하거나 바꾸지 않습니다."))
+        layout.addWidget(self._title("PC 점검", "방송에 필요한 사양과 프로그램 확인. 설치나 설정 변경 없음"))
         self.check_rows = QGridLayout()
         self.check_rows.setHorizontalSpacing(12)
         self.check_rows.setVerticalSpacing(8)
@@ -226,14 +254,20 @@ class Wizard(QMainWindow):
         self.check_summary.setObjectName("Status")
         self.check_button = QPushButton("다시 점검")
         self.check_button.clicked.connect(self.run_checks)
+        self.ffmpeg_button = QPushButton("ffmpeg 내려받기")
+        self.ffmpeg_button.clicked.connect(self.download_ffmpeg)
+        self.ffmpeg_button.setVisible(False)
+        self.ffmpeg_status = text("", muted=True)
+        self.ffmpeg_status.setVisible(False)
         layout.addWidget(card(rows, self.check_summary))
-        layout.addWidget(self.check_button, 0, Qt.AlignmentFlag.AlignLeft)
+        layout.addWidget(row(self.check_button, self.ffmpeg_button))
+        layout.addWidget(self.ffmpeg_status)
         layout.addStretch(1)
         return page
 
     def run_checks(self) -> None:
         self.check_button.setEnabled(False)
-        self.check_summary.setText("점검 중...")
+        self.check_summary.setText("점검 중")
         port = self.port.value() if hasattr(self, "port") else OVERLAY_PORT
         self._run(lambda: self._emit(self.bridge.checks, self.backend.run_checks(overlay_port=port)))
 
@@ -243,29 +277,58 @@ class Wizard(QMainWindow):
             item = self.check_rows.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
-        for row, check in enumerate(checks):
+        for index, check in enumerate(checks):
             state = QLabel(LABELS.get(check.status, check.status))
             state.setObjectName(STATE_STYLE.get(check.status, "StateOther"))
             state.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.check_rows.addWidget(state, row, 0)
-            self.check_rows.addWidget(QLabel(check.title), row, 1)
-            detail = text(check.detail + (f"\n→ {check.hint}" if check.hint and check.status != OK else ""), muted=check.status == OK)
+            self.check_rows.addWidget(state, index, 0)
+            self.check_rows.addWidget(QLabel(check.title), index, 1)
+            detail = text(check.detail + (f"\n해결: {check.hint}" if check.hint and check.status != OK else ""), muted=check.status == OK)
             detail.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-            self.check_rows.addWidget(detail, row, 2)
+            self.check_rows.addWidget(detail, index, 2)
         self.check_rows.setColumnStretch(2, 1)
         self.check_summary.setText(doctor.summary(checks))
         self.check_button.setEnabled(True)
+        missing = any(c.key == "ffmpeg" and c.status != OK for c in checks)
+        self.ffmpeg_button.setVisible(missing and self.backend.can_download_ffmpeg())
+
+    def download_ffmpeg(self) -> None:
+        self.ffmpeg_button.setEnabled(False)
+        self.ffmpeg_status.setVisible(True)
+        self.ffmpeg_status.setText("ffmpeg 내려받는 중")
+        megabytes = tools.ffmpeg_megabytes()
+
+        def progress(done: int, total: int) -> None:
+            percent = int(done * 100 / total) if total else 0
+            self._emit(self.bridge.ffmpeg, f"ffmpeg 내려받는 중 {percent}% ({done / 1e6:.0f} / {megabytes} MB)", False)
+
+        def job() -> None:
+            try:
+                written = self.backend.download_ffmpeg(on_progress=progress, cancelled=lambda: self._closed)
+                folder = Path(written[0]).parent if written else ""
+                self._emit(self.bridge.ffmpeg, f"ffmpeg 준비 완료: {folder}", True)
+            except Exception as error:
+                self._emit(self.bridge.ffmpeg, f"ffmpeg 내려받기 실패: {error}", True)
+
+        self._run(job)
+
+    def _show_ffmpeg(self, message: str, finished: bool) -> None:
+        self.ffmpeg_status.setText(message)
+        if finished:
+            self.ffmpeg_button.setEnabled(True)
+            if "완료" in message:
+                self.run_checks()
 
     # ------------------------------------------------------------------ 2. 아바타
     def _page_avatar(self) -> QWidget:
         page = QWidget()
         layout = QVBoxLayout(page)
-        layout.addWidget(self._title("아바타", "모델 종류에 맞는 트래킹 프로그램을 쓰고, 모델의 사용 조건을 확인하세요."))
+        layout.addWidget(self._title("아바타", "모델 종류에 맞는 트래킹 프로그램 선택, 모델 사용 조건 확인"))
         guide = text(
-            "<b>Live2D 모델</b> → VTube Studio (수익 방송은 유료 버전 필요)<br>"
-            "<b>3D(VRM) 모델</b> → VSeeFace (상업적 이용 허용, 무료) 또는 Warudo<br>"
-            "<b>아직 모델이 없다면</b> → VRoid Studio(무료)로 3D 모델을 만들거나 PNG 두 장으로 시작<br>"
-            f'<a href="{SOFTWARE_URL}" style="color:#FF7AA8">프로그램 목록과 라이선스 보기</a>', links=True)
+            "<b>Live2D 모델</b>: VTube Studio (수익 방송은 유료 버전 필요)<br>"
+            "<b>3D(VRM) 모델</b>: VSeeFace (상업적 이용 허용, 무료) 또는 Warudo<br>"
+            "<b>모델 없음</b>: VRoid Studio(무료)로 3D 모델 제작 또는 PNG 2장으로 시작<br>"
+            f'<a href="{SOFTWARE_URL}" style="{LINK}">프로그램 목록과 라이선스</a>', links=True)
         self.avatar_path = QLineEdit()
         self.avatar_path.setPlaceholderText("모델 파일 (.vrm 등)")
         pick = QPushButton("파일 고르기")
@@ -275,13 +338,8 @@ class Wizard(QMainWindow):
         check = QPushButton("사용 조건 확인")
         check.clicked.connect(self.check_avatar)
         self.avatar_result = text("", muted=True)
-        row = QHBoxLayout()
-        row.addWidget(self.avatar_path, 1)
-        row.addWidget(pick)
-        rows = QWidget()
-        rows.setLayout(row)
-        layout.addWidget(card(guide, title="어떤 프로그램을 쓰나요"))
-        layout.addWidget(card(rows, self.avatar_agency, check, self.avatar_result, title="모델 사용 조건"))
+        layout.addWidget(card(guide, title="트래킹 프로그램"))
+        layout.addWidget(card(row(self.avatar_path, pick, stretch=0), self.avatar_agency, check, self.avatar_result, title="모델 사용 조건"))
         layout.addStretch(1)
         return page
 
@@ -293,21 +351,22 @@ class Wizard(QMainWindow):
     def check_avatar(self) -> None:
         path = self.avatar_path.text().strip()
         if not path:
-            self.avatar_result.setText("모델 파일을 먼저 고르세요.")
+            self.avatar_result.setText("모델 파일 먼저 선택")
             return
         agency = self.avatar_agency.isChecked()
         self._run(lambda: self._emit(self.bridge.avatar, self.backend.check_avatar(path, agency=agency)))
 
     def _show_avatar(self, checks: list[doctor.Check]) -> None:
-        self.avatar_result.setText("\n".join(f"[{LABELS.get(c.status, c.status)}] {c.detail}" + (f"\n→ {c.hint}" if c.hint else "") for c in checks))
+        self.avatar_result.setText("\n".join(f"[{LABELS.get(c.status, c.status)}] {c.detail}" + (f"\n해결: {c.hint}" if c.hint else "") for c in checks))
 
     # ------------------------------------------------------------------ 3. OBS 장면
     def _page_scenes(self) -> QWidget:
         page = QWidget()
         layout = QVBoxLayout(page)
-        layout.addWidget(self._title("OBS 장면", "대기 화면, 본방송, 토크, 자리 비움, 엔딩 장면을 만듭니다. 이미 있는 장면은 건드리지 않습니다."))
-        layout.addWidget(card(text("OBS를 켜고 <b>도구 > WebSocket 서버 설정 > WebSocket 서버 사용</b>을 체크하세요. "
-                                   "비밀번호가 켜져 있으면 아래에 입력합니다. 처음이라면 OBS에서 장면 모음 > 새로 만들기를 먼저 권합니다.", links=True)))
+        layout.addWidget(self._title("OBS 장면", "대기 화면, 본방송, 토크, 자리 비움, 엔딩 장면 생성. 기존 장면은 그대로 유지"))
+        layout.addWidget(card(text("OBS 실행 후 <b>도구 메뉴의 WebSocket 서버 설정</b>에서 <b>WebSocket 서버 사용</b> 체크<br>"
+                                   "비밀번호 사용 시 아래 칸에 입력<br>"
+                                   "처음 구성하는 경우 OBS 장면 모음 메뉴에서 새 장면 모음 생성 후 진행 권장", links=True)))
         form = QFormLayout()
         self.obs_port = QSpinBox()
         self.obs_port.setRange(1, 65535)
@@ -336,7 +395,7 @@ class Wizard(QMainWindow):
 
     def make_scenes(self) -> None:
         self.scenes_button.setEnabled(False)
-        self.scenes_result.setText("OBS에 연결하는 중...")
+        self.scenes_result.setText("OBS 연결 중")
         base = f"http://127.0.0.1:{self.port.value()}"
         options = scenes.SceneOptions(overlay_url=f"{base}/chat", alerts_url=f"{base}/alerts", avatar=str(self.avatar_app.currentData()))
         port, password, replay = self.obs_port.value(), self.obs_password.text() or None, 60 if self.replay.isChecked() else None
@@ -346,7 +405,7 @@ class Wizard(QMainWindow):
                 report, _ = self.backend.apply_scenes("127.0.0.1", port, password, options, replay_buffer=replay)
                 self._emit(self.bridge.scenes, scenes.format_report(report))
             except Exception as error:
-                self._emit(self.bridge.scenes, f"만들지 못했습니다: {error}\nOBS가 켜져 있고 WebSocket 서버가 사용 중인지 확인하세요.")
+                self._emit(self.bridge.scenes, f"생성 실패: {error}\n확인: OBS 실행, WebSocket 서버 사용")
 
         self._run(job)
 
@@ -354,11 +413,11 @@ class Wizard(QMainWindow):
         self.scenes_result.setText(message)
         self.scenes_button.setEnabled(True)
 
-    # ------------------------------------------------------------------ 4. 채팅·알림
+    # ------------------------------------------------------------------ 4. 채팅과 알림
     def _page_overlay(self) -> QWidget:
         page = QWidget()
         layout = QVBoxLayout(page)
-        layout.addWidget(self._title("채팅·알림", "방송할 채널을 넣고 시작하면 OBS의 채팅창과 후원 알림이 켜집니다. 채팅은 저장하지 않습니다."))
+        layout.addWidget(self._title("채팅과 알림", "채널 입력 후 시작하면 OBS 채팅창과 후원 알림 표시. 채팅 저장 없음"))
         form = QFormLayout()
         self.chzzk = QLineEdit()
         self.chzzk.setPlaceholderText("https://chzzk.naver.com/live/채널ID")
@@ -366,9 +425,21 @@ class Wizard(QMainWindow):
         self.soop.setPlaceholderText("https://play.sooplive.co.kr/아이디")
         self.twitch = QLineEdit()
         self.twitch.setPlaceholderText("채널 이름")
-        self.chzzk_api = QCheckBox("내 치지직 채널을 공식 API로 읽기 (stream2clip chzzk login 필요)")
-        self.demo = QCheckBox("데모 채팅 함께 보기 (모양 맞추기)")
-        self.autoclip = QCheckBox("채팅이 몰리거나 !clip 을 쓰면 자동 클립 (OBS 리플레이 버퍼 필요)")
+        self.chzzk_api = QCheckBox("내 치지직 채널을 공식 API로 읽기 (로그인 필요, 권장)")
+        signed_in = self.backend.chzzk_signed_in()
+        self.chzzk_api.setChecked(signed_in)
+        self.chzzk_id = QLineEdit()
+        self.chzzk_id.setPlaceholderText("Client ID (치지직 개발자 센터)")
+        self.chzzk_id.setText(os.environ.get("CHZZK_CLIENT_ID", ""))
+        self.chzzk_secret = QLineEdit()
+        self.chzzk_secret.setPlaceholderText("Client Secret")
+        self.chzzk_secret.setEchoMode(QLineEdit.EchoMode.Password)
+        self.chzzk_secret.setText(os.environ.get("CHZZK_CLIENT_SECRET", ""))
+        self.chzzk_login_button = QPushButton("치지직 로그인")
+        self.chzzk_login_button.clicked.connect(self.login_chzzk)
+        self.chzzk_state = text("로그인됨" if signed_in else "로그인 안 됨", muted=True)
+        self.demo = QCheckBox("데모 채팅 함께 표시 (모양 맞추기)")
+        self.autoclip = QCheckBox("채팅 급증 또는 !clip 시 자동 클립 (OBS 리플레이 버퍼, ffmpeg 필요)")
         self.port = QSpinBox()
         self.port.setRange(1024, 65535)
         self.port.setValue(OVERLAY_PORT)
@@ -376,6 +447,8 @@ class Wizard(QMainWindow):
         form.addRow("SOOP", self.soop)
         form.addRow("Twitch", self.twitch)
         form.addRow("", self.chzzk_api)
+        form.addRow("치지직 API", row(self.chzzk_id, self.chzzk_secret, self.chzzk_login_button, stretch=0))
+        form.addRow("", self.chzzk_state)
         form.addRow("", self.demo)
         form.addRow("", self.autoclip)
         form.addRow("포트", self.port)
@@ -387,19 +460,33 @@ class Wizard(QMainWindow):
         self.open_button = QPushButton("설정 화면 열기 (주소 복사, 테스트)")
         self.open_button.setEnabled(False)
         self.open_button.clicked.connect(lambda: self.server and self.backend.open_url(self.server.url))
-        buttons = QHBoxLayout()
-        buttons.addWidget(self.overlay_button)
-        buttons.addWidget(self.open_button)
-        buttons.addStretch(1)
-        actions = QWidget()
-        actions.setLayout(buttons)
         self.overlay_log = QPlainTextEdit()
         self.overlay_log.setReadOnly(True)
         self.overlay_log.setMaximumBlockCount(200)
-        self.overlay_log.setPlaceholderText("연결 상태와 저장한 클립이 여기에 표시됩니다.")
-        layout.addWidget(card(fields, actions))
+        self.overlay_log.setPlaceholderText("연결 상태와 저장한 클립 표시")
+        layout.addWidget(card(fields, row(self.overlay_button, self.open_button)))
         layout.addWidget(self.overlay_log, 1)
         return page
+
+    def login_chzzk(self) -> None:
+        client_id, secret = self.chzzk_id.text().strip(), self.chzzk_secret.text().strip()
+        self.chzzk_login_button.setEnabled(False)
+        self.chzzk_state.setText("브라우저에서 치지직 로그인, 동의 진행 (5분 안에)")
+
+        def job() -> None:
+            try:
+                self.backend.chzzk_login(client_id or None, secret or None)
+                self._emit(self.bridge.chzzk, "로그인됨")
+            except Exception as error:
+                self._emit(self.bridge.chzzk, f"로그인 실패: {error}")
+
+        self._run(job)
+
+    def _show_chzzk(self, message: str) -> None:
+        self.chzzk_state.setText(message)
+        self.chzzk_login_button.setEnabled(True)
+        if message == "로그인됨":
+            self.chzzk_api.setChecked(True)
 
     def overlay_sources(self) -> list[tuple[str, Callable[[], Any]]]:
         from ..overlay import events
@@ -420,12 +507,14 @@ class Wizard(QMainWindow):
             self.server.stop()
             self.server = None
             self._overlay_state(False)
-            self._append_log("오버레이를 멈췄습니다.")
+            self._append_log("오버레이 멈춤")
             return
+        if self.chzzk_api.isChecked():  # 토큰 갱신에 필요. 이 프로그램이 실행되는 동안만 쓰고 저장하지 않는다
+            chzzk.use_credentials(self.chzzk_id.text().strip(), self.chzzk_secret.text().strip())
         try:
             server = self.backend.make_overlay(self.overlay_sources(), self.port.value())
         except OSError as error:
-            self._append_log(f"{self.port.value()}번 포트를 열지 못했습니다: {error}")
+            self._append_log(f"{self.port.value()}번 포트 열기 실패: {error}")
             return
         server.hub.taps.append(lambda event: event.kind == "system" and self._emit(self.bridge.log, event.text))
         server.start()
@@ -441,14 +530,15 @@ class Wizard(QMainWindow):
                     server.attach(clipper.start())
                     self._emit(self.bridge.log, message)
                 except Exception as error:
-                    self._emit(self.bridge.log, f"자동 클립을 켜지 못했습니다: {error}")
+                    self._emit(self.bridge.log, f"자동 클립 켜기 실패: {error}")
 
             self._run(job)
 
     def _overlay_state(self, running: bool) -> None:
         self.overlay_button.setText("오버레이 멈추기" if running else "오버레이 시작")
         self.open_button.setEnabled(running)
-        for widget in (self.chzzk, self.soop, self.twitch, self.chzzk_api, self.demo, self.autoclip, self.port):
+        for widget in (self.chzzk, self.soop, self.twitch, self.chzzk_api, self.chzzk_id, self.chzzk_secret, self.chzzk_login_button,
+                       self.demo, self.autoclip, self.port):
             widget.setEnabled(not running)
 
     def _append_log(self, line: str) -> None:
@@ -458,15 +548,15 @@ class Wizard(QMainWindow):
     def _page_finish(self) -> QWidget:
         page = QWidget()
         layout = QVBoxLayout(page)
-        layout.addWidget(self._title("마무리", "방송을 켜기 전에 한 번 더 확인하세요."))
+        layout.addWidget(self._title("마무리", "방송 시작 전 최종 확인"))
         self.summary = text("", links=True)
         layout.addWidget(card(self.summary, title="준비 상태"))
-        layout.addWidget(card(text(
-            "방송이 끝나면 <b>stream2clip</b>으로 채팅 반응이 큰 구간을 세로형 클립으로 만들 수 있습니다. "
-            f'<a href="{STREAM2CLIP_URL}" style="color:#FF7AA8">stream2clip 받기</a>', links=True), title="방송 후"))
-        layout.addWidget(text(
-            f'소속 버튜버 프로그램(선택): 원하는 분만 따로 신청합니다. 키트 사용과는 무관합니다. '
-            f'<a href="{MEMBERSHIP_URL}" style="color:#A39DB3">안내 보기</a>', muted=True, links=True))
+        folder = QPushButton("클립 폴더 열기")
+        folder.clicked.connect(lambda: self.backend.open_folder(self.backend.clip_dir()))
+        self.clip_folder = text(str(self.backend.clip_dir()), muted=True)
+        layout.addWidget(card(self.clip_folder, folder, title="자동 클립 저장 위치"))
+        layout.addWidget(text(f'소속 버튜버 프로그램(선택, 키트 사용과 무관): <a href="{JOIN_URL}" style="color:#A39DB3">참여 안내</a>',
+                              muted=True, links=True))
         layout.addStretch(1)
         return page
 
@@ -475,9 +565,9 @@ class Wizard(QMainWindow):
         need = [c.title for c in self.checked if c.status == FAIL]
         warn = sum(1 for c in self.checked if c.status == WARN)
         passed = "통과" + (f" (주의 {warn}건)" if warn else "")
-        lines.append("PC 점검: " + ("필요 항목 " + ", ".join(need) if need else passed if self.checked else "아직 안 함"))
-        lines.append("OBS 장면: " + (self.scenes_result.text().splitlines()[0] if self.scenes_result.text() else "아직 안 만듦"))
-        lines.append("채팅·알림: " + (f"실행 중 ({self.server.url})" if self.server else "꺼짐"))
+        lines.append("PC 점검: " + ("필요 항목 " + ", ".join(need) if need else passed if self.checked else "미실행"))
+        lines.append("OBS 장면: " + (self.scenes_result.text().splitlines()[0] if self.scenes_result.text() else "미생성"))
+        lines.append("채팅과 알림: " + (f"실행 중 ({self.server.url})" if self.server else "꺼짐"))
         self.summary.setText("<br>".join(lines))
 
     def closeEvent(self, event: Any) -> None:  # noqa: N802
@@ -485,7 +575,7 @@ class Wizard(QMainWindow):
         if self.server is not None:
             self.server.stop()
             self.server = None
-        for thread in self._threads:  # 점검·OBS 연결이 끝나길 잠깐 기다린다 (끝나지 않으면 데몬 스레드로 버림)
+        for thread in self._threads:  # 점검, OBS 연결이 끝나길 잠깐 기다린다 (끝나지 않으면 데몬 스레드로 버림)
             thread.join(timeout=1.0)
         super().closeEvent(event)
 
@@ -493,6 +583,7 @@ class Wizard(QMainWindow):
 def main(argv: list[str] | None = None) -> int:
     app = QApplication.instance() or QApplication(sys.argv if argv is None else argv)
     QGuiApplication.setApplicationDisplayName("debutkit")
+    QGuiApplication.setWindowIcon(QIcon(str(ICON)))
     app.setStyleSheet(style_sheet())
     window = Wizard()
     window.show()

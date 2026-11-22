@@ -2,10 +2,10 @@
 
 ``build_scenes`` 는 화면 크기와 OBS가 가진 소스 종류만 보고 장면 설계도를 만드는 순수
 함수이고, ``apply`` 가 그 설계도를 OBS에 요청으로 보낸다. 이미 있는 장면은 건드리지
-않으므로(``replace=True`` 제외) 쓰던 장면 컬렉션에서 실행해도 안전하다. 그래도 처음에는
-OBS에서 새 장면 컬렉션(장면 모음 > 새로 만들기)을 만든 뒤 실행하기를 권한다.
+않으므로(``replace=True`` 제외) 쓰던 장면 모음에서 실행해도 안전하다. 처음에는 OBS 장면
+모음 메뉴에서 새 장면 모음을 만든 뒤 실행하기를 권한다.
 
-OBS 연결은 stream2clip의 ``ObsClient`` 를 쓴다(``pip install "debutkit[live]"``).
+OBS 연결은 채팅 연결 모듈의 ``ObsClient`` 를 쓴다(``pip install "debutkit[live]"``).
 """
 
 from __future__ import annotations
@@ -82,7 +82,7 @@ def default_kinds(os_name: str) -> dict[str, str]:
 
 
 def _bounds(x: float, y: float, w: float, h: float, *, alignment: int = 5) -> dict[str, Any]:
-    """(x, y)에 ``alignment`` 기준점을 두고 w×h 상자 안에 비율을 유지해 맞춘다. 5 = 왼쪽 위, 0 = 가운데, 9 = 왼쪽 아래."""
+    """(x, y)에 ``alignment`` 기준점을 두고 w x h 상자 안에 비율을 유지해 맞춘다. 5 = 왼쪽 위, 0 = 가운데, 9 = 왼쪽 아래."""
     return {"positionX": round(x), "positionY": round(y), "alignment": alignment, "boundsType": "OBS_BOUNDS_SCALE_INNER",
             "boundsWidth": max(1, round(w)), "boundsHeight": max(1, round(h)), "boundsAlignment": 0}
 
@@ -201,7 +201,7 @@ def apply(client: Any, scenes: list[Scene], kinds: dict[str, str], *, replace: b
     if switch_to:
         client.request("SetCurrentProgramScene", {"sceneName": switch_to})
     if any(item.role == "window" for scene in scenes for item in scene.items) and kinds.get("window") != "game_capture":
-        report.notes.append("아바타 소스는 OBS에서 속성을 열어 아바타 프로그램 창을 직접 선택하세요.")
+        report.notes.append("아바타 소스: OBS에서 속성을 열어 아바타 프로그램 창 직접 선택")
     return report
 
 
@@ -211,8 +211,8 @@ NOT_AVAILABLE = 604  # obs-websocket RequestStatus::InvalidResourceState 계열:
 def enable_replay_buffer(client: Any, seconds: int = 60) -> tuple[bool, str]:
     """OBS 설정의 리플레이 버퍼를 켜고 길이를 정한 뒤, 가능하면 시작한다(자동 클립에 필요).
 
-    설정 > 출력의 "단순"/"고급" 모드마다 저장 위치가 달라 현재 모드를 먼저 읽는다. 설정을 처음
-    켠 경우 OBS는 재시작해야 리플레이 버퍼를 만든다(OBS 33에서 확인). 그때는 ``(False, 안내)``.
+    OBS 설정 출력 탭의 단순 모드와 고급 모드는 저장 위치가 달라 현재 모드를 먼저 읽는다. 설정을
+    처음 켠 경우 OBS는 재시작해야 리플레이 버퍼를 만든다(OBS 33에서 확인). 그때는 ``(False, 안내)``.
     """
     from stream2clip.obs import ObsError
 
@@ -226,7 +226,7 @@ def enable_replay_buffer(client: Any, seconds: int = 60) -> tuple[bool, str]:
         client.request("StartReplayBuffer")
     except ObsError as error:
         if getattr(error, "code", None) == NOT_AVAILABLE:
-            return False, f"리플레이 버퍼를 켰습니다(최대 {seconds}초). OBS를 한 번 껐다 켜면 사용할 수 있습니다."
+            return False, f"리플레이 버퍼 설정 완료 (최대 {seconds}초). OBS를 한 번 껐다 켜면 사용 가능"
         raise
     return True, f"리플레이 버퍼 시작 (최대 {seconds}초)"
 
@@ -237,7 +237,7 @@ def connect_and_apply(host: str, port: int, password: str | None, options: Scene
     try:
         from stream2clip.obs import ObsClient, ObsError
     except ImportError as error:
-        raise RuntimeError('OBS 연결에는 stream2clip이 필요합니다: pip install "debutkit[live]"') from error
+        raise RuntimeError('OBS 연결에는 채팅 연결 모듈 필요: pip install "debutkit[live]"') from error
     with ObsClient(host, port, password, events=0) as client:
         video = client.request("GetVideoSettings")
         kinds = resolve_kinds(client.request("GetInputKindList", {"unversioned": False}).get("inputKinds", []))
@@ -247,7 +247,7 @@ def connect_and_apply(host: str, port: int, password: str | None, options: Scene
             try:
                 report.notes.append(enable_replay_buffer(client, replay_buffer)[1])
             except ObsError as error:
-                report.notes.append(f"리플레이 버퍼를 켜지 못함: {error}. OBS 설정 > 출력 > 리플레이 버퍼 사용을 직접 체크하세요.")
+                report.notes.append(f"리플레이 버퍼 켜기 실패: {error}. OBS 설정의 출력 탭에서 리플레이 버퍼 사용 직접 체크")
     return report, scenes
 
 
@@ -272,5 +272,5 @@ def format_report(report: Report) -> str:
     if report.reused_sources:
         lines.append("기존 소스 재사용: " + ", ".join(report.reused_sources))
     lines += report.notes
-    lines.append("채팅, 후원 알림 소스는 debutkit overlay 가 실행 중일 때 표시됩니다.")
+    lines.append("채팅, 후원 알림 소스: debutkit overlay 실행 중에만 표시")
     return "\n".join(lines)
