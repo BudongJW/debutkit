@@ -238,3 +238,16 @@ def test_channel_fields_become_sources(app):
         assert labels == ["CHZZK https://chzzk.naver.com/live/0123456789abcdef0123456789abcdef", "SOOP bjid", "데모"]
     finally:
         window.close()
+
+
+def test_update_check_shows_link(app):
+    from debutkit import tools
+
+    window = Wizard(Calls().backend(check_update=lambda: f"새 버전 0.9.0 있음 (현재 0.3.0): {tools.RELEASES_PAGE}"))
+    try:
+        window.go(4)
+        window.update_button.click()
+        assert wait_for(app, lambda: "새 버전 0.9.0" in window.update_result.text())
+        assert "릴리스 페이지</a>" in window.update_result.text() and window.update_button.isEnabled()
+    finally:
+        window.close()

@@ -27,6 +27,8 @@ def fake_system(**overrides):
         steam_root=lambda: steam,
         read_text=lambda path: vdf if path.endswith("libraryfolders.vdf") else None,
         find_ffmpeg=lambda: None,
+        audio_inputs=lambda: ["마이크 (USB Audio)"],
+        cameras=lambda: ["HD Webcam"],
         home=r"C:\Users\vt",
     )
     base.update(overrides)
@@ -48,6 +50,19 @@ def test_ready_pc_is_all_ok():
     assert checks["live"].status == OK
     assert checks["ffmpeg"].status == OK
     assert checks["overlay-port"].status == OK
+
+
+def test_mic_and_webcam():
+    found = by_key(run_checks(fake_system()))
+    assert found["mic"].status == OK and "USB Audio" in found["mic"].detail
+    assert found["camera"].status == OK
+    none = by_key(run_checks(fake_system(audio_inputs=lambda: [], cameras=lambda: [])))
+    assert none["mic"].status == FAIL  # 마이크는 방송 필수
+    assert none["camera"].status == WARN and "아이폰" in none["camera"].hint  # 웹캠은 트래킹 방식에 따라 선택
+    unknown = by_key(run_checks(fake_system(audio_inputs=lambda: None, cameras=lambda: None)))
+    assert unknown["mic"].status == INFO and unknown["camera"].status == INFO
+    many = by_key(run_checks(fake_system(audio_inputs=lambda: ["a", "b", "c", "d"])))
+    assert many["mic"].detail == "a, b 외 2개"
 
 
 def test_downloaded_ffmpeg_outside_path_counts():

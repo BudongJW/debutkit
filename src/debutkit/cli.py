@@ -123,6 +123,8 @@ def _setup(args: argparse.Namespace) -> int:
         print('채팅 연결 모듈: 없음. pip install "debutkit[live]"')
     else:
         print("채팅 연결 모듈: 설치됨")
+    if args.check_update:
+        print(tools.update_message(__version__))
     return 0 if found else 1
 
 
@@ -207,6 +209,7 @@ def build_parser() -> argparse.ArgumentParser:
     setup.add_argument("--ffmpeg", action="store_true", help="ffmpeg 내려받기 (Windows, 약 115 MB, SHA-256 확인)")
     setup.add_argument("--from", dest="archive", metavar="ZIP", help="이미 받은 ffmpeg 압축 파일 사용")
     setup.add_argument("--force", action="store_true", help="이미 있어도 다시 받기")
+    setup.add_argument("--check-update", action="store_true", help="GitHub에서 새 버전 확인 (지정할 때만 연결)")
     setup.set_defaults(func=_setup)
 
     chzzk = sub.add_parser("chzzk", help="치지직 공식 Open API 로그인 (내 채널의 채팅, 후원, 구독)")

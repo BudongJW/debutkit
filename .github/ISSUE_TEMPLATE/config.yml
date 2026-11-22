@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 사용 설명서
+    url: https://budongjw.github.io/debutkit/guide.html
+    about: 설치, 설정, 문제 해결 안내
+  - name: 소속 버튜버 참여 안내
+    url: https://budongjw.github.io/debutkit/join.html
+    about: 소속 의향 등록은 이슈로 받지 않음

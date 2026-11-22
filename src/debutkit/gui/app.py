@@ -97,6 +97,7 @@ class Backend:
     chzzk_login: Callable[..., Path] = chzzk.login
     chzzk_signed_in: Callable[[], bool] = chzzk.signed_in
     clip_dir: Callable[[], Path] = clip.default_clip_dir
+    check_update: Callable[[], str] = field(default=lambda: tools.update_message(__version__))
     open_url: Callable[[str], Any] = field(default=lambda url: QDesktopServices.openUrl(QUrl(url)))
     open_folder: Callable[[Path], Any] = _open_folder
 
@@ -110,6 +111,7 @@ class Bridge(QObject):
     log = Signal(str)
     ffmpeg = Signal(str, bool)  # 안내 문장, 끝났는지
     chzzk = Signal(str)
+    update = Signal(str)
 
 
 def card(*widgets: QWidget, title: str = "") -> QWidget:
@@ -161,6 +163,7 @@ class Wizard(QMainWindow):
         self.bridge.log.connect(self._append_log)
         self.bridge.ffmpeg.connect(self._show_ffmpeg)
         self.bridge.chzzk.connect(self._show_chzzk)
+        self.bridge.update.connect(self._show_update)
         self.server: Any = None
         self.checked: list[doctor.Check] = []
         self._threads: list[threading.Thread] = []
@@ -555,10 +558,24 @@ class Wizard(QMainWindow):
         folder.clicked.connect(lambda: self.backend.open_folder(self.backend.clip_dir()))
         self.clip_folder = text(str(self.backend.clip_dir()), muted=True)
         layout.addWidget(card(self.clip_folder, folder, title="자동 클립 저장 위치"))
+        self.update_button = QPushButton("새 버전 확인")
+        self.update_button.clicked.connect(self.check_update)
+        self.update_result = text(f"현재 버전 {__version__}. 확인할 때만 GitHub에 연결", muted=True, links=True)
+        layout.addWidget(card(self.update_result, self.update_button, title="버전"))
         layout.addWidget(text(f'소속 버튜버 프로그램(선택, 키트 사용과 무관): <a href="{JOIN_URL}" style="color:#A39DB3">참여 안내</a>',
                               muted=True, links=True))
         layout.addStretch(1)
         return page
+
+    def check_update(self) -> None:
+        self.update_button.setEnabled(False)
+        self.update_result.setText("확인 중")
+        self._run(lambda: self._emit(self.bridge.update, self.backend.check_update()))
+
+    def _show_update(self, message: str) -> None:
+        url = tools.RELEASES_PAGE
+        self.update_result.setText(message.replace(url, f'<a href="{url}" style="{LINK}">릴리스 페이지</a>'))
+        self.update_button.setEnabled(True)
 
     def _refresh_summary(self) -> None:
         lines = []

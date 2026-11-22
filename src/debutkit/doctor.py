@@ -131,6 +131,72 @@ def _steam_root() -> str | None:
         return fallback if os.path.isdir(fallback) else None
 
 
+#: Windows 소리 장치 속성 키: 장치 설명(마이크 등), 연결 이름(제품명)
+_DEVICE_DESC = "{a45c254e-df1c-4efd-8020-67d146a850e0},2"
+_DEVICE_IFACE = "{b3f8fa53-0004-438e-9003-51a46e139bfc},6"
+
+
+def _audio_inputs() -> list[str] | None:
+    """사용 가능한 마이크(소리 입력 장치) 이름. 확인할 수 없으면 ``None``."""
+    if sys.platform == "win32":
+        try:
+            import winreg
+
+            root = r"SOFTWARE\Microsoft\Windows\CurrentVersion\MMDevices\Audio\Capture"
+            names = []
+            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, root) as capture:
+                for index in range(winreg.QueryInfoKey(capture)[0]):
+                    device = winreg.EnumKey(capture, index)
+                    with winreg.OpenKey(capture, device) as key:
+                        if winreg.QueryValueEx(key, "DeviceState")[0] != 1:  # 1: 사용 중(꺼짐, 분리, 없음 제외)
+                            continue
+                    try:
+                        with winreg.OpenKey(capture, device + r"\Properties") as props:
+                            desc = str(winreg.QueryValueEx(props, _DEVICE_DESC)[0])
+                            iface = str(winreg.QueryValueEx(props, _DEVICE_IFACE)[0])
+                    except OSError:
+                        desc, iface = "마이크", ""
+                    names.append(f"{desc} ({iface})" if iface else desc)
+            return names
+        except OSError:
+            return None
+    if sys.platform == "darwin":
+        out = _run(["system_profiler", "SPAudioDataType", "-json"])
+        try:
+            items = json.loads(out or "")["SPAudioDataType"][0]["_items"]
+        except (ValueError, KeyError, IndexError, TypeError):
+            return None
+        return [str(item.get("_name")) for item in items if item.get("coreaudio_device_input")]
+    out = _run(["arecord", "-l"])
+    if out is None:
+        return None
+    return re.findall(r"^card \d+: [^\[]*\[([^\]]+)\]", out, flags=re.M)
+
+
+def _cameras() -> list[str] | None:
+    """연결된 카메라 이름. 확인할 수 없으면 ``None``."""
+    if sys.platform == "win32":
+        out = _run(["powershell", "-NoProfile", "-Command",
+                    "Get-CimInstance Win32_PnPEntity -Filter \"PNPClass='Camera' OR PNPClass='Image'\" | Where-Object Status -eq 'OK' | "
+                    "ForEach-Object Name"])
+        return None if out is None else [line.strip() for line in out.splitlines() if line.strip()]
+    if sys.platform == "darwin":
+        out = _run(["system_profiler", "SPCameraDataType", "-json"])
+        try:
+            return [str(item.get("_name")) for item in json.loads(out or "")["SPCameraDataType"]]
+        except (ValueError, KeyError, TypeError):
+            return None
+    folder = Path("/sys/class/video4linux")
+    if not folder.is_dir():
+        return None
+    names = []
+    for device in sorted(folder.iterdir()):
+        name = _read_text(str(device / "name"))
+        if name and name.strip() not in names:
+            names.append(name.strip())
+    return names
+
+
 def _find_ffmpeg() -> str | None:
     from .tools import ffmpeg_path
 
@@ -168,6 +234,8 @@ class System:
     steam_root: Callable[[], str | None] = _steam_root
     read_text: Callable[[str], str | None] = _read_text
     find_ffmpeg: Callable[[], str | None] = _find_ffmpeg  # PATH 밖에 내려받은 ffmpeg까지 찾는다
+    audio_inputs: Callable[[], list[str] | None] = _audio_inputs
+    cameras: Callable[[], list[str] | None] = _cameras
     home: str = field(default_factory=lambda: str(Path.home()))
 
 
@@ -217,6 +285,31 @@ def check_hardware(system: System) -> list[Check]:
         found.append(Check("disk", "저장 공간", WARN, f"여유 {free:.0f} GB", "1080p 녹화는 1시간에 약 3에서 8 GB. 녹화본 보관 시 50 GB 이상 권장"))
     else:
         found.append(Check("disk", "저장 공간", FAIL, f"여유 {free:.0f} GB", "녹화, 리플레이 저장 실패 위험"))
+    return found
+
+
+def _names(found: list[str], limit: int = 2) -> str:
+    return ", ".join(found[:limit]) + (f" 외 {len(found) - limit}개" if len(found) > limit else "")
+
+
+def check_devices(system: System) -> list[Check]:
+    """마이크(방송 필수)와 웹캠(얼굴 트래킹)."""
+    found: list[Check] = []
+    mics = system.audio_inputs()
+    if mics is None:
+        found.append(Check("mic", "마이크", INFO, "확인하지 못함"))
+    elif mics:
+        found.append(Check("mic", "마이크", OK, _names(mics)))
+    else:
+        found.append(Check("mic", "마이크", FAIL, "사용 가능한 입력 장치 없음",
+                           "마이크 연결 후 운영체제 소리 설정에서 입력 장치 사용 확인. 꺼진 장치, 분리된 장치는 제외"))
+    cameras = system.cameras()
+    if cameras is None:
+        found.append(Check("camera", "웹캠", INFO, "확인하지 못함"))
+    elif cameras:
+        found.append(Check("camera", "웹캠", OK, _names(cameras)))
+    else:
+        found.append(Check("camera", "웹캠", WARN, "찾지 못함", "웹캠 얼굴 트래킹에 필요. 아이폰 얼굴 트래킹, PNGTuber는 불필요"))
     return found
 
 
@@ -329,7 +422,7 @@ def check_avatar(path: str, *, agency: bool) -> list[Check]:
 def run_checks(system: System | None = None, *, avatar: str | None = None, agency: bool = False, overlay_port: int = OVERLAY_PORT) -> list[Check]:
     system = system or System()
     found: list[Check] = []
-    for step in (check_hardware, check_obs, check_tracking, check_live_tools):
+    for step in (check_hardware, check_devices, check_obs, check_tracking, check_live_tools):
         try:
             found.extend(step(system))
         except Exception as error:  # 한 항목이 실패해도 나머지 점검은 계속

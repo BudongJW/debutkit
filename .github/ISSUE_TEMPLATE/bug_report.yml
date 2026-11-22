@@ -1,0 +1,67 @@
+name: 문제 제보
+description: 오류, 예상과 다른 동작
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        - 시청자 닉네임, 채팅 내용, 치지직 토큰, Client Secret, OBS 비밀번호는 넣지 않기
+        - 소속 의향 등록은 이슈로 받지 않음(참여 안내 페이지 참고)
+  - type: input
+    id: version
+    attributes:
+      label: debutkit 버전
+      description: "debutkit --version 결과 또는 마법사 창 제목"
+      placeholder: debutkit 0.3.0
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: 설치 형태
+      options:
+        - Windows 실행 파일(zip)
+        - 파이썬 패키지
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: 운영체제, OBS 버전
+      placeholder: Windows 11, OBS 33.0
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: 관련 기능
+      multiple: true
+      options:
+        - 설정 마법사
+        - PC 점검(doctor)
+        - OBS 장면(scenes)
+        - 채팅창과 알림(overlay)
+        - 자동 클립
+        - 치지직 로그인
+        - ffmpeg 내려받기(setup)
+        - 프로젝트 사이트, 문서
+  - type: textarea
+    id: what
+    attributes:
+      label: 증상
+      description: 실제 동작과 기대한 동작
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 재현 절차
+      placeholder: |
+        1. debutkit overlay --chzzk-api --clip 실행
+        2. ...
+  - type: textarea
+    id: doctor
+    attributes:
+      label: PC 점검 결과
+      description: "debutkit doctor --json 출력"
+      render: json

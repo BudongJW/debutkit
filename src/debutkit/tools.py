@@ -1,4 +1,4 @@
-"""외부 프로그램 준비: ffmpeg 찾기와 내려받기.
+"""외부 프로그램 준비: ffmpeg 찾기와 내려받기, 새 버전 확인.
 
 자동 클립은 OBS 리플레이 파일을 ffmpeg로 잘라 만든다. ffmpeg는 키트에 포함하지 않고,
 Windows에서는 고정된 빌드 하나를 SHA-256으로 확인한 뒤 사용자 캐시 폴더에 내려받는다.
@@ -8,12 +8,49 @@ Windows에서는 고정된 빌드 하나를 SHA-256으로 확인한 뒤 사용�
 
 from __future__ import annotations
 
+import json
+import re
 import shutil
 import sys
+import urllib.request
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable
 
 Progress = Callable[[int, int], None]
+
+LATEST_RELEASE_API = "https://api.github.com/repos/BudongJW/debutkit/releases/latest"
+RELEASES_PAGE = "https://github.com/BudongJW/debutkit/releases/latest"
+
+
+def _version_tuple(text: str) -> tuple[int, ...]:
+    return tuple(int(part) for part in re.findall(r"\d+", text)[:3])
+
+
+def is_newer(latest: str, current: str) -> bool:
+    """``latest`` 가 ``current`` 보다 높은 버전인지(v0.3.1 > 0.3.0)."""
+    return _version_tuple(latest) > _version_tuple(current)
+
+
+def latest_release(opener: Callable[..., Any] | None = None) -> str:
+    """GitHub에 공개된 최신 릴리스 버전(예: 0.3.0). 요청할 때만 연결하고 아무 정보도 보내지 않는다."""
+    request = urllib.request.Request(LATEST_RELEASE_API, headers={"Accept": "application/vnd.github+json", "User-Agent": "debutkit"})
+    with (opener or urllib.request.urlopen)(request, timeout=15) as response:  # noqa: S310 - 고정 https 주소
+        data = json.loads(response.read().decode("utf-8"))
+    tag = str(data.get("tag_name") or "")
+    if not tag:
+        raise RuntimeError("최신 릴리스 정보 없음")
+    return tag.lstrip("v")
+
+
+def update_message(current: str, opener: Callable[..., Any] | None = None) -> str:
+    """새 버전 확인 결과 한 줄. 연결 실패도 문장으로 돌려준다."""
+    try:
+        latest = latest_release(opener)
+    except Exception as error:
+        return f"새 버전 확인 실패: {error}"
+    if is_newer(latest, current):
+        return f"새 버전 {latest} 있음 (현재 {current}): {RELEASES_PAGE}"
+    return f"최신 버전 사용 중 ({current})"
 
 
 def ffmpeg_path() -> str | None:

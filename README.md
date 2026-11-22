@@ -24,11 +24,11 @@ PC 점검, OBS 장면 세트, 치지직 SOOP Twitch 통합 채팅창과 후원 �
 | 기능 | 내용 |
 |---|---|
 | **설정 마법사** `debutkit-gui` | PC 점검, 아바타, OBS 장면, 채팅과 알림, 마무리 5단계 안내. 아래 기능 전부 창에서 사용 |
-| PC 점검 `doctor` | 메모리, CPU, 그래픽카드, 저장 공간, OBS와 원격 제어, 트래킹 프로그램, ffmpeg 점검과 해결 방법 표시. `--avatar model.vrm --agency` 로 VRM 모델의 수익화, 법인(기획사) 사용 허락 확인 |
+| PC 점검 `doctor` | 메모리, CPU, 그래픽카드, 저장 공간, 마이크, 웹캠, OBS와 원격 제어, 트래킹 프로그램, ffmpeg 점검과 해결 방법 표시. `--avatar model.vrm --agency` 로 VRM 모델의 수익화, 법인(기획사) 사용 허락 확인 |
 | OBS 장면 `scenes` | 장면 5종(대기 화면, 본방송, 토크, 자리 비움, 엔딩) 자동 생성. 아바타 투명 배경 캡처, 채팅창과 후원 알림 연결. 기존 장면 유지. `--replay-buffer` 로 자동 클립용 리플레이 버퍼 설정 |
 | 채팅과 알림 `overlay` | OBS 브라우저 소스용 통합 채팅창(`/chat`), 후원과 구독 알림(`/alerts`). 치지직(공식 API 또는 시청자 읽기), SOOP, Twitch. 데모 채팅, 테스트 버튼 |
 | 자동 클립 `overlay --clip` | 채팅 급증 또는 방장, 매니저의 `!clip` 시 OBS 리플레이 버퍼를 클립으로 저장. 동시 송출 시 전 플랫폼 채팅 합산 |
-| 준비 도구 `setup`, `chzzk` | ffmpeg 내려받기(`setup --ffmpeg`), 치지직 공식 API 로그인(`chzzk login`) |
+| 준비 도구 `setup`, `chzzk` | ffmpeg 내려받기(`setup --ffmpeg`), 새 버전 확인(`setup --check-update`), 치지직 공식 API 로그인(`chzzk login`) |
 
 ## 빠른 시작
 
@@ -100,7 +100,7 @@ pytest -q && ruff check .
 ```
 
 - Windows 실행 파일: `pip install -e ".[gui,build]"` 후 `python packaging/build_windows.py`. 생성한 프로그램을 파이썬 없이 실행해 확인까지 수행
-- 릴리스: `v*` 태그 push 시 GitHub Actions가 zip을 릴리스에 첨부
+- 릴리스: CHANGELOG에 버전 항목 작성 후 `v*` 태그 push. GitHub Actions가 zip 첨부, CHANGELOG 항목으로 릴리스 노트 작성
 - 프로젝트 사이트: `site/` 수정 후 `python packaging/build_site.py` 로 확인. main 반영 시 GitHub Pages 자동 배포
 
 ## 라이선스

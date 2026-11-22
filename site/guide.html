@@ -98,7 +98,7 @@ debutkit-gui</code></pre>
               <tr><th scope="row">아바타</th><td>모델 종류별 트래킹 프로그램 안내. 모델 파일 선택 후 사용 조건 확인</td></tr>
               <tr><th scope="row">OBS 장면</th><td>WebSocket 포트, 비밀번호, 아바타 프로그램 선택 후 장면 만들기</td></tr>
               <tr><th scope="row">채팅과 알림</th><td>채널 주소 입력, 치지직 로그인, 자동 클립 선택 후 오버레이 시작</td></tr>
-              <tr><th scope="row">마무리</th><td>단계별 준비 상태, 자동 클립 저장 폴더 열기</td></tr>
+              <tr><th scope="row">마무리</th><td>단계별 준비 상태, 자동 클립 저장 폴더 열기, 새 버전 확인</td></tr>
             </tbody>
           </table>
         </div>
@@ -119,6 +119,8 @@ debutkit doctor --json</code></pre>
               <tr><th scope="row">CPU</th><td>논리 코어 6개 이상 정상, 4개 이상 주의(그래픽카드 인코더 권장)</td></tr>
               <tr><th scope="row">그래픽카드</th><td>NVIDIA NVENC, AMD AMF, Apple VT 인코더 안내. 내장 그래픽은 주의</td></tr>
               <tr><th scope="row">저장 공간</th><td>동영상 폴더 여유 50 GB 이상 정상, 10 GB 이상 주의</td></tr>
+              <tr><th scope="row">마이크</th><td>사용 중인 입력 장치. 없으면 필요(꺼진 장치, 분리된 장치 제외)</td></tr>
+              <tr><th scope="row">웹캠</th><td>연결된 카메라. 없으면 주의(아이폰 얼굴 트래킹, PNGTuber는 불필요)</td></tr>
               <tr><th scope="row">OBS Studio</th><td>설치 여부. 없으면 필요</td></tr>
               <tr><th scope="row">OBS 원격 제어</th><td>127.0.0.1:4455 응답 여부(장면 자동 구성, 자동 클립에 필요)</td></tr>
               <tr><th scope="row">트래킹 프로그램</th><td>Steam 라이브러리의 VTube Studio, Warudo, VMagicMirror, VNyan, PrprLive. VTube Studio API(8001) 응답</td></tr>
@@ -284,7 +286,7 @@ debutkit overlay --chzzk-api</code></pre>
               <tr><th scope="row"><code>debutkit doctor</code></th><td>PC 점검</td></tr>
               <tr><th scope="row"><code>debutkit scenes</code></th><td>OBS 장면 세트 생성</td></tr>
               <tr><th scope="row"><code>debutkit overlay</code></th><td>채팅창, 후원 알림 서버. <code>--clip</code> 으로 자동 클립</td></tr>
-              <tr><th scope="row"><code>debutkit setup</code></th><td>ffmpeg, 채팅 연결 모듈 확인. <code>--ffmpeg</code> 로 내려받기</td></tr>
+              <tr><th scope="row"><code>debutkit setup</code></th><td>ffmpeg, 채팅 연결 모듈 확인. <code>--ffmpeg</code> 로 내려받기, <code>--check-update</code> 로 새 버전 확인</td></tr>
               <tr><th scope="row"><code>debutkit chzzk login</code></th><td>치지직 공식 API 로그인. <code>logout</code> 으로 토큰 삭제</td></tr>
             </tbody>
           </table>
@@ -312,7 +314,7 @@ debutkit overlay --chzzk-api</code></pre>
 
         <h2 id="privacy">개인정보와 보안</h2>
         <ul>
-          <li>사용 통계 전송 없음</li>
+          <li>사용 통계 전송 없음. 새 버전 확인은 직접 실행할 때만 GitHub에 연결</li>
           <li>오버레이 서버는 127.0.0.1에서만 열림. 다른 웹사이트의 요청은 Host, Origin 확인으로 차단</li>
           <li>채팅 저장 없음. 화면 표시용 최근 30개만 메모리에 유지</li>
           <li>자동 클립의 급증 판단은 닉네임을 해시로만 사용</li>

@@ -36,3 +36,42 @@ def test_ffmpeg_path_uses_the_download_folder(monkeypatch, tmp_path):
     assert tools.ffmpeg_path() is None  # ffprobe도 있어야 한다
     (tmp_path / f"ffprobe{suffix}").write_bytes(b"")
     assert tools.ffmpeg_path() == str(tmp_path / f"ffmpeg{suffix}")
+
+
+class _Response:
+    def __init__(self, body):
+        self.body = body
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def read(self):
+        return self.body
+
+
+def test_version_compare():
+    assert tools.is_newer("v0.3.1", "0.3.0") and tools.is_newer("0.10.0", "0.9.9")
+    assert not tools.is_newer("0.3.0", "0.3.0") and not tools.is_newer("v0.2.0", "0.3.0")
+
+
+def test_update_message_from_latest_release():
+    seen = []
+
+    def opener(request, timeout):
+        seen.append(request.full_url)
+        return _Response(b'{"tag_name": "v0.4.0"}')
+
+    message = tools.update_message("0.3.0", opener)
+    assert message.startswith("새 버전 0.4.0 있음") and tools.RELEASES_PAGE in message
+    assert seen == [tools.LATEST_RELEASE_API]
+    assert tools.update_message("0.4.0", opener) == "최신 버전 사용 중 (0.4.0)"
+
+
+def test_update_message_reports_failure():
+    def opener(request, timeout):
+        raise OSError("연결 거부")
+
+    assert tools.update_message("0.3.0", opener) == "새 버전 확인 실패: 연결 거부"

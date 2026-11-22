@@ -81,3 +81,15 @@ def test_overlay_clip_failure_exits_instead_of_hanging(capsys, monkeypatch):
     monkeypatch.setattr(clip, "preflight", lambda: "자동 클립에는 ffmpeg 필요")
     assert main(["overlay", "--port", "0", "--clip"]) == 1  # 시작 전 서버를 멈춰도 멈추지 않고 끝난다
     assert "ffmpeg 필요" in capsys.readouterr().err
+
+
+def test_setup_check_update_only_when_asked(capsys, monkeypatch):
+    from debutkit import tools
+
+    calls = []
+    monkeypatch.setattr(tools, "ffmpeg_path", lambda: "ffmpeg")
+    monkeypatch.setattr(tools, "update_message", lambda current: calls.append(current) or "최신 버전 사용 중")
+    main(["setup"])
+    assert calls == []  # 지정하지 않으면 연결하지 않는다
+    main(["setup", "--check-update"])
+    assert len(calls) == 1 and "최신 버전 사용 중" in capsys.readouterr().out
