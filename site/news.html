@@ -43,6 +43,7 @@
       <nav class="toc" aria-label="버전 목록">
         <h2>버전</h2>
         <ul>
+          <li><a href="#v0-6">0.6.0</a></li>
           <li><a href="#v0-5-1">0.5.1</a></li>
           <li><a href="#v0-5">0.5.0</a></li>
           <li><a href="#v0-4">0.4.0</a></li>
@@ -53,6 +54,27 @@
       </nav>
 
       <div>
+        <article class="release" id="v0-6">
+          <h2>0.6.0</h2>
+          <p class="date">2026-11-22</p>
+          <h3>추가</h3>
+          <ul>
+            <li>macOS(Apple Silicon)용 debutkit.app과 Linux(x64)용 실행 파일. 파이썬 설치 없이 사용</li>
+            <li>YouTube 채팅 스트리밍 수신. 연결 1회에 5 단위만 사용해 할당량 부담을 줄이고 지연 감소. 사용할 수 없으면 요청 방식으로 자동 전환</li>
+            <li>실제 OBS 검증 자동화. Linux의 실제 OBS로 장면 생성, 고급 출력 모드 리플레이 버퍼 설정, 스트리머 !clip 입력에 따른 클립 저장까지 릴리스마다 확인</li>
+            <li>코드 서명 준비. 인증서를 등록하면 릴리스 빌드가 자동으로 서명</li>
+          </ul>
+          <h3>변경</h3>
+          <ul>
+            <li>창 캡처 소스가 없는 OBS에서 아바타 소스를 생략할 때 안내 표시</li>
+          </ul>
+          <h3>검증 범위</h3>
+          <ul>
+            <li>확인: Linux 실제 OBS 32.2의 장면 생성과 자동 클립 저장(10.7초 클립), 고급 출력 모드 리플레이 버퍼 설정, 설치 프로그램의 ffmpeg 실제 다운로드, macOS와 Linux 실행 파일의 실행</li>
+            <li>미확인: 실제 YouTube 서버와 API 키를 사용한 스트리밍 수신, Linux 아바타 창 캡처, macOS의 실제 OBS 장면 구성</li>
+          </ul>
+        </article>
+
         <article class="release" id="v0-5-1">
           <h2>0.5.1</h2>
           <p class="date">2026-11-22</p>

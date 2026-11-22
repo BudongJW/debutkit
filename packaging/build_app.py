@@ -98,6 +98,12 @@ def size_mb(item: Path) -> float:
     return sum(path.stat().st_size for path in item.rglob("*") if path.is_file()) / 1024**2
 
 
+def largest(item: Path, count: int = 8) -> list[str]:
+    """용량 점검용: 큰 파일 목록."""
+    files = sorted((path for path in item.rglob("*") if path.is_file() and not path.is_symlink()), key=lambda path: path.stat().st_size, reverse=True)
+    return [f"{path.stat().st_size / 1024**2:6.1f} MB  {path.relative_to(item)}" for path in files[:count]]
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--dist", default=str(ROOT / "dist"))
@@ -113,6 +119,7 @@ def main(argv: list[str] | None = None) -> int:
         smoke_test(*programs(item))
     out = archive(item, dist, archive_name(project_version()))
     print(f"{out}  (압축 해제 시 {size_mb(item):.0f} MB)")
+    print("큰 파일:\n  " + "\n  ".join(largest(item)))
     return 0
 
 

@@ -9,7 +9,7 @@
 PC 점검, OBS 장면 구성, 통합 채팅창과 후원 알림, 방송 중 자동 클립
 
 <a href="LICENSE"><img alt="license" src="https://img.shields.io/badge/license-Apache--2.0-1E2327?style=flat-square"></a>
-<img alt="version" src="https://img.shields.io/badge/version-0.5.1-BF3B68?style=flat-square">
+<img alt="version" src="https://img.shields.io/badge/version-0.6.0-BF3B68?style=flat-square">
 <a href="https://github.com/BudongJW/debutkit/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/BudongJW/debutkit/ci.yml?branch=main&style=flat-square&label=CI"></a>
 <img alt="python" src="https://img.shields.io/badge/Python-3.10%2B-1E2327?style=flat-square">
 
@@ -44,12 +44,14 @@ PC 점검, OBS 장면 구성, 통합 채팅창과 후원 알림, 방송 중 자�
 
 ### macOS, Linux
 
+- macOS(Apple Silicon): `debutkit-버전-macos-arm64.zip` 압축 해제 후 debutkit.app 실행. 서명하지 않은 프로그램이므로 첫 실행은 Finder에서 우클릭 후 열기
+- Linux(x64): `debutkit-버전-linux-x64.tar.gz` 압축 해제 후 `debutkit/debutkit-gui` 실행. Qt 실행에 `libxcb-cursor0` 등 그래픽 라이브러리 필요
+- 파이썬 패키지로 설치하는 경우(Python 3.10 이상)
+
 ```bash
 pip install "debutkit[gui] @ git+https://github.com/BudongJW/debutkit"
 debutkit-gui
 ```
-
-- Python 3.10 이상 필요
 
 ## 명령줄 사용 예
 
@@ -64,6 +66,7 @@ debutkit overlay --youtube https://www.youtube.com/watch?v=영상ID --youtube-ke
 - OBS 장면 생성 전 OBS의 도구 메뉴에서 WebSocket 서버 사용 설정 필요
 - 오버레이 설정 화면: http://127.0.0.1:8790 (OBS용 주소 복사, 표시 형태 선택, 미리보기, 시험 메시지)
 - 본인 치지직 채널은 공식 API 사용 권장(`debutkit chzzk login` 실행 후 `debutkit overlay --chzzk-api`)
+- YouTube 채팅은 스트리밍 방식(연결 1회 5 단위)을 우선 사용하고, 사용할 수 없으면 요청 방식으로 자동 전환
 - 리플레이 버퍼를 처음 설정한 경우 OBS 재시작 후 사용 가능
 - 클립 저장 위치: `동영상/debutkit-clips` (`--clip-dir`로 변경)
 
@@ -93,7 +96,8 @@ debutkit overlay --youtube https://www.youtube.com/watch?v=영상ID --youtube-ke
 | [docs/SOFTWARE.md](docs/SOFTWARE.md) | 버튜버 방송 소프트웨어 목록과 debutkit의 역할 |
 | [docs/SIMILAR_PROJECTS.md](docs/SIMILAR_PROJECTS.md) | 유사 프로젝트 조사 |
 | [docs/MEMBERSHIP.md](docs/MEMBERSHIP.md) | 소속 참여 동의 구조, 법률 확인 목록 |
-| [docs/ROADMAP.md](docs/ROADMAP.md) | 개발 계획 |
+| [docs/ROADMAP.md](docs/ROADMAP.md) | 개발 계획, 검증 현황 |
+| [docs/RELEASING.md](docs/RELEASING.md) | 릴리스 절차, 코드 서명 |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | 기여 방법(DCO 서명), 표기 원칙 |
 
 ## 개발
@@ -106,7 +110,8 @@ pytest -q && ruff check .
 ```
 
 - Windows 실행 파일: `pip install -e ".[gui,build]"` 후 `python packaging/build_windows.py`. 생성한 프로그램을 파이썬 없이 실행해 동작 확인. `--installer` 지정 시 설치 프로그램도 생성(Inno Setup 6 필요)
-- 릴리스: CHANGELOG에 버전 항목 작성 후 `v*` 태그 push. GitHub Actions가 설치 프로그램과 zip을 첨부하고 CHANGELOG 항목으로 릴리스 노트 작성
+- macOS, Linux 실행 파일: `python packaging/build_app.py`(각 운영체제에서 실행)
+- 릴리스: [docs/RELEASING.md](docs/RELEASING.md). `v*` 태그 push 시 GitHub Actions가 운영체제별 배포 파일을 만들어 첨부하고, 실제 OBS 검증(`verify.yml`)을 실행
 - 프로젝트 사이트: `site/` 수정 후 `python packaging/build_site.py`로 확인. main 반영 시 GitHub Pages에 자동 배포
 
 ## 라이선스

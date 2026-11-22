@@ -43,12 +43,12 @@
         <h1>debutkit</h1>
         <p class="lead">버튜버 방송 준비용 오픈소스 소프트웨어. 첫 방송 전에 필요한 PC 점검, OBS 장면 구성, 채팅창과 후원 알림 연결, 방송 중 자동 클립 기능을 하나의 프로그램으로 제공합니다.</p>
         <div class="actions">
-          <a class="btn" href="https://github.com/BudongJW/debutkit/releases/latest">Windows 설치 프로그램</a>
+          <a class="btn" href="https://github.com/BudongJW/debutkit/releases/latest">다운로드(Windows, macOS, Linux)</a>
           <a class="btn secondary" href="guide.html">사용 설명서</a>
         </div>
         <dl class="facts">
-          <dt>버전</dt><dd>0.5.1</dd>
-          <dt>지원 환경</dt><dd>Windows 64비트(설치 프로그램, zip). macOS, Linux는 파이썬 패키지</dd>
+          <dt>버전</dt><dd>0.6.0</dd>
+          <dt>지원 환경</dt><dd>Windows 64비트(설치 프로그램, zip), macOS(Apple Silicon), Linux(x64)</dd>
           <dt>방송 플랫폼</dt><dd>치지직, SOOP, Twitch, YouTube</dd>
           <dt>필요 프로그램</dt><dd>OBS Studio 28 이상</dd>
           <dt>라이선스</dt><dd>Apache-2.0</dd>
@@ -109,12 +109,12 @@
         <div class="tablewrap">
           <table>
             <tbody>
-              <tr><th scope="row">배포 형태</th><td>설치 프로그램(setup.exe), 압축 파일(zip). 설정 마법사 <code>debutkit-gui.exe</code>와 명령줄 도구 <code>debutkit.exe</code> 포함</td></tr>
-              <tr><th scope="row">지원 환경</th><td>Windows 64비트. Windows 11에서 검증</td></tr>
+              <tr><th scope="row">배포 형태</th><td>Windows 설치 프로그램(setup.exe)과 압축 파일(zip), macOS 앱(debutkit.app), Linux 압축 파일(tar.gz). 설정 마법사와 명령줄 도구 포함</td></tr>
+              <tr><th scope="row">지원 환경</th><td>Windows 64비트(Windows 11에서 검증), macOS 11 이상(Apple Silicon), Linux x64(Ubuntu 22.04 이상 기준)</td></tr>
               <tr><th scope="row">설치 방식</th><td>현재 사용자 계정에 설치, 시작 메뉴 등록. 관리자 권한과 파이썬 불필요</td></tr>
               <tr><th scope="row">선택 구성 요소</th><td>ffmpeg(자동 클립용). 설치 과정 또는 설정 마법사에서 다운로드</td></tr>
-              <tr><th scope="row">코드 서명</th><td>미적용. Windows SmartScreen 경고가 표시될 수 있음</td></tr>
-              <tr><th scope="row">기타 운영체제</th><td>macOS, Linux는 파이썬 패키지로 설치. Python 3.10 이상</td></tr>
+              <tr><th scope="row">코드 서명</th><td>미적용. Windows SmartScreen, macOS Gatekeeper 경고가 표시될 수 있음</td></tr>
+              <tr><th scope="row">파이썬 패키지</th><td>모든 운영체제에서 사용 가능. Python 3.10 이상</td></tr>
             </tbody>
           </table>
         </div>
@@ -126,7 +126,7 @@
             <li>시작 메뉴에서 debutkit 실행</li>
             <li>설정 마법사의 단계별 안내에 따라 진행</li>
           </ol>
-          <p class="note">설치 없이 사용하려면 <code>debutkit-버전-windows-x64.zip</code>의 압축을 해제한 뒤 <code>debutkit-gui.exe</code>를 실행합니다.</p>
+          <p class="note">설치 없이 사용하려면 <code>debutkit-버전-windows-x64.zip</code>의 압축을 해제한 뒤 <code>debutkit-gui.exe</code>를 실행합니다. macOS와 Linux 설치 방법은 <a href="guide.html#install-unix">사용 설명서</a>에 있습니다.</p>
           <h3 style="margin-top:24px">파이썬 패키지</h3>
           <pre class="wrap"><code>pip install "debutkit[gui] @ git+https://github.com/BudongJW/debutkit"
 debutkit-gui</code></pre>
@@ -158,9 +158,9 @@ debutkit-gui</code></pre>
         <table>
           <thead><tr><th>버전</th><th>날짜</th><th>주요 내용</th></tr></thead>
           <tbody>
+            <tr><th scope="row"><a href="news.html#v0-6">0.6.0</a></th><td>2026-11-22</td><td>macOS, Linux 실행 파일, YouTube 채팅 스트리밍, 실제 OBS 검증</td></tr>
             <tr><th scope="row"><a href="news.html#v0-5-1">0.5.1</a></th><td>2026-11-22</td><td>표기 정리, 사이트와 화면 디자인 개편</td></tr>
             <tr><th scope="row"><a href="news.html#v0-5">0.5.0</a></th><td>2026-11-22</td><td>YouTube 채팅, 업로드 속도 측정, 채팅창 표시 형태 추가, 설치 프로그램</td></tr>
-            <tr><th scope="row"><a href="news.html#v0-4">0.4.0</a></th><td>2026-11-22</td><td>마이크와 웹캠 점검, 새 버전 확인</td></tr>
           </tbody>
         </table>
       </div>
