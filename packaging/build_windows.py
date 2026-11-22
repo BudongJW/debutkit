@@ -6,8 +6,8 @@
     python packaging/build_windows.py --installer-only   # 이미 만든 dist/debutkit 폴더로 설치 프로그램만
 
 - 설치 프로그램: Inno Setup 6(ISCC.exe) 필요. PATH, Program Files, 또는 환경 변수 DEBUTKIT_ISCC
-- 코드 서명: 환경 변수 DEBUTKIT_SIGN_PFX(인증서 파일)와 DEBUTKIT_SIGN_PASSWORD가 있으면 실행 파일과
-  설치 프로그램에 서명(signtool, SHA-256, 타임스탬프). 없으면 서명 없이 진행. 절차: docs/RELEASING.md
+- 코드 서명: 환경 변수 DEBUTKIT_SIGN_PFX(인증서 파일)와 DEBUTKIT_SIGN_PASSWORD가 있으면 실행 파일,
+  설치 프로그램, 제거 프로그램에 서명(signtool, SHA-256, 타임스탬프). 없으면 서명 없이 진행. 절차: docs/RELEASING.md
 """
 
 from __future__ import annotations
@@ -58,22 +58,27 @@ def ffmpeg_build() -> Any:
     return FFMPEG_BUILD
 
 
-def installer_command(iscc: str, folder: Path, dist: Path, version: str, ffmpeg: Any, machine: str | None = None) -> list[str]:
-    """packaging/installer.iss 컴파일: 만든 폴더를 넣고 ``dist`` 에 ``-setup.exe`` 를 만든다."""
+def installer_command(iscc: str, folder: Path, dist: Path, version: str, ffmpeg: Any, machine: str | None = None,
+                      sign_tool: str | None = None) -> list[str]:
+    """packaging/installer.iss 컴파일: 만든 폴더를 넣고 ``dist`` 에 ``-setup.exe`` 를 만든다.
+
+    ``sign_tool`` 이 있으면 Inno Setup이 컴파일 중에 설치 프로그램과 제거 프로그램(unins000.exe)에 서명한다.
+    """
+    signed = ["/DSign", f"/Sdebutkit={sign_tool}"] if sign_tool else []
     return [
         iscc, "/Qp", f"/DAppVersion={version}", f"/DSourceDir={folder.resolve()}", f"/DOutputDir={dist.resolve()}",
         f"/DOutputName={installer_name(version, machine)}",
         f"/DFfmpegUrl={ffmpeg.url}", f"/DFfmpegFile={ffmpeg.filename}", f"/DFfmpegSha256={ffmpeg.sha256}", f"/DFfmpegSize={ffmpeg.megabytes}",
-        str(INSTALLER),
+        *signed, str(INSTALLER),
     ]
 
 
 def make_installer(folder: Path, dist: Path, version: str, *, iscc: str | None = None, ffmpeg: Any = None,
-                   run: Callable[..., Any] = subprocess.run) -> Path:
+                   run: Callable[..., Any] = subprocess.run, sign_tool: str | None = None) -> Path:
     iscc = iscc or find_iscc()
     if not iscc:
         raise SystemExit("설치 프로그램에는 Inno Setup 6(ISCC.exe) 필요: 설치하거나 DEBUTKIT_ISCC 에 경로 지정")
-    run(installer_command(iscc, folder, dist, version, ffmpeg or ffmpeg_build()), check=True)
+    run(installer_command(iscc, folder, dist, version, ffmpeg or ffmpeg_build(), sign_tool=sign_tool), check=True)
     setup = dist / f"{installer_name(version)}.exe"
     if not setup.is_file():
         raise SystemExit(f"설치 프로그램이 만들어지지 않음: {setup}")
@@ -99,6 +104,21 @@ def sign_command(signtool: str, pfx: str, password: str, files: list[Path]) -> l
     return [signtool, "sign", "/fd", "SHA256", "/f", pfx, "/p", password, "/tr", TIMESTAMP_URL, "/td", "SHA256", *[str(file) for file in files]]
 
 
+def inno_sign_tool(config: tuple[str, str] | None = None, signtool: str | None = None) -> str | None:
+    """Inno Setup의 SignTool 명령(ISCC /S). 서명 설정이 없으면 None.
+
+    Inno Setup 표기: $q는 따옴표, $f는 서명할 파일, $$는 $ 문자.
+    """
+    config = config or signing()
+    if config is None:
+        return None
+    signtool = signtool or find_signtool()
+    if not signtool:
+        raise SystemExit("코드 서명에는 signtool.exe(Windows SDK) 필요")
+    tool, pfx, password = (value.replace("$", "$$") for value in (signtool, *config))
+    return f"$q{tool}$q sign /fd SHA256 /f $q{pfx}$q /p $q{password}$q /tr {TIMESTAMP_URL} /td SHA256 $f"
+
+
 def sign(files: list[Path], *, run: Callable[..., Any] = subprocess.run) -> bool:
     """서명 설정이 있으면 서명하고 True, 없으면 False."""
     config = signing()
@@ -110,6 +130,15 @@ def sign(files: list[Path], *, run: Callable[..., Any] = subprocess.run) -> bool
     run(sign_command(signtool, *config, files), check=True)
     print("  코드 서명: " + ", ".join(file.name for file in files))
     return True
+
+
+def make_signed_installer(folder: Path, dist: Path, version: str) -> Path:
+    """설치 프로그램 만들기. 서명 설정이 있으면 설치 프로그램과 제거 프로그램에 서명."""
+    tool = inno_sign_tool()
+    setup = make_installer(folder, dist, version, sign_tool=tool)
+    if tool:
+        print(f"  코드 서명: {setup.name}, 제거 프로그램(unins000.exe)")
+    return setup
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -125,9 +154,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.installer_only:
         if not (folder / "debutkit.exe").is_file():
             parser.error("--installer-only 에는 먼저 만든 dist/debutkit 폴더 필요")
-        setup = make_installer(folder, dist, version)
-        sign([setup])
-        print(setup)
+        print(make_signed_installer(folder, dist, version))
         return 0
     if args.installer and not find_iscc():  # 긴 빌드 전에 확인
         parser.error("--installer 에는 Inno Setup 6(ISCC.exe) 필요: 설치하거나 DEBUTKIT_ISCC 에 경로 지정")
@@ -141,9 +168,7 @@ def main(argv: list[str] | None = None) -> int:
     archive = build_app.archive(folder, dist, archive_name(version), "win32")
     print(f"{archive}  (압축 해제 시 {build_app.size_mb(folder):.0f} MB)")
     if args.installer:
-        setup = make_installer(folder, dist, version)
-        sign([setup])
-        print(setup)
+        print(make_signed_installer(folder, dist, version))
     return 0
 
 

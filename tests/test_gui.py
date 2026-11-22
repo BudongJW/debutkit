@@ -275,3 +275,19 @@ def test_speed_button_shows_advice(app):
         assert window.speed_button.isEnabled()
     finally:
         window.close()
+
+
+def test_youtube_check_button_reports_steps(app):
+    asked = []
+    window = Wizard(Calls().backend(check_youtube=lambda video, key: asked.append((video, key)) or "YouTube 연결 확인\n  [정상] 스트리밍 방식  연결 성공"))
+    try:
+        window.youtube_check_button.click()
+        assert "방송 주소를 먼저 입력" in window.overlay_log.toPlainText() and not asked
+        window.youtube.setText("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+        window.youtube_key.setText("KEY")
+        window.youtube_check_button.click()
+        assert wait_for(app, lambda: "[정상] 스트리밍 방식" in window.overlay_log.toPlainText())
+        assert asked == [("https://www.youtube.com/watch?v=dQw4w9WgXcQ", "KEY")]
+        assert window.youtube_check_button.isEnabled()
+    finally:
+        window.close()

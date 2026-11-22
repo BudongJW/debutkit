@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- 강화된 런타임(hardened runtime)에서 파이썬 실행 파일에 필요한 권한. packaging/build_app.py가 서명에 사용 -->
+<plist version="1.0">
+<dict>
+	<!-- ctypes, cffi가 실행 중 만드는 코드 -->
+	<key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+	<true/>
+	<!-- 함께 묶은 라이브러리(Qt, Python, gRPC) 불러오기 -->
+	<key>com.apple.security.cs.disable-library-validation</key>
+	<true/>
+</dict>
+</plist>

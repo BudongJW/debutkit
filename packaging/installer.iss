@@ -45,6 +45,11 @@ Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
 CloseApplications=yes
+#ifdef Sign
+; 서명 설정이 있을 때(build_windows.py가 /DSign, /Sdebutkit=서명 명령 전달): 설치 프로그램과 제거 프로그램에 서명
+SignTool=debutkit
+SignedUninstaller=yes
+#endif
 
 [Languages]
 #if FileExists(CompilerPath + "Languages\Korean.isl")

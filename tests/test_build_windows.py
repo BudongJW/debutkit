@@ -17,6 +17,21 @@ def test_installer_command_passes_version_folders_and_ffmpeg(tmp_path):
     assert f"/DFfmpegUrl={FFMPEG.url}" in command and "/DFfmpegSize=115" in command and f"/DFfmpegSha256={FFMPEG.sha256}" in command
 
 
+def test_installer_signing_passes_inno_sign_tool(tmp_path):
+    assert not any(part.startswith(("/DSign", "/S")) for part in build_windows.installer_command("ISCC.exe", tmp_path, tmp_path, "0.7.0", FFMPEG))
+    tool = build_windows.inno_sign_tool((r"C:\a b\cert.pfx", "p$w"), r"C:\Kits\signtool.exe")
+    assert tool == r"$qC:\Kits\signtool.exe$q sign /fd SHA256 /f $qC:\a b\cert.pfx$q /p $qp$$w$q /tr " + build_windows.TIMESTAMP_URL + " /td SHA256 $f"
+    command = build_windows.installer_command("ISCC.exe", tmp_path, tmp_path, "0.7.0", FFMPEG, sign_tool=tool)
+    assert command[-3:] == ["/DSign", f"/Sdebutkit={tool}", str(build_windows.INSTALLER)]
+    text = build_windows.INSTALLER.read_text(encoding="utf-8-sig")
+    assert "#ifdef Sign" in text and "SignTool=debutkit" in text and "SignedUninstaller=yes" in text
+
+
+def test_inno_sign_tool_is_none_without_certificate(monkeypatch):
+    monkeypatch.delenv("DEBUTKIT_SIGN_PFX", raising=False)
+    assert build_windows.inno_sign_tool() is None
+
+
 def test_find_iscc_from_environment(monkeypatch, tmp_path):
     iscc = tmp_path / "ISCC.exe"
     iscc.write_bytes(b"")
@@ -86,3 +101,48 @@ def test_installer_script_is_utf8_with_bom_and_has_no_claude():
     text = raw.decode("utf-8-sig")
     assert "AppId=" in text and "PrivilegesRequired=lowest" in text
     assert "claude" not in text.lower()
+
+
+def test_macos_signing_uses_hardened_runtime(monkeypatch, tmp_path):
+    import build_app
+
+    monkeypatch.delenv("DEBUTKIT_MACOS_IDENTITY", raising=False)
+    ran = []
+    assert build_app.sign_macos(tmp_path / "debutkit.app", run=lambda command, check: ran.append(command)) == "-"
+    assert ran[0][:6] == ["codesign", "--force", "--deep", "--options", "runtime", "--entitlements"] and "--timestamp" not in ran[0]
+    assert ran[1][:2] == ["codesign", "--verify"] and "--strict" in ran[1]
+    ran.clear()
+    build_app.sign_macos(tmp_path / "debutkit.app", "Developer ID Application: Example (TEAM123)", run=lambda command, check: ran.append(command))
+    assert "--timestamp" in ran[0] and "Developer ID Application: Example (TEAM123)" in ran[0]
+    entitlements = build_app.ENTITLEMENTS.read_text(encoding="utf-8")
+    assert "allow-unsigned-executable-memory" in entitlements and "disable-library-validation" in entitlements
+
+
+def test_notarize_submits_waits_staples_and_reports_failure(monkeypatch, tmp_path):
+    import json
+
+    import build_app
+
+    for name in ("DEBUTKIT_NOTARY_APPLE_ID", "DEBUTKIT_NOTARY_TEAM_ID", "DEBUTKIT_NOTARY_PASSWORD"):
+        monkeypatch.delenv(name, raising=False)
+    assert build_app.notary_config() is None
+    ran = []
+
+    def run(status):
+        def call(command, **kwargs):
+            ran.append(command)
+            stdout = json.dumps({"id": "abc", "status": status, "message": "m"}) if "submit" in command else "log"
+            return SimpleNamespace(stdout=stdout, returncode=0)
+        return call
+
+    config = ("me@example.com", "TEAM123", "app-pass")
+    assert build_app.notarize(tmp_path / "debutkit.app", tmp_path, config, run=run("Accepted")) == "abc"
+    assert [command[:2] for command in ran] == [["ditto", "-c"], ["xcrun", "notarytool"], ["xcrun", "stapler"], ["spctl", "--assess"]]
+    ran.clear()
+    try:
+        build_app.notarize(tmp_path / "debutkit.app", tmp_path, config, run=run("Invalid"))
+    except SystemExit as error:
+        assert "공증 실패: Invalid" in str(error)
+    else:
+        raise AssertionError("공증 실패가 보고되지 않음")
+    assert ["xcrun", "notarytool", "log", "abc"] == ran[-1][:4] and not any(command[:2] == ["xcrun", "stapler"] for command in ran)

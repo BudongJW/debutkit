@@ -3,8 +3,10 @@ name: Release
 # v* 태그를 올리면 운영체제별 배포 파일을 만들어 GitHub 릴리스에 첨부한다.
 # - Windows: 설치 프로그램(setup.exe), 압축 파일(zip). 무인 설치, 실행, 제거, 설치 중 ffmpeg 다운로드까지 검증
 # - macOS: debutkit.app(zip), Linux: debutkit 폴더(tar.gz). 파이썬 없이 실행 검증
+# - macOS 서명: 강화된 런타임으로 서명 후 실행 검증. Developer ID 비밀값이 있으면 그 인증서로 서명하고 공증
 # - 코드 서명: 저장소 비밀값 WINDOWS_SIGNING_PFX_BASE64, WINDOWS_SIGNING_PASSWORD가 있을 때만(docs/RELEASING.md)
-# 직접 실행(workflow_dispatch)하면 릴리스 없이 빌드 결과만 artifact로 남긴다.
+# 직접 실행(workflow_dispatch)하면 릴리스 없이 빌드 결과만 artifact로 남긴다. 인증서 비밀값이 없으면
+# 임시 자체 서명 인증서로 서명 절차(실행 파일, 설치 프로그램, 제거 프로그램, 타임스탬프)를 시험한다.
 on:
   push:
     tags: ["v*"]
@@ -29,13 +31,24 @@ jobs:
         env:
           PFX_BASE64: ${{ secrets.WINDOWS_SIGNING_PFX_BASE64 }}
           PFX_PASSWORD: ${{ secrets.WINDOWS_SIGNING_PASSWORD }}
+          EVENT: ${{ github.event_name }}
         run: |
+          $pfx = Join-Path $env:RUNNER_TEMP "signing.pfx"
           if ($env:PFX_BASE64) {
-            $pfx = Join-Path $env:RUNNER_TEMP "signing.pfx"
             [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:PFX_BASE64))
             "DEBUTKIT_SIGN_PFX=$pfx" >> $env:GITHUB_ENV
             "DEBUTKIT_SIGN_PASSWORD=$env:PFX_PASSWORD" >> $env:GITHUB_ENV
             Write-Host "코드 서명 사용"
+          } elseif ($env:EVENT -eq "workflow_dispatch") {
+            # 직접 실행(릴리스 없음): 임시 자체 서명 인증서로 서명 절차 전체를 시험. 태그 릴리스에는 쓰지 않음
+            $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=debutkit signing test" -CertStoreLocation Cert:\CurrentUser\My -NotAfter (Get-Date).AddDays(2)
+            $password = [guid]::NewGuid().ToString("N")
+            Write-Host "::add-mask::$password"
+            Export-PfxCertificate -Cert $cert -FilePath $pfx -Password (ConvertTo-SecureString $password -AsPlainText -Force) | Out-Null
+            "DEBUTKIT_SIGN_PFX=$pfx" >> $env:GITHUB_ENV
+            "DEBUTKIT_SIGN_PASSWORD=$password" >> $env:GITHUB_ENV
+            "DEBUTKIT_SIGN_TEST=1" >> $env:GITHUB_ENV
+            Write-Host "서명 시험: 임시 자체 서명 인증서 사용(배포하지 않음)"
           } else {
             Write-Host "서명 인증서 없음: 서명 없이 빌드"
           }
@@ -63,6 +76,14 @@ jobs:
           if ($run.ExitCode -ne 0) { Get-Content "$env:RUNNER_TEMP\setup.log" -Tail 30; throw "설치 실패 ($($run.ExitCode))" }
           foreach ($file in "debutkit-gui.exe", "debutkit.exe", "unins000.exe") {
             if (-not (Test-Path "$target\$file")) { throw "설치 후 $file 없음" }
+          }
+          if ($env:DEBUTKIT_SIGN_PFX) {  # 서명 확인: 실행 파일 2개, 설치 프로그램, 설치된 제거 프로그램
+            foreach ($file in "dist\debutkit\debutkit.exe", "dist\debutkit\debutkit-gui.exe", $setup.FullName, "$target\debutkit.exe", "$target\unins000.exe") {
+              $signature = Get-AuthenticodeSignature $file
+              if (-not $signature.SignerCertificate) { throw "서명 없음: $file" }
+              if (-not $signature.TimeStamperCertificate) { throw "타임스탬프 없음: $file" }
+              Write-Host "서명: $(Split-Path $file -Leaf), $($signature.SignerCertificate.Subject), 상태 $($signature.Status), 타임스탬프 $($signature.TimeStamperCertificate.Subject)"
+            }
           }
           $menu = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\debutkit.lnk"
           if (-not (Test-Path $menu)) { throw "시작 메뉴 바로 가기 없음" }
@@ -120,7 +141,31 @@ jobs:
           python-version: "3.12"
       - name: Install
         run: python -m pip install -e ".[gui,build]" pillow
-      - name: Build and smoke test
+      - name: Signing certificate (optional)
+        env:
+          P12_BASE64: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 }}
+          P12_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+        run: |
+          if [ -z "$P12_BASE64" ]; then echo "Developer ID 인증서 없음: 임시 서명(ad-hoc)으로 강화된 런타임 시험"; exit 0; fi
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          keychain_password="$(uuidgen)"
+          echo "::add-mask::$keychain_password"
+          echo "$P12_BASE64" | base64 --decode > "$RUNNER_TEMP/signing.p12"
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          security import "$RUNNER_TEMP/signing.p12" -k "$keychain" -P "$P12_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain" > /dev/null
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          rm "$RUNNER_TEMP/signing.p12"
+          echo "DEBUTKIT_MACOS_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
+          echo "Developer ID 서명 사용"
+      - name: Build, sign, smoke test, notarize
+        env:
+          DEBUTKIT_NOTARY_APPLE_ID: ${{ secrets.APPLE_ID }}
+          DEBUTKIT_NOTARY_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          DEBUTKIT_NOTARY_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
         run: python packaging/build_app.py
       - uses: actions/upload-artifact@v7
         with:

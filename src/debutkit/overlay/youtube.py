@@ -177,16 +177,20 @@ class YouTubeLiveChat:
             self._chat_id = str(chat)
         return self._chat_id
 
-    def read(self) -> list[OverlayEvent]:
-        if self.ended or self._clock() < self._next:
-            return []
-        self._next = self._clock() + self.interval  # 실패해도 간격을 지킨다
-        self.chat_id()
-        params: dict[str, Any] = {"liveChatId": self._chat_id, "part": "snippet,authorDetails", "maxResults": 2000, "hl": "ko"}
+    def fetch(self) -> dict[str, Any]:
+        """liveChatMessages.list 1회(5 단위). 다음 요청 위치(pageToken)를 기억한다."""
+        params: dict[str, Any] = {"liveChatId": self.chat_id(), "part": "snippet,authorDetails", "maxResults": 2000, "hl": "ko"}
         if self._page:
             params["pageToken"] = self._page
         data = self._call("liveChat/messages", params)
         self._page = str(data.get("nextPageToken") or self._page or "") or None
+        return data
+
+    def read(self) -> list[OverlayEvent]:
+        if self.ended or self._clock() < self._next:
+            return []
+        self._next = self._clock() + self.interval  # 실패해도 간격을 지킨다
+        data = self.fetch()
         wait = float(data.get("pollingIntervalMillis") or 0) / 1000
         self._next = self._clock() + max(wait, self.interval)
         if data.get("offlineAt"):

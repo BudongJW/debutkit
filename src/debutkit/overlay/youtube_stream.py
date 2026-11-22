@@ -116,6 +116,33 @@ def to_dict(response: Any) -> dict[str, Any]:
     return data
 
 
+def probe_stream(chat_id: str, api_key: str, *, timeout: float = 20.0, target: str = TARGET, secure: bool = True) -> tuple[bool, str]:
+    """스트림을 열어 첫 응답까지만 확인하고 닫는다(연결 1회 5 단위). (성공 여부, 설명)."""
+    import grpc
+
+    classes = messages()
+    request_class, response_class = classes["LiveChatMessageListRequest"], classes["LiveChatMessageListResponse"]
+    channel = grpc.secure_channel(target, grpc.ssl_channel_credentials()) if secure else grpc.insecure_channel(target)
+    try:
+        call = channel.unary_stream(METHOD, request_serializer=request_class.SerializeToString, response_deserializer=response_class.FromString)
+        responses = call(request_class(live_chat_id=chat_id, hl="ko", part=["snippet", "authorDetails"]),
+                         metadata=(("x-goog-api-key", api_key),), timeout=timeout)
+        for response in responses:
+            count = len(to_dict(response).get("items") or [])
+            responses.cancel()
+            return True, f"연결 성공. 첫 응답 채팅 {count}개(5 단위)"
+        return False, "응답 없이 연결 종료"
+    except grpc.RpcError as error:
+        code = error.code().name if error.code() else "UNKNOWN"
+        if code == "DEADLINE_EXCEEDED":
+            return False, f"{timeout:.0f}초 안에 응답 없음"
+        if code == "RESOURCE_EXHAUSTED":
+            return False, "YouTube API 일일 할당량 초과(태평양 시간 자정 초기화)"
+        return False, f"{code}: {error.details() or ''}".strip()
+    finally:
+        channel.close()
+
+
 #: 스트림 연결 전에 이 오류가 나면 스트리밍을 쓸 수 없는 것으로 보고 요청 방식으로 전환
 _FALLBACK_CODES = ("UNIMPLEMENTED", "INVALID_ARGUMENT", "PERMISSION_DENIED", "UNAUTHENTICATED", "NOT_FOUND", "FAILED_PRECONDITION")
 

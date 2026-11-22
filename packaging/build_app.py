@@ -10,20 +10,27 @@
 | Linux | dist/debutkit-버전-linux-x64.tar.gz (debutkit 폴더) |
 
 Windows 설치 프로그램과 코드 서명은 packaging/build_windows.py가 담당한다.
+
+macOS 서명: 강화된 런타임(hardened runtime)과 packaging/macos/entitlements.plist로 debutkit.app 전체에 서명한 뒤
+실행을 확인한다. 환경 변수 DEBUTKIT_MACOS_IDENTITY(Developer ID Application 인증서 이름)가 없으면 임시 서명(ad-hoc).
+DEBUTKIT_NOTARY_APPLE_ID, DEBUTKIT_NOTARY_TEAM_ID, DEBUTKIT_NOTARY_PASSWORD(앱 암호)가 있으면 공증과 스테이플까지 진행.
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import platform
 import shutil
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any, Callable
 
 ROOT = Path(__file__).resolve().parent.parent
 SPEC = ROOT / "packaging" / "debutkit.spec"
+ENTITLEMENTS = ROOT / "packaging" / "macos" / "entitlements.plist"
 SYSTEMS = {"win32": "windows", "darwin": "macos"}
 # 위젯 화면만 사용: Qt Quick, QML, PDF, 가상 키보드, 소프트웨어 OpenGL 라이브러리는 PySide6 수집 규칙이 함께 넣지만 쓰지 않음
 UNUSED_QT = ("qt6quick", "qtquick", "qt6qml", "qtqml", "qt6pdf", "qtpdf", "qpdf", "virtualkeyboard", "opengl32sw")
@@ -102,6 +109,44 @@ def archive(item: Path, dist: Path, name: str, platform_name: str | None = None)
     return Path(shutil.make_archive(str(dist / name), "gztar", root_dir=dist, base_dir=item.name))
 
 
+def sign_macos(app: Path, identity: str | None = None, *, run: Callable[..., Any] = subprocess.run) -> str:
+    """debutkit.app 전체를 강화된 런타임으로 서명하고 검증. 반환: 사용한 서명 이름("-"는 임시 서명)."""
+    identity = identity or os.environ.get("DEBUTKIT_MACOS_IDENTITY") or "-"
+    command = ["codesign", "--force", "--deep", "--options", "runtime", "--entitlements", str(ENTITLEMENTS), "--sign", identity]
+    if identity != "-":
+        command.append("--timestamp")  # 공증에 필요
+    run([*command, str(app)], check=True)
+    run(["codesign", "--verify", "--deep", "--strict", "--verbose=2", str(app)], check=True)
+    return identity
+
+
+def notary_config() -> tuple[str, str, str] | None:
+    values = tuple(os.environ.get(name, "") for name in ("DEBUTKIT_NOTARY_APPLE_ID", "DEBUTKIT_NOTARY_TEAM_ID", "DEBUTKIT_NOTARY_PASSWORD"))
+    return values if all(values) else None  # type: ignore[return-value]
+
+
+def notarize(app: Path, dist: Path, config: tuple[str, str, str], *, run: Callable[..., Any] = subprocess.run) -> str:
+    """Apple 공증 제출, 승인 대기, 스테이플, Gatekeeper 평가. 반환: 제출 ID."""
+    apple_id, team, password = config
+    upload = dist / "notarize.zip"
+    upload.unlink(missing_ok=True)
+    run(["ditto", "-c", "-k", "--keepParent", str(app), str(upload)], check=True)
+    done = run(["xcrun", "notarytool", "submit", str(upload), "--apple-id", apple_id, "--team-id", team, "--password", password,
+                "--wait", "--output-format", "json"], check=True, capture_output=True, text=True)
+    upload.unlink(missing_ok=True)
+    result = json.loads(done.stdout or "{}")
+    if result.get("status") != "Accepted":
+        submission = str(result.get("id", ""))
+        if submission:
+            log = run(["xcrun", "notarytool", "log", submission, "--apple-id", apple_id, "--team-id", team, "--password", password],
+                      capture_output=True, text=True)
+            print(log.stdout[-3000:])
+        raise SystemExit(f"공증 실패: {result.get('status')} {result.get('message', '')}")
+    run(["xcrun", "stapler", "staple", str(app)], check=True)
+    run(["spctl", "--assess", "--type", "execute", "--verbose=2", str(app)], check=True)
+    return str(result.get("id", ""))
+
+
 def size_mb(item: Path) -> float:
     return sum(path.stat().st_size for path in item.rglob("*") if path.is_file()) / 1024**2
 
@@ -123,8 +168,13 @@ def main(argv: list[str] | None = None) -> int:
     for name in ("LICENSE", "README.md"):
         target = item / "Contents" / "Resources" if sys.platform == "darwin" else item
         shutil.copy2(ROOT / name, target / name)
+    if sys.platform == "darwin":  # 파일을 넣은 뒤 서명해야 묶음 서명이 유효
+        identity = sign_macos(item)
+        print("  서명: " + ("임시 서명(ad-hoc), 강화된 런타임" if identity == "-" else f"{identity}, 강화된 런타임"))
     if not args.no_smoke:
         smoke_test(*programs(item))
+    if sys.platform == "darwin" and (config := notary_config()):
+        print(f"  공증 완료: 제출 {notarize(item, dist, config)}, 스테이플, Gatekeeper 확인")
     out = archive(item, dist, archive_name(project_version()))
     print(f"{out}  (압축 해제 시 {size_mb(item):.0f} MB)")
     print("큰 파일:\n  " + "\n  ".join(largest(item)))

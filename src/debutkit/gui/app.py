@@ -101,6 +101,12 @@ def _make_autoclipper(hub: Any, port: int, password: str | None) -> tuple[Any, s
     return clip.AutoClipper(hub, clipper), f"자동 클립 시작(OBS {version}). 저장 위치: {out}"
 
 
+def _check_youtube(address: str, api_key: str | None) -> str:
+    from ..overlay.youtube_check import check, format_steps
+
+    return "YouTube 연결 확인(할당량 약 11 단위 사용)\n" + format_steps(check(address, api_key))
+
+
 def _open_folder(path: Path) -> Any:
     path.mkdir(parents=True, exist_ok=True)
     return QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
@@ -124,6 +130,7 @@ class Backend:
     measure_speed: Callable[[], doctor.Check] = field(default=lambda: speed.check(speed.measure_upload()))
     open_url: Callable[[str], Any] = field(default=lambda url: QDesktopServices.openUrl(QUrl(url)))
     open_folder: Callable[[Path], Any] = _open_folder
+    check_youtube: Callable[[str, str | None], str] = _check_youtube
 
 
 class Bridge(QObject):
@@ -137,6 +144,7 @@ class Bridge(QObject):
     chzzk = Signal(str)
     update = Signal(str)
     speed = Signal(object)  # doctor.Check
+    youtube = Signal(str)
 
 
 def card(*widgets: QWidget, title: str = "") -> QWidget:
@@ -190,6 +198,7 @@ class Wizard(QMainWindow):
         self.bridge.chzzk.connect(self._show_chzzk)
         self.bridge.update.connect(self._show_update)
         self.bridge.speed.connect(self._show_speed)
+        self.bridge.youtube.connect(self._show_youtube)
         self.server: Any = None
         self.checked: list[doctor.Check] = []
         self._threads: list[threading.Thread] = []
@@ -482,6 +491,9 @@ class Wizard(QMainWindow):
         self.youtube_key.setPlaceholderText("YouTube Data API 키(저장하지 않음)")
         self.youtube_key.setEchoMode(QLineEdit.EchoMode.Password)
         self.youtube_key.setText(os.environ.get("YOUTUBE_API_KEY", ""))
+        self.youtube_check_button = QPushButton("연결 확인")
+        self.youtube_check_button.setToolTip("API 키, 라이브 채팅, 요청 방식, 스트리밍 방식을 한 번씩 확인(할당량 약 11 단위)")
+        self.youtube_check_button.clicked.connect(self.check_youtube)
         self.chzzk_api = QCheckBox("본인 치지직 채널을 공식 API로 수신(로그인 필요, 권장)")
         signed_in = self.backend.chzzk_signed_in()
         self.chzzk_api.setChecked(signed_in)
@@ -503,7 +515,7 @@ class Wizard(QMainWindow):
         form.addRow("치지직", self.chzzk)
         form.addRow("SOOP", self.soop)
         form.addRow("Twitch", self.twitch)
-        form.addRow("YouTube", row(self.youtube, self.youtube_key, stretch=0))
+        form.addRow("YouTube", row(self.youtube, self.youtube_key, self.youtube_check_button, stretch=0))
         form.addRow("", self.chzzk_api)
         form.addRow("치지직 API", row(self.chzzk_id, self.chzzk_secret, self.chzzk_login_button, stretch=0))
         form.addRow("", self.chzzk_state)
@@ -545,6 +557,27 @@ class Wizard(QMainWindow):
         self.chzzk_login_button.setEnabled(True)
         if message == "로그인됨":
             self.chzzk_api.setChecked(True)
+
+    def check_youtube(self) -> None:
+        video, key = self.youtube.text().strip(), self.youtube_key.text().strip() or None
+        if not video:
+            self._append_log("YouTube 방송 주소를 먼저 입력하십시오.")
+            return
+        self.youtube_check_button.setEnabled(False)
+        self._append_log("YouTube 연결 확인 중")
+
+        def job() -> None:
+            try:
+                message = self.backend.check_youtube(video, key)
+            except Exception as error:
+                message = f"YouTube 연결 확인 실패: {error}"
+            self._emit(self.bridge.youtube, message)
+
+        self._run(job)
+
+    def _show_youtube(self, message: str) -> None:
+        self._append_log(message)
+        self.youtube_check_button.setEnabled(self.server is None)
 
     def overlay_sources(self) -> list[tuple[str, Callable[[], Any]]]:
         from ..overlay import events
@@ -600,7 +633,7 @@ class Wizard(QMainWindow):
     def _overlay_state(self, running: bool) -> None:
         self.overlay_button.setText("오버레이 중지" if running else "오버레이 시작")
         self.open_button.setEnabled(running)
-        for widget in (self.chzzk, self.soop, self.twitch, self.youtube, self.youtube_key, self.chzzk_api, self.chzzk_id, self.chzzk_secret, self.chzzk_login_button,
+        for widget in (self.chzzk, self.soop, self.twitch, self.youtube, self.youtube_key, self.youtube_check_button, self.chzzk_api, self.chzzk_id, self.chzzk_secret, self.chzzk_login_button,
                        self.demo, self.autoclip, self.port):
             widget.setEnabled(not running)
 

@@ -1,7 +1,8 @@
 name: Verify
 
-# 실제 OBS를 설치해 debutkit을 검증한다(가짜 구현 없음). Windows, macOS, Linux 각각
-# - 장면 생성(운영체제별 소스 종류), 고급 출력 모드의 리플레이 버퍼 설정, OBS 재시작 후 자동 클립 저장까지
+# 실제 OBS, 실제 YouTube 서버로 debutkit을 검증한다(가짜 구현 없음).
+# - obs: Windows, macOS, Linux 각각 장면 생성(운영체제별 소스 종류), 고급 출력 모드의 리플레이 버퍼 설정, OBS 재시작 후 자동 클립 저장까지
+# - youtube: 스트리밍 메서드 경로와 API 키 전달 방식. 비밀값 YOUTUBE_API_KEY가 있으면 실제 채팅 수신까지
 # 릴리스 작업 브랜치에 push하거나 직접 실행할 때, 그리고 v* 태그에서 실행한다.
 on:
   push:
@@ -74,3 +75,30 @@ jobs:
       - name: OBS logs
         if: always()
         run: python packaging/verify_obs.py logs || true
+
+  youtube:
+    # API 키 없이: 실제 서버의 스트리밍 메서드 경로, 키 전달 방식, 오류 안내 확인
+    # 저장소 비밀값 YOUTUBE_API_KEY가 있으면: 방송 중인 YouTube 채팅으로 요청 방식과 스트리밍 방식 실제 수신 확인
+    # (방송 주소는 저장소 변수 YOUTUBE_TEST_URL, 없으면 24시간 라이브 방송 1개)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      PYTHONIOENCODING: utf-8
+      HAS_KEY: ${{ secrets.YOUTUBE_API_KEY != '' }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: python -m pip install -e ".[youtube]"
+      - name: Endpoint (no API key)
+        run: python packaging/verify_youtube.py endpoint
+      - name: Live chat with API key
+        if: env.HAS_KEY == 'true'
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+        run: python packaging/verify_youtube.py check "${{ vars.YOUTUBE_TEST_URL || 'https://www.youtube.com/watch?v=jfKfPfyJRdk' }}"
+      - name: Live chat with API key (skipped)
+        if: env.HAS_KEY != 'true'
+        run: echo "저장소 비밀값 YOUTUBE_API_KEY가 없어 실제 채팅 수신 확인 생략(docs/RELEASING.md)"

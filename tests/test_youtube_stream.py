@@ -152,3 +152,40 @@ def test_source_modes(monkeypatch):
         youtube_source(VIDEO, "KEY", mode="stream")
     with pytest.raises(ValueError):
         youtube_source(VIDEO, "KEY", mode="fast")
+
+
+def test_probe_stream_reports_first_response_and_errors():
+    def history(request, context, count):
+        yield response("p1", ("TEXT_MESSAGE_EVENT", "a", "지난 채팅", {}))
+        time.sleep(5)  # 첫 응답 뒤에는 연결 유지: 확인은 첫 응답에서 끝나야 함
+
+    server = Server(history)
+    try:
+        started = time.monotonic()
+        ok, detail = youtube_stream.probe_stream("CHAT", "KEY", target=f"127.0.0.1:{server.port}", secure=False, timeout=5)
+        assert ok and "채팅 1개" in detail and time.monotonic() - started < 3
+        assert server.metadata[0]["x-goog-api-key"] == "KEY"
+    finally:
+        server.stop()
+
+    def denied(request, context, count):
+        context.abort(grpc.StatusCode.PERMISSION_DENIED, "Permission denied on the service.")
+        yield from ()
+
+    server = Server(denied)
+    try:
+        ok, detail = youtube_stream.probe_stream("CHAT", "KEY", target=f"127.0.0.1:{server.port}", secure=False, timeout=5)
+        assert not ok and detail.startswith("PERMISSION_DENIED")
+    finally:
+        server.stop()
+
+    def silent(request, context, count):
+        time.sleep(3)
+        yield from ()
+
+    server = Server(silent)
+    try:
+        ok, detail = youtube_stream.probe_stream("CHAT", "KEY", target=f"127.0.0.1:{server.port}", secure=False, timeout=0.5)
+        assert not ok and "응답 없음" in detail
+    finally:
+        server.stop()

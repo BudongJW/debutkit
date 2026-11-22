@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 from typing import Any, Callable
@@ -170,6 +171,18 @@ def _chzzk_logout(args: argparse.Namespace) -> int:
     return 0
 
 
+def _youtube_check(args: argparse.Namespace) -> int:
+    from .overlay.youtube_check import as_json, check, format_steps
+
+    steps = check(args.address, args.youtube_key, timeout=args.timeout)
+    if args.json:
+        print(json.dumps(as_json(steps), ensure_ascii=False, indent=2))
+    else:
+        print("YouTube 연결 확인(할당량 약 11 단위 사용)")
+        print(format_steps(steps))
+    return 1 if any(step.ok is False for step in steps) else 0
+
+
 def _gui(args: argparse.Namespace) -> int:
     try:
         from .gui.app import main as gui_main
@@ -207,6 +220,15 @@ def build_parser() -> argparse.ArgumentParser:
                         help="자동 클립용 리플레이 버퍼 켜기 (길이 기본 60초)")
     scenes.add_argument("--dry-run", action="store_true", help="OBS에 연결하지 않고 설계도만 출력")
     scenes.set_defaults(func=_scenes)
+
+    youtube = sub.add_parser("youtube", help="YouTube 연결 확인")
+    youtube_sub = youtube.add_subparsers(dest="youtube_command", required=True)
+    youtube_check = youtube_sub.add_parser("check", help="API 키, 라이브 채팅, 요청 방식, 스트리밍 방식을 한 번씩 실행해 확인 (할당량 약 11 단위)")
+    youtube_check.add_argument("address", metavar="방송", help="방송 중인 YouTube 방송 주소 또는 영상 ID")
+    youtube_check.add_argument("--youtube-key", help="YouTube Data API 키 (또는 YOUTUBE_API_KEY)")
+    youtube_check.add_argument("--timeout", type=float, default=20.0, metavar="초", help="스트리밍 첫 응답 대기 시간 (기본 %(default)s초)")
+    youtube_check.add_argument("--json", action="store_true", help="JSON으로 출력")
+    youtube_check.set_defaults(func=_youtube_check)
 
     overlay = sub.add_parser("overlay", help="OBS 브라우저 소스용 통합 채팅창, 후원 알림 서버 실행")
     overlay.add_argument("--chzzk", action="append", metavar="채널", help="CHZZK 채널 주소 또는 ID (여러 번 지정 가능, 로그인 없는 비공식 수신)")
