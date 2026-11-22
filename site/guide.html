@@ -39,7 +39,8 @@
     <header class="dochead">
       <h1>사용 설명서</h1>
       <dl>
-        <dt>대상 버전</dt><dd>debutkit 0.4.0</dd>
+        <dt>대상 버전</dt><dd>debutkit 0.5.0</dd>
+        <dt>방송 플랫폼</dt><dd>치지직, SOOP, Twitch, YouTube</dd>
         <dt>지원 환경</dt><dd>Windows 64비트(실행 파일), macOS와 Linux(파이썬 패키지)</dd>
       </dl>
     </header>
@@ -55,6 +56,7 @@
           <li><a href="#overlay">채팅창과 후원 알림</a></li>
           <li><a href="#clip">자동 클립</a></li>
           <li><a href="#chzzk">치지직 공식 API</a></li>
+          <li><a href="#youtube">YouTube 채팅</a></li>
           <li><a href="#cli">명령줄 요약</a></li>
           <li><a href="#trouble">문제 해결</a></li>
           <li><a href="#privacy">개인정보와 보안</a></li>
@@ -63,15 +65,27 @@
 
       <article class="numbered">
         <h2 id="install">설치</h2>
-        <h3 id="install-windows">Windows 실행 파일</h3>
+        <h3 id="install-setup">Windows 설치 프로그램</h3>
+        <ol>
+          <li><a href="https://github.com/BudongJW/debutkit/releases/latest">릴리스 페이지</a>에서 <code>debutkit-버전-windows-x64-setup.exe</code> 다운로드, 실행</li>
+          <li>추가 작업 화면: 자동 클립을 쓰면 ffmpeg 내려받기 선택(약 115 MB), 바탕 화면 바로 가기 선택</li>
+          <li>설치 후 시작 메뉴의 debutkit 실행(설정 마법사)</li>
+        </ol>
+        <ul>
+          <li>현재 사용자 계정에 설치. 관리자 권한 불필요</li>
+          <li>명령줄 도구 <code>debutkit.exe</code> 는 설치 폴더에 포함</li>
+          <li>제거: Windows 설정의 앱 목록에서 debutkit 제거. 내려받은 ffmpeg는 다른 프로그램과 같이 쓰는 폴더라 남김</li>
+          <li>코드 서명 미적용. SmartScreen 경고 시 추가 정보 선택 후 실행</li>
+        </ul>
+
+        <h3 id="install-windows">Windows 압축 파일</h3>
         <ol>
           <li><a href="https://github.com/BudongJW/debutkit/releases/latest">릴리스 페이지</a>에서 <code>debutkit-버전-windows-x64.zip</code> 다운로드</li>
           <li>원하는 폴더에 압축 해제</li>
           <li><code>debutkit-gui.exe</code> 실행(설정 마법사). 명령줄은 같은 폴더의 <code>debutkit.exe</code></li>
         </ol>
         <ul>
-          <li>파이썬, 관리자 권한 불필요</li>
-          <li>코드 서명 미적용. SmartScreen 경고 시 추가 정보 선택 후 실행</li>
+          <li>설치 없이 실행. 파이썬, 관리자 권한 불필요</li>
         </ul>
 
         <h3 id="install-python">파이썬 패키지</h3>
@@ -94,7 +108,7 @@ debutkit-gui</code></pre>
           <table>
             <thead><tr><th>단계</th><th>내용</th></tr></thead>
             <tbody>
-              <tr><th scope="row">PC 점검</th><td>창을 열면 자동 점검. ffmpeg 없음 표시 시 ffmpeg 내려받기 버튼(Windows)</td></tr>
+              <tr><th scope="row">PC 점검</th><td>창을 열면 자동 점검. ffmpeg 없음 표시 시 ffmpeg 내려받기 버튼(Windows). 업로드 속도 측정 버튼</td></tr>
               <tr><th scope="row">아바타</th><td>모델 종류별 트래킹 프로그램 안내. 모델 파일 선택 후 사용 조건 확인</td></tr>
               <tr><th scope="row">OBS 장면</th><td>WebSocket 포트, 비밀번호, 아바타 프로그램 선택 후 장면 만들기</td></tr>
               <tr><th scope="row">채팅과 알림</th><td>채널 주소 입력, 치지직 로그인, 자동 클립 선택 후 오버레이 시작</td></tr>
@@ -110,7 +124,8 @@ debutkit-gui</code></pre>
         <h2 id="doctor">PC 점검</h2>
         <pre><code>debutkit doctor
 debutkit doctor --avatar model.vrm --agency
-debutkit doctor --json</code></pre>
+debutkit doctor --json
+debutkit doctor --speed</code></pre>
         <div class="tablewrap">
           <table>
             <thead><tr><th>항목</th><th>기준</th></tr></thead>
@@ -127,6 +142,7 @@ debutkit doctor --json</code></pre>
               <tr><th scope="row">채팅 연결 모듈</th><td>설치 여부. 실행 파일은 기본 포함</td></tr>
               <tr><th scope="row">ffmpeg</th><td>PATH 또는 내려받은 위치. 자동 클립에만 필요</td></tr>
               <tr><th scope="row">오버레이 포트</th><td>8790 사용 가능 여부</td></tr>
+              <tr><th scope="row">업로드 속도</th><td><code>--speed</code> 지정 시. 측정값의 70% 기준(오디오 160 kbps 제외)으로 해상도, 영상 비트레이트 추천. 영상 4,500 kbps 이상 정상, 2,000 kbps 이상 주의, 미만 필요</td></tr>
               <tr><th scope="row">아바타 사용 조건</th><td><code>--avatar</code> 지정 시. VRM 파일의 수익화 허용, <code>--agency</code> 지정 시 법인(기획사) 사용 허용 확인</td></tr>
             </tbody>
           </table>
@@ -204,6 +220,7 @@ debutkit scenes --dry-run</code></pre>
               <tr><th scope="row"><code>--chzzk</code></th><td>치지직 채널 주소 또는 ID. 로그인 없는 시청자 읽기</td></tr>
               <tr><th scope="row"><code>--soop</code></th><td>SOOP 방송국 주소 또는 아이디</td></tr>
               <tr><th scope="row"><code>--twitch</code></th><td>Twitch 채널 이름. 익명 읽기</td></tr>
+              <tr><th scope="row"><code>--youtube</code></th><td>YouTube 방송 주소 또는 영상 ID. 공식 API, API 키 필요. 8장 참고</td></tr>
               <tr><th scope="row"><code>--demo</code></th><td>데모 채팅 함께 표시. 채널 미지정 시 자동 사용</td></tr>
               <tr><th scope="row"><code>--port</code></th><td>서버 포트. 기본 8790</td></tr>
             </tbody>
@@ -211,12 +228,12 @@ debutkit scenes --dry-run</code></pre>
         </div>
         <p>같은 옵션을 여러 번 지정하면 여러 채널 동시 표시</p>
         <h3 id="overlay-options">채팅창 모양</h3>
-        <p>채팅창 주소 뒤에 붙임. 예: <code>/chat?theme=bubble&amp;font=26&amp;max=10&amp;fade=30</code></p>
+        <p>설정 화면의 채팅창 모양 선택으로 고르면 OBS용 주소에 바로 반영. 직접 쓸 때는 주소 뒤에 붙임. 예: <code>/chat?theme=card&amp;font=26&amp;max=10&amp;fade=30</code></p>
         <div class="tablewrap">
           <table>
             <thead><tr><th>값</th><th>내용</th><th>기본</th></tr></thead>
             <tbody>
-              <tr><th scope="row"><code>theme</code></th><td><code>shadow</code>(글자 그림자), <code>bubble</code>(말풍선)</td><td>shadow</td></tr>
+              <tr><th scope="row"><code>theme</code></th><td><code>shadow</code>(글자 그림자), <code>bubble</code>(말풍선), <code>card</code>(이름 줄 분리, 플랫폼 색 띠), <code>outline</code>(외곽선 글자), <code>light</code>(밝은 말풍선)</td><td>shadow</td></tr>
               <tr><th scope="row"><code>font</code></th><td>글자 크기(px)</td><td>22</td></tr>
               <tr><th scope="row"><code>max</code></th><td>표시 줄 수</td><td>12</td></tr>
               <tr><th scope="row"><code>fade</code></th><td>지정 초 뒤 사라짐. 0은 유지</td><td>0</td></tr>
@@ -245,6 +262,7 @@ debutkit scenes --dry-run</code></pre>
           <li>표시 명령: 방장, 매니저의 <code>!clip</code>, <code>!클립</code>. 시청자 명령은 무시</li>
           <li>동시 송출: 모든 플랫폼 채팅 합산</li>
           <li>저장 위치: <code>동영상/debutkit-clips</code>. <code>--clip-dir</code> 로 변경</li>
+          <li>YouTube 채팅도 합산(요청 간격 때문에 최대 10초 늦게 반영)</li>
           <li>결과: 설정 화면 채팅 미리보기와 마법사 기록 칸에 표시</li>
           <li>방송 없이 시험: 설정 화면의 방장 !clip 버튼</li>
         </ul>
@@ -277,13 +295,41 @@ debutkit overlay --chzzk-api</code></pre>
           <li>로그아웃(토큰 삭제): <code>debutkit chzzk logout</code></li>
         </ul>
 
+        <h2 id="youtube">YouTube 채팅</h2>
+        <p>YouTube 방송의 채팅, 슈퍼챗, 슈퍼스티커, 멤버십을 공식 YouTube Data API로 수신. Google Cloud의 API 키 필요</p>
+        <h3 id="youtube-key">API 키 발급</h3>
+        <ol>
+          <li>Google Cloud 콘솔에서 프로젝트 생성</li>
+          <li>API 라이브러리에서 YouTube Data API v3 사용 설정</li>
+          <li>사용자 인증 정보에서 API 키 만들기. API 제한을 YouTube Data API v3로 설정 권장</li>
+        </ol>
+        <h3 id="youtube-run">실행</h3>
+        <p>마법사: 채팅과 알림 단계의 YouTube 칸에 방송 주소, API 키 입력. 명령줄:</p>
+        <pre class="wrap"><code>debutkit overlay --youtube https://www.youtube.com/watch?v=영상ID --youtube-key API키
+debutkit overlay --youtube 영상ID --youtube-interval 15</code></pre>
+        <ul>
+          <li>방송 주소: 방송마다 바뀌는 영상 주소. 채널 주소는 지원 안 함</li>
+          <li>API 키: <code>--youtube-key</code> 또는 환경 변수 <code>YOUTUBE_API_KEY</code>. 요청 머리글로만 전송, 저장 안 함</li>
+          <li>표시 시작: 연결 직후의 지난 채팅은 표시하지 않고 그 뒤 채팅부터 표시</li>
+          <li>자동 클립: 다른 플랫폼 채팅과 합산해 판단</li>
+        </ul>
+        <div class="note">
+          <h4>할당량</h4>
+          <ul>
+            <li>기본 할당량: 하루 10,000 단위(태평양 시간 자정 초기화)</li>
+            <li>채팅 요청 1회 5 단위. 기본 간격 10초 기준 1시간 약 1,800 단위, 약 5시간 방송 가능</li>
+            <li>긴 방송: <code>--youtube-interval</code> 로 간격 늘리기(최소 5초) 또는 Google Cloud에서 할당량 증설 신청</li>
+            <li>YouTube가 더 긴 간격을 요구하면 그 간격을 따름</li>
+          </ul>
+        </div>
+
         <h2 id="cli">명령줄 요약</h2>
         <div class="tablewrap">
           <table>
             <thead><tr><th>명령</th><th>내용</th></tr></thead>
             <tbody>
               <tr><th scope="row"><code>debutkit gui</code></th><td>설정 마법사</td></tr>
-              <tr><th scope="row"><code>debutkit doctor</code></th><td>PC 점검</td></tr>
+              <tr><th scope="row"><code>debutkit doctor</code></th><td>PC 점검. <code>--speed</code> 로 업로드 속도 측정, 비트레이트 추천</td></tr>
               <tr><th scope="row"><code>debutkit scenes</code></th><td>OBS 장면 세트 생성</td></tr>
               <tr><th scope="row"><code>debutkit overlay</code></th><td>채팅창, 후원 알림 서버. <code>--clip</code> 으로 자동 클립</td></tr>
               <tr><th scope="row"><code>debutkit setup</code></th><td>ffmpeg, 채팅 연결 모듈 확인. <code>--ffmpeg</code> 로 내려받기, <code>--check-update</code> 로 새 버전 확인</td></tr>
@@ -305,6 +351,9 @@ debutkit overlay --chzzk-api</code></pre>
               <tr><th scope="row">자동 클립 ffmpeg 필요</th><td><code>debutkit setup --ffmpeg</code> 실행 또는 마법사 ffmpeg 내려받기</td></tr>
               <tr><th scope="row">클립이 짧음</th><td>OBS 리플레이 버퍼 최대 시간 늘리기</td></tr>
               <tr><th scope="row">치지직 로그인 실패</th><td>Client ID, Secret 확인. 개발자 센터 리디렉션 주소와 <code>--redirect</code> 일치. 8765 포트 사용 프로그램 종료</td></tr>
+              <tr><th scope="row">YouTube 할당량 초과</th><td>태평양 시간 자정까지 대기. 다음 방송부터 <code>--youtube-interval</code> 늘리기</td></tr>
+              <tr><th scope="row">YouTube 라이브 채팅 없음</th><td>방송 중인 영상 주소인지, 채팅이 켜져 있는지 확인. 예약 방송은 시작 후 연결</td></tr>
+              <tr><th scope="row">업로드 속도 낮음</th><td>유선 연결, 다른 기기의 업로드 중지 후 다시 측정. 추천보다 낮은 비트레이트 사용</td></tr>
               <tr><th scope="row">아바타가 안 보임</th><td>아바타 프로그램 실행 확인. 게임 캡처 속성의 투명도 허용, 창 선택 확인</td></tr>
               <tr><th scope="row">SmartScreen 경고</th><td>추가 정보 선택 후 실행. 불안하면 파이썬 패키지로 설치</td></tr>
             </tbody>
@@ -315,6 +364,8 @@ debutkit overlay --chzzk-api</code></pre>
         <h2 id="privacy">개인정보와 보안</h2>
         <ul>
           <li>사용 통계 전송 없음. 새 버전 확인은 직접 실행할 때만 GitHub에 연결</li>
+          <li>업로드 속도 측정은 직접 실행할 때만 Cloudflare 측정 서버(speed.cloudflare.com)에 임의 데이터 전송(최대 31 MB). PC 정보 전송 없음</li>
+          <li>YouTube API 키는 실행 중에만 사용하고 저장하지 않음</li>
           <li>오버레이 서버는 127.0.0.1에서만 열림. 다른 웹사이트의 요청은 Host, Origin 확인으로 차단</li>
           <li>채팅 저장 없음. 화면 표시용 최근 30개만 메모리에 유지</li>
           <li>자동 클립의 급증 판단은 닉네임을 해시로만 사용</li>

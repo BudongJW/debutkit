@@ -78,7 +78,7 @@ flowchart LR
 | 플랫폼 내장 위젯 | 치지직, SOOP | 가장 간단. 단일 플랫폼이면 충분 |
 | 투네이션 등 후원 서비스 | 여러 플랫폼 | 후원 알림, 룰렛 등 |
 | Social Stream Ninja | 120개 이상 | GPL-3.0. 브라우저 확장 방식 |
-| **debutkit overlay** | 치지직(공식 API, 시청자 읽기), SOOP, Twitch | 동시 송출 채팅 통합. 이 PC에서만 열림, 저장 없음 |
+| **debutkit overlay** | 치지직(공식 API, 시청자 읽기), SOOP, Twitch, YouTube(공식 API) | 동시 송출 채팅 통합. 이 PC에서만 열림, 저장 없음 |
 
 ## 6. 방송 후
 
@@ -93,7 +93,7 @@ flowchart LR
 |---|---|---|
 | 치지직 | CHZZK Open API Session(내 채널의 채팅, 후원, 구독) | `debutkit chzzk login` 후 `--chzzk-api` |
 | SOOP | 자체 위젯 주소. 공식 Open API 채팅 이벤트 확인 중 | 시청자 읽기 |
-| YouTube | Live Streaming API(liveChatMessages, 할당량 있음) | 예정 |
+| YouTube | YouTube Data API 라이브 채팅(liveChatMessages, API 키, 하루 할당량 있음) | `--youtube` (API 키) |
 | Twitch | IRC, EventSub | 익명 IRC 읽기 |
 
 ## 소속사 운영 시 라이선스

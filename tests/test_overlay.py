@@ -242,3 +242,19 @@ def test_settings_page_has_streamer_clip_test(server):
     conn.request("GET", "/")
     page = conn.getresponse().read().decode("utf-8")
     assert 'id="test-clip"' in page and '"owner"' in page
+
+
+def test_settings_page_has_theme_picker_and_youtube_badge(server):
+    conn = http.client.HTTPConnection("127.0.0.1", server.port, timeout=5)
+    conn.request("GET", "/")
+    page = conn.getresponse().read().decode("utf-8")
+    for theme in ("shadow", "bubble", "card", "outline", "light"):
+        assert f'value="{theme}"' in page
+    conn = http.client.HTTPConnection("127.0.0.1", server.port, timeout=5)
+    conn.request("GET", "/overlay.js")
+    script = conn.getresponse().read().decode("utf-8")
+    assert "youtube:" in script and "--line-color" in script
+    conn = http.client.HTTPConnection("127.0.0.1", server.port, timeout=5)
+    conn.request("GET", "/overlay.css")
+    css = conn.getresponse().read().decode("utf-8")
+    assert all(f'data-theme="{theme}"' in css for theme in ("card", "outline", "light"))

@@ -46,6 +46,40 @@ body[data-theme="bubble"] .line {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
 }
 
+/* card: 이름 줄과 글 줄 분리, 왼쪽에 플랫폼 색 띠 */
+body[data-theme="card"] .line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  background: rgba(30, 35, 39, 0.88);
+  border-left: 0.22em solid var(--line-color, var(--accent));
+  border-radius: 0.45em;
+  padding: 0.35em 0.65em 0.45em;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+body[data-theme="card"] .name { font-size: 0.85em; }
+body[data-theme="card"] .text { flex-basis: 100%; }
+
+/* outline: 배경 없이 굵은 외곽선 글자. 밝은 게임 화면용 */
+body[data-theme="outline"] .line {
+  font-weight: 700;
+  text-shadow: -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000,
+               0 -2px 0 #000, 0 2px 0 #000, -2px 0 0 #000, 2px 0 0 #000;
+}
+
+/* light: 밝은 말풍선, 어두운 글자 */
+body[data-theme="light"] .line {
+  background: rgba(250, 247, 245, 0.94);
+  color: #1e2327;
+  border-radius: 0.7em;
+  padding: 0.35em 0.6em;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+body[data-theme="light"] .name { color: #bf3b68; }
+body[data-theme="light"] .line.owner .name { color: #9a6700; }
+body[data-theme="light"] .line.moderator .name { color: #1d6fa5; }
+body[data-theme="light"] .line.donation { color: #8a5a00; }
+
 .platform {
   display: inline-block;
   font-size: 0.6em;

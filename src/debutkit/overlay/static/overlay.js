@@ -5,6 +5,7 @@ const PLATFORMS = {
   chzzk: { label: "치지직", color: "#00d68f" },
   soop: { label: "SOOP", color: "#3d7bff" },
   twitch: { label: "Twitch", color: "#9146ff" },
+  youtube: { label: "YouTube", color: "#ff0033" },
   demo: { label: "테스트", color: "#ff4f8b" },
   system: { label: "알림", color: "#8a8499" },
 };
@@ -70,6 +71,7 @@ function startChat(root) {
     if (hidden.has(event.kind) || hidden.has(event.platform)) return;
     const line = document.createElement("div");
     line.className = `line ${event.kind}${event.role ? " " + event.role : ""}`;
+    line.style.setProperty("--line-color", (PLATFORMS[event.platform] || PLATFORMS.system).color);
     if (showPlatform) line.appendChild(badge(event));
     const name = document.createElement("span");
     name.className = "name";
@@ -126,4 +128,13 @@ function startAlerts(root) {
   });
 }
 
-window.debutkit = { startChat, startAlerts, renderParts, amountText };
+//: 채팅창 테마 이름과 설명 (설정 화면의 선택 목록)
+const THEMES = {
+  shadow: "글자 그림자",
+  bubble: "말풍선",
+  card: "카드(이름 줄 분리)",
+  outline: "외곽선 글자",
+  light: "밝은 말풍선",
+};
+
+window.debutkit = { startChat, startAlerts, renderParts, amountText, THEMES };

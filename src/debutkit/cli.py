@@ -15,10 +15,24 @@ def _doctor(args: argparse.Namespace) -> int:
     from .doctor import FAIL, format_report, run_checks, to_json
 
     checks = run_checks(avatar=args.avatar, agency=args.agency, overlay_port=args.port)
+    if args.speed:
+        checks.append(_measure_speed(quiet=args.json))
     print(to_json(checks) if args.json else format_report(checks))
     if not args.json:
         print(f"\n소속 버튜버 프로그램(선택, 키트 사용과 무관): {JOIN_URL}")
     return 1 if any(check.status == FAIL for check in checks) else 0
+
+
+def _measure_speed(*, quiet: bool = False) -> Any:
+    from . import speed
+    from .doctor import INFO, Check
+
+    if not quiet:
+        print("업로드 속도 측정 중 (약 10초, speed.cloudflare.com에 임의 데이터 전송)", file=sys.stderr, flush=True)
+    try:
+        return speed.check(speed.measure_upload())
+    except Exception as error:
+        return Check("upload", "업로드 속도", INFO, f"측정 실패: {error}")
 
 
 def _scenes(args: argparse.Namespace) -> int:
@@ -44,6 +58,7 @@ def _scenes(args: argparse.Namespace) -> int:
 def _overlay(args: argparse.Namespace) -> int:
     from .overlay import events
     from .overlay.server import OverlayServer
+    from .overlay.youtube import youtube_source
 
     sources: list[tuple[str, Callable[[], Any]]] = []
     if args.chzzk_api:
@@ -54,6 +69,8 @@ def _overlay(args: argparse.Namespace) -> int:
         sources.append((f"SOOP {channel}", lambda c=channel: events.soop_source(c)))
     for channel in args.twitch or []:
         sources.append((f"Twitch {channel}", lambda c=channel: events.twitch_source(c)))
+    for video in args.youtube or []:
+        sources.append((f"YouTube {video}", lambda v=video: youtube_source(v, args.youtube_key, args.youtube_interval)))
     if args.demo or not sources:
         sources.append(("데모", lambda: events.DemoChat()))
     try:
@@ -65,7 +82,7 @@ def _overlay(args: argparse.Namespace) -> int:
     print(f"  채팅창  {server.url}/chat")
     print(f"  알림    {server.url}/alerts")
     print("  연결: " + ", ".join(label for label, _ in sources))
-    if not (args.chzzk_api or args.chzzk or args.soop or args.twitch):
+    if not (args.chzzk_api or args.chzzk or args.soop or args.twitch or args.youtube):
         print("  채널 미지정, 데모 채팅 표시. 예: debutkit overlay --chzzk 채널주소 --soop 방송국주소")
     if args.clip:
         if not _start_autoclip(server, args):
@@ -175,6 +192,7 @@ def build_parser() -> argparse.ArgumentParser:
     doctor.add_argument("--agency", action="store_true", help="기획사 소속 활동 기준(법인 사용)으로 아바타 점검")
     doctor.add_argument("--port", type=int, default=OVERLAY_PORT, help="오버레이 포트 (기본 %(default)s)")
     doctor.add_argument("--json", action="store_true", help="JSON으로 출력")
+    doctor.add_argument("--speed", action="store_true", help="업로드 속도 측정, 송출 비트레이트 추천 (약 10초, 지정할 때만 외부 연결)")
     doctor.set_defaults(func=_doctor)
 
     scenes = sub.add_parser("scenes", help="OBS에 버튜버 장면 세트(대기, 본방송, 토크, 자리 비움, 엔딩) 만들기")
@@ -195,6 +213,10 @@ def build_parser() -> argparse.ArgumentParser:
     overlay.add_argument("--chzzk-api", action="store_true", help="내 CHZZK 채널을 공식 Open API로 읽기 (debutkit chzzk login 필요, 권장)")
     overlay.add_argument("--soop", action="append", metavar="채널", help="SOOP 방송국 주소 또는 아이디")
     overlay.add_argument("--twitch", action="append", metavar="채널", help="Twitch 채널 이름")
+    overlay.add_argument("--youtube", action="append", metavar="방송", help="YouTube 방송 주소 또는 영상 ID (공식 API, API 키 필요)")
+    overlay.add_argument("--youtube-key", help="YouTube Data API 키 (또는 YOUTUBE_API_KEY)")
+    overlay.add_argument("--youtube-interval", type=float, default=10.0, metavar="초",
+                         help="YouTube 채팅 요청 간격 (기본 %(default)s초, 최소 5초. 짧을수록 할당량 빨리 소진)")
     overlay.add_argument("--demo", action="store_true", help="데모 채팅 함께 표시 (모양 맞추기)")
     overlay.add_argument("--port", type=int, default=OVERLAY_PORT, help="포트 (기본 %(default)s)")
     clip = overlay.add_argument_group("자동 클립")

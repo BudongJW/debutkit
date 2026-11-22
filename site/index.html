@@ -52,9 +52,9 @@
           <a class="text" href="guide.html">사용 설명서</a>
         </div>
         <dl class="facts">
-          <dt>버전</dt><dd>0.4.0</dd>
+          <dt>버전</dt><dd>0.5.0</dd>
           <dt>지원 환경</dt><dd>Windows 64비트 실행 파일, macOS와 Linux는 파이썬 패키지</dd>
-          <dt>방송 플랫폼</dt><dd>치지직, SOOP, Twitch</dd>
+          <dt>방송 플랫폼</dt><dd>치지직, SOOP, Twitch, YouTube</dd>
           <dt>라이선스</dt><dd>Apache-2.0</dd>
         </dl>
       </div>
@@ -76,11 +76,11 @@
         <div class="tablewrap">
           <table>
             <tbody>
-              <tr><th scope="row">배포 형태</th><td>Windows용 압축 파일(zip). 설정 마법사 <code>debutkit-gui.exe</code>, 명령줄 도구 <code>debutkit.exe</code> 포함</td></tr>
+              <tr><th scope="row">배포 형태</th><td>설치 프로그램(setup.exe) 또는 압축 파일(zip). 설정 마법사 <code>debutkit-gui.exe</code>, 명령줄 도구 <code>debutkit.exe</code> 포함</td></tr>
               <tr><th scope="row">지원 환경</th><td>Windows 64비트. Windows 11에서 검증</td></tr>
               <tr><th scope="row">필요 프로그램</th><td>OBS Studio 28 이상(WebSocket 원격 제어 내장)</td></tr>
-              <tr><th scope="row">선택 프로그램</th><td>ffmpeg(자동 클립). 설정 마법사 PC 점검 화면에서 내려받기</td></tr>
-              <tr><th scope="row">설치 방식</th><td>압축 해제 후 실행. 관리자 권한, 파이썬 불필요</td></tr>
+              <tr><th scope="row">선택 프로그램</th><td>ffmpeg(자동 클립). 설치 중 선택 또는 설정 마법사 PC 점검 화면에서 내려받기</td></tr>
+              <tr><th scope="row">설치 방식</th><td>현재 사용자 계정에 설치, 시작 메뉴 바로 가기. zip은 압축 해제 후 실행. 관리자 권한, 파이썬 불필요</td></tr>
               <tr><th scope="row">코드 서명</th><td>미적용. Windows SmartScreen 경고 표시 가능</td></tr>
               <tr><th scope="row">기타 운영체제</th><td>macOS, Linux는 파이썬 패키지로 설치. Python 3.10 이상</td></tr>
             </tbody>
@@ -89,11 +89,12 @@
         <div>
           <h3>설치 절차</h3>
           <ol class="procedure">
-            <li><a href="https://github.com/BudongJW/debutkit/releases/latest">릴리스 페이지</a>에서 <code>debutkit-버전-windows-x64.zip</code> 다운로드</li>
-            <li>압축 해제</li>
-            <li><code>debutkit-gui.exe</code> 실행</li>
+            <li><a href="https://github.com/BudongJW/debutkit/releases/latest">릴리스 페이지</a>에서 <code>debutkit-버전-windows-x64-setup.exe</code> 다운로드</li>
+            <li>실행 후 설치(자동 클립을 쓰면 ffmpeg 내려받기 선택)</li>
+            <li>시작 메뉴에서 debutkit 실행</li>
             <li>마법사 순서대로 진행</li>
           </ol>
+          <p class="alt">설치 없이 사용: <code>debutkit-버전-windows-x64.zip</code> 압축 해제 후 <code>debutkit-gui.exe</code> 실행</p>
           <h3 class="spaced">파이썬 패키지 설치</h3>
           <pre class="wrap"><code>pip install "debutkit[gui] @ git+https://github.com/BudongJW/debutkit"
 debutkit-gui</code></pre>
@@ -118,6 +119,7 @@ debutkit-gui</code></pre>
           <dd><ul>
             <li>메모리, CPU, 그래픽카드, 저장 공간, 마이크, 웹캠, OBS와 원격 제어, 트래킹 프로그램, ffmpeg 점검</li>
             <li>항목별 해결 방법 표시. 설치나 설정 변경 없음</li>
+            <li>업로드 속도 측정과 송출 해상도, 비트레이트 추천(직접 실행 시)</li>
             <li>VRM 모델의 수익화, 법인(기획사) 사용 허락 확인</li>
           </ul></dd>
         </div>
@@ -132,8 +134,9 @@ debutkit-gui</code></pre>
         <div>
           <dt>통합 채팅창과 후원 알림<code>debutkit overlay</code></dt>
           <dd><ul>
-            <li>치지직, SOOP, Twitch 채팅을 OBS 브라우저 소스 한 화면에 표시</li>
-            <li>후원, 구독 알림. 테마, 글자 크기, 줄 수, 사라짐 시간 조절</li>
+            <li>치지직, SOOP, Twitch, YouTube 채팅을 OBS 브라우저 소스 한 화면에 표시</li>
+            <li>후원, 구독, 슈퍼챗, 멤버십 알림</li>
+            <li>테마 5종(그림자, 말풍선, 카드, 외곽선, 밝은 말풍선), 글자 크기, 줄 수, 사라짐 시간을 설정 화면에서 선택</li>
             <li>방송 없이 데모 채팅과 테스트 버튼으로 모양 확인</li>
           </ul></dd>
         </div>
@@ -176,9 +179,9 @@ debutkit-gui</code></pre>
     <div class="wrap">
       <h2>소식</h2>
       <ul class="cards">
+        <li><time datetime="2026-11-22">2026-11-22</time><a href="news.html#v0-5">debutkit 0.5</a><p>YouTube 채팅, 업로드 속도 측정, 채팅창 테마, 설치 프로그램</p></li>
         <li><time datetime="2026-11-22">2026-11-22</time><a href="news.html#v0-4">debutkit 0.4</a><p>PC 점검에 마이크와 웹캠 추가, 새 버전 확인</p></li>
         <li><time datetime="2026-11-22">2026-11-22</time><a href="news.html#v0-3">debutkit 0.3</a><p>ffmpeg 내려받기, 치지직 로그인, 자동 클립 사전 점검, 프로젝트 사이트 개설</p></li>
-        <li><time datetime="2026-11-21">2026-11-21</time><a href="news.html#v0-2">debutkit 0.2</a><p>설정 마법사, 방송 중 자동 클립, Windows 실행 파일</p></li>
       </ul>
     </div>
   </section>

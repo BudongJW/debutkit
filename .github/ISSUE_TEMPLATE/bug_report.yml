@@ -12,7 +12,7 @@ body:
     attributes:
       label: debutkit 버전
       description: "debutkit --version 결과 또는 마법사 창 제목"
-      placeholder: debutkit 0.4.0
+      placeholder: debutkit 0.5.0
     validations:
       required: true
   - type: dropdown
@@ -20,6 +20,7 @@ body:
     attributes:
       label: 설치 형태
       options:
+        - Windows 설치 프로그램(setup.exe)
         - Windows 실행 파일(zip)
         - 파이썬 패키지
     validations:
@@ -41,6 +42,8 @@ body:
         - PC 점검(doctor)
         - OBS 장면(scenes)
         - 채팅창과 알림(overlay)
+        - YouTube 채팅
+        - 업로드 속도 측정
         - 자동 클립
         - 치지직 로그인
         - ffmpeg 내려받기(setup)

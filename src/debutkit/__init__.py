@@ -11,4 +11,4 @@
 채팅 수신, OBS 제어, 급증 판단은 채팅 연결 모듈(``pip install "debutkit[live]"``)을 쓴다.
 """
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"

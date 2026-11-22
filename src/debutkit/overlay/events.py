@@ -24,7 +24,7 @@ _COLOR = re.compile(r"^#[0-9A-Fa-f]{6}$")
 
 @dataclass(frozen=True)
 class OverlayEvent:
-    platform: str  # chzzk | soop | twitch | demo | system
+    platform: str  # chzzk | soop | twitch | youtube | demo | system
     kind: str  # chat | donation | member | system
     name: str
     parts: tuple[tuple[str, str], ...] = ()  # ("text", 글) 또는 ("emote", https 주소)
@@ -309,11 +309,11 @@ class DemoChat:
 
     def make(self) -> OverlayEvent:
         pick = self._random
-        platform = pick.choice(["chzzk", "soop", "twitch"])
+        platform = pick.choice(["chzzk", "soop", "twitch", "youtube"])
         name = pick.choice(SAMPLE_NAMES)
         if pick.random() < 0.12:
             amount, unit = {"chzzk": (float(pick.choice([1000, 5000, 10000])), "원"), "soop": (float(pick.choice([10, 50, 100])), "별풍선"),
-                            "twitch": (float(pick.choice([100, 500])), "bits")}[platform]
+                            "twitch": (float(pick.choice([100, 500])), "bits"), "youtube": (float(pick.choice([2000, 10000])), "원")}[platform]
             return OverlayEvent(platform, "donation", name, (("text", "데뷔 축하해요! 앞으로도 응원할게요"),), amount=amount, unit=unit)
         return OverlayEvent(platform, "chat", name, (("text", pick.choice(SAMPLE_CHATS)),), role="moderator" if pick.random() < 0.05 else "")
 

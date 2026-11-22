@@ -8,10 +8,10 @@
 ### 첫 방송까지, 한 번에.
 
 버튜버 첫 방송 준비를 묶은 오픈소스 키트<br>
-PC 점검, OBS 장면 세트, 치지직 SOOP Twitch 통합 채팅창과 후원 알림, 방송 중 자동 클립
+PC 점검, OBS 장면 세트, 치지직 SOOP Twitch YouTube 통합 채팅창과 후원 알림, 방송 중 자동 클립
 
 <a href="LICENSE"><img alt="license" src="https://img.shields.io/badge/license-Apache--2.0-F7F4FA?style=for-the-badge&labelColor=15131F"></a>
-<img alt="version" src="https://img.shields.io/badge/version-0.4.0-FF4F8B?style=for-the-badge&labelColor=15131F">
+<img alt="version" src="https://img.shields.io/badge/version-0.5.0-FF4F8B?style=for-the-badge&labelColor=15131F">
 <a href="https://github.com/BudongJW/debutkit/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/BudongJW/debutkit/ci.yml?branch=main&style=for-the-badge&label=CI&labelColor=15131F"></a>
 <img alt="python" src="https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white&labelColor=15131F">
 
@@ -24,19 +24,19 @@ PC 점검, OBS 장면 세트, 치지직 SOOP Twitch 통합 채팅창과 후원 �
 | 기능 | 내용 |
 |---|---|
 | **설정 마법사** `debutkit-gui` | PC 점검, 아바타, OBS 장면, 채팅과 알림, 마무리 5단계 안내. 아래 기능 전부 창에서 사용 |
-| PC 점검 `doctor` | 메모리, CPU, 그래픽카드, 저장 공간, 마이크, 웹캠, OBS와 원격 제어, 트래킹 프로그램, ffmpeg 점검과 해결 방법 표시. `--avatar model.vrm --agency` 로 VRM 모델의 수익화, 법인(기획사) 사용 허락 확인 |
+| PC 점검 `doctor` | 메모리, CPU, 그래픽카드, 저장 공간, 마이크, 웹캠, OBS와 원격 제어, 트래킹 프로그램, ffmpeg 점검과 해결 방법 표시. `--avatar model.vrm --agency` 로 VRM 모델의 수익화, 법인(기획사) 사용 허락 확인. `--speed` 로 업로드 속도 측정, 송출 비트레이트 추천 |
 | OBS 장면 `scenes` | 장면 5종(대기 화면, 본방송, 토크, 자리 비움, 엔딩) 자동 생성. 아바타 투명 배경 캡처, 채팅창과 후원 알림 연결. 기존 장면 유지. `--replay-buffer` 로 자동 클립용 리플레이 버퍼 설정 |
-| 채팅과 알림 `overlay` | OBS 브라우저 소스용 통합 채팅창(`/chat`), 후원과 구독 알림(`/alerts`). 치지직(공식 API 또는 시청자 읽기), SOOP, Twitch. 데모 채팅, 테스트 버튼 |
+| 채팅과 알림 `overlay` | OBS 브라우저 소스용 통합 채팅창(`/chat`), 후원과 구독 알림(`/alerts`). 치지직(공식 API 또는 시청자 읽기), SOOP, Twitch, YouTube(공식 API). 테마 5종, 데모 채팅, 테스트 버튼 |
 | 자동 클립 `overlay --clip` | 채팅 급증 또는 방장, 매니저의 `!clip` 시 OBS 리플레이 버퍼를 클립으로 저장. 동시 송출 시 전 플랫폼 채팅 합산 |
 | 준비 도구 `setup`, `chzzk` | ffmpeg 내려받기(`setup --ffmpeg`), 새 버전 확인(`setup --check-update`), 치지직 공식 API 로그인(`chzzk login`) |
 
 ## 빠른 시작
 
-**Windows 실행 파일**
+**Windows**
 
-- [릴리스](https://github.com/BudongJW/debutkit/releases)에서 `debutkit-버전-windows-x64.zip` 다운로드, 압축 해제
-- `debutkit-gui.exe` 실행
-- 파이썬 불필요. 자동 클립용 ffmpeg는 마법사 PC 점검 화면에서 내려받기
+- [릴리스](https://github.com/BudongJW/debutkit/releases/latest)에서 `debutkit-버전-windows-x64-setup.exe` 실행(설치 프로그램, 시작 메뉴에 debutkit 추가)
+- 설치 없이 쓰려면 `debutkit-버전-windows-x64.zip` 압축 해제 후 `debutkit-gui.exe` 실행
+- 파이썬, 관리자 권한 불필요. 자동 클립용 ffmpeg는 설치 중 선택 또는 마법사 PC 점검 화면에서 내려받기
 
 **파이썬 패키지**
 
@@ -52,10 +52,12 @@ debutkit doctor
 debutkit scenes --replay-buffer        # OBS 실행, 도구 메뉴의 WebSocket 서버 설정에서 서버 사용 체크 후
 debutkit setup --ffmpeg                # 자동 클립용 ffmpeg (Windows)
 debutkit overlay --chzzk https://chzzk.naver.com/live/채널ID --soop https://play.sooplive.co.kr/아이디 --clip
+debutkit overlay --youtube https://www.youtube.com/watch?v=영상ID --youtube-key API키
+debutkit doctor --speed                # 업로드 속도 측정, 비트레이트 추천
 ```
 
 - 오버레이 설정 화면: http://127.0.0.1:8790 (OBS용 주소 복사, 미리보기, 테스트 채팅과 후원, 방장 !clip 시험)
-- 채팅창 모양: `/chat?theme=bubble&font=26&max=10&fade=30&platform=0`
+- 채팅창 모양: 설정 화면에서 선택(테마 shadow, bubble, card, outline, light). 주소 예: `/chat?theme=card&font=26&max=10`
 - 내 치지직 채널: 공식 API 권장. `debutkit chzzk login` 1회 후 `debutkit overlay --chzzk-api`
 - 리플레이 버퍼 최초 설정 시 OBS 재시작 필요
 - 클립 저장 위치: `동영상/debutkit-clips` (`--clip-dir` 로 변경)
@@ -99,7 +101,7 @@ pip install -e ".[gui,dev]"
 pytest -q && ruff check .
 ```
 
-- Windows 실행 파일: `pip install -e ".[gui,build]"` 후 `python packaging/build_windows.py`. 생성한 프로그램을 파이썬 없이 실행해 확인까지 수행
+- Windows 실행 파일: `pip install -e ".[gui,build]"` 후 `python packaging/build_windows.py`. 생성한 프로그램을 파이썬 없이 실행해 확인까지 수행. `--installer` 로 설치 프로그램(Inno Setup 6 필요)
 - 릴리스: CHANGELOG에 버전 항목 작성 후 `v*` 태그 push. GitHub Actions가 zip 첨부, CHANGELOG 항목으로 릴리스 노트 작성
 - 프로젝트 사이트: `site/` 수정 후 `python packaging/build_site.py` 로 확인. main 반영 시 GitHub Pages 자동 배포
 

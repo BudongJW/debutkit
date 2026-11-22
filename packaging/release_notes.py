@@ -36,7 +36,8 @@ def notes(tag: str, changelog: str) -> str:
     lines = [
         "## 설치",
         "",
-        f"- `debutkit-{version}-windows-x64.zip` 다운로드, 압축 해제 후 `debutkit-gui.exe` 실행",
+        f"- 설치 프로그램: `debutkit-{version}-windows-x64-setup.exe` 실행. 시작 메뉴에 debutkit 추가",
+        f"- 설치 없이: `debutkit-{version}-windows-x64.zip` 압축 해제 후 `debutkit-gui.exe` 실행",
         "- 파이썬, 관리자 권한 불필요. 코드 서명 미적용(SmartScreen 경고 시 추가 정보 선택 후 실행)",
         "- 사용 설명서: https://budongjw.github.io/debutkit/guide.html",
         "",

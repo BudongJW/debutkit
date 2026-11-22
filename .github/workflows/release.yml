@@ -1,6 +1,7 @@
 name: Release
 
-# v* 태그를 올리면 Windows 실행 파일을 만들어 GitHub 릴리스에 붙인다.
+# v* 태그를 올리면 Windows 실행 파일(zip)과 설치 프로그램(setup.exe)을 만들어 GitHub 릴리스에 붙인다.
+# 설치 프로그램은 조용한 설치, 설치한 프로그램 실행, 제거까지 확인한다.
 # 직접 실행(workflow_dispatch)하면 릴리스 없이 빌드 결과만 artifact로 남긴다.
 on:
   push:
@@ -13,6 +14,7 @@ permissions:
 jobs:
   windows:
     runs-on: windows-latest
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -24,10 +26,47 @@ jobs:
         run: python packaging/build_windows.py
         env:
           PYTHONIOENCODING: utf-8
+      - name: Installer
+        shell: pwsh
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          $ErrorActionPreference = "Stop"
+          if (-not (Get-Command iscc -ErrorAction SilentlyContinue) -and -not (Test-Path "C:\Program Files (x86)\Inno Setup 6\ISCC.exe")) {
+            choco install innosetup -y --no-progress
+          }
+          python packaging/build_windows.py --installer-only
+          $setup = Get-ChildItem "dist\*-setup.exe" | Select-Object -First 1
+          if (-not $setup) { throw "설치 프로그램 없음" }
+          Write-Host "installer: $($setup.Name) $([math]::Round($setup.Length / 1MB)) MB"
+
+          # 조용한 설치(ffmpeg 작업은 기본 꺼짐), 설치한 프로그램 실행, 제거
+          $target = "$env:RUNNER_TEMP\debutkit-installed"
+          $run = Start-Process $setup.FullName -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/DIR=$target", "/LOG=$env:RUNNER_TEMP\setup.log" -Wait -PassThru
+          if ($run.ExitCode -ne 0) { Get-Content "$env:RUNNER_TEMP\setup.log" -Tail 30; throw "설치 실패 ($($run.ExitCode))" }
+          foreach ($file in "debutkit-gui.exe", "debutkit.exe", "unins000.exe") {
+            if (-not (Test-Path "$target\$file")) { throw "설치 후 $file 없음" }
+          }
+          $menu = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\debutkit.lnk"
+          if (-not (Test-Path $menu)) { throw "시작 메뉴 바로 가기 없음" }
+          $version = (& "$target\debutkit.exe" --version | Out-String).Trim()
+          Write-Host "installed: $version"
+          if ($LASTEXITCODE -ne 0) { throw "설치한 debutkit.exe 실행 실패" }
+          & "$target\debutkit.exe" scenes --dry-run | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw "설치한 debutkit.exe scenes --dry-run 실패" }
+          $remove = Start-Process "$target\unins000.exe" -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART" -Wait -PassThru
+          if ($remove.ExitCode -ne 0) { throw "제거 실패 ($($remove.ExitCode))" }
+          Start-Sleep -Seconds 2
+          if (Test-Path "$target\debutkit.exe") { throw "제거 후 프로그램이 남음" }
+          if (Test-Path $menu) { throw "제거 후 시작 메뉴 바로 가기가 남음" }
+          Write-Host "설치, 실행, 제거 확인"
       - uses: actions/upload-artifact@v7
         with:
           name: debutkit-windows
-          path: dist/*.zip
+          path: |
+            dist/*.zip
+            dist/*-setup.exe
+          if-no-files-found: error
       - name: Attach to release
         if: startsWith(github.ref, 'refs/tags/')
         shell: bash
@@ -40,4 +79,4 @@ jobs:
           else
             gh release create "$GITHUB_REF_NAME" --title "debutkit $GITHUB_REF_NAME" --notes-file notes.md
           fi
-          gh release upload "$GITHUB_REF_NAME" dist/*.zip --clobber
+          gh release upload "$GITHUB_REF_NAME" dist/*.zip dist/*-setup.exe --clobber

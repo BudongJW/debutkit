@@ -28,6 +28,10 @@
     code { background: var(--bg); padding: 1px 6px; border-radius: 5px; font-size: 13px; }
     .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
     #status { color: var(--dim); font-size: 13px; }
+    .opts { display: flex; flex-wrap: wrap; gap: 8px 14px; margin: 10px 0 4px; font-size: 13px; color: var(--dim); }
+    .opts label { display: inline-flex; align-items: center; gap: 6px; }
+    .opts select, .opts input[type=number] { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; font: inherit; }
+    .opts input[type=number] { width: 4.5em; }
   </style>
 </head>
 <body>
@@ -39,7 +43,20 @@
     <section>
       <h2>통합 채팅창</h2>
       <div class="url"><input id="chat-url" readonly><button data-copy="chat-url">복사</button></div>
-      <p class="hint">권장 크기 420x1000. 주소 뒤 옵션: <code>?theme=bubble</code>(말풍선), <code>&amp;font=26</code>(글자 크기), <code>&amp;max=10</code>(줄 수), <code>&amp;fade=30</code>(30초 뒤 사라짐), <code>&amp;platform=0</code>(플랫폼 표시 끄기)</p>
+      <div class="opts">
+        <label>테마 <select id="opt-theme">
+          <option value="shadow">글자 그림자</option>
+          <option value="bubble">말풍선</option>
+          <option value="card">카드(이름 줄 분리)</option>
+          <option value="outline">외곽선 글자</option>
+          <option value="light">밝은 말풍선</option>
+        </select></label>
+        <label>글자 <input id="opt-font" type="number" min="12" max="64" value="22"></label>
+        <label>줄 수 <input id="opt-max" type="number" min="1" max="50" value="12"></label>
+        <label>사라짐(초) <input id="opt-fade" type="number" min="0" max="600" value="0"></label>
+        <label><input id="opt-platform" type="checkbox" checked> 플랫폼 표시</label>
+      </div>
+      <p class="hint">권장 크기 420x1000. 선택한 모양이 위 주소에 반영. 사라짐 0은 계속 표시</p>
       <div class="preview"><iframe id="chat-preview" title="채팅창 미리보기"></iframe></div>
     </section>
     <section>
@@ -63,10 +80,33 @@
 <script>
   "use strict";
   const base = location.origin;
-  document.getElementById("chat-url").value = `${base}/chat`;
-  document.getElementById("alerts-url").value = `${base}/alerts`;
-  document.getElementById("chat-preview").src = "/chat?theme=bubble&font=18&hide=";
-  document.getElementById("alerts-preview").src = "/alerts?seconds=4";
+  const $ = (id) => document.getElementById(id);
+  // 선택한 모양을 채팅창 주소와 미리보기에 반영. 기본값과 같은 항목은 주소에 넣지 않는다
+  const chatQuery = () => {
+    const query = new URLSearchParams();
+    const theme = $("opt-theme").value;
+    if (theme !== "shadow") query.set("theme", theme);
+    // 이름, 기본값, 최솟값, 최댓값
+    for (const [name, fallback, low, high] of [["font", 22, 12, 64], ["max", 12, 1, 50], ["fade", 0, 0, 600]]) {
+      const typed = Math.round(Number($(`opt-${name}`).value));
+      const value = Number.isFinite(typed) ? Math.min(high, Math.max(low, typed)) : fallback;
+      $(`opt-${name}`).value = value;
+      if (value !== fallback) query.set(name, String(value));
+    }
+    if (!$("opt-platform").checked) query.set("platform", "0");
+    return query;
+  };
+  const updateChat = () => {
+    const query = chatQuery();
+    const text = query.toString();
+    $("chat-url").value = `${base}/chat${text ? "?" + text : ""}`;
+    query.set("hide", "");  // 미리보기는 연결 상태, 클립 저장 같은 알림도 표시
+    $("chat-preview").src = `/chat?${query.toString()}`;
+  };
+  for (const id of ["opt-theme", "opt-font", "opt-max", "opt-fade", "opt-platform"]) $(id).addEventListener("change", updateChat);
+  updateChat();
+  $("alerts-url").value = `${base}/alerts`;
+  $("alerts-preview").src = "/alerts?seconds=4";
   for (const button of document.querySelectorAll("[data-copy]")) {
     button.addEventListener("click", async () => {
       const input = document.getElementById(button.dataset.copy);

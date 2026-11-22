@@ -36,7 +36,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from .. import __version__, chzzk, clip, doctor, scenes, tools
+from .. import __version__, chzzk, clip, doctor, scenes, speed, tools
 from ..doctor import FAIL, INFO, JOIN_URL, LABELS, OK, OVERLAY_PORT, SOFTWARE_URL, WARN
 
 STEPS = ["1  PC 점검", "2  아바타", "3  OBS 장면", "4  채팅과 알림", "5  마무리"]
@@ -98,6 +98,7 @@ class Backend:
     chzzk_signed_in: Callable[[], bool] = chzzk.signed_in
     clip_dir: Callable[[], Path] = clip.default_clip_dir
     check_update: Callable[[], str] = field(default=lambda: tools.update_message(__version__))
+    measure_speed: Callable[[], doctor.Check] = field(default=lambda: speed.check(speed.measure_upload()))
     open_url: Callable[[str], Any] = field(default=lambda url: QDesktopServices.openUrl(QUrl(url)))
     open_folder: Callable[[Path], Any] = _open_folder
 
@@ -112,6 +113,7 @@ class Bridge(QObject):
     ffmpeg = Signal(str, bool)  # 안내 문장, 끝났는지
     chzzk = Signal(str)
     update = Signal(str)
+    speed = Signal(object)  # doctor.Check
 
 
 def card(*widgets: QWidget, title: str = "") -> QWidget:
@@ -164,6 +166,7 @@ class Wizard(QMainWindow):
         self.bridge.ffmpeg.connect(self._show_ffmpeg)
         self.bridge.chzzk.connect(self._show_chzzk)
         self.bridge.update.connect(self._show_update)
+        self.bridge.speed.connect(self._show_speed)
         self.server: Any = None
         self.checked: list[doctor.Check] = []
         self._threads: list[threading.Thread] = []
@@ -262,9 +265,13 @@ class Wizard(QMainWindow):
         self.ffmpeg_button.setVisible(False)
         self.ffmpeg_status = text("", muted=True)
         self.ffmpeg_status.setVisible(False)
+        self.speed_button = QPushButton("업로드 속도 측정")
+        self.speed_button.clicked.connect(self.measure_speed)
+        self.speed_result = text("송출 비트레이트 추천. 누를 때만 Cloudflare 측정 서버에 임의 데이터 전송(약 10초)", muted=True)
         layout.addWidget(card(rows, self.check_summary))
-        layout.addWidget(row(self.check_button, self.ffmpeg_button))
+        layout.addWidget(row(self.check_button, self.ffmpeg_button, self.speed_button))
         layout.addWidget(self.ffmpeg_status)
+        layout.addWidget(self.speed_result)
         layout.addStretch(1)
         return page
 
@@ -294,6 +301,24 @@ class Wizard(QMainWindow):
         self.check_button.setEnabled(True)
         missing = any(c.key == "ffmpeg" and c.status != OK for c in checks)
         self.ffmpeg_button.setVisible(missing and self.backend.can_download_ffmpeg())
+
+    def measure_speed(self) -> None:
+        self.speed_button.setEnabled(False)
+        self.speed_result.setText("업로드 속도 측정 중 (약 10초)")
+
+        def job() -> None:
+            try:
+                found = self.backend.measure_speed()
+            except Exception as error:
+                found = doctor.Check("upload", "업로드 속도", INFO, f"측정 실패: {error}")
+            self._emit(self.bridge.speed, found)
+
+        self._run(job)
+
+    def _show_speed(self, found: doctor.Check) -> None:
+        state = LABELS.get(found.status, found.status)
+        self.speed_result.setText(f"[{state}] 업로드 속도 {found.detail}" + (f"\n해결: {found.hint}" if found.hint and found.status != OK else ""))
+        self.speed_button.setEnabled(True)
 
     def download_ffmpeg(self) -> None:
         self.ffmpeg_button.setEnabled(False)
@@ -428,6 +453,12 @@ class Wizard(QMainWindow):
         self.soop.setPlaceholderText("https://play.sooplive.co.kr/아이디")
         self.twitch = QLineEdit()
         self.twitch.setPlaceholderText("채널 이름")
+        self.youtube = QLineEdit()
+        self.youtube.setPlaceholderText("방송 주소 (https://www.youtube.com/watch?v=영상ID)")
+        self.youtube_key = QLineEdit()
+        self.youtube_key.setPlaceholderText("YouTube Data API 키 (저장 안 함)")
+        self.youtube_key.setEchoMode(QLineEdit.EchoMode.Password)
+        self.youtube_key.setText(os.environ.get("YOUTUBE_API_KEY", ""))
         self.chzzk_api = QCheckBox("내 치지직 채널을 공식 API로 읽기 (로그인 필요, 권장)")
         signed_in = self.backend.chzzk_signed_in()
         self.chzzk_api.setChecked(signed_in)
@@ -449,6 +480,7 @@ class Wizard(QMainWindow):
         form.addRow("치지직", self.chzzk)
         form.addRow("SOOP", self.soop)
         form.addRow("Twitch", self.twitch)
+        form.addRow("YouTube", row(self.youtube, self.youtube_key, stretch=0))
         form.addRow("", self.chzzk_api)
         form.addRow("치지직 API", row(self.chzzk_id, self.chzzk_secret, self.chzzk_login_button, stretch=0))
         form.addRow("", self.chzzk_state)
@@ -501,6 +533,11 @@ class Wizard(QMainWindow):
             value = field_.text().strip()
             if value:
                 sources.append((f"{label} {value}", lambda v=value, m=make: m(v)))
+        video, key = self.youtube.text().strip(), self.youtube_key.text().strip() or None
+        if video:
+            from ..overlay.youtube import youtube_source
+
+            sources.append((f"YouTube {video}", lambda: youtube_source(video, key)))
         if self.demo.isChecked() or not sources:
             sources.append(("데모", lambda: events.DemoChat()))
         return sources
@@ -540,7 +577,7 @@ class Wizard(QMainWindow):
     def _overlay_state(self, running: bool) -> None:
         self.overlay_button.setText("오버레이 멈추기" if running else "오버레이 시작")
         self.open_button.setEnabled(running)
-        for widget in (self.chzzk, self.soop, self.twitch, self.chzzk_api, self.chzzk_id, self.chzzk_secret, self.chzzk_login_button,
+        for widget in (self.chzzk, self.soop, self.twitch, self.youtube, self.youtube_key, self.chzzk_api, self.chzzk_id, self.chzzk_secret, self.chzzk_login_button,
                        self.demo, self.autoclip, self.port):
             widget.setEnabled(not running)
 

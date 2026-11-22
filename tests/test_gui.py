@@ -251,3 +251,27 @@ def test_update_check_shows_link(app):
         assert "릴리스 페이지</a>" in window.update_result.text() and window.update_button.isEnabled()
     finally:
         window.close()
+
+
+def test_youtube_field_becomes_a_source(app):
+    window = Wizard(Calls().backend())
+    try:
+        window.youtube.setText("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+        window.youtube_key.setText("KEY")
+        labels = [label for label, _ in window.overlay_sources()]
+        assert labels == ["YouTube https://www.youtube.com/watch?v=dQw4w9WgXcQ"]
+        source = window.overlay_sources()[0][1]()
+        assert source.api_key == "KEY" and source.video == "dQw4w9WgXcQ"
+    finally:
+        window.close()
+
+
+def test_speed_button_shows_advice(app):
+    window = Wizard(Calls().backend(measure_speed=lambda: Check("upload", "업로드 속도", WARN, "5.0 Mbps. 권장 720p 30fps", "유선 연결 권장")))
+    try:
+        window.speed_button.click()
+        assert wait_for(app, lambda: "5.0 Mbps" in window.speed_result.text())
+        assert "[주의]" in window.speed_result.text() and "해결: 유선 연결 권장" in window.speed_result.text()
+        assert window.speed_button.isEnabled()
+    finally:
+        window.close()
