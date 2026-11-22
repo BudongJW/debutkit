@@ -4,11 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>debutkit - 버튜버 방송 준비 소프트웨어</title>
-<meta name="description" content="버튜버 방송 준비용 오픈소스 소프트웨어. PC 점검, OBS 장면 구성, 치지직 SOOP Twitch YouTube 통합 채팅창과 후원 알림, 방송 중 자동 클립.">
+<meta name="description" content="버튜버 방송 준비용 오픈소스 소프트웨어. PC 점검, OBS 장면 구성, 치지직 SOOP Twitch YouTube 통합 채팅창과 후원 알림, 캐릭터 방송, 방송 중 자동 클립.">
 <meta name="theme-color" content="#ffffff">
 <meta property="og:type" content="website">
 <meta property="og:title" content="debutkit - 버튜버 방송 준비 소프트웨어">
-<meta property="og:description" content="PC 점검, OBS 장면 구성, 통합 채팅창과 후원 알림, 방송 중 자동 클립">
+<meta property="og:description" content="PC 점검, OBS 장면 구성, 통합 채팅창과 후원 알림, 캐릭터 방송, 방송 중 자동 클립">
 <meta property="og:url" content="https://budongjw.github.io/debutkit/">
 <meta property="og:image" content="https://budongjw.github.io/debutkit/assets/social.png">
 <link rel="canonical" href="https://budongjw.github.io/debutkit/">
@@ -37,81 +37,159 @@
 </header>
 
 <main id="main">
-  <section class="intro">
-    <div class="wrap">
-      <div>
-        <h1>debutkit</h1>
-        <p class="lead">버튜버 방송 준비용 오픈소스 소프트웨어. 첫 방송 전에 필요한 PC 점검, OBS 장면 구성, 채팅창과 후원 알림 연결, 방송 중 자동 클립 기능을 하나의 프로그램으로 제공합니다.</p>
-        <div class="actions">
-          <a class="btn" href="https://github.com/BudongJW/debutkit/releases/latest">다운로드(Windows, macOS, Linux)</a>
-          <a class="btn secondary" href="guide.html">사용 설명서</a>
-        </div>
-        <dl class="facts">
+  <div class="wrap product">
+    <!-- 화면 모음: 스크립트 없이 라디오 버튼으로 넘김(왼쪽, 오른쪽 방향키도 사용 가능) -->
+    <section class="gallery" aria-label="프로그램 화면">
+      <input class="vh" type="radio" name="shot" id="shot-1" checked aria-label="화면 1, PC 점검">
+      <input class="vh" type="radio" name="shot" id="shot-2" aria-label="화면 2, 캐릭터">
+      <input class="vh" type="radio" name="shot" id="shot-3" aria-label="화면 3, 채팅과 알림">
+      <input class="vh" type="radio" name="shot" id="shot-4" aria-label="화면 4, 채팅창 표시 형태">
+      <input class="vh" type="radio" name="shot" id="shot-5" aria-label="화면 5, 오버레이 설정">
+      <div class="slides">
+        <figure class="slide" id="slide-1">
+          <div class="stage">
+            <img src="assets/shots/wizard-check.png" alt="설정 마법사 PC 점검 단계. 메모리, CPU, 그래픽카드, 마이크, 웹캠, OBS 등 항목별 점검 결과와 조치 안내" width="1200" height="934">
+            <label class="turn prev" for="shot-5"><span class="vh">이전 화면</span></label>
+            <label class="turn next" for="shot-2"><span class="vh">다음 화면</span></label>
+            <span class="count">1/5</span>
+          </div>
+          <figcaption>설정 마법사 PC 점검 단계(예시 PC 기준)</figcaption>
+        </figure>
+        <figure class="slide" id="slide-2">
+          <div class="stage">
+            <img src="assets/shots/wizard-character.png" alt="설정 마법사 캐릭터 단계. 캐릭터 목록과 사용 조건, 3D 캐릭터 동작 등록" width="1200" height="934" loading="lazy">
+            <label class="turn prev" for="shot-1"><span class="vh">이전 화면</span></label>
+            <label class="turn next" for="shot-3"><span class="vh">다음 화면</span></label>
+            <span class="count">2/5</span>
+          </div>
+          <figcaption>설정 마법사 캐릭터 단계</figcaption>
+        </figure>
+        <figure class="slide" id="slide-3">
+          <div class="stage">
+            <img src="assets/shots/wizard-chat.png" alt="설정 마법사 채팅과 알림 단계. 플랫폼별 채널 입력, 치지직 API 로그인, 자동 클립 선택" width="1200" height="934" loading="lazy">
+            <label class="turn prev" for="shot-2"><span class="vh">이전 화면</span></label>
+            <label class="turn next" for="shot-4"><span class="vh">다음 화면</span></label>
+            <span class="count">3/5</span>
+          </div>
+          <figcaption>설정 마법사 채팅과 알림 단계</figcaption>
+        </figure>
+        <figure class="slide" id="slide-4">
+          <div class="stage">
+            <img src="assets/shots/overlay-themes.png" alt="채팅창 표시 형태 3종(shadow, card, light)과 후원 알림" width="1200" height="600" loading="lazy">
+            <label class="turn prev" for="shot-3"><span class="vh">이전 화면</span></label>
+            <label class="turn next" for="shot-5"><span class="vh">다음 화면</span></label>
+            <span class="count">4/5</span>
+          </div>
+          <figcaption>채팅창 표시 형태(shadow, card, light)와 후원 알림</figcaption>
+        </figure>
+        <figure class="slide" id="slide-5">
+          <div class="stage">
+            <img src="assets/shots/overlay-settings.png" alt="오버레이 설정 화면. OBS용 주소 복사, 표시 형태 선택, 미리보기, 캐릭터 화면과 동작 실행" width="1180" height="1340" loading="lazy">
+            <label class="turn prev" for="shot-4"><span class="vh">이전 화면</span></label>
+            <label class="turn next" for="shot-1"><span class="vh">다음 화면</span></label>
+            <span class="count">5/5</span>
+          </div>
+          <figcaption>오버레이 설정 화면</figcaption>
+        </figure>
+      </div>
+      <div class="thumbs">
+        <label for="shot-1"><img src="assets/shots/wizard-check.png" alt="" width="1200" height="934"></label>
+        <label for="shot-2"><img src="assets/shots/wizard-character.png" alt="" width="1200" height="934"></label>
+        <label for="shot-3"><img src="assets/shots/wizard-chat.png" alt="" width="1200" height="934"></label>
+        <label for="shot-4"><img src="assets/shots/overlay-themes.png" alt="" width="1200" height="600"></label>
+        <label for="shot-5"><img src="assets/shots/overlay-settings.png" alt="" width="1180" height="1340"></label>
+      </div>
+    </section>
+
+    <!-- 요약 카드: 화면이 넓으면 오른쪽에 고정 -->
+    <div class="side">
+      <aside class="card" aria-labelledby="product-name">
+        <p class="maker">BudongJW 오픈소스 프로젝트</p>
+        <h1 id="product-name">debutkit</h1>
+        <p class="kind">버튜버 방송 준비 소프트웨어</p>
+        <p class="price">무료</p>
+        <p class="price-note">모든 기능 무상 공개, Apache-2.0</p>
+        <dl class="meta">
           <dt>버전</dt><dd>0.9.0. 1.0 후보 1.0.0rc7 사전 릴리스</dd>
-          <dt>지원 환경</dt><dd>Windows 64비트(설치 프로그램, zip), macOS(Apple Silicon), Linux(x64)</dd>
+          <dt>최근 릴리스</dt><dd>2026-11-23</dd>
+          <dt>지원 환경</dt><dd>Windows 64비트, macOS(Apple Silicon), Linux(x64)</dd>
           <dt>방송 플랫폼</dt><dd>치지직, SOOP, Twitch, YouTube</dd>
           <dt>필요 프로그램</dt><dd>OBS Studio 28 이상</dd>
-          <dt>라이선스</dt><dd>Apache-2.0</dd>
         </dl>
-      </div>
-      <figure>
-        <img src="assets/shots/wizard-check.png" alt="설정 마법사 PC 점검 화면. 메모리, CPU, 그래픽카드, 마이크, 웹캠, OBS 등 항목별 점검 결과와 조치 안내" width="1200" height="934">
-        <figcaption>그림 1. 설정 마법사의 PC 점검 화면(예시 PC 기준)</figcaption>
-      </figure>
+        <details class="files">
+          <summary>배포 파일</summary>
+          <ul>
+            <li>Windows 설치 프로그램 <code>setup.exe</code></li>
+            <li>Windows 압축 파일 <code>zip</code></li>
+            <li>macOS(Apple Silicon) <code>zip</code></li>
+            <li>Linux(x64) <code>tar.gz</code></li>
+            <li>파이썬 패키지(<a href="#download">설치 방법</a>)</li>
+          </ul>
+        </details>
+        <a class="btn primary block" href="https://github.com/BudongJW/debutkit/releases/latest">다운로드</a>
+        <div class="pair">
+          <a class="btn secondary" href="guide.html">사용 설명서</a>
+          <a class="btn secondary" href="https://github.com/BudongJW/debutkit">GitHub</a>
+        </div>
+        <p class="card-note">코드 서명 미적용으로 첫 실행 시 경고가 표시될 수 있습니다. <a href="signing.html">코드 서명 정책</a></p>
+      </aside>
     </div>
-  </section>
 
-  <section class="section" id="features">
-    <div class="wrap">
-      <h2>기능</h2>
-      <p class="sub">설정 마법사에서 모든 기능을 사용할 수 있으며, 같은 기능을 명령줄로도 제공합니다.</p>
-      <div class="tablewrap">
-        <table>
-          <thead><tr><th>기능</th><th>내용</th><th>명령</th></tr></thead>
-          <tbody>
-            <tr><th scope="row">PC 점검</th><td>메모리, CPU, 그래픽카드, 저장 공간, 마이크, 웹캠, OBS, 트래킹 프로그램, ffmpeg 점검 및 조치 안내. 아바타 모델(VRM) 사용 조건 확인, 업로드 속도 측정과 비트레이트 추천</td><td><code>doctor</code></td></tr>
-            <tr><th scope="row">캐릭터</th><td>PNGTuber 이미지, 3D(VRM, GLB, FBX), Live2D 모델 등록과 사용 조건 확인. PNGTuber와 3D는 debutkit 캐릭터 화면으로 바로 방송(OBS 마이크 음량으로 입 움직임, 눈 깜빡임, 웹캠 얼굴 추적). 3D 캐릭터 동작(VRMA, FBX, GLB)으로 기본 동작과 후원 반응. Live2D는 VTube Studio로 보내고 모델 불러오기, 후원 시 단축키 실행. VRM은 Warudo로 보내기. 기본 캐릭터 포함</td><td><code>character</code>, <code>motion</code></td></tr>
-            <tr><th scope="row">OBS 장면 구성</th><td>대기 화면, 본방송, 토크, 자리 비움, 엔딩 장면 생성. 아바타 투명 배경 캡처, 채팅창과 후원 알림 연결, 기존 장면 유지</td><td><code>scenes</code></td></tr>
-            <tr><th scope="row">채팅창과 후원 알림</th><td>치지직, SOOP, Twitch, YouTube 채팅을 OBS 브라우저 소스 하나에 표시. 후원, 구독, 슈퍼챗, 멤버십 알림. 표시 형태 5종</td><td><code>overlay</code></td></tr>
-            <tr><th scope="row">방송 중 자동 클립</th><td>채팅이 방송별 평소 수준보다 크게 증가하거나 스트리머, 매니저가 <code>!clip</code>을 입력하면 OBS 리플레이 버퍼를 클립으로 저장. 동시 송출 시 전 플랫폼 채팅 합산</td><td><code>overlay --clip</code></td></tr>
-            <tr><th scope="row">공식 API 연동</th><td>치지직 Open API 로그인(본인 채널의 채팅, 후원, 구독), YouTube Data API 라이브 채팅</td><td><code>chzzk login</code></td></tr>
-            <tr><th scope="row">준비 도구</th><td>ffmpeg 다운로드(SHA-256 검증), 새 버전 확인</td><td><code>setup</code></td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </section>
+    <div class="body">
+      <nav class="tabs" aria-label="소개 항목">
+        <a href="#about">설명</a>
+        <a href="#download">설치</a>
+        <a href="#principles">운영 원칙</a>
+        <a href="#releases">릴리스</a>
+      </nav>
 
-  <section class="section" id="screens">
-    <div class="wrap">
-      <h2>화면</h2>
-      <p class="sub">실제 프로그램 화면. 채팅 내용과 점검 결과는 예시입니다.</p>
-      <div class="figures">
-        <figure class="wide">
-          <img src="assets/shots/overlay-themes.png" alt="채팅창 표시 형태 3종(shadow, card, light)과 후원 알림" width="1200" height="600" loading="lazy">
-          <figcaption>그림 2. 채팅창 표시 형태(shadow, card, light)와 후원 알림</figcaption>
-        </figure>
-        <figure>
-          <img src="assets/shots/overlay-settings.png" alt="오버레이 설정 화면. OBS용 주소 복사, 표시 형태 선택, 미리보기, 테스트 메시지, 캐릭터 화면" width="1180" height="1340" loading="lazy">
-          <figcaption>그림 3. 오버레이 설정 화면</figcaption>
-        </figure>
-        <figure>
-          <img src="assets/shots/wizard-chat.png" alt="설정 마법사 채팅과 알림 단계. 플랫폼별 채널 입력, 치지직 API 로그인, 자동 클립 선택" width="1200" height="912" loading="lazy">
-          <figcaption>그림 4. 설정 마법사의 채팅과 알림 단계</figcaption>
-        </figure>
-      </div>
-    </div>
-  </section>
+      <section class="part" id="about">
+        <h2>설명</h2>
+        <p>버튜버 방송 준비용 오픈소스 소프트웨어. 첫 방송 전에 필요한 PC 점검, OBS 장면 구성, 채팅창과 후원 알림 연결, 캐릭터 방송, 방송 중 자동 클립을 하나의 프로그램으로 제공합니다.</p>
 
-  <section class="section" id="download">
-    <div class="wrap">
-      <h2>설치</h2>
-      <div class="split">
+        <h3 class="mark">사용 대상</h3>
+        <ul>
+          <li>첫 방송을 준비하는 개인 버튜버</li>
+          <li>치지직, SOOP, Twitch, YouTube에 동시 송출하는 스트리머</li>
+          <li>별도 아바타 프로그램 없이 PNGTuber나 3D 캐릭터로 방송하는 경우</li>
+          <li>OBS 장면과 오버레이를 처음 설정하는 경우</li>
+          <li>기획사 소속 활동 예정으로 아바타 모델의 법인 사용 조건 확인이 필요한 경우</li>
+        </ul>
+
+        <h3 class="mark">주요 기능</h3>
+        <ul class="features">
+          <li><b>PC 점검</b> 메모리, CPU, 그래픽카드, 저장 공간, 마이크, 웹캠, OBS, 트래킹 프로그램, ffmpeg 점검과 조치 안내. 업로드 속도 측정과 비트레이트 추천 <code>doctor</code></li>
+          <li><b>OBS 장면 구성</b> 대기 화면, 본방송, 토크, 자리 비움, 엔딩 장면 생성. 아바타 투명 배경 캡처, 채팅창과 후원 알림 연결, 기존 장면 유지 <code>scenes</code></li>
+          <li><b>채팅창과 후원 알림</b> 치지직, SOOP, Twitch, YouTube 채팅을 OBS 브라우저 소스 하나에 표시. 후원, 구독, 슈퍼챗, 멤버십 알림. 표시 형태 5종 <code>overlay</code></li>
+          <li><b>캐릭터</b> PNGTuber, 3D(VRM, GLB, FBX), Live2D 등록과 사용 조건 확인. debutkit 캐릭터 화면으로 방송(마이크 음량으로 입 움직임, 눈 깜빡임, 웹캠 얼굴 추적). 기본 캐릭터 포함 <code>character</code></li>
+          <li><b>3D 캐릭터 동작</b> VRMA, Mixamo 등의 FBX, GLB 동작 등록. 대기 중 반복하는 기본 동작과 후원 반응 <code>motion</code></li>
+          <li><b>VTube Studio 연동</b> Live2D 모델 보내기와 불러오기, 후원 시 단축키 실행. VRM은 Warudo로 보내기 <code>vts</code></li>
+          <li><b>방송 중 자동 클립</b> 채팅이 평소보다 크게 증가하거나 스트리머, 매니저가 <code>!clip</code>을 입력하면 OBS 리플레이 버퍼를 클립으로 저장. 동시 송출 시 전 플랫폼 채팅 합산 <code>overlay --clip</code></li>
+          <li><b>공식 API 연동</b> 치지직 Open API 로그인(본인 채널의 채팅, 후원, 구독), YouTube Data API 라이브 채팅 <code>chzzk login</code></li>
+        </ul>
+        <p class="note">설정 마법사에서 모든 기능을 사용할 수 있으며, 같은 기능을 명령줄로도 제공합니다.</p>
+
+        <h3 class="mark">이용 환경</h3>
+        <ul>
+          <li>Windows 64비트(Windows 11에서 검증), macOS 11 이상(Apple Silicon), Linux x64(Ubuntu 22.04 이상 기준)</li>
+          <li>OBS Studio 28 이상. 장면 생성과 자동 클립에는 OBS WebSocket 서버 사용 설정 필요</li>
+          <li>관리자 권한과 파이썬 불필요. 자동 클립용 ffmpeg는 설치 과정이나 설정 마법사에서 다운로드</li>
+          <li>설정 마법사, 명령줄, 오버레이 화면 모두 한국어</li>
+        </ul>
+
+        <h3 class="mark">가격</h3>
+        <ul>
+          <li>무료. 모든 기능을 Apache-2.0으로 공개</li>
+          <li>소속 프로그램 참여 여부와 무관하게 같은 기능 제공(<a href="join.html">참여 안내</a>)</li>
+        </ul>
+      </section>
+
+      <section class="part" id="download">
+        <h2>설치</h2>
         <div class="tablewrap">
           <table>
             <tbody>
               <tr><th scope="row">배포 형태</th><td>Windows 설치 프로그램(setup.exe)과 압축 파일(zip), macOS 앱(debutkit.app), Linux 압축 파일(tar.gz). 설정 마법사와 명령줄 도구 포함</td></tr>
-              <tr><th scope="row">지원 환경</th><td>Windows 64비트(Windows 11에서 검증), macOS 11 이상(Apple Silicon), Linux x64(Ubuntu 22.04 이상 기준)</td></tr>
               <tr><th scope="row">설치 방식</th><td>현재 사용자 계정에 설치, 시작 메뉴 등록. 관리자 권한과 파이썬 불필요</td></tr>
               <tr><th scope="row">선택 구성 요소</th><td>ffmpeg(자동 클립용). 설치 과정 또는 설정 마법사에서 다운로드</td></tr>
               <tr><th scope="row">코드 서명</th><td>Windows 미적용(SmartScreen 경고가 표시될 수 있음). macOS 임시 서명, 공증 미적용(첫 실행 시 Gatekeeper 경고). <a href="signing.html">코드 서명 정책</a></td></tr>
@@ -119,63 +197,96 @@
             </tbody>
           </table>
         </div>
-        <div>
-          <h3>설치 절차</h3>
-          <ol class="procedure">
-            <li><a href="https://github.com/BudongJW/debutkit/releases/latest">릴리스 페이지</a>에서 <code>debutkit-버전-windows-x64-setup.exe</code> 다운로드</li>
-            <li>설치 프로그램 실행. 자동 클립을 사용할 경우 ffmpeg 다운로드 선택</li>
-            <li>시작 메뉴에서 debutkit 실행</li>
-            <li>설정 마법사의 단계별 안내에 따라 진행</li>
-          </ol>
-          <p class="note">설치 없이 사용하려면 <code>debutkit-버전-windows-x64.zip</code>의 압축을 해제한 뒤 <code>debutkit-gui.exe</code>를 실행합니다. macOS와 Linux 설치 방법은 <a href="guide.html#install-unix">사용 설명서</a>에 있습니다.</p>
-          <h3 style="margin-top:24px">파이썬 패키지</h3>
-          <pre class="wrap"><code>pip install "debutkit[gui] @ git+https://github.com/BudongJW/debutkit"
+        <h3>설치 절차(Windows)</h3>
+        <ol class="procedure">
+          <li><a href="https://github.com/BudongJW/debutkit/releases/latest">릴리스 페이지</a>에서 <code>debutkit-버전-windows-x64-setup.exe</code> 다운로드</li>
+          <li>설치 프로그램 실행. 자동 클립을 사용할 경우 ffmpeg 다운로드 선택</li>
+          <li>시작 메뉴에서 debutkit 실행</li>
+          <li>설정 마법사의 단계별 안내에 따라 진행</li>
+        </ol>
+        <p class="note">설치 없이 사용하려면 <code>debutkit-버전-windows-x64.zip</code>의 압축을 해제한 뒤 <code>debutkit-gui.exe</code>를 실행합니다. macOS와 Linux 설치 방법은 <a href="guide.html#install-unix">사용 설명서</a>에 있습니다.</p>
+        <h3>파이썬 패키지</h3>
+        <pre class="wrap"><code>pip install "debutkit[gui] @ git+https://github.com/BudongJW/debutkit"
 debutkit-gui</code></pre>
+      </section>
+
+      <section class="part" id="principles">
+        <h2>운영 원칙</h2>
+        <div class="tablewrap">
+          <table>
+            <tbody>
+              <tr><th scope="row">무상 공개</th><td>모든 기능을 Apache-2.0으로 공개. 소속 프로그램 참여 여부와 무관</td></tr>
+              <tr><th scope="row">정보 수집 없음</th><td>사용 통계 미전송. 오버레이는 이 PC(127.0.0.1)에서만 접속 가능하며 채팅을 저장하지 않음. 업로드 속도 측정과 새 버전 확인만 실행 시 외부 서버에 연결</td></tr>
+              <tr><th scope="row">공식 API 우선</th><td>치지직과 YouTube는 공식 API 사용. 비공식 수신은 다른 채널 시험 용도</td></tr>
+              <tr><th scope="row">기존 프로그램 활용</th><td>트래킹(VTube Studio, VSeeFace 등)과 송출(OBS Studio)은 기존 프로그램을 사용하고, 프로그램 간 설정과 연결을 담당</td></tr>
+            </tbody>
+          </table>
         </div>
-      </div>
-    </div>
-  </section>
+      </section>
 
-  <section class="section" id="principles">
-    <div class="wrap">
-      <h2>운영 원칙</h2>
-      <div class="tablewrap">
-        <table>
-          <tbody>
-            <tr><th scope="row">무상 공개</th><td>모든 기능을 Apache-2.0으로 공개. 소속 프로그램 참여 여부와 무관</td></tr>
-            <tr><th scope="row">정보 수집 없음</th><td>사용 통계 미전송. 오버레이는 이 PC(127.0.0.1)에서만 접속 가능하며 채팅을 저장하지 않음. 업로드 속도 측정과 새 버전 확인만 실행 시 외부 서버에 연결</td></tr>
-            <tr><th scope="row">공식 API 우선</th><td>치지직과 YouTube는 공식 API 사용. 비공식 수신은 다른 채널 시험 용도</td></tr>
-            <tr><th scope="row">기존 프로그램 활용</th><td>트래킹(VTube Studio, VSeeFace 등)과 송출(OBS Studio)은 기존 프로그램을 사용하고, 프로그램 간 설정과 연결을 담당</td></tr>
-          </tbody>
-        </table>
-      </div>
+      <section class="part" id="releases">
+        <h2>최근 릴리스</h2>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>버전</th><th>날짜</th><th>주요 내용</th></tr></thead>
+            <tbody>
+              <tr><th scope="row"><a href="news.html#v1-0-0rc7">1.0.0rc7</a></th><td>2026-11-23</td><td>1.0 후보 7차. 3D 캐릭터 동작(VRMA, Mixamo FBX, GLB) 기본 동작과 후원 반응</td></tr>
+              <tr><th scope="row"><a href="news.html#v1-0-0rc6">1.0.0rc6</a></th><td>2026-11-23</td><td>1.0 후보 6차. 일반 3D 모델(GLB, FBX) 불러오기, 캐릭터 제작 약관 안내</td></tr>
+              <tr><th scope="row"><a href="news.html#v1-0-0rc5">1.0.0rc5</a></th><td>2026-11-22</td><td>1.0 후보 5차. 오버레이 설정 화면의 캐릭터 카드, 캐릭터와 연결 관련 오류 수정</td></tr>
+              <tr><th scope="row"><a href="news.html#v1-0-0rc4">1.0.0rc4</a></th><td>2026-11-22</td><td>1.0 후보 4차. VTube Studio 연동(모델 불러오기, 후원 시 단축키 실행)</td></tr>
+              <tr><th scope="row"><a href="news.html#v1-0-0rc3">1.0.0rc3</a></th><td>2026-11-22</td><td>1.0 후보 3차. 웹캠 얼굴 추적(3D VRM, PNGTuber)</td></tr>
+              <tr><th scope="row"><a href="news.html#v0-9">0.9.0</a></th><td>2026-11-22</td><td>정식 릴리스. 설정 저장, 저장한 설정으로 바로 시작, macOS 종료 오류 수정</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="note">전체 내역: <a href="news.html">릴리스 노트</a></p>
+      </section>
     </div>
-  </section>
+  </div>
 
-  <section class="section" id="releases">
+  <section class="more" aria-labelledby="more-title">
     <div class="wrap">
-      <h2>최근 릴리스</h2>
-      <div class="tablewrap">
-        <table>
-          <thead><tr><th>버전</th><th>날짜</th><th>주요 내용</th></tr></thead>
-          <tbody>
-            <tr><th scope="row"><a href="news.html#v1-0-0rc7">1.0.0rc7</a></th><td>2026-11-23</td><td>1.0 후보 7차. 3D 캐릭터 동작(VRMA, Mixamo FBX, GLB) 기본 동작과 후원 반응</td></tr>
-            <tr><th scope="row"><a href="news.html#v1-0-0rc6">1.0.0rc6</a></th><td>2026-11-23</td><td>1.0 후보 6차. 일반 3D 모델(GLB, FBX) 불러오기, 캐릭터 제작 약관 안내</td></tr>
-            <tr><th scope="row"><a href="news.html#v1-0-0rc5">1.0.0rc5</a></th><td>2026-11-22</td><td>1.0 후보 5차. 오버레이 설정 화면의 캐릭터 카드, 캐릭터와 연결 관련 오류 수정</td></tr>
-            <tr><th scope="row"><a href="news.html#v1-0-0rc4">1.0.0rc4</a></th><td>2026-11-22</td><td>1.0 후보 4차. VTube Studio 연동(모델 불러오기, 후원 시 단축키 실행)</td></tr>
-            <tr><th scope="row"><a href="news.html#v1-0-0rc3">1.0.0rc3</a></th><td>2026-11-22</td><td>1.0 후보 3차. 웹캠 얼굴 추적(3D VRM, PNGTuber)</td></tr>
-            <tr><th scope="row"><a href="news.html#v1-0-0rc2">1.0.0rc2</a></th><td>2026-11-22</td><td>1.0 후보 2차. 캐릭터 등록, PNGTuber와 VRM 캐릭터 화면, VTube Studio로 보내기</td></tr>
-            <tr><th scope="row"><a href="news.html#v1-0-0rc1">1.0.0rc1</a></th><td>2026-11-22</td><td>1.0 후보(사전 릴리스). 실제 환경 확인 참여, 문제 제보 도구, 오류 기록</td></tr>
-            <tr><th scope="row"><a href="news.html#v0-9">0.9.0</a></th><td>2026-11-22</td><td>설정 저장, 저장한 설정으로 바로 시작, macOS 종료 오류 수정</td></tr>
-            <tr><th scope="row"><a href="news.html#v0-7-1">0.7.1</a></th><td>2026-11-22</td><td>코드 서명 정책, 실행 파일 버전 정보, 오픈소스 코드 서명 연동 준비</td></tr>
-            <tr><th scope="row"><a href="news.html#v0-7">0.7.0</a></th><td>2026-11-22</td><td>YouTube 연결 확인, 3개 운영체제 실제 OBS 검증, 서명 절차 정비</td></tr>
-            <tr><th scope="row"><a href="news.html#v0-6">0.6.0</a></th><td>2026-11-22</td><td>macOS, Linux 실행 파일, YouTube 채팅 스트리밍, 실제 OBS 검증</td></tr>
-            <tr><th scope="row"><a href="news.html#v0-5-1">0.5.1</a></th><td>2026-11-22</td><td>표기 정리, 사이트와 화면 디자인 개편</td></tr>
-            <tr><th scope="row"><a href="news.html#v0-5">0.5.0</a></th><td>2026-11-22</td><td>YouTube 채팅, 업로드 속도 측정, 채팅창 표시 형태 추가, 설치 프로그램</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <p class="note">전체 내역: <a href="news.html">릴리스 노트</a></p>
+      <h2 id="more-title">관련 페이지</h2>
+      <ul class="cards">
+        <li>
+          <a href="guide.html">
+            <img src="assets/shots/wizard-character.png" alt="" width="1200" height="934" loading="lazy">
+            <span class="label">문서</span>
+            <strong>사용 설명서</strong>
+            <span class="desc">설치, 설정 마법사, 캐릭터, OBS 장면, 채팅과 알림, 자동 클립 사용 방법</span>
+          </a>
+        </li>
+        <li>
+          <a href="software.html">
+            <img src="assets/shots/overlay-themes.png" alt="" width="1200" height="600" loading="lazy">
+            <span class="label">정리</span>
+            <strong>방송 소프트웨어</strong>
+            <span class="desc">첫 방송에 필요한 소프트웨어 6단계 정리와 라이선스</span>
+          </a>
+        </li>
+        <li>
+          <a href="news.html">
+            <img src="assets/shots/wizard-check.png" alt="" width="1200" height="934" loading="lazy">
+            <span class="label">기록</span>
+            <strong>릴리스 노트</strong>
+            <span class="desc">버전별 주요 변경 사항과 검증 범위</span>
+          </a>
+        </li>
+        <li>
+          <a href="join.html">
+            <img src="assets/shots/wizard-chat.png" alt="" width="1200" height="934" loading="lazy">
+            <span class="label">안내</span>
+            <strong>참여 안내</strong>
+            <span class="desc">프로그램 사용, 개발 참여, 실제 환경 확인, 소속 버튜버 의향 등록</span>
+          </a>
+        </li>
+      </ul>
+
+      <h2 class="keywords-title">키워드</h2>
+      <ul class="tags">
+        <li>#버튜버</li><li>#방송준비</li><li>#OBS</li><li>#치지직</li><li>#SOOP</li><li>#Twitch</li><li>#YouTube</li>
+        <li>#통합채팅</li><li>#후원알림</li><li>#자동클립</li><li>#PNGTuber</li><li>#VRM</li><li>#Live2D</li><li>#오픈소스</li>
+      </ul>
     </div>
   </section>
 </main>
