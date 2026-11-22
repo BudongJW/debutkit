@@ -1,5 +1,26 @@
 # 변경 내역
 
+## 1.0.0rc6 (2026-11-23)
+
+1.0 후보 6차(사전 릴리스). 일반 3D 모델(GLB, FBX) 불러오기, 캐릭터 제작 안내와 약관 경고 보완.
+
+### 추가
+- 일반 3D 모델(GLB, FBX) 등록과 표시: 뼈 이름으로 VRM 사람 모양 뼈(필수 15개)를 찾아 debutkit 캐릭터 화면에서 VRM과 같은 방식으로 움직임(입, 눈, 머리, 호흡, 얼굴 추적). 지원 뼈 이름: Mixamo, VRoid, Unreal, Blender(Rigify, 일반), MMD, Character Creator, 3ds Max Biped, VRM
+- 표정 이름 대응: VRoid, VRChat, Ready Player Me, MMD, 일반 이름. ARKit 52개 표정 모델은 조합으로 입과 눈 표현, 입 모양이 없으면 턱 뼈 회전
+- 센티미터 단위 모델, 뒤를 보는 모델, A자 자세 자동 보정
+- FBX 확인: 파일 구조에서 뼈, 표정, 텍스처 이름 읽기(FBX 7.0 이후, 바이너리와 ASCII, Autodesk SDK 없음). 같은 폴더의 텍스처 함께 복사, 찾지 못한 텍스처와 TGA 경고
+- 뼈와 표정 이름 표(`humanoid.py`, 캐릭터 화면용 `/character/humanoid.json`)
+- three.js FBXLoader(0.187.0)와 의존 파일(fflate 0.8.3, NURBSCurve) 포함
+
+### 변경
+- 캐릭터 제작 안내(설정 마법사, 사용 안내, `docs/CHARACTER.md`): VRoid Studio 지원 운영체제와 VRM 0.0, 1.0 선택, Vket Avatar Maker의 법인(소속사) 사용 사전 확인과 저작권 귀속, Mixamo 자동 리깅과 재배포 금지, Linux 제작 방법, 제작 기능 관련 약관 정리
+- VRM 제작자 정보에 Vket, HIKKY가 있으면 Vket Avatar Maker 약관 경고
+- 확장자가 `.glb`인 VRM 등록, Warudo로 보낼 때 `.vrm`으로 저장
+- `debutkit character list`의 종류 열 너비
+
+### 수정
+- 함께 배포하는 외부 라이브러리 목록(vendor/README.txt)의 잘못된 해시 항목 삭제
+
 ## 1.0.0rc5 (2026-11-22)
 
 1.0 후보 5차(사전 릴리스). 오버레이 설정 화면의 캐릭터 카드, 독립 코드 검토로 찾은 문제 수정.

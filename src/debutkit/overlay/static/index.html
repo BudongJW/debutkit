@@ -133,7 +133,7 @@
   $("character-url").value = `${base}/character`;
   $("character-preview").src = "/character";
   fetch("/character/info").then((r) => r.json()).then((info) => {
-    $("character-name").textContent = `${info.name}(${info.kind === "png" ? "PNGTuber" : info.kind === "vrm" ? "3D VRM" : info.kind === "live2d" ? "Live2D, VTube Studio에서 표시" : info.kind})`;
+    $("character-name").textContent = `${info.name}(${info.kind === "png" ? "PNGTuber" : info.kind === "vrm" ? "3D VRM" : info.kind === "model" ? "3D GLB, FBX" : info.kind === "live2d" ? "Live2D, VTube Studio에서 표시" : info.kind})`;
   }).catch(() => ($("character-name").textContent = "확인하지 못함"));
   // 음량과 말하기 상태(기준 음량 조정에 사용), 얼굴 추적 상태. 브라우저 동시 연결 수 제한 때문에 연결 하나로 받는다
   const live = new EventSource("/live");

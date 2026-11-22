@@ -4,7 +4,7 @@
 - ``/chat``    통합 채팅창 (주소 뒤 ``?theme=bubble&max=12&font=22`` 로 모양 조절)
 - ``/alerts``  후원, 구독 알림
 - ``/events``  화면들이 받는 사건 흐름 (Server-Sent Events)
-- ``/character`` 캐릭터 화면(PNGTuber, VRM). ``?id=캐릭터`` 로 지정, 없으면 방송에 사용할 캐릭터
+- ``/character`` 캐릭터 화면(PNGTuber, VRM, GLB, FBX). ``?id=캐릭터`` 로 지정, 없으면 방송에 사용할 캐릭터
 - ``/live``    캐릭터 화면, 설정 화면이 받는 말하기 상태와 얼굴 추적 값 (Server-Sent Events 하나, ``/voice`` 와 ``/tracking`` 은 각각)
 - ``/tracker`` 얼굴 추적 화면(일반 브라우저에서 열고 카메라 허용). ``POST /tracking`` 으로 값을 보낸다
 - ``POST /test`` 설정 화면의 테스트 메시지, ``POST /voice/test`` 말하기 시험
@@ -40,7 +40,8 @@ STATIC = {"/": "index.html", "/chat": "chat.html", "/alerts": "alerts.html", "/o
 TRACKER_POLICY = ("default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'; img-src 'self' blob: data:; "
                   "media-src 'self' blob: mediastream:; style-src 'self' 'unsafe-inline'; worker-src 'self' blob:; frame-ancestors 'none'")
 TYPES = {".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".svg": "image/svg+xml",
-         ".png": "image/png", ".jpg": "image/jpeg", ".json": "application/json", ".vrm": "model/gltf-binary", ".txt": "text/plain; charset=utf-8",
+         ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".json": "application/json",
+         ".vrm": "model/gltf-binary", ".glb": "model/gltf-binary", ".fbx": "application/octet-stream", ".txt": "text/plain; charset=utf-8",
          ".mjs": "text/javascript; charset=utf-8", ".wasm": "application/wasm", ".task": "application/octet-stream"}
 _SAFE_PATH = re.compile(r"^[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)*$")
 
@@ -154,6 +155,10 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
                 return self._live()
             if path == "/status":
                 return self._send(HTTPStatus.OK, json.dumps({"listeners": hub.listeners}).encode(), "application/json")
+            if path == "/character/humanoid.json":  # GLB, FBX의 뼈와 표정 이름 표(humanoid.py)
+                from .. import humanoid
+
+                return self._send(HTTPStatus.OK, json.dumps(humanoid.table(), ensure_ascii=False).encode(), "application/json")
             if path == "/character/info":
                 return self._character_info(urllib.parse.parse_qs(query).get("id", [""])[0])
             if path.startswith("/character/files/"):

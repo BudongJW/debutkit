@@ -238,7 +238,7 @@ def _chzzk_logout(args: argparse.Namespace) -> int:
 def _describe(item: Any, active_id: str) -> str:
     mark = "* " if item.id == active_id else "  "
     note = f"  확인 필요 {len(item.warnings)}건" if item.warnings else ""
-    return f"{mark}{item.id:20} {item.kind_name:10} {item.name}{note}"
+    return f"{mark}{item.id:20} {item.kind_name:12} {item.name}{note}"
 
 
 def _character(args: argparse.Namespace) -> int:
@@ -448,10 +448,11 @@ def build_parser() -> argparse.ArgumentParser:
     saved.add_argument("--save", action="store_true", help="이번 실행의 채널과 옵션을 저장 (API 키, 비밀번호 제외)")
     overlay.set_defaults(func=_overlay, overlay_defaults={dest: overlay.get_default(dest) for dest in OVERLAY_SETTINGS})
 
-    chars = sub.add_parser("character", help="캐릭터 등록, 확인, 방송 사용(PNGTuber, VRM, Live2D)")
+    chars = sub.add_parser("character", help="캐릭터 등록, 확인, 방송 사용(PNGTuber, VRM, GLB, FBX, Live2D)")
     chars_sub = chars.add_subparsers(dest="character_command", required=True)
     chars_sub.add_parser("list", help="등록한 캐릭터 목록")
-    add = chars_sub.add_parser("add", help="캐릭터 등록: VRM 파일, Live2D 폴더나 zip(model3.json), PNG 폴더(idle.png, talk.png), Inochi2D")
+    add = chars_sub.add_parser("add", help="캐릭터 등록: VRM, GLB, FBX(Mixamo 등 사람 모양 뼈), Live2D 폴더나 zip(model3.json), "
+                                           "PNG 폴더(idle.png, talk.png), Inochi2D")
     add.add_argument("path", metavar="경로")
     add.add_argument("--name", help="표시할 이름")
     png = chars_sub.add_parser("png", help="상태별 PNG 이미지로 PNGTuber 캐릭터 만들기")

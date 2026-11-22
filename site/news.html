@@ -43,6 +43,7 @@
       <nav class="toc" aria-label="버전 목록">
         <h2>버전</h2>
         <ul>
+          <li><a href="#v1-0-0rc6">1.0.0rc6</a></li>
           <li><a href="#v1-0-0rc5">1.0.0rc5</a></li>
           <li><a href="#v1-0-0rc4">1.0.0rc4</a></li>
           <li><a href="#v1-0-0rc3">1.0.0rc3</a></li>
@@ -62,6 +63,27 @@
       </nav>
 
       <div>
+        <article class="release" id="v1-0-0rc6">
+          <h2>1.0.0rc6</h2>
+          <p class="date">2026-11-23, 사전 릴리스(1.0 후보 6차)</p>
+          <h3>추가</h3>
+          <ul>
+            <li>일반 3D 모델(GLB, FBX) 등록과 방송: Mixamo, VRoid, Unreal, Blender, MMD 등의 뼈 이름을 읽어 debutkit 캐릭터 화면에서 VRM과 같은 방식으로 움직임(입, 눈, 머리, 호흡, 얼굴 추적)</li>
+            <li>표정 이름 대응: VRoid, VRChat, Ready Player Me, MMD 이름과 ARKit 표정(퍼펙트 싱크). 입 모양이 없으면 턱 뼈 사용</li>
+            <li>센티미터 단위, 뒤를 보는 모델, A자 자세 자동 보정</li>
+          </ul>
+          <h3>변경</h3>
+          <ul>
+            <li>캐릭터 제작 안내: VRM 0.0과 1.0 선택, Vket Avatar Maker의 법인 사용 조건과 저작권, Mixamo 자동 리깅, Linux 제작 방법</li>
+            <li>Vket Avatar Maker로 만든 VRM으로 보이면 등록 시 약관 경고</li>
+          </ul>
+          <h3>검증 범위</h3>
+          <ul>
+            <li>확인: three.js 공식 예제의 Mixamo 캐릭터(FBX, GLB)와 시험용 생성 모델(VRoid, Unreal, Rigify, MMD 뼈 이름, ARKit 표정, 뒤를 보는 센티미터 모델)의 등록, 표시, 얼굴 추적과 말하기 반응</li>
+            <li>미확인: 실제 사용자 모델(Character Creator, 3ds Max, MMD 변환 FBX)</li>
+          </ul>
+        </article>
+
         <article class="release" id="v1-0-0rc5">
           <h2>1.0.0rc5</h2>
           <p class="date">2026-11-22, 사전 릴리스(1.0 후보 5차)</p>

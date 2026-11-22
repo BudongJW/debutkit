@@ -2,6 +2,7 @@
 
 three 0.187.0 (MIT) https://github.com/mrdoob/three.js
   출처 https://cdn.jsdelivr.net/npm/three@0.187.0/ (build, examples/jsm 일부)
+  examples/jsm: GLTFLoader, FBXLoader(GLB, FBX 캐릭터)와 의존 파일 libs/fflate.module.js(fflate 0.8.3, MIT), curves/NURBSCurve.js, NURBSUtils.js
 @pixiv/three-vrm 3.5.5 (MIT) https://github.com/pixiv/three-vrm
   출처 https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3.5.5/lib/three-vrm.module.min.js
 @mediapipe/tasks-vision 1.2.3 (Apache-2.0) https://github.com/google-ai-edge/mediapipe
@@ -11,7 +12,6 @@ MediaPipe Face Landmarker 모델 face_landmarker.task (float16, 버전 1, Apache
   출처 https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task
 
 SHA-256
-  380f87850de8087e8fd67a8c97471ba3ba870c92f3b54b4a4be04314e666d0c7  README.txt.new
   cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30  mediapipe/LICENSE
   64184e229b263107bc2b804c6625db1341ff2bb731874b0bcc2fe6544e0bc9ff  mediapipe/face_landmarker.task
   fb0c02c296f44ce0cc324ba16bd646d8773eb4a7847db4019cc4d0430db7a9b5  mediapipe/vision_bundle.mjs
@@ -22,6 +22,10 @@ SHA-256
   8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc  three/LICENSE
   613e370f76638fdef83926642bf256dc9615684922de1ce1f63a8583e5d78578  three/build/three.core.js
   104f56145899722094556490d787aae0617cc2fc3382f31df02d724ea1aee341  three/build/three.module.js
+  f5aaeff3ed9b659c3d9c599878ede3106d93665e3243e502a09375f2edaed7fa  three/examples/jsm/curves/NURBSCurve.js
+  c6bd7c4137d585098923f189687898ea3e8762ea3ecbe255d749a56353894379  three/examples/jsm/curves/NURBSUtils.js
+  4ab9828cf361a8009b71094ea251e076168de20f72eaa1e745da8aba88c725ac  three/examples/jsm/libs/fflate.module.js
+  04daa9a7054f17838b78a114e7d400c05d08d72afa7b62f2fc1d508909a6df3c  three/examples/jsm/loaders/FBXLoader.js
   532ac726e120039acbcd6cf54328c57acbf7b438176afaa6951257126d11bff1  three/examples/jsm/loaders/GLTFLoader.js
   7bda2a8ba836b2bcf67cb938d4b9e1bb5d1b1bc616817103ed858c0b58296ce7  three/examples/jsm/utils/BufferGeometryUtils.js
   b1632a703206c3d830de9fcbe515696770d04b71a15ee6b50afa6d2c3298c86f  three/examples/jsm/utils/SkeletonUtils.js

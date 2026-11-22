@@ -9,7 +9,7 @@
 PC 점검, OBS 장면 구성, 통합 채팅창과 후원 알림, 방송 중 자동 클립
 
 <a href="LICENSE"><img alt="license" src="https://img.shields.io/badge/license-Apache--2.0-1E2327?style=flat-square"></a>
-<img alt="version" src="https://img.shields.io/badge/version-1.0.0rc5-BF3B68?style=flat-square">
+<img alt="version" src="https://img.shields.io/badge/version-1.0.0rc6-BF3B68?style=flat-square">
 <a href="https://github.com/BudongJW/debutkit/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/BudongJW/debutkit/ci.yml?branch=main&style=flat-square&label=CI"></a>
 <img alt="python" src="https://img.shields.io/badge/Python-3.10%2B-1E2327?style=flat-square">
 
@@ -63,7 +63,7 @@ debutkit setup --ffmpeg                # 자동 클립용 ffmpeg 다운로드(Wi
 debutkit overlay --chzzk https://chzzk.naver.com/live/채널ID --soop https://play.sooplive.co.kr/아이디 --clip
 debutkit overlay --youtube https://www.youtube.com/watch?v=영상ID --youtube-key API키
 debutkit youtube check https://www.youtube.com/watch?v=영상ID --youtube-key API키   # 방송 전 YouTube 연결 확인
-debutkit character add 모델.vrm                 # 캐릭터 등록(VRM, Live2D 폴더나 zip, PNG는 character png)
+debutkit character add 모델.vrm                 # 캐릭터 등록(VRM, GLB, FBX, Live2D 폴더나 zip, PNG는 character png)
 debutkit character use 캐릭터                     # 방송에 사용. OBS 브라우저 소스 http://127.0.0.1:8790/character
 debutkit overlay --chzzk 채널주소 --clip --save   # 채널과 옵션 저장
 debutkit overlay --saved                         # 다음 방송부터 저장한 설정으로 실행

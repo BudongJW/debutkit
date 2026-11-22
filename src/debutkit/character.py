@@ -1,9 +1,10 @@
-"""캐릭터 등록과 확인: PNGTuber 이미지, VRM(3D), Live2D, Inochi2D.
+"""캐릭터 등록과 확인: PNGTuber 이미지, VRM(3D), 일반 3D 모델(GLB, FBX), Live2D, Inochi2D.
 
 - 등록하면 파일을 이 PC의 캐릭터 보관함(저장 설정과 같은 폴더의 ``characters``)에 복사하고 ``character.json`` 에 정보를 적는다
-- 확인은 공개 규격만으로 한다(독점 SDK 없음): VRM은 glTF 바이너리의 JSON, Live2D는 model3.json과 moc3 머리글,
-  PNG는 IHDR 머리글, Inochi2D는 파일 머리글
-- 방송: PNGTuber와 VRM은 debutkit 캐릭터 화면(오버레이 ``/character``)이 표시, Live2D는 VTube Studio로 전달(라이선스, docs/CHARACTER.md)
+- 확인은 공개 규격만으로 한다(독점 SDK 없음): VRM, GLB는 glTF 바이너리의 JSON, FBX는 파일 구조(노드 이름),
+  Live2D는 model3.json과 moc3 머리글, PNG는 IHDR 머리글, Inochi2D는 파일 머리글
+- GLB, FBX는 뼈 이름으로 VRM 사람 모양 뼈를 찾는다(humanoid.py). 캐릭터 화면이 같은 표로 VRM처럼 움직인다
+- 방송: PNGTuber, VRM, GLB, FBX는 debutkit 캐릭터 화면(오버레이 ``/character``)이 표시, Live2D는 VTube Studio로 전달(라이선스, docs/CHARACTER.md)
 """
 
 from __future__ import annotations
@@ -18,16 +19,18 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
-from . import settings
+from . import humanoid, settings
 
-KINDS = {"png": "PNGTuber", "vrm": "3D(VRM)", "live2d": "Live2D", "inochi2d": "Inochi2D"}
+KINDS = {"png": "PNGTuber", "vrm": "3D(VRM)", "model": "3D(GLB, FBX)", "live2d": "Live2D", "inochi2d": "Inochi2D"}
 #: PNGTuber 상태: 입 다묾, 입 벌림, 눈 감음, 입 벌리고 눈 감음
 PNG_STATES = ("idle", "talk", "blink", "talk_blink")
 STATE_NAMES = {"idle": "입 다묾", "talk": "입 벌림", "blink": "눈 감음", "talk_blink": "입 벌리고 눈 감음"}
 SAMPLE_ID = "debutkit"
 MAX_ZIP_BYTES = 1024 * 1024 * 1024  # 압축 해제 후 1 GB
 BROADCAST = {"png": "debutkit 캐릭터 화면", "vrm": "debutkit 캐릭터 화면, Warudo, VMagicMirror, VSeeFace(VRM 0.x)",
-             "live2d": "VTube Studio", "inochi2d": "Inochi Session"}
+             "model": "debutkit 캐릭터 화면", "live2d": "VTube Studio", "inochi2d": "Inochi Session"}
+#: 캐릭터 화면이 불러오는 텍스처 이미지(FBX 외부 텍스처). TGA는 표시하지 않음
+TEXTURE_SUFFIXES = (".png", ".jpg", ".jpeg", ".webp")
 
 
 class CharacterError(ValueError):
@@ -39,7 +42,7 @@ class Character:
     id: str
     name: str
     kind: str
-    files: dict[str, str]  # 역할 -> 보관함 폴더 기준 상대 경로. png: 상태별 이미지, vrm: model, live2d: model(model3.json), inochi2d: model
+    files: dict[str, str]  # 역할 -> 보관함 폴더 기준 상대 경로. png: 상태별 이미지, vrm: model, model: model과 texture1.., live2d: model(model3.json), inochi2d: model
     author: str = ""
     version: str = ""  # VRM 0.x, 1.0 / Live2D model3 버전
     thumbnail: str = ""
@@ -57,8 +60,8 @@ class Character:
 
     @property
     def renders_in_overlay(self) -> bool:
-        """debutkit 캐릭터 화면에 표시할 수 있는지(PNGTuber, VRM)."""
-        return self.kind in ("png", "vrm")
+        """debutkit 캐릭터 화면에 표시할 수 있는지(PNGTuber, VRM, GLB, FBX)."""
+        return self.kind in ("png", "vrm", "model")
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -166,6 +169,7 @@ def vrm_details(gltf: dict[str, Any], binary: bytes = b"") -> dict[str, Any]:
             warnings.append("법인(소속사) 사용 불가. 개인 수익 방송은 가능")
         if (meta.get("creditNotation") or "required") == "required":
             license_.append("크레딧 표기 필요")
+        warnings += _maker_warnings(meta)
         details = {"version": f"VRM {vrm.get('specVersion') or '1.0'}", "name": meta.get("name") or "", "author": ", ".join(meta.get("authors") or []),
                    "thumbnail": _image_bytes(gltf, binary, meta.get("thumbnailImage"))}
     elif isinstance((extensions.get("VRM") or {}).get("meta"), dict):
@@ -180,6 +184,7 @@ def vrm_details(gltf: dict[str, Any], binary: bytes = b"") -> dict[str, Any]:
             warnings.append("수익 방송(후원, 광고) 불가")
         else:
             warnings.append("VRM 0.x는 법인(소속사) 사용 여부를 따로 표시하지 않음. 소속사 활동은 제작자에게 확인")
+        warnings += _maker_warnings(meta)
         texture = meta.get("texture")
         source = None
         textures = gltf.get("textures") or []
@@ -190,6 +195,14 @@ def vrm_details(gltf: dict[str, Any], binary: bytes = b"") -> dict[str, Any]:
         raise CharacterError("VRM 정보(VRM 또는 VRMC_vrm 확장) 없음: 일반 glTF 모델은 VRoid Studio, Blender VRM Add-on으로 VRM 변환 필요")
     details.update(license=license_, warnings=warnings)
     return details
+
+
+def _maker_warnings(meta: dict[str, Any]) -> list[str]:
+    """제작 도구별 약관 경고. Vket Avatar Maker 출력으로 보이면(meta의 문자열에 Vket, HIKKY) 저작권과 법인 사용 조건 안내."""
+    text = " ".join(str(value) for value in meta.values() if isinstance(value, (str, list))).lower()
+    if "vket" in text or "hikky" in text:
+        return ["Vket Avatar Maker로 만든 모델로 보임: 저작권은 HIKKY, 법인(소속사) 사용은 HIKKY 사전 확인 필요, 모델 데이터 배포와 판매 금지"]
+    return []
 
 
 _AVATAR_1 = {"onlyAuthor": "제작자 본인", "onlySeparatelyLicensedPerson": "별도 허락을 받은 사람", "everyone": "모든 사람"}
@@ -258,6 +271,185 @@ def live2d_details(model: Path) -> dict[str, Any]:
             "license": ["Live2D 모델 사용 조건은 판매처, 제작자 약관 확인(영리, 법인 사용, 개변, 크레딧)"], "warnings": warnings}
 
 
+# --------------------------------------------------------------------------- 일반 3D 모델(GLB, FBX)
+
+FBX_MAGIC = b"Kaydara FBX Binary  \x00"
+
+
+def _fbx_binary(data: bytes) -> list[tuple[str, list[Any], list[Any]]]:
+    """FBX 바이너리의 노드 트리(이름, 속성, 자식). 숫자 배열은 건너뛰고 문자열과 원시 자료 길이만 읽는다.
+
+    형식: https://code.blender.org/2013/08/fbx-binary-file-format-specification/ (7.5부터 노드 머리글 64비트)
+    """
+    version = struct.unpack_from("<I", data, 23)[0]
+    head = struct.Struct("<QQQB" if version >= 7500 else "<IIIB")
+    sizes = {b"Y": 2, b"C": 1, b"I": 4, b"F": 4, b"D": 8, b"L": 8}
+
+    def node(offset: int, depth: int) -> tuple[Any, int]:
+        end, count, _, name_length = head.unpack_from(data, offset)
+        if end == 0:
+            return None, offset + head.size
+        if end > len(data) or depth > 32:
+            raise CharacterError("FBX 파일 구조가 올바르지 않음(손상 또는 다른 형식)")
+        position = offset + head.size
+        name = data[position:position + name_length].decode("utf-8", "replace")
+        position += name_length
+        properties: list[Any] = []
+        for _ in range(count):
+            code = data[position:position + 1]
+            position += 1
+            if code in (b"S", b"R"):
+                size = struct.unpack_from("<I", data, position)[0]
+                raw = data[position + 4:position + 4 + size]
+                properties.append(raw.decode("utf-8", "replace") if code == b"S" else len(raw))
+                position += 4 + size
+            elif code in sizes:
+                properties.append(None)
+                position += sizes[code]
+            elif code in (b"f", b"d", b"l", b"i", b"b"):
+                properties.append(None)
+                position += 12 + struct.unpack_from("<I", data, position + 8)[0]
+            else:
+                raise CharacterError("FBX 파일 구조가 올바르지 않음(손상 또는 다른 형식)")
+        children = []
+        while position < end:
+            child, position = node(position, depth + 1)
+            if child is None:
+                break
+            children.append(child)
+        return (name, properties, children), end
+
+    nodes, position = [], 27
+    while position + head.size <= len(data):
+        found, position = node(position, 0)
+        if found is None:
+            break
+        nodes.append(found)
+    return nodes
+
+
+def fbx_details(path: Path) -> dict[str, Any]:
+    """FBX의 버전, 뼈 이름(LimbNode), 형태 변형 이름(BlendShapeChannel), 텍스처 파일(Video)."""
+    data = path.read_bytes()
+    bones: list[str] = []
+    morphs: list[str] = []
+    textures: list[tuple[str, bool]] = []  # (상대 경로, 파일 안에 포함)
+    if data.startswith(FBX_MAGIC):
+        version = struct.unpack_from("<I", data, 23)[0]
+        try:
+            tree = _fbx_binary(data)
+        except struct.error as error:
+            raise CharacterError(f"FBX 파일을 끝까지 읽지 못함(손상): {path.name}") from error
+        objects = next((children for name, _, children in tree if name == "Objects"), [])
+        for name, properties, children in objects:
+            label = properties[1] if len(properties) > 2 and isinstance(properties[1], str) else ""
+            kind = properties[2] if len(properties) > 2 and isinstance(properties[2], str) else ""
+            if name == "Model" and kind in ("LimbNode", "Root"):
+                bones.append(label.split("\x00\x01")[0])
+            elif name == "Deformer" and kind == "BlendShapeChannel":
+                morphs.append(label.split("\x00\x01")[0])
+            elif name == "Video":
+                fields = {child[0]: child[1][0] for child in children if child[1]}
+                relative = fields.get("RelativeFilename") or fields.get("Filename") or ""
+                if isinstance(relative, str) and relative:
+                    textures.append((relative, bool(fields.get("Content"))))
+    else:
+        text = data.decode("utf-8", "replace")
+        match = re.search(r"FBXVersion:\s*(\d+)", text)
+        if not text.lstrip().startswith(";") or not match:
+            raise CharacterError(f"FBX 파일이 아님: {path.name}")
+        version = int(match.group(1))
+        bones = re.findall(r'Model:\s*-?\d+,\s*"Model::([^"]*)",\s*"(?:LimbNode|Root)"', text)
+        morphs = re.findall(r'Deformer:\s*-?\d+,\s*"SubDeformer::([^"]*)",\s*"BlendShapeChannel"', text)
+        textures = [(name, False) for name in dict.fromkeys(re.findall(r'RelativeFilename:\s*"([^"]+)"', text))]
+    if version < 7000:
+        raise CharacterError(f"FBX {version / 1000:.1f} 형식은 지원하지 않음: FBX 2011(7.0) 이후 형식으로 다시 내보내기")
+    return {"version": f"FBX {version // 1000}.{version % 1000 // 100}", "bones": bones, "morphs": morphs,
+            "textures": list(dict.fromkeys(textures))}
+
+
+def glb_details(gltf: dict[str, Any]) -> dict[str, Any]:
+    """VRM 정보가 없는 GLB의 뼈 이름(스킨 관절), 형태 변형 이름(mesh.extras.targetNames), 외부 이미지."""
+    nodes = gltf.get("nodes") or []
+    joints = [index for skin in gltf.get("skins") or [] if isinstance(skin, dict) for index in skin.get("joints") or []]
+    bones = [str(nodes[index].get("name") or "") for index in dict.fromkeys(joints)
+             if isinstance(index, int) and 0 <= index < len(nodes) and isinstance(nodes[index], dict)]
+    morphs = [str(name) for mesh in gltf.get("meshes") or [] if isinstance(mesh, dict)
+              for name in ((mesh.get("extras") or {}).get("targetNames") or []) if isinstance(mesh.get("extras"), dict)]
+    external = [str(image["uri"]) for image in gltf.get("images") or [] if isinstance(image, dict) and image.get("uri")
+                and not str(image["uri"]).startswith("data:")]
+    return {"version": "GLB(glTF 2.0)", "bones": bones, "morphs": list(dict.fromkeys(morphs)), "external": external}
+
+
+def model_details(model: Path) -> dict[str, Any]:
+    """GLB, FBX를 캐릭터로 쓸 수 있는지 확인. 사람 모양 뼈(VRM 필수 15개)가 없으면 CharacterError."""
+    if model.suffix.lower() == ".fbx":
+        details = fbx_details(model)
+    else:
+        try:
+            details = glb_details(read_glb(model)[0])
+        except CharacterError:
+            raise
+        except (ValueError, TypeError, KeyError, AttributeError, IndexError, struct.error) as error:
+            raise CharacterError(f"GLB 파일 정보를 읽지 못함(손상 또는 다른 형식): {model.name}") from error
+    if not details["bones"]:
+        raise CharacterError("뼈대(스킨)가 없는 3D 모델: 캐릭터로 사용하려면 Mixamo 자동 리깅(무료)이나 VRoid Studio로 뼈를 넣은 파일 필요")
+    bones = humanoid.match_bones(details["bones"])
+    missing = humanoid.missing_bones(bones)
+    if missing:
+        labels = ", ".join(humanoid.bone_label(bone) for bone in missing[:6]) + (f" 외 {len(missing) - 6}개" if len(missing) > 6 else "")
+        raise CharacterError(f"사람 모양 뼈를 찾지 못함({labels}). 지원하는 뼈 이름: Mixamo, VRoid, Unreal, Blender(Rigify), MMD, "
+                             "Character Creator, 3ds Max Biped 방식. 다른 방식은 Mixamo 자동 리깅 후 FBX로 받아 등록")
+    expressions = humanoid.match_expressions(details["morphs"])
+    warnings = []
+    if "aa" not in expressions:
+        warnings.append("입 모양 표정 없음: 턱 뼈로 입 움직임 표현" if "jaw" in bones else "입 모양 표정과 턱 뼈 없음: 말할 때 입이 움직이지 않음")
+    if "blink" not in expressions and "blinkLeft" not in expressions:
+        warnings.append("눈 감기 표정 없음: 눈 깜빡임 미표시")
+    license_ = ["GLB, FBX에는 사용 조건 정보가 없음: 수익 방송, 소속사 사용, 수정 허용 여부를 제작자, 판매처 조건으로 확인"]
+    if any(humanoid.normalize(name).startswith("mixamorig") for name in details["bones"]):
+        license_.append("Mixamo 뼈 이름: Mixamo에서 받은 캐릭터는 방송 사용 가능, 원본 파일 재배포 불가(Adobe Mixamo 약관)")
+    return {"version": details["version"], "name": model.stem, "bones": bones, "expressions": expressions, "license": license_,
+            "warnings": warnings, "textures": details.get("textures", []), "external": details.get("external", [])}
+
+
+def model_textures(model: Path, textures: list[tuple[str, bool]]) -> tuple[list[str], list[str]]:
+    """FBX 외부 텍스처: (모델 폴더 안에서 찾은 상대 경로, 찾지 못한 이름). 파일 안에 포함된 텍스처는 제외."""
+    base = model.parent.resolve()
+    found, missing = [], []
+    for relative, embedded in textures:
+        if embedded:
+            continue
+        cleaned = relative.replace("\\", "/")
+        target = (base / cleaned).resolve()
+        if target.is_file() and target.is_relative_to(base) and target.suffix.lower() in TEXTURE_SUFFIXES:
+            found.append(target.relative_to(base).as_posix())
+        else:
+            missing.append(Path(cleaned).name)
+    return list(dict.fromkeys(found)), list(dict.fromkeys(missing))
+
+
+def _model_character(model: Path) -> Character:
+    details = model_details(model)
+    warnings = list(details["warnings"])
+    if model.suffix.lower() == ".fbx":
+        found, missing = model_textures(model, details["textures"])
+        tga = [name for name in missing if name.lower().endswith(".tga")]
+        others = [name for name in missing if name not in tga]
+        if others:
+            warnings.append(f"텍스처 파일 {len(others)}개를 찾지 못함({', '.join(others[:3])}): 색이 빠질 수 있음. "
+                            "FBX를 텍스처 포함(Embed Media)으로 다시 내보내거나 텍스처를 FBX와 같은 폴더에 두기")
+        if tga:
+            warnings.append("TGA 텍스처는 표시하지 않음: PNG로 바꿔 다시 내보내기")
+        files = {"model": model.name, **{f"texture{number}": path for number, path in enumerate(found, 1)}}
+    else:
+        if details["external"]:
+            warnings.append("GLB 밖의 이미지 파일을 쓰는 모델: 색이 빠질 수 있음. 이미지를 포함한 GLB로 다시 내보내기")
+        files = {"model": model.name}
+    warnings.append("debutkit 캐릭터 화면 전용: Warudo, VSeeFace 등 다른 프로그램에는 VRM 변환 필요")
+    return Character("", details["name"], "model", files, version=details["version"], license=details["license"], warnings=warnings)
+
+
 # --------------------------------------------------------------------------- 등록
 
 
@@ -306,13 +498,21 @@ def detect(path: Path) -> tuple[str, Path]:
         suffix = path.suffix.lower()
         if suffix == ".vrm":
             return "vrm", path
+        if suffix == ".glb":
+            return ("vrm" if _is_vrm(path) else "model"), path
+        if suffix == ".fbx":
+            return "model", path
+        if suffix == ".gltf":
+            raise CharacterError("glTF(.gltf) 파일은 지원하지 않음: Blender 등에서 GLB(.glb)로 내보낸 파일 등록")
+        if suffix in (".pmx", ".pmd"):
+            raise CharacterError("MMD 모델(PMX)은 지원하지 않음: Blender(MMD Tools)에서 FBX나 VRM으로 변환 후 등록")
         if path.name.lower().endswith(".model3.json"):
             return "live2d", path
         if suffix in (".inp", ".inx"):
             return "inochi2d", path
         if suffix == ".png":
             raise CharacterError("PNG 이미지는 상태별로 지정해야 함: debutkit character png --idle 입다문.png --talk 입벌린.png")
-        raise CharacterError(f"지원하지 않는 파일: {path.name}(VRM, Live2D model3.json 또는 zip, 이미지 폴더, Inochi2D)")
+        raise CharacterError(f"지원하지 않는 파일: {path.name}(VRM, GLB, FBX, Live2D model3.json 또는 zip, 이미지 폴더, Inochi2D)")
     if path.is_dir():
         models = _find(path, "*.model3.json")
         if models:
@@ -320,10 +520,22 @@ def detect(path: Path) -> tuple[str, Path]:
         vrms = _find(path, "*.vrm")
         if vrms:
             return "vrm", vrms[0]
+        models = _find(path, "*.glb") + _find(path, "*.fbx")
+        if models:
+            return detect(models[0])
         if any((path / f"{state}.png").is_file() for state in ("idle", "talk")):
             return "png", path
-        raise CharacterError("폴더에서 캐릭터 파일을 찾지 못함(model3.json, .vrm, idle.png와 talk.png)")
+        raise CharacterError("폴더에서 캐릭터 파일을 찾지 못함(model3.json, .vrm, .glb, .fbx, idle.png와 talk.png)")
     raise CharacterError(f"파일 또는 폴더 없음: {path}")
+
+
+def _is_vrm(path: Path) -> bool:
+    """VRM 확장이 있는 GLB(확장자만 .glb인 VRM)."""
+    try:
+        extensions = read_glb(path)[0].get("extensions") or {}
+    except CharacterError:
+        return False
+    return isinstance(extensions, dict) and ("VRM" in extensions or "VRMC_vrm" in extensions)
 
 
 def inspect(path: str | Path) -> Character:
@@ -349,6 +561,8 @@ def inspect(path: str | Path) -> Character:
         details = live2d_details(model)
         return Character("", details["name"], "live2d", {"model": model.name}, version=details["version"], license=details["license"],
                          warnings=details["warnings"])
+    if kind == "model":
+        return _model_character(model)
     with model.open("rb") as handle:
         if model.suffix.lower() == ".inp" and handle.read(8) != b"TRNSRTS\x00":
             raise CharacterError(f"Inochi2D 파일 형식이 아님: {model.name}")
@@ -412,6 +626,12 @@ def add(path: str | Path, name: str = "") -> Character:
                     (folder / f"thumbnail{thumb[1]}").write_bytes(thumb[0])
                     character.thumbnail = f"thumbnail{thumb[1]}"
             return _store(character, name, copy_vrm)
+        if kind == "model":  # 모델 파일과 캐릭터 화면이 불러올 텍스처(하위 폴더 구조 유지)
+            def copy_model(folder: Path) -> None:
+                for relative in character.files.values():
+                    (folder / relative).parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(model.parent / relative, folder / relative)
+            return _store(character, name, copy_model)
         return _store(character, name, lambda folder: shutil.copy2(model, folder / model.name))
 
 
@@ -555,6 +775,6 @@ def send(character: Character, app: str, folder: str | Path | None = None, *, li
         shutil.copytree(source, target, dirs_exist_ok=True, ignore=shutil.ignore_patterns("character.json"))
         return target
     model = source / character.files["model"]
-    target = target_root / model.name
+    target = target_root / (model.stem + ".vrm")  # 확장자가 .glb인 VRM도 .vrm으로(Warudo는 .vrm만 인식)
     shutil.copy2(model, target)
     return target

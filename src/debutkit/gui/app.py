@@ -165,7 +165,7 @@ def _pick_png() -> tuple[str, dict[str, Path]] | None:
 
 
 def _pick_character() -> str | None:
-    path, _ = QFileDialog.getOpenFileName(None, "캐릭터 파일", "", "캐릭터 (*.vrm *.zip *.model3.json *.inp *.inx);;모든 파일 (*)")
+    path, _ = QFileDialog.getOpenFileName(None, "캐릭터 파일", "", "캐릭터 (*.vrm *.glb *.fbx *.zip *.model3.json *.inp *.inx);;모든 파일 (*)")
     return path or None
 
 
@@ -504,7 +504,7 @@ class Wizard(QMainWindow):
         page = QWidget()
         layout = QVBoxLayout(page)
         layout.addWidget(self._title("캐릭터", "방송에 사용할 캐릭터를 등록하거나 만들고 사용 조건을 확인합니다. "
-                                              "PNGTuber와 3D(VRM)는 debutkit 캐릭터 화면으로 바로 방송할 수 있습니다."))
+                                              "PNGTuber와 3D(VRM, GLB, FBX)는 debutkit 캐릭터 화면으로 바로 방송할 수 있습니다."))
         self.characters = QListWidget()
         self.characters.setObjectName("Characters")
         self.characters.setMaximumHeight(140)
@@ -530,8 +530,11 @@ class Wizard(QMainWindow):
                               title="내 캐릭터"))
         create = text(
             "<b>PNGTuber</b>: 입 다문 이미지와 입 벌린 이미지(투명 PNG, 같은 크기) 2장으로 시작. 눈 감은 이미지를 더하면 눈 깜빡임 표시<br>"
-            '<b>3D(VRM)</b>: <a href="https://store.steampowered.com/app/1486350/VRoid_Studio/" style="{0}">VRoid Studio</a>(무료, 한국어) 또는 '
-            '<a href="https://account.vket.com/" style="{0}">Vket Avatar Maker</a>(웹, 무료)로 제작<br>'
+            '<b>3D(VRM)</b>: <a href="https://store.steampowered.com/app/1486350/VRoid_Studio/" style="{0}">VRoid Studio</a>(무료, 한국어, Windows와 macOS) 또는 '
+            '<a href="https://account.vket.com/" style="{0}">Vket Avatar Maker</a>(웹, 무료. 법인, 소속사 사용은 HIKKY 사전 확인)로 제작. '
+            "VSeeFace는 VRM 0.x만 읽으므로 내보낼 때 버전 선택<br>"
+            '<b>3D(GLB, FBX)</b>: 사람 모양 뼈가 있는 모델 등록 가능. 뼈가 없으면 '
+            '<a href="https://www.mixamo.com/" style="{0}">Mixamo</a>(무료) 자동 리깅 후 FBX로 받아 등록<br>'
             '<b>Live2D</b>: <a href="https://www.live2d.com/en/cubism/about/" style="{0}">Live2D Cubism Editor</a>(FREE 버전 제한 있음). '
             "일러스트 PSD를 리거에게 의뢰하는 방식이 일반적<br>"
             '<a href="https://github.com/BudongJW/debutkit/blob/main/docs/CHARACTER.md" style="{0}">제작 도구, 파일 형식, 라이선스 정리</a>'.format(LINK),
