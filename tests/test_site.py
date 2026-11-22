@@ -39,6 +39,13 @@ def test_site_has_no_broken_internal_links(tmp_path):
     assert build_site.broken_links(built) == []
 
 
+def test_relative_output_folder(tmp_path, monkeypatch):
+    """Pages 워크플로처럼 상대 경로(-o _site)로 만들어도 #id 링크를 제대로 찾는다."""
+    monkeypatch.chdir(tmp_path)
+    built = build_site.build("_site")
+    assert build_site.broken_links(Path("_site")) == [] and built.name == "_site"
+
+
 def test_broken_link_is_found(tmp_path):
     (tmp_path / "index.html").write_text('<a href="missing.html">x</a><a href="#top">y</a><a href="https://example.com">z</a>', encoding="utf-8")
     assert build_site.broken_links(tmp_path) == ["index.html: missing.html", "index.html: #top"]

@@ -45,12 +45,13 @@ def internal_links(page: Path) -> list[str]:
 
 def broken_links(site: Path) -> list[str]:
     """깨진 내부 링크 목록 ("페이지: 링크"). 파일과 ``#id`` 둘 다 확인한다."""
+    site = Path(site).resolve()  # 상대 경로(-o _site)여도 링크 대상과 같은 기준으로 비교
     ids = {page: set(_ID.findall(page.read_text(encoding="utf-8"))) for page in site.rglob("*.html")}
     broken = []
     for page in sorted(ids):
         for link in internal_links(page):
             path, _, anchor = link.partition("#")
-            target = (page.parent / path).resolve() if path else page.resolve()
+            target = (page.parent / path).resolve() if path else page
             if target.is_dir():
                 target = target / "index.html"
             if not target.is_file():
