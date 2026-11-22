@@ -37,9 +37,31 @@ UNUSED_QT = ("qt6quick", "qtquick", "qt6qml", "qtqml", "qt6pdf", "qtpdf", "qpdf"
 
 
 def unused(dest: str) -> bool:
-    """묶음에서 뺄 Qt 파일인지(debutkit.spec에서 사용)."""
+    """묶음에서 뺄 Qt 파일인지."""
     name = dest.replace("\\", "/").lower()
     return "pyside6/" in name and any(part in name for part in UNUSED_QT)
+
+
+def dropped(entry: tuple[Any, ...]) -> bool:
+    """PyInstaller 목록(TOC)에서 뺄 항목(debutkit.spec에서 사용).
+
+    macOS에서 PyInstaller가 만드는 최상위 바로 가기(예: Contents/Frameworks/QtPdf, 형식 SYMLINK)는
+    이름에 PySide6 경로가 없으므로 가리키는 대상으로 판단한다. 남기면 대상이 없는 바로 가기가 되어 서명 검증 실패.
+    """
+    dest, source, kind = str(entry[0]), str(entry[1]), entry[2] if len(entry) > 2 else ""
+    return unused(dest) or (kind == "SYMLINK" and unused(source))
+
+
+def remove_broken_links(item: Path) -> list[str]:
+    """대상이 없는 바로 가기 삭제(서명 검증과 공증은 이를 오류로 처리)."""
+    removed = []
+    for folder, dirs, files in os.walk(item):
+        for name in dirs + files:
+            path = Path(folder) / name
+            if path.is_symlink() and not path.exists():
+                path.unlink()
+                removed.append(path.relative_to(item).as_posix())
+    return removed
 
 
 def project_version() -> str:
@@ -168,6 +190,9 @@ def main(argv: list[str] | None = None) -> int:
     for name in ("LICENSE", "README.md"):
         target = item / "Contents" / "Resources" if sys.platform == "darwin" else item
         shutil.copy2(ROOT / name, target / name)
+    broken = remove_broken_links(item)
+    if broken:
+        print(f"  대상이 없는 바로 가기 {len(broken)}개 삭제: " + ", ".join(broken[:8]))
     if sys.platform == "darwin":  # 파일을 넣은 뒤 서명해야 묶음 서명이 유효
         identity = sign_macos(item)
         print("  서명: " + ("임시 서명(ad-hoc), 강화된 런타임" if identity == "-" else f"{identity}, 강화된 런타임"))

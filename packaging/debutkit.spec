@@ -16,7 +16,7 @@ from PyInstaller.utils.hooks import collect_data_files, collect_submodules, copy
 
 ROOT = Path(SPECPATH).parent
 sys.path.insert(0, SPECPATH)
-from build_app import unused  # noqa: E402
+from build_app import dropped  # noqa: E402
 
 VERSION = re.search(r'__version__ = "([^"]+)"', (ROOT / "src" / "debutkit" / "__init__.py").read_text(encoding="utf-8")).group(1)
 
@@ -44,8 +44,8 @@ else:
 
 def analysis(script):
     result = Analysis([str(ROOT / "packaging" / script)], pathex=[str(ROOT / "src")], datas=datas, hiddenimports=hiddenimports, excludes=excludes)
-    result.binaries = [entry for entry in result.binaries if not unused(entry[0])]
-    result.datas = [entry for entry in result.datas if not unused(entry[0])]
+    result.binaries = [entry for entry in result.binaries if not dropped(entry)]
+    result.datas = [entry for entry in result.datas if not dropped(entry)]
     return result
 
 

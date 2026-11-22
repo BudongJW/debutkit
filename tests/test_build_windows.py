@@ -146,3 +146,28 @@ def test_notarize_submits_waits_staples_and_reports_failure(monkeypatch, tmp_pat
     else:
         raise AssertionError("공증 실패가 보고되지 않음")
     assert ["xcrun", "notarytool", "log", "abc"] == ran[-1][:4] and not any(command[:2] == ["xcrun", "stapler"] for command in ran)
+
+
+def test_framework_shortcuts_follow_their_target():
+    import build_app
+
+    assert build_app.dropped(("QtPdf", "PySide6/Qt/lib/QtPdf.framework/Versions/A/QtPdf", "SYMLINK"))
+    assert build_app.dropped(("PySide6/Qt/lib/QtQuick.framework/Versions/A/QtQuick", "/src/QtQuick", "BINARY"))
+    assert not build_app.dropped(("QtCore", "PySide6/Qt/lib/QtCore.framework/Versions/A/QtCore", "SYMLINK"))
+    assert not build_app.dropped(("QtPdf", "/somewhere/QtPdf", "DATA"))  # 바로 가기가 아니면 이름(PySide6 경로 없음)으로만 판단
+
+
+def test_broken_links_are_removed(tmp_path):
+    import os
+
+    import build_app
+    import pytest
+
+    (tmp_path / "real").write_text("x")
+    try:
+        os.symlink("real", tmp_path / "good")
+        os.symlink("missing", tmp_path / "broken")
+    except OSError:
+        pytest.skip("이 PC는 바로 가기(symlink) 생성 권한 없음")
+    assert build_app.remove_broken_links(tmp_path) == ["broken"]
+    assert (tmp_path / "good").is_symlink() and not (tmp_path / "broken").is_symlink()

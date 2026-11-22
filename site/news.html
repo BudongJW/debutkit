@@ -43,6 +43,7 @@
       <nav class="toc" aria-label="버전 목록">
         <h2>버전</h2>
         <ul>
+          <li><a href="#v0-7">0.7.0</a></li>
           <li><a href="#v0-6">0.6.0</a></li>
           <li><a href="#v0-5-1">0.5.1</a></li>
           <li><a href="#v0-5">0.5.0</a></li>
@@ -54,6 +55,27 @@
       </nav>
 
       <div>
+        <article class="release" id="v0-7">
+          <h2>0.7.0</h2>
+          <p class="date">2026-11-22</p>
+          <h3>추가</h3>
+          <ul>
+            <li>YouTube 연결 확인. 방송 전에 API 키, 라이브 채팅, 요청 방식, 스트리밍 방식을 단계별로 확인(<code>debutkit youtube check</code>, 설정 마법사의 연결 확인 버튼)</li>
+            <li>Windows, macOS 실제 OBS 검증 자동화. Linux와 함께 3개 운영체제에서 장면 생성, 리플레이 버퍼, 자동 클립 저장을 릴리스마다 확인</li>
+            <li>실제 YouTube 서버 검증 자동화. 스트리밍 메서드 경로와 API 키 전달 방식 확인</li>
+          </ul>
+          <h3>변경</h3>
+          <ul>
+            <li>macOS 앱을 강화된 런타임으로 서명. 공증 절차 준비(Apple 개발자 계정 등록 시 적용)</li>
+            <li>Windows 서명 대상에 제거 프로그램 추가, 서명 절차 시험 단계 추가</li>
+          </ul>
+          <h3>검증 범위</h3>
+          <ul>
+            <li>확인: Windows Server 2025(OBS 33.0.2), macOS 26(OBS 33.0.1), Ubuntu 24.04(OBS 32.2.0)의 장면 생성과 자동 클립 저장, 실제 YouTube 서버의 스트리밍 메서드 경로, 자체 서명 인증서를 사용한 Windows 서명 절차, macOS 강화된 런타임 서명 상태의 실행</li>
+            <li>미확인: 실제 API 키와 방송을 사용한 YouTube 채팅 수신, 공인 인증서 서명과 macOS 공증</li>
+          </ul>
+        </article>
+
         <article class="release" id="v0-6">
           <h2>0.6.0</h2>
           <p class="date">2026-11-22</p>

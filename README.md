@@ -9,7 +9,7 @@
 PC 점검, OBS 장면 구성, 통합 채팅창과 후원 알림, 방송 중 자동 클립
 
 <a href="LICENSE"><img alt="license" src="https://img.shields.io/badge/license-Apache--2.0-1E2327?style=flat-square"></a>
-<img alt="version" src="https://img.shields.io/badge/version-0.6.0-BF3B68?style=flat-square">
+<img alt="version" src="https://img.shields.io/badge/version-0.7.0-BF3B68?style=flat-square">
 <a href="https://github.com/BudongJW/debutkit/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/BudongJW/debutkit/ci.yml?branch=main&style=flat-square&label=CI"></a>
 <img alt="python" src="https://img.shields.io/badge/Python-3.10%2B-1E2327?style=flat-square">
 
@@ -61,6 +61,7 @@ debutkit scenes --replay-buffer        # OBS 장면 생성과 리플레이 버�
 debutkit setup --ffmpeg                # 자동 클립용 ffmpeg 다운로드(Windows)
 debutkit overlay --chzzk https://chzzk.naver.com/live/채널ID --soop https://play.sooplive.co.kr/아이디 --clip
 debutkit overlay --youtube https://www.youtube.com/watch?v=영상ID --youtube-key API키
+debutkit youtube check https://www.youtube.com/watch?v=영상ID --youtube-key API키   # 방송 전 YouTube 연결 확인
 ```
 
 - OBS 장면 생성 전 OBS의 도구 메뉴에서 WebSocket 서버 사용 설정 필요
