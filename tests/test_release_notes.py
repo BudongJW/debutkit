@@ -33,6 +33,11 @@ def test_notes_take_the_version_section_with_install_and_compare_link():
     assert "compare/v0.2.0...v0.3.0" in text
 
 
+def test_zip_only_releases_omit_the_installer():
+    text = release_notes.notes("v0.3.0", CHANGELOG, installer=False)
+    assert "setup.exe" not in text and "debutkit-0.3.0-windows-x64.zip" in text
+
+
 def test_oldest_version_has_no_compare_link():
     assert "compare/" not in release_notes.notes("v0.2.0", CHANGELOG)
 

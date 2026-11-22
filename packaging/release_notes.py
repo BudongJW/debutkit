@@ -30,14 +30,15 @@ def previous(changelog: str, version: str) -> str | None:
     return None
 
 
-def notes(tag: str, changelog: str) -> str:
+def notes(tag: str, changelog: str, *, installer: bool = True) -> str:
+    """``installer`` 가 False면 설치 프로그램 줄 생략(0.5.0 이전 릴리스는 zip만 있음)."""
     version = tag.lstrip("v")
     body = section(changelog, version)
-    lines = [
-        "## 설치",
-        "",
-        f"- 설치 프로그램: `debutkit-{version}-windows-x64-setup.exe` 실행. 시작 메뉴에 debutkit 추가",
-        f"- 설치 없이: `debutkit-{version}-windows-x64.zip` 압축 해제 후 `debutkit-gui.exe` 실행",
+    lines = ["## 설치", ""]
+    if installer:
+        lines.append(f"- 설치 프로그램: `debutkit-{version}-windows-x64-setup.exe` 실행. 시작 메뉴에 debutkit 등록")
+    lines += [
+        f"- 압축 파일: `debutkit-{version}-windows-x64.zip` 압축 해제 후 `debutkit-gui.exe` 실행",
         "- 파이썬, 관리자 권한 불필요. 코드 서명 미적용(SmartScreen 경고 시 추가 정보 선택 후 실행)",
         "- 사용 설명서: https://budongjw.github.io/debutkit/guide.html",
         "",
@@ -54,11 +55,13 @@ def notes(tag: str, changelog: str) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     args = sys.argv[1:] if argv is None else argv
+    zip_only = "--zip-only" in args
+    args = [arg for arg in args if arg != "--zip-only"]
     if len(args) != 1:
-        print("사용: python packaging/release_notes.py v0.3.0", file=sys.stderr)
+        print("사용: python packaging/release_notes.py v0.3.0 [--zip-only]", file=sys.stderr)
         return 2
     sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
-    print(notes(args[0], (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")), end="")
+    print(notes(args[0], (ROOT / "CHANGELOG.md").read_text(encoding="utf-8"), installer=not zip_only), end="")
     return 0
 
 
