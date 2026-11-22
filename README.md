@@ -44,7 +44,7 @@ PC 점검, OBS 장면 구성, 통합 채팅창과 후원 알림, 방송 중 자�
 
 ### macOS, Linux
 
-- macOS(Apple Silicon): `debutkit-버전-macos-arm64.zip` 압축 해제 후 debutkit.app 실행. 서명하지 않은 프로그램이므로 첫 실행은 Finder에서 우클릭 후 열기
+- macOS(Apple Silicon): `debutkit-버전-macos-arm64.zip` 압축 해제 후 debutkit.app 실행. 공증하지 않은 프로그램이므로 첫 실행은 Finder에서 우클릭 후 열기
 - Linux(x64): `debutkit-버전-linux-x64.tar.gz` 압축 해제 후 `debutkit/debutkit-gui` 실행. Qt 실행에 `libxcb-cursor0` 등 그래픽 라이브러리 필요
 - 파이썬 패키지로 설치하는 경우(Python 3.10 이상)
 
