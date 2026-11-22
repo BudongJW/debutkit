@@ -215,3 +215,26 @@ def test_signpath_configurations_match_the_release_workflow():
         assert f"artifact-configuration-slug: {slug}" in workflow
     assert build_windows.installer_name("0.8.0", "AMD64") == expected["installer"][0].replace("${version}", "0.8.0").removesuffix(".exe")
     assert "pattern: debutkit-*" in workflow  # 서명 전 파일 artifact를 릴리스에 섞지 않음
+
+
+def test_gui_smoke_retries_only_after_a_signal(capsys):
+    import build_app
+    import pytest
+
+    def fake(codes):
+        started = []
+
+        def popen(command, env):
+            started.append(env["QT_QPA_PLATFORM"])
+            return SimpleNamespace(wait=lambda timeout: codes[len(started) - 1], kill=lambda: None)
+
+        popen.started = started
+        return popen
+
+    signal_then_ok = fake([-10, 0])
+    build_app.smoke_gui(Path("debutkit-gui"), {}, popen=signal_then_ok)
+    assert signal_then_ok.started == ["offscreen", "offscreen"] and "신호 10" in capsys.readouterr().out
+    with pytest.raises(SystemExit, match=r"실패 \(1\)"):
+        build_app.smoke_gui(Path("debutkit-gui"), {}, popen=fake([1, 0]))  # 오류 종료는 다시 시도하지 않음
+    with pytest.raises(SystemExit, match=r"실패 \(-10\)"):
+        build_app.smoke_gui(Path("debutkit-gui"), {}, popen=fake([-10, -10]))

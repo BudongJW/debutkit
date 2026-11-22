@@ -160,15 +160,24 @@ def smoke_test(cli: Path, gui: Path) -> None:
         if done.returncode not in (0, 1):  # doctor는 필요 항목이, setup은 ffmpeg가 없으면 1
             raise SystemExit(f"debutkit {' '.join(args)} 실패 ({done.returncode}): {done.stderr[-800:]}")
         print(f"  debutkit {' '.join(args)}: 정상")
-    process = subprocess.Popen([str(gui)], env={**env, "QT_QPA_PLATFORM": "offscreen", "DEBUTKIT_SMOKE": "1"})
-    try:
-        code = process.wait(timeout=90)
-    except subprocess.TimeoutExpired:
-        process.kill()
-        raise SystemExit("debutkit-gui가 종료되지 않음") from None
-    if code != 0:
-        raise SystemExit(f"debutkit-gui 실패 ({code})")
+    smoke_gui(gui, env)
     print("  debutkit-gui(화면 없이 열고 닫기): 정상")
+
+
+def smoke_gui(gui: Path, env: dict[str, str], *, attempts: int = 2, popen: Callable[..., Any] = subprocess.Popen) -> None:
+    """설정 마법사를 화면 없이 열고 닫는다. 신호로 종료되면(macOS에서 간헐 발생, docs/ROADMAP.md) 경고 후 한 번 더 시도."""
+    for attempt in range(1, attempts + 1):
+        process = popen([str(gui)], env={**env, "QT_QPA_PLATFORM": "offscreen", "DEBUTKIT_SMOKE": "1"})
+        try:
+            code = process.wait(timeout=90)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            raise SystemExit("debutkit-gui가 종료되지 않음") from None
+        if code == 0:
+            return
+        if code > 0 or attempt == attempts:
+            raise SystemExit(f"debutkit-gui 실패 ({code})")
+        print(f"::warning::debutkit-gui가 신호 {-code}로 종료됨({attempt}회차). 다시 시도")
 
 
 def archive(item: Path, dist: Path, name: str, platform_name: str | None = None) -> Path:
