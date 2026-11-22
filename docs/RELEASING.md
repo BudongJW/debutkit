@@ -46,6 +46,43 @@ SignPath Foundation 조건(https://signpath.org/terms, 2026-11-22 확인)과 deb
 | CI에서 소스로 빌드, 릴리스별 수동 승인 | GitHub Actions 빌드. 서명 정책에서 승인자 수동 승인 지정 |
 | 모든 담당자의 다단계 인증(GitHub, SignPath) | 저장소 소유자가 GitHub 다단계 인증 사용 여부 확인 필요 |
 
+### 신청 시기
+
+- 신청서의 평판(Reputation) 항목은 프로젝트가 널리 쓰이거나 신뢰받는다는 근거(언론 보도, 블로그, 다운로드 수, GitHub 통계, 커뮤니티 논의)를 요구
+- 2026-11-22 기준 저장소 생성 2일, 별 0개, 릴리스 다운로드 합계 약 22회(대부분 검증용)로 근거 부족. 사용자 확보 후 신청 권장
+- 신청 기준 예시: 실제 사용자 이슈나 사용 후기, 릴리스 다운로드 수백 회 이상, 외부 소개 글 등 링크로 제시할 수 있는 근거
+
+### 신청서 작성 초안
+
+신청 양식(https://signpath.org/apply, 2026-11-22 확인)의 항목별 입력값. 이름, 이메일, 동의 항목은 신청자가 직접 입력하고 제출. 양식에 reCAPTCHA 적용.
+
+| 항목 | 입력값 |
+|---|---|
+| Project Name | `debutkit` |
+| Repository URL | `https://github.com/BudongJW/debutkit` |
+| Homepage URL | `https://budongjw.github.io/debutkit/` |
+| Download URL | `https://budongjw.github.io/debutkit/#download`. 양식 안내상 이 페이지에 SignPath Foundation 사용 언급 필요. 신청 직전 다운로드 영역의 코드 서명 항목에 `Windows 코드 서명: SignPath Foundation 프로그램 신청 중`을 추가하고, 승인 후 공식 문구로 교체 |
+| Privacy Policy URL | `https://budongjw.github.io/debutkit/signing.html#privacy` |
+| Wikipedia URL | 비움 |
+| Tagline | `Open-source setup kit for VTuber streamers: PC checks, OBS scene setup, a combined chat overlay for CHZZK, SOOP, Twitch and YouTube, and automatic clips.` |
+| Category | `Other`(선택지: Accessibility, AI Tools, Audio, Developer Tools, Educational, Gaming, Graphics, Productivity, Science, Other) |
+| Description | 아래 문단 |
+| Reputation | 신청 시점의 근거 링크(릴리스 다운로드 수, 이슈, 소개 글). 보조 근거: 릴리스마다 Windows, macOS, Linux의 실제 OBS로 자동 검증하는 공개 워크플로(`https://github.com/BudongJW/debutkit/actions/workflows/verify.yml`) |
+| Maintainer Type | `Individual maintainer(s)`. 소속사 사업을 법인으로 운영하게 되면 해당 유형 재검토 |
+| Build System | `GitHub Actions` |
+| First Name, Last Name, Email | 신청자 본인. SignPath 계정 이름과 알림 주소로 사용 |
+| Company Name | 비움(법인 설립 시 법인명) |
+| Primary Discovery Channel | 신청자 선택 |
+| Code of Conduct 동의 | 신청자가 내용 확인 후 동의(필수) |
+| 마케팅 수신 동의 | 선택 사항. 체크하지 않아도 신청 가능 |
+| 개인정보 처리 동의 | 필수 |
+
+Description 입력값:
+
+```text
+debutkit helps new VTuber streamers prepare their first broadcast. It checks the PC (OBS, graphics, microphone, webcam, disk space and upload speed), creates a ready-made set of OBS scenes through the OBS WebSocket API, runs a local chat and donation alert overlay that combines CHZZK, SOOP, Twitch and YouTube chat, and saves clips from the OBS replay buffer when chat activity surges or the streamer types a command. It is distributed as a Windows installer, a macOS app, a Linux archive and a Python package under the Apache-2.0 license, with no telemetry.
+```
+
 ### SignPath 연동 절차(승인 후)
 
 1. SignPath에서 프로젝트 생성(슬러그 `debutkit`). 신뢰 빌드 시스템 GitHub.com을 조직에 추가하고 프로젝트에 연결. SignPath GitHub App 설치

@@ -12,7 +12,7 @@ body:
     attributes:
       label: debutkit 버전
       description: "debutkit --version 결과 또는 마법사 창 제목"
-      placeholder: debutkit 0.7.1
+      placeholder: debutkit 0.9.0
     validations:
       required: true
   - type: dropdown

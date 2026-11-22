@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
 
-from PySide6.QtCore import QObject, Qt, QTimer, QUrl, Signal
+from PySide6.QtCore import QCoreApplication, QEvent, QObject, Qt, QTimer, QUrl, Signal
 from PySide6.QtGui import QDesktopServices, QGuiApplication, QIcon
 from PySide6.QtWidgets import (
     QApplication,
@@ -36,7 +36,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from .. import __version__, chzzk, clip, doctor, scenes, speed, tools
+from .. import __version__, chzzk, clip, doctor, scenes, settings, speed, tools
 from ..doctor import FAIL, INFO, JOIN_URL, LABELS, OK, OVERLAY_PORT, SOFTWARE_URL, WARN
 
 STEPS = ["1  PC 점검", "2  아바타", "3  OBS 장면", "4  채팅과 알림", "5  마무리"]
@@ -131,6 +131,9 @@ class Backend:
     open_url: Callable[[str], Any] = field(default=lambda url: QDesktopServices.openUrl(QUrl(url)))
     open_folder: Callable[[Path], Any] = _open_folder
     check_youtube: Callable[[str, str | None], str] = _check_youtube
+    load_settings: Callable[[], dict[str, Any]] = settings.load
+    save_settings: Callable[[dict[str, Any]], Any] = settings.save
+    clear_settings: Callable[[], Any] = settings.clear
 
 
 class Bridge(QObject):
@@ -239,8 +242,15 @@ class Wizard(QMainWindow):
         self.setCentralWidget(root)
         self.nav.currentRowChanged.connect(self.pages.setCurrentIndex)
         self.pages.currentChanged.connect(self._on_page)
-        self.nav.setCurrentRow(0)
-        self._on_page(0)
+        # 저장한 설정: 채널을 저장해 둔 경우 채팅과 알림 단계에서 시작(방송마다 오버레이 시작만 누르면 되도록)
+        self._keep_settings = True
+        saved = self.backend.load_settings()
+        self.apply_settings(saved)
+        start = 3 if any(saved.get(name) for name in ("chzzk", "soop", "twitch", "youtube", "chzzk_api", "demo")) else 0
+        self.nav.setCurrentRow(start)
+        self._on_page(start)
+        if start:
+            self._append_log("저장한 설정을 불러왔습니다. 오버레이 시작을 누르면 채팅창과 알림이 켜집니다.")
 
     # ------------------------------------------------------------------ 이동
     def go(self, index: int) -> None:
@@ -454,6 +464,8 @@ class Wizard(QMainWindow):
         return page
 
     def make_scenes(self) -> None:
+        self._keep_settings = True
+        self.remember()
         self.scenes_button.setEnabled(False)
         self.scenes_result.setText("OBS 연결 중")
         base = f"http://127.0.0.1:{self.port.value()}"
@@ -616,6 +628,8 @@ class Wizard(QMainWindow):
         server.start()
         self.server = server
         self._overlay_state(True)
+        self._keep_settings = True
+        self.remember()
         self._append_log(f"오버레이 실행 중: {server.url}/chat (채팅창), {server.url}/alerts (알림)")
         if self.autoclip.isChecked():
             port, password = self.obs_port.value(), self.obs_password.text() or None
@@ -655,6 +669,11 @@ class Wizard(QMainWindow):
         self.update_button.clicked.connect(self.check_update)
         self.update_result = text(f"현재 버전 {__version__}. 확인 버튼을 누를 때만 GitHub에 연결합니다.", muted=True, links=True)
         layout.addWidget(card(self.update_result, self.update_button, title="버전"))
+        self.forget_button = QPushButton("저장한 설정 삭제")
+        self.forget_button.clicked.connect(self.forget_settings)
+        self.settings_state = text(f"채널 주소와 선택 항목은 이 PC에 저장해 다음 실행 때 불러옵니다. API 키와 비밀번호는 저장하지 않습니다.\n{settings.settings_path()}",
+                                   muted=True)
+        layout.addWidget(card(self.settings_state, self.forget_button, title="저장한 설정"))
         layout.addWidget(text(f'소속 버튜버 프로그램(선택, 키트 사용과 무관): <a href="{JOIN_URL}" style="color:#A7B0B7">참여 안내</a>',
                               muted=True, links=True))
         layout.addStretch(1)
@@ -680,7 +699,51 @@ class Wizard(QMainWindow):
         lines.append("채팅과 알림: " + (f"실행 중({self.server.url})" if self.server else "중지"))
         self.summary.setText("<br>".join(lines))
 
+    # ------------------------------------------------------------------ 설정 저장
+    def collect_settings(self) -> dict[str, Any]:
+        """저장할 입력값(API 키, 비밀번호, Client Secret 제외)."""
+        values: dict[str, Any] = {name: [field_.text().strip()] for name, field_ in
+                                  (("chzzk", self.chzzk), ("soop", self.soop), ("twitch", self.twitch), ("youtube", self.youtube))}
+        values.update(chzzk_api=self.chzzk_api.isChecked(), chzzk_client_id=self.chzzk_id.text().strip(), demo=self.demo.isChecked(),
+                      clip=self.autoclip.isChecked(), overlay_port=self.port.value(), obs_port=self.obs_port.value(),
+                      avatar_app=str(self.avatar_app.currentData()), replay_buffer=60 if self.replay.isChecked() else 0,
+                      avatar_path=self.avatar_path.text().strip(), agency=self.avatar_agency.isChecked())
+        return settings.clean(values)
+
+    def apply_settings(self, values: dict[str, Any]) -> None:
+        for name, field_ in (("chzzk", self.chzzk), ("soop", self.soop), ("twitch", self.twitch), ("youtube", self.youtube)):
+            if values.get(name):
+                field_.setText(values[name][0])
+        if values.get("chzzk_client_id") and not self.chzzk_id.text():  # 환경 변수가 우선
+            self.chzzk_id.setText(values["chzzk_client_id"])
+        for name, box in (("chzzk_api", self.chzzk_api), ("demo", self.demo), ("clip", self.autoclip), ("agency", self.avatar_agency)):
+            if name in values:
+                box.setChecked(values[name])
+        if "replay_buffer" in values:
+            self.replay.setChecked(values["replay_buffer"] > 0)
+        for name, spin in (("overlay_port", self.port), ("obs_port", self.obs_port)):
+            if name in values and spin.minimum() <= values[name] <= spin.maximum():
+                spin.setValue(values[name])
+        if values.get("avatar_app") and self.avatar_app.findData(values["avatar_app"]) >= 0:
+            self.avatar_app.setCurrentIndex(self.avatar_app.findData(values["avatar_app"]))
+        if values.get("avatar_path"):
+            self.avatar_path.setText(values["avatar_path"])
+
+    def remember(self) -> None:
+        try:
+            self.backend.save_settings(self.collect_settings())
+        except OSError as error:
+            self._append_log(f"설정 저장 실패: {error}")
+
+    def forget_settings(self) -> None:
+        removed = self.backend.clear_settings()
+        self._keep_settings = False  # 창을 닫을 때 다시 저장하지 않음
+        self.settings_state.setText("저장한 설정을 삭제했습니다. 오버레이나 장면 생성을 다시 실행하면 그때의 입력값을 저장합니다."
+                                    if removed else "저장한 설정이 없습니다.")
+
     def closeEvent(self, event: Any) -> None:  # noqa: N802
+        if self._keep_settings:
+            self.remember()
         self._closed = True
         if self.server is not None:
             self.server.stop()
@@ -690,8 +753,23 @@ class Wizard(QMainWindow):
         super().closeEvent(event)
 
 
+def release(window: Wizard, app: QApplication | None, *, wait: float = 5.0) -> None:
+    """종료 순서 고정: 작업 스레드 대기, 창 삭제, Qt 앱 종료.
+
+    파이썬 종료 단계에서 창과 Qt 앱이 임의 순서로 지워지면 macOS에서 간헐적으로 비정상 종료(신호 10, 11, 6)했다.
+    ``app`` 은 이 함수가 만든 Qt 앱일 때만 넘긴다(이미 있던 앱은 그대로 둔다).
+    """
+    for thread in window._threads:
+        thread.join(timeout=wait)
+    window.deleteLater()
+    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    if app is not None:
+        app.shutdown()
+
+
 def main(argv: list[str] | None = None) -> int:
-    app = QApplication.instance() or QApplication(sys.argv if argv is None else argv)
+    existing = QApplication.instance()
+    app = existing or QApplication(sys.argv if argv is None else argv)
     QGuiApplication.setApplicationDisplayName("debutkit")
     QGuiApplication.setWindowIcon(QIcon(str(ICON)))
     app.setStyleSheet(style_sheet())
@@ -702,6 +780,7 @@ def main(argv: list[str] | None = None) -> int:
         QTimer.singleShot(1600, app.quit)
     code = int(app.exec())
     window.close()
+    release(window, None if existing else app)
     return code
 
 

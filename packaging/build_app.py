@@ -164,8 +164,8 @@ def smoke_test(cli: Path, gui: Path) -> None:
     print("  debutkit-gui(화면 없이 열고 닫기): 정상")
 
 
-def smoke_gui(gui: Path, env: dict[str, str], *, attempts: int = 2, popen: Callable[..., Any] = subprocess.Popen) -> None:
-    """설정 마법사를 화면 없이 열고 닫는다. 신호로 종료되면(macOS에서 간헐 발생, docs/ROADMAP.md) 경고 후 한 번 더 시도."""
+def smoke_gui(gui: Path, env: dict[str, str], *, attempts: int = 1, popen: Callable[..., Any] = subprocess.Popen) -> None:
+    """설정 마법사를 화면 없이 열고 닫는다. ``attempts`` 가 2 이상이면 신호로 종료된 경우 경고 후 다시 시도(기본은 재시도 없음)."""
     for attempt in range(1, attempts + 1):
         process = popen([str(gui)], env={**env, "QT_QPA_PLATFORM": "offscreen", "DEBUTKIT_SMOKE": "1"})
         try:

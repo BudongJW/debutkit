@@ -43,6 +43,9 @@ class Calls:
         self.scenes = []
         self.urls = []
         self.autoclip = []
+        self.stored = {}
+        self.saves = []
+        self.cleared = []
 
     def backend(self, **overrides):
         def run_checks(**kw):
@@ -66,7 +69,8 @@ class Calls:
 
         base = dict(run_checks=run_checks, check_avatar=lambda path, agency: [Check("avatar", "아바타", WARN, f"{path} 법인 {agency}")],
                     apply_scenes=apply_scenes, make_autoclipper=make_autoclipper, open_url=self.urls.append,
-                    chzzk_signed_in=lambda: False, can_download_ffmpeg=lambda: True)
+                    chzzk_signed_in=lambda: False, can_download_ffmpeg=lambda: True,
+                    load_settings=lambda: dict(self.stored), save_settings=self.saves.append, clear_settings=lambda: self.cleared.append(1) or True)
         base.update(overrides)
         return Backend(**base)
 
@@ -291,3 +295,56 @@ def test_youtube_check_button_reports_steps(app):
         assert window.youtube_check_button.isEnabled()
     finally:
         window.close()
+
+
+def test_saved_settings_open_the_overlay_page_filled_in(app):
+    calls = Calls()
+    calls.stored = {"chzzk": ["https://chzzk.naver.com/live/abc"], "clip": True, "overlay_port": 8800, "obs_port": 4460, "avatar_app": "vseeface",
+                    "replay_buffer": 0, "demo": False}
+    window = Wizard(calls.backend())
+    try:
+        assert window.pages.currentIndex() == 3 and not window.checked  # PC 점검을 자동으로 돌리지 않음
+        assert window.chzzk.text() == "https://chzzk.naver.com/live/abc" and window.autoclip.isChecked()
+        assert window.port.value() == 8800 and window.obs_port.value() == 4460 and window.avatar_app.currentData() == "vseeface"
+        assert not window.replay.isChecked() and "저장한 설정을 불러왔습니다" in window.overlay_log.toPlainText()
+    finally:
+        window.close()
+
+
+def test_closing_saves_inputs_without_secrets(app):
+    calls = Calls()
+    window = Wizard(calls.backend())
+    window.soop.setText("https://play.sooplive.co.kr/id")
+    window.youtube_key.setText("AIza-secret")
+    window.obs_password.setText("pw")
+    window.chzzk_secret.setText("client-secret")
+    window.close()
+    saved = calls.saves[-1]
+    assert saved["soop"] == ["https://play.sooplive.co.kr/id"] and "chzzk" not in saved
+    assert not any(value in str(saved) for value in ("AIza-secret", "pw", "client-secret"))
+
+
+def test_forgetting_settings_stops_saving_until_next_start(app):
+    calls = Calls()
+    window = Wizard(calls.backend())
+    window.forget_button.click()
+    assert calls.cleared and "삭제했습니다" in window.settings_state.text()
+    window.close()
+    assert calls.saves == []
+
+
+def test_release_waits_for_workers_and_deletes_the_window(app):
+    import threading
+
+    from debutkit.gui.app import release
+
+    window = Wizard(Calls().backend())
+    finished = threading.Event()
+    worker = threading.Thread(target=lambda: (time.sleep(0.2), finished.set()))
+    worker.start()
+    window._threads.append(worker)
+    destroyed = []
+    window.destroyed.connect(lambda: destroyed.append(True))
+    window.close()
+    release(window, None)  # 테스트의 Qt 앱은 그대로 둔다
+    assert finished.is_set() and destroyed == [True]

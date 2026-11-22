@@ -56,11 +56,44 @@ def _scenes(args: argparse.Namespace) -> int:
     return 0
 
 
+#: overlay 옵션과 저장 설정 항목의 대응(API 키, 비밀번호는 저장하지 않음)
+OVERLAY_SETTINGS = {"chzzk": "chzzk", "chzzk_api": "chzzk_api", "soop": "soop", "twitch": "twitch", "youtube": "youtube",
+                    "youtube_mode": "youtube_mode", "youtube_interval": "youtube_interval", "demo": "demo", "port": "overlay_port",
+                    "clip": "clip", "clip_dir": "clip_dir", "obs_port": "obs_port"}
+
+
+def apply_saved(args: argparse.Namespace, saved: dict[str, Any], defaults: dict[str, Any]) -> list[str]:
+    """명령줄에서 지정하지 않은(기본값 그대로인) 항목만 저장한 설정으로 채운다. 반환: 사용한 항목."""
+    used = []
+    for dest, key in OVERLAY_SETTINGS.items():
+        if key in saved and getattr(args, dest) == defaults.get(dest):
+            setattr(args, dest, saved[key])
+            used.append(key)
+    return used
+
+
+def _overlay_settings(args: argparse.Namespace) -> None:
+    from . import settings
+
+    if args.saved:
+        saved = settings.load()
+        if saved:
+            used = apply_saved(args, saved, args.overlay_defaults)
+            print(f"저장한 설정 사용({len(used)}개 항목): {settings.settings_path()}")
+        else:
+            print("저장한 설정 없음. 설정 마법사에서 오버레이를 시작하거나 --save 로 저장", file=sys.stderr)
+    if args.save:
+        values = {key: getattr(args, dest) for dest, key in OVERLAY_SETTINGS.items() if getattr(args, dest) is not None}
+        path = settings.save({**settings.load(), **values})
+        print(f"설정 저장: {path} (API 키, 비밀번호는 저장하지 않음)")
+
+
 def _overlay(args: argparse.Namespace) -> int:
     from .overlay import events
     from .overlay.server import OverlayServer
     from .overlay.youtube import youtube_source
 
+    _overlay_settings(args)
     sources: list[tuple[str, Callable[[], Any]]] = []
     if args.chzzk_api:
         sources.append(("CHZZK 공식 API", events.chzzk_api_source))
@@ -171,6 +204,22 @@ def _chzzk_logout(args: argparse.Namespace) -> int:
     return 0
 
 
+def _settings(args: argparse.Namespace) -> int:
+    from . import settings
+
+    path = settings.settings_path()
+    if args.clear:
+        removed = settings.clear()
+        print(f"저장한 설정 삭제: {removed}" if removed else "저장한 설정 없음")
+        return 0
+    saved = settings.load()
+    print(f"설정 파일: {path}" + ("" if path.is_file() else " (없음)"))
+    if saved:
+        print(json.dumps(saved, ensure_ascii=False, indent=2))
+    print("API 키, 비밀번호, Client Secret은 저장하지 않음")
+    return 0
+
+
 def _youtube_check(args: argparse.Namespace) -> int:
     from .overlay.youtube_check import as_json, check, format_steps
 
@@ -249,7 +298,14 @@ def build_parser() -> argparse.ArgumentParser:
     clip.add_argument("--obs-host", default="127.0.0.1")
     clip.add_argument("--obs-port", type=int, default=4455)
     clip.add_argument("--obs-password", help="OBS WebSocket 비밀번호 (또는 OBS_WEBSOCKET_PASSWORD)")
-    overlay.set_defaults(func=_overlay)
+    saved = overlay.add_argument_group("저장한 설정")
+    saved.add_argument("--saved", action="store_true", help="저장한 설정(채널, 포트, 자동 클립 등) 사용. 명령줄에 지정한 항목이 우선")
+    saved.add_argument("--save", action="store_true", help="이번 실행의 채널과 옵션을 저장 (API 키, 비밀번호 제외)")
+    overlay.set_defaults(func=_overlay, overlay_defaults={dest: overlay.get_default(dest) for dest in OVERLAY_SETTINGS})
+
+    stored = sub.add_parser("settings", help="저장한 설정 보기 또는 삭제")
+    stored.add_argument("--clear", action="store_true", help="저장한 설정 삭제")
+    stored.set_defaults(func=_settings)
 
     setup = sub.add_parser("setup", help="외부 프로그램 확인, ffmpeg 다운로드, 새 버전 확인")
     setup.add_argument("--ffmpeg", action="store_true", help="ffmpeg 다운로드 (Windows, 약 115 MB, SHA-256 검증)")

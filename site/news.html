@@ -43,6 +43,7 @@
       <nav class="toc" aria-label="버전 목록">
         <h2>버전</h2>
         <ul>
+          <li><a href="#v0-9">0.9.0</a></li>
           <li><a href="#v0-7-1">0.7.1</a></li>
           <li><a href="#v0-7">0.7.0</a></li>
           <li><a href="#v0-6">0.6.0</a></li>
@@ -56,6 +57,25 @@
       </nav>
 
       <div>
+        <article class="release" id="v0-9">
+          <h2>0.9.0</h2>
+          <p class="date">2026-11-22</p>
+          <h3>추가</h3>
+          <ul>
+            <li>설정 저장. 채널 주소, 포트, 선택 항목을 이 PC에 저장해 다음 방송부터 오버레이 시작 버튼만 누르면 됩니다. API 키와 비밀번호는 저장하지 않습니다.</li>
+            <li>명령줄의 저장한 설정 사용(<code>debutkit overlay --saved</code>), 저장(<code>--save</code>), 확인과 삭제(<code>debutkit settings</code>)</li>
+          </ul>
+          <h3>수정</h3>
+          <ul>
+            <li>macOS에서 설정 마법사를 닫을 때 간헐적으로 비정상 종료하던 문제</li>
+          </ul>
+          <h3>검증 범위</h3>
+          <ul>
+            <li>확인: 설정 저장과 불러오기, 비밀값 제외. macOS 실행 환경에서 기존 종료 방식 100회 중 9회 비정상 종료(신호 6, 10, 11), 수정한 종료 방식 100회 중 0회(2026-11-22)</li>
+            <li>미확인: 실제 Mac에서의 장시간 사용</li>
+          </ul>
+        </article>
+
         <article class="release" id="v0-7-1">
           <h2>0.7.1</h2>
           <p class="date">2026-11-22</p>

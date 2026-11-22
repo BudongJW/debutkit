@@ -232,9 +232,11 @@ def test_gui_smoke_retries_only_after_a_signal(capsys):
         return popen
 
     signal_then_ok = fake([-10, 0])
-    build_app.smoke_gui(Path("debutkit-gui"), {}, popen=signal_then_ok)
+    with pytest.raises(SystemExit, match=r"실패 \(-10\)"):
+        build_app.smoke_gui(Path("debutkit-gui"), {}, popen=fake([-10, 0]))  # 기본은 재시도 없음
+    build_app.smoke_gui(Path("debutkit-gui"), {}, attempts=2, popen=signal_then_ok)
     assert signal_then_ok.started == ["offscreen", "offscreen"] and "신호 10" in capsys.readouterr().out
     with pytest.raises(SystemExit, match=r"실패 \(1\)"):
-        build_app.smoke_gui(Path("debutkit-gui"), {}, popen=fake([1, 0]))  # 오류 종료는 다시 시도하지 않음
+        build_app.smoke_gui(Path("debutkit-gui"), {}, attempts=2, popen=fake([1, 0]))  # 오류 종료는 다시 시도하지 않음
     with pytest.raises(SystemExit, match=r"실패 \(-10\)"):
-        build_app.smoke_gui(Path("debutkit-gui"), {}, popen=fake([-10, -10]))
+        build_app.smoke_gui(Path("debutkit-gui"), {}, attempts=2, popen=fake([-10, -10]))
