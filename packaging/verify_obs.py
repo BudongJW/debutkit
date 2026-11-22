@@ -39,7 +39,8 @@ def configure() -> None:
         raise SystemExit("OBS 설정을 덮어쓰므로 CI에서만 실행(DEBUTKIT_VERIFY_OBS=1)")
     root = config_dir()
     RECORDINGS.mkdir(parents=True, exist_ok=True)
-    general = "[General]\nFirstRun=true\nEnableAutoUpdates=false\n\n[Basic]\nProfile=Untitled\nProfileDir=Untitled\nSceneCollection=Untitled\nSceneCollectionFile=Untitled\n"
+    # 브라우저 소스 하드웨어 가속 끔: 가상 화면(Xvfb)에서 Chromium GPU 프로세스가 실패하면 OBS 전체가 종료됨
+    general = "[General]\nFirstRun=true\nEnableAutoUpdates=false\nBrowserHWAccel=false\n\n[Basic]\nProfile=Untitled\nProfileDir=Untitled\nSceneCollection=Untitled\nSceneCollectionFile=Untitled\n"
     for name in ("global.ini", "user.ini"):  # OBS 31부터 사용자 설정은 user.ini
         (root / name).parent.mkdir(parents=True, exist_ok=True)
         (root / name).write_text(general, encoding="utf-8")
@@ -164,6 +165,10 @@ def clip(timeout: float = 120.0) -> None:
                 if duration <= 0:
                     raise SystemExit("클립 길이 0")
                 return
+            try:
+                socket.create_connection((HOST, PORT), timeout=2).close()
+            except OSError:
+                raise SystemExit("OBS가 종료됨(OBS 로그 확인)") from None
             time.sleep(2)
         raise SystemExit("클립 파일이 만들어지지 않음")
     finally:

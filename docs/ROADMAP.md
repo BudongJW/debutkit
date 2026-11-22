@@ -62,8 +62,8 @@
 | 운영체제별 점검 | CI에서 Windows, macOS, Linux 실제 `doctor --json`, `scenes --dry-run` 실행과 필수 항목 확인 |
 | 설치 프로그램의 ffmpeg 다운로드 작업 | 릴리스 빌드에서 실제 다운로드, 설치한 debutkit의 ffmpeg 사용, 제거 후 보존 확인 |
 | YouTube 채팅 스트리밍(streamList, gRPC) | 로컬 gRPC 서버로 단위 테스트(필드 번호, 기록 건너뛰기, 재연결, 방송 종료, API 키 전달, 요청 방식 자동 전환, 할당량 초과). 실제 YouTube 미확인 |
-| macOS, Linux 실행 파일 | 릴리스 빌드에서 파이썬 없이 실행 확인. 압축 파일 크기 SIZES |
-| 미사용 Qt 라이브러리 제외 | Qt Quick, QML, PDF, 가상 키보드, 소프트웨어 OpenGL 제외. Windows 압축 해제 크기 WINSIZE |
+| macOS, Linux 실행 파일 | 릴리스 빌드에서 파이썬 없이 실행 확인. 압축 파일 macOS 47 MB, Linux 102 MB |
+| 미사용 라이브러리 제외 | Qt Quick, QML, PDF, 가상 키보드, 소프트웨어 OpenGL, AVIF 제외. 압축 해제 크기 Windows 176 MB에서 131 MB, macOS 360 MB에서 275 MB, Linux 412 MB에서 361 MB. Windows 설치 프로그램 48 MB에서 36 MB |
 | Windows 코드 서명 | 서명 절차 구현, 인증서 등록 시 자동 적용. 인증서 미보유로 미적용 |
 | 아바타 창 캡처 소스 없음 안내 | Linux OBS(Xvfb)에 창 캡처 소스 종류가 없음을 확인. 장면 구성 결과에 안내 추가 |
 
