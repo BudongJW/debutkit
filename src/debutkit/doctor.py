@@ -168,9 +168,24 @@ def _audio_inputs() -> list[str] | None:
             return None
         return [str(item.get("_name")) for item in items if item.get("coreaudio_device_input")]
     out = _run(["arecord", "-l"])
-    if out is None:
+    if out is not None:
+        return re.findall(r"^card \d+: [^\[]*\[([^\]]+)\]", out, flags=re.M)
+    return _proc_capture_devices(_read_text("/proc/asound/pcm"))  # alsa-utils(arecord)가 없는 배포판
+
+
+def _proc_capture_devices(text: str | None) -> list[str] | None:
+    """``/proc/asound/pcm`` 에서 녹음(capture) 가능한 장치 이름. 파일이 없으면 ``None``.
+
+    형식: ``00-00: ALC892 Analog : ALC892 Analog : playback 1 : capture 1``
+    """
+    if text is None:
         return None
-    return re.findall(r"^card \d+: [^\[]*\[([^\]]+)\]", out, flags=re.M)
+    names = []
+    for line in text.splitlines():
+        parts = [part.strip() for part in line.split(":")]
+        if len(parts) >= 3 and any(part.startswith("capture") for part in parts[3:]) and parts[1] not in names:
+            names.append(parts[1])
+    return names
 
 
 def _cameras() -> list[str] | None:

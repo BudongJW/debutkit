@@ -76,6 +76,35 @@ jobs:
         if: always()
         run: python packaging/verify_obs.py logs || true
 
+  devices-linux:
+    # 커널 가상 장치(snd-aloop 마이크, v4l2loopback 카메라)로 Linux 마이크, 웹캠 감지 확인. arecord가 있을 때와 없을 때(/proc/asound) 모두
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      PYTHONIOENCODING: utf-8
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Virtual microphone and camera
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y alsa-utils v4l2loopback-dkms "linux-headers-$(uname -r)" "linux-modules-extra-$(uname -r)"
+          sudo modprobe snd-aloop
+          sudo modprobe v4l2loopback card_label="debutkit test camera" exclusive_caps=1
+          arecord -l
+          cat /proc/asound/pcm
+          cat /sys/class/video4linux/*/name
+      - name: Install
+        run: python -m pip install -e .
+      - name: Detection (arecord)
+        run: python packaging/check_platform.py --expect mic=Loopback --expect camera="debutkit test camera"
+      - name: Detection without arecord (/proc/asound)
+        run: |
+          sudo mv /usr/bin/arecord /usr/bin/arecord.off
+          python packaging/check_platform.py --expect mic=Loopback --expect camera="debutkit test camera"
+
   youtube:
     # API 키 없이: 실제 서버의 스트리밍 메서드 경로, 키 전달 방식, 오류 안내 확인
     # 저장소 비밀값 YOUTUBE_API_KEY가 있으면: 방송 중인 YouTube 채팅으로 요청 방식과 스트리밍 방식 실제 수신 확인

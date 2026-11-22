@@ -140,3 +140,15 @@ def test_report_and_json():
     assert "조치:" in text  # 주의 항목에는 조치 방법을 붙인다
     data = json.loads(to_json(checks))
     assert {"key", "title", "status", "detail", "hint"} <= set(data[0])
+
+
+def test_linux_capture_devices_from_proc_when_arecord_is_missing():
+    from debutkit.doctor import _proc_capture_devices
+
+    text = ("00-00: ALC892 Analog : ALC892 Analog : playback 1 : capture 1\n"
+            "00-01: ALC892 Digital : ALC892 Digital : playback 1\n"
+            "01-00: USB Audio : USB Audio : capture 1\n"
+            "02-00: Loopback PCM : Loopback PCM : playback 8 : capture 8\n")
+    assert _proc_capture_devices(text) == ["ALC892 Analog", "USB Audio", "Loopback PCM"]
+    assert _proc_capture_devices("") == []
+    assert _proc_capture_devices(None) is None
