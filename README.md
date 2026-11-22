@@ -11,7 +11,7 @@
 PC 점검, OBS 장면 세트, 치지직 SOOP Twitch 통합 채팅창과 후원 알림, 방송 중 자동 클립
 
 <a href="LICENSE"><img alt="license" src="https://img.shields.io/badge/license-Apache--2.0-F7F4FA?style=for-the-badge&labelColor=15131F"></a>
-<img alt="version" src="https://img.shields.io/badge/version-0.3.0-FF4F8B?style=for-the-badge&labelColor=15131F">
+<img alt="version" src="https://img.shields.io/badge/version-0.4.0-FF4F8B?style=for-the-badge&labelColor=15131F">
 <a href="https://github.com/BudongJW/debutkit/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/BudongJW/debutkit/ci.yml?branch=main&style=for-the-badge&label=CI&labelColor=15131F"></a>
 <img alt="python" src="https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white&labelColor=15131F">
 
