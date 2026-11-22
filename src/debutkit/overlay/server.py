@@ -147,14 +147,16 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
             self._send(HTTPStatus.OK, _static(name), TYPES["." + name.rsplit(".", 1)[1]])
 
         def do_POST(self) -> None:  # noqa: N802
+            # 응답 전에 요청 본문을 먼저 읽는다(읽지 않고 닫으면 Windows에서 연결이 끊겨 거부 응답이 전달되지 않음)
+            length = min(int(self.headers.get("Content-Length") or 0), 4096)
+            body = self.rfile.read(length) if length > 0 else b""
             if not self._local():
                 return self._send(HTTPStatus.FORBIDDEN, b"forbidden")
             path = self.path.split("?", 1)[0]
             if path not in ("/test", "/voice/test"):
                 return self._send(HTTPStatus.NOT_FOUND, b"not found")
-            length = min(int(self.headers.get("Content-Length") or 0), 4096)
             try:
-                data = json.loads(self.rfile.read(length) or b"{}")
+                data = json.loads(body or b"{}")
             except ValueError:
                 data = {}
             if path == "/voice/test":

@@ -1,5 +1,23 @@
 # 변경 내역
 
+## 1.0.0rc2 (2026-11-22)
+
+1.0 후보 2차(사전 릴리스). 캐릭터 기능 추가.
+
+### 추가
+- 캐릭터 등록과 확인(`debutkit character`, 설정 마법사 캐릭터 단계): PNGTuber 이미지, 3D(VRM 0.x, 1.0), Live2D(폴더, zip), Inochi2D. VRM 사용 조건(사용 허용 대상, 상업적 이용, 법인 사용)과 미리보기 이미지 읽기, Live2D 참조 파일과 moc3 확인, PNG 투명 배경과 크기 확인. 이 PC의 캐릭터 보관함에 복사
+- PNG로 캐릭터 만들기: 입 다묾, 입 벌림, 눈 감음 이미지로 PNGTuber 구성
+- debutkit 캐릭터 화면(`/character`, OBS 브라우저 소스): PNGTuber와 VRM 표시. OBS 마이크 음량(obs-websocket InputVolumeMeters)으로 입 움직임, 자동 눈 깜빡임, VRM 호흡과 머리 움직임. three.js, three-vrm(MIT) 포함, 외부 접속 없음
+- debutkit 기본 캐릭터(PNGTuber, 고양이 귀 마이크)
+- 방송 프로그램으로 보내기: Live2D는 VTube Studio, VRM은 Warudo 모델 폴더에 복사(Steam 라이브러리에서 위치 탐색)
+- OBS 장면의 아바타 선택에 debutkit 캐릭터 화면 추가(`scenes --avatar debutkit`)
+- 오버레이의 캐릭터 음성 반응 설정(`--voice-threshold`, `--voice-input`, `--no-voice`, 설정 마법사의 입 움직임 기준)
+- 캐릭터 기능 참고 자료와 설계(`docs/CHARACTER.md`): 제작 도구, 파일 형식, 방송 프로그램 연계, 라이선스
+
+### 변경
+- 설정 마법사의 아바타 단계를 캐릭터 단계로 변경
+- 실행 파일 빌드에서 캐릭터 화면 파일 포함 여부 확인
+
 ## 1.0.0rc1 (2026-11-22)
 
 1.0 후보(사전 릴리스). 기능은 1.0 기준으로 완료했으며, 실제 PC와 방송 계정으로 확인할 사용자를 위한 버전.

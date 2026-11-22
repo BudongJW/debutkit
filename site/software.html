@@ -58,7 +58,7 @@
           <table>
             <thead><tr><th>단계</th><th>필수</th><th>권장 시작 구성</th><th>debutkit 역할</th></tr></thead>
             <tbody>
-              <tr><th scope="row">아바타</th><td>모델 1개</td><td>VRoid Studio(3D, 무료) 또는 PNG 이미지 2장</td><td>모델 사용 조건 확인</td></tr>
+              <tr><th scope="row">아바타</th><td>모델 1개</td><td>VRoid Studio(3D, 무료) 또는 PNG 이미지 2장</td><td>캐릭터 등록, 사용 조건 확인, PNGTuber와 VRM 방송 화면</td></tr>
               <tr><th scope="row">트래킹</th><td>프로그램 1개, 웹캠</td><td>Live2D는 VTube Studio, 3D는 VSeeFace</td><td>설치 확인, OBS 투명 배경 연결</td></tr>
               <tr><th scope="row">송출</th><td>OBS Studio</td><td>OBS Studio(무료, GPL-2.0)</td><td>장면 5종 자동 구성, 업로드 속도 측정</td></tr>
               <tr><th scope="row">음향</th><td>마이크, 잡음 제거</td><td>OBS 내장 잡음 제거</td><td>마이크 인식 확인</td></tr>
@@ -127,7 +127,8 @@
 
         <h2 id="scope">debutkit의 범위</h2>
         <ul>
-          <li>트래킹 엔진, 송출 프로그램, 모델 제작 도구는 개발하지 않습니다. 기존 프로그램이 충분하며 대부분 독점 소프트웨어여서 함께 배포할 수 없습니다.</li>
+          <li>트래킹 엔진, 송출 프로그램, 3D와 Live2D 모델 제작 도구는 개발하지 않습니다. 기존 프로그램이 충분하며 대부분 독점 소프트웨어여서 함께 배포할 수 없습니다.</li>
+          <li>PNGTuber와 3D(VRM) 캐릭터는 debutkit 캐릭터 화면이 직접 표시합니다(오픈소스 three.js, three-vrm 사용). Live2D는 라이선스 조건상 직접 표시하지 않고 VTube Studio로 전달합니다. 근거: <a href="https://github.com/BudongJW/debutkit/blob/main/docs/CHARACTER.md">CHARACTER.md</a></li>
           <li>설치 여부 점검, 프로그램 간 설정 연결, 사용 안내를 담당합니다.</li>
           <li>전체 목록과 출처: <a href="https://github.com/BudongJW/debutkit/blob/main/docs/SOFTWARE.md">SOFTWARE.md</a></li>
         </ul>

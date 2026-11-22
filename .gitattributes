@@ -1,0 +1,2 @@
+# 함께 배포하는 외부 라이브러리는 원본 그대로 보관(줄 끝 변환 없음, vendor/README.txt의 SHA-256과 일치)
+src/debutkit/overlay/static/vendor/** -text
