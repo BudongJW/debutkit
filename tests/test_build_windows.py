@@ -31,7 +31,7 @@ def test_make_installer_runs_iscc_and_finds_the_file(tmp_path):
 
     def run(command, check):
         ran.append(command)
-        (tmp_path / "debutkit-0.5.0-windows-x64-setup.exe").write_bytes(b"MZ")
+        (tmp_path / f"{build_windows.installer_name('0.5.0')}.exe").write_bytes(b"MZ")  # 이 PC 아키텍처 이름(x64, arm64)
 
     setup = build_windows.make_installer(tmp_path / "debutkit", tmp_path, "0.5.0", iscc="ISCC.exe", ffmpeg=FFMPEG, run=run)
     assert setup.name.endswith("-setup.exe") and ran
