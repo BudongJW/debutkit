@@ -504,9 +504,12 @@ class Wizard(QMainWindow):
         self.send_button.clicked.connect(self.send_character)
         self.preview_button = QPushButton("미리보기")
         self.preview_button.clicked.connect(self.preview_character)
+        self.tracker_button = QPushButton("얼굴 추적 창 열기")
+        self.tracker_button.setToolTip("웹캠으로 얼굴을 추적해 캐릭터의 머리 움직임, 눈, 입, 웃음에 반영(브라우저에서 카메라 허용)")
+        self.tracker_button.clicked.connect(self.open_tracker)
         self.remove_button = QPushButton("삭제")
         self.remove_button.clicked.connect(self.remove_character)
-        layout.addWidget(card(self.characters, self.character_detail, row(add, make, self.use_button), row(self.send_button, self.preview_button, self.remove_button),
+        layout.addWidget(card(self.characters, self.character_detail, row(add, make, self.use_button), row(self.send_button, self.preview_button, self.tracker_button, self.remove_button),
                               title="내 캐릭터"))
         create = text(
             "<b>PNGTuber</b>: 입 다문 이미지와 입 벌린 이미지(투명 PNG, 같은 크기) 2장으로 시작. 눈 감은 이미지를 더하면 눈 깜빡임 표시<br>"
@@ -577,6 +580,7 @@ class Wizard(QMainWindow):
         self.send_button.setText("VTube Studio로 보내기" if item.kind == "live2d" else "Warudo로 보내기" if item.kind == "vrm" else "방송 프로그램으로 보내기")
         self.remove_button.setEnabled(not item.builtin)
         self.preview_button.setEnabled(item.renders_in_overlay)
+        self.tracker_button.setEnabled(item.renders_in_overlay)
 
     def _character_message(self, message: str) -> None:
         self.character_detail.setText(message)
@@ -647,6 +651,13 @@ class Wizard(QMainWindow):
         if self.server is None:
             return self._character_message("채팅과 알림 단계에서 오버레이를 시작한 뒤 미리보기를 열 수 있습니다.")
         self.backend.open_url(f"{self.server.url}/character?id={urllib.parse.quote(item.id)}&demo")
+
+    def open_tracker(self) -> None:
+        """얼굴 추적 화면은 카메라를 쓰므로 OBS가 아닌 일반 브라우저에서 연다."""
+        if self.server is None:
+            return self._character_message("채팅과 알림 단계에서 오버레이를 시작한 뒤 얼굴 추적 창을 열 수 있습니다.")
+        self.backend.open_url(f"{self.server.url}/tracker")
+        self._character_message("브라우저에서 추적 시작을 누르고 카메라 사용을 허용하십시오. 추적 창을 닫으면 기본 움직임으로 돌아갑니다.")
 
     def _pick_avatar(self) -> None:
         path, _ = QFileDialog.getOpenFileName(self, "아바타 모델", "", "모델 (*.vrm *.model3.json *.moc3);;모든 파일 (*)")
@@ -877,7 +888,7 @@ class Wizard(QMainWindow):
                                               self._voice_input or None)
         if meter is not None:
             server.attach(meter)
-            self._append_log(f"캐릭터 화면: {server.url}/character (OBS 마이크 음량으로 입 움직임)")
+            self._append_log(f"캐릭터 화면: {server.url}/character (OBS 마이크 음량으로 입 움직임). 얼굴 추적: {server.url}/tracker(일반 브라우저)")
         self._append_log(f"오버레이 실행 중: {server.url}/chat (채팅창), {server.url}/alerts (알림)")
         if self.autoclip.isChecked():
             port, password = self.obs_port.value(), self.obs_password.text() or None

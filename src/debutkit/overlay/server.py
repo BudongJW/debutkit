@@ -6,6 +6,7 @@
 - ``/events``  화면들이 받는 사건 흐름 (Server-Sent Events)
 - ``/character`` 캐릭터 화면(PNGTuber, VRM). ``?id=캐릭터`` 로 지정, 없으면 방송에 사용할 캐릭터
 - ``/voice``   캐릭터 화면이 받는 말하기 상태 (Server-Sent Events)
+- ``/tracker`` 얼굴 추적 화면(일반 브라우저에서 열고 카메라 허용). ``POST /tracking`` 으로 값을 보내고 캐릭터 화면은 ``/tracking`` 으로 받는다
 - ``POST /test`` 설정 화면의 테스트 메시지, ``POST /voice/test`` 말하기 시험
 
 127.0.0.1에만 열리고, 다른 웹사이트가 이 서버에 요청을 끼워 넣지 못하도록 Host와
@@ -27,12 +28,17 @@ from importlib import resources
 from typing import Any, Callable, Iterable
 
 from .events import OverlayEvent, system_event
+from .tracking import TrackingState, clean
 from .voice import VoiceState
 
 STATIC = {"/": "index.html", "/chat": "chat.html", "/alerts": "alerts.html", "/overlay.css": "overlay.css", "/overlay.js": "overlay.js",
-          "/favicon.svg": "favicon.svg", "/character": "character.html", "/character.js": "character.js"}
+          "/favicon.svg": "favicon.svg", "/character": "character.html", "/character.js": "character.js", "/tracker": "tracker.html", "/tracker.js": "tracker.js"}
+#: 얼굴 추적 화면은 이 서버 밖으로 접속하지 못하게 한다(함께 배포한 MediaPipe의 사용 기록 전송 차단, 카메라 영상 외부 전송 방지)
+TRACKER_POLICY = ("default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'; img-src 'self' blob: data:; "
+                  "media-src 'self' blob: mediastream:; style-src 'self' 'unsafe-inline'; worker-src 'self' blob:; frame-ancestors 'none'")
 TYPES = {".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".svg": "image/svg+xml",
-         ".png": "image/png", ".jpg": "image/jpeg", ".json": "application/json", ".vrm": "model/gltf-binary", ".txt": "text/plain; charset=utf-8"}
+         ".png": "image/png", ".jpg": "image/jpeg", ".json": "application/json", ".vrm": "model/gltf-binary", ".txt": "text/plain; charset=utf-8",
+         ".mjs": "text/javascript; charset=utf-8", ".wasm": "application/wasm", ".task": "application/octet-stream"}
 _SAFE_PATH = re.compile(r"^[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)*$")
 
 
@@ -96,8 +102,10 @@ def _static(name: str) -> bytes:
     return resources.files("debutkit.overlay").joinpath("static", name).read_bytes()
 
 
-def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.0, voice: VoiceState | None = None) -> type[BaseHTTPRequestHandler]:
+def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.0, voice: VoiceState | None = None,
+                 tracking: TrackingState | None = None) -> type[BaseHTTPRequestHandler]:
     voice = voice or VoiceState()
+    tracking = tracking or TrackingState()
 
     class Handler(BaseHTTPRequestHandler):
         server_version = "debutkit-overlay"
@@ -113,9 +121,11 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
             origin = self.headers.get("Origin")
             return origin is None or origin in {f"http://{host}" for host in allowed}
 
-        def _send(self, status: int, body: bytes, content_type: str = "text/plain; charset=utf-8") -> None:
+        def _send(self, status: int, body: bytes, content_type: str = "text/plain; charset=utf-8", policy: str = "") -> None:
             self.send_response(status)
             self.send_header("Content-Type", content_type)
+            if policy:
+                self.send_header("Content-Security-Policy", policy)
             self.send_header("Content-Length", str(len(body)))
             self.send_header("Cache-Control", "no-store")
             self.send_header("X-Content-Type-Options", "nosniff")
@@ -129,7 +139,9 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
             if path == "/events":
                 return self._events()
             if path == "/voice":
-                return self._voice()
+                return self._stream(voice)
+            if path == "/tracking":
+                return self._stream(tracking)
             if path == "/status":
                 return self._send(HTTPStatus.OK, json.dumps({"listeners": hub.listeners}).encode(), "application/json")
             if path == "/character/info":
@@ -144,7 +156,7 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
             name = STATIC.get(path)
             if name is None:
                 return self._send(HTTPStatus.NOT_FOUND, b"not found")
-            self._send(HTTPStatus.OK, _static(name), TYPES["." + name.rsplit(".", 1)[1]])
+            self._send(HTTPStatus.OK, _static(name), TYPES["." + name.rsplit(".", 1)[1]], TRACKER_POLICY if path.startswith("/tracker") else "")
 
         def do_POST(self) -> None:  # noqa: N802
             # 응답 전에 요청 본문을 먼저 읽는다(읽지 않고 닫으면 Windows에서 연결이 끊겨 거부 응답이 전달되지 않음)
@@ -153,7 +165,7 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
             if not self._local():
                 return self._send(HTTPStatus.FORBIDDEN, b"forbidden")
             path = self.path.split("?", 1)[0]
-            if path not in ("/test", "/voice/test"):
+            if path not in ("/test", "/voice/test", "/tracking"):
                 return self._send(HTTPStatus.NOT_FOUND, b"not found")
             try:
                 data = json.loads(body or b"{}")
@@ -161,6 +173,12 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
                 data = {}
             if path == "/voice/test":
                 voice.test(bool(data.get("talking", True)))
+                return self._send(HTTPStatus.OK, b"ok")
+            if path == "/tracking":
+                values = clean(data)
+                if values is None:
+                    return self._send(HTTPStatus.BAD_REQUEST, b"bad tracking data")
+                tracking.publish(values)
                 return self._send(HTTPStatus.OK, b"ok")
             kind = "donation" if data.get("kind") == "donation" else "chat"
             role = "owner" if data.get("role") == "owner" else ""  # 스트리머 표시 명령(!clip) 시험용
@@ -209,12 +227,13 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
                 return self._send(HTTPStatus.NOT_FOUND, b"not found")
             self._send(HTTPStatus.OK, target.read_bytes(), TYPES.get(target.suffix.lower(), "application/octet-stream"))
 
-        def _voice(self) -> None:
+        def _stream(self, state: Any) -> None:
+            """말하기 상태, 추적 값의 Server-Sent Events. 연결하면 현재 값부터 보낸다."""
             self.send_response(HTTPStatus.OK)
             self.send_header("Content-Type", "text/event-stream; charset=utf-8")
             self.send_header("Cache-Control", "no-store")
             self.end_headers()
-            subscriber, current = voice.subscribe()
+            subscriber, current = state.subscribe()
             try:
                 self.wfile.write(b"data: " + json.dumps(current).encode() + b"\n\n")
                 self.wfile.flush()
@@ -230,7 +249,7 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
             except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError, OSError):
                 pass
             finally:
-                voice.unsubscribe(subscriber)
+                state.unsubscribe(subscriber)
 
         def _write_event(self, event: OverlayEvent, *, replay: bool = False) -> None:
             data = event.to_dict()
@@ -247,13 +266,14 @@ class OverlayServer:
     def __init__(self, sources: Iterable[tuple[str, Callable[[], Any]]] = (), *, port: int = 8790, poll: float = 0.2, retry: float = 10.0) -> None:
         self.hub = Hub()
         self.voice = VoiceState()
+        self.tracking = TrackingState()
         self._sources = list(sources)
         self._poll = poll
         self._retry = retry
         self._stop = threading.Event()
         self._threads: list[threading.Thread] = []
         self._attached: list[Any] = []
-        self.httpd = ThreadingHTTPServer(("127.0.0.1", port), make_handler(self.hub, lambda: self.port, voice=self.voice))
+        self.httpd = ThreadingHTTPServer(("127.0.0.1", port), make_handler(self.hub, lambda: self.port, voice=self.voice, tracking=self.tracking))
         self.httpd.daemon_threads = True
 
     @property

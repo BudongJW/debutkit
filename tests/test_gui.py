@@ -404,6 +404,9 @@ def test_character_page_add_make_use_send_and_preview(app, tmp_path):
         window.characters.setCurrentRow(2)
         window.preview_character()
         assert "오버레이를 시작한 뒤" in window.character_detail.text()
+        window.open_tracker()
+        assert "얼굴 추적 창을 열 수 있습니다" in window.character_detail.text()
+        assert window.tracker_button.isEnabled() == window.selected_character().renders_in_overlay  # Live2D는 VTube Studio가 추적
         picks["file"] = str(tmp_path / "missing.vrm")
         window.add_character()
         assert "등록 실패" in window.character_detail.text()
@@ -438,6 +441,9 @@ def test_overlay_start_attaches_voice_meter(app):
         window.voice_threshold.setValue(-35)
         window.toggle_overlay()
         assert meters == [(4455, -35.0)] and "meter" in server.attached and "/character" in window.overlay_log.toPlainText()
+        assert "/tracker" in window.overlay_log.toPlainText()
+        window.open_tracker()
+        assert calls.urls[-1] == "http://127.0.0.1:8790/tracker"
         assert calls.saves[-1]["voice_threshold"] == -35.0
     finally:
         window.close()

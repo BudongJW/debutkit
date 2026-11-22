@@ -153,6 +153,7 @@ def _start_voice(server: Any, args: argparse.Namespace) -> None:
                        notify=lambda text: server.hub.publish(system_event(text)))
     server.attach(meter.start())
     print(f"  캐릭터 화면: {server.url}/character (OBS 마이크 음량으로 입 움직임, 기준 {args.voice_threshold:.0f} dB)")
+    print(f"  얼굴 추적: {server.url}/tracker (일반 브라우저에서 열고 카메라 허용. OBS에는 추가하지 않음)")
 
 
 def _start_autoclip(server: Any, args: argparse.Namespace) -> bool:

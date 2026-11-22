@@ -12,7 +12,7 @@ body:
     id: version
     attributes:
       label: debutkit 버전
-      placeholder: debutkit 1.0.0rc2
+      placeholder: debutkit 1.0.0rc3
     validations:
       required: true
   - type: dropdown
@@ -54,6 +54,7 @@ body:
         - label: PNGTuber 캐릭터 화면이 말할 때 입을 움직임
         - label: VRM 캐릭터 화면 표시(입 움직임, 눈 깜빡임)
         - label: Live2D 모델을 VTube Studio로 보낸 뒤 모델 목록에 표시
+        - label: 웹캠 얼굴 추적이 캐릭터에 반영(머리, 눈, 입, 웃음)
   - type: textarea
     id: notes
     attributes:

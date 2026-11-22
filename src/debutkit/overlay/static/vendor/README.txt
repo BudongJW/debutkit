@@ -1,11 +1,22 @@
-함께 배포하는 외부 라이브러리(캐릭터 화면의 VRM 표시). 원본 파일을 수정하지 않고 포함.
+함께 배포하는 외부 라이브러리(캐릭터 화면의 VRM 표시, 얼굴 추적). 원본 파일을 수정하지 않고 포함.
 
 three 0.187.0 (MIT) https://github.com/mrdoob/three.js
   출처 https://cdn.jsdelivr.net/npm/three@0.187.0/ (build, examples/jsm 일부)
 @pixiv/three-vrm 3.5.5 (MIT) https://github.com/pixiv/three-vrm
   출처 https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3.5.5/lib/three-vrm.module.min.js
+@mediapipe/tasks-vision 1.2.3 (Apache-2.0) https://github.com/google-ai-edge/mediapipe
+  출처 https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.2.3/ (vision_bundle.mjs, wasm/vision_wasm_internal.*)
+  사용 기록 전송 코드(odml.pa.googleapis.com)가 들어 있어 얼굴 추적 화면은 콘텐츠 보안 정책으로 외부 접속을 차단
+MediaPipe Face Landmarker 모델 face_landmarker.task (float16, 버전 1, Apache-2.0)
+  출처 https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task
 
 SHA-256
+  380f87850de8087e8fd67a8c97471ba3ba870c92f3b54b4a4be04314e666d0c7  README.txt.new
+  cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30  mediapipe/LICENSE
+  64184e229b263107bc2b804c6625db1341ff2bb731874b0bcc2fe6544e0bc9ff  mediapipe/face_landmarker.task
+  fb0c02c296f44ce0cc324ba16bd646d8773eb4a7847db4019cc4d0430db7a9b5  mediapipe/vision_bundle.mjs
+  2aa5fd3fdd3d8208cd7587df0bb19fb6925c4ea16a76dd025aedc1f64d6a6309  mediapipe/wasm/vision_wasm_internal.js
+  225bc06c0f51a9cf31fea0e9e0b0243e9e01fb5ef332cc1a7fa6656dbdfdaabf  mediapipe/wasm/vision_wasm_internal.wasm
   279ec82987aec7e72ecb9850bb704a87e352d577bc7581454c30f3551a88ea92  three-vrm/LICENSE
   99f943e956e52dbf52bbe418899e8a8ae5e35f5c79a94ab8e404926afc620bf2  three-vrm/three-vrm.module.min.js
   8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc  three/LICENSE

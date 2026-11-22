@@ -138,3 +138,51 @@ def test_korean_character_ids_are_url_encoded(server, tmp_path):
     assert status == 200 and info["id"] == "고양이-캐릭터" and "%EA%B3%A0" in info["files"]["idle"]
     status, kind, image = get(server, info["files"]["idle"])
     assert status == 200 and kind == "image/png" and image.startswith(b"\x89PNG")
+
+
+def test_tracking_values_are_cleaned():
+    from debutkit.overlay import tracking
+
+    assert tracking.clean({"found": True, "yaw": 3.0, "blinkLeft": -1, "mouth": 0.5, "extra": 1, "pitch": float("nan"), "roll": True}) == \
+        {"found": True, "yaw": 1.2, "blinkLeft": 0.0, "mouth": 0.5}
+    assert tracking.clean({"found": "yes"}) == {"found": False}
+    assert tracking.clean([1, 2]) is None
+
+
+def test_tracker_page_policy_and_tracking_stream(server):
+    conn = http.client.HTTPConnection("127.0.0.1", server.port, timeout=5)
+    conn.request("GET", "/tracker")
+    page = conn.getresponse()
+    body = page.read()
+    policy = page.getheader("Content-Security-Policy") or ""
+    assert page.status == 200 and b"/tracker.js" in body
+    assert "connect-src 'self'" in policy and "default-src 'self'" in policy and "wasm-unsafe-eval" in policy
+    assert get(server, "/character")[0] == 200 and "Content-Security-Policy" not in dict(get_headers(server, "/character"))
+    for path, kind in (("/vendor/mediapipe/vision_bundle.mjs", "text/javascript"), ("/vendor/mediapipe/wasm/vision_wasm_internal.wasm", "application/wasm"),
+                       ("/vendor/mediapipe/face_landmarker.task", "application/octet-stream")):
+        status, content_type, _ = get(server, path)
+        assert status == 200 and content_type.startswith(kind), path
+    stream_conn = http.client.HTTPConnection("127.0.0.1", server.port, timeout=5)
+    stream_conn.request("GET", "/tracking")
+    stream = stream_conn.getresponse()
+    assert json.loads(stream.fp.readline().decode().removeprefix("data: "))["found"] is False
+    stream.fp.readline()
+    post = http.client.HTTPConnection("127.0.0.1", server.port, timeout=5)
+    post.request("POST", "/tracking", body=json.dumps({"found": True, "yaw": 0.3, "blinkLeft": 0.9}).encode(), headers={"Content-Type": "application/json"})
+    assert post.getresponse().status == 200
+    state = json.loads(stream.fp.readline().decode().removeprefix("data: "))
+    assert state["found"] is True and state["yaw"] == 0.3 and state["blinkLeft"] == 0.9 and state["time"] > 0
+    bad = http.client.HTTPConnection("127.0.0.1", server.port, timeout=5)
+    bad.request("POST", "/tracking", body=b"[1]", headers={"Content-Type": "application/json"})
+    assert bad.getresponse().status == 400
+    foreign = http.client.HTTPConnection("127.0.0.1", server.port, timeout=5)
+    foreign.request("POST", "/tracking", body=b'{"found": true}', headers={"Origin": "https://evil.example", "Content-Type": "application/json"})
+    assert foreign.getresponse().status == 403
+
+
+def get_headers(srv, path):
+    conn = http.client.HTTPConnection("127.0.0.1", srv.port, timeout=5)
+    conn.request("GET", path)
+    response = conn.getresponse()
+    response.read()
+    return response.getheaders()

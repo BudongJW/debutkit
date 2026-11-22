@@ -12,7 +12,7 @@
 | Inochi2D | 파일 머리글 확인 | Inochi Session 안내 | 안내 |
 
 - 목소리 크기는 OBS WebSocket의 입력 음량(InputVolumeMeters)을 사용. OBS에 설정한 마이크와 필터를 그대로 쓰고 추가 장치 권한이 필요 없음
-- 웹캠 얼굴 추적은 OBS 브라우저 소스가 카메라를 쓸 수 없어(아래 참고) 별도 추적 창이 필요. 다음 단계로 분리
+- 웹캠 얼굴 추적: OBS 브라우저 소스는 카메라를 쓸 수 없어(아래 참고) 일반 브라우저에서 여는 추적 화면(`/tracker`)이 MediaPipe로 값을 계산하고 캐릭터 화면으로 전달(1.0.0rc3)
 
 ## 1. 캐릭터 제작 도구
 
@@ -80,7 +80,8 @@
 
 - three.js, three-vrm은 debutkit에 포함(외부 CDN 접속 없음)
 - OBS 브라우저 소스는 카메라와 마이크 권한 요청을 거부. `--enable-media-stream` 실행 옵션은 모든 브라우저 소스와 도크에 권한을 주므로 권장하지 않음. https://github.com/obsproject/obs-browser
-- 웹캠 얼굴 추적 후보: MediaPipe Face Landmarker(Apache-2.0, 52개 표정 값). 별도 창에서 추적하고 결과를 오버레이로 전달하는 구조가 필요. 배포 파일의 사용 기록 전송 여부를 확인한 뒤 도입
+- 웹캠 얼굴 추적: MediaPipe Face Landmarker(@mediapipe/tasks-vision 1.2.3, 모델 float16 버전 1, Apache-2.0)를 포함. 52개 표정 값 중 눈 감음, 입 벌림, 웃음과 얼굴 변환 행렬의 머리 회전을 사용
+- MediaPipe 웹 배포 파일에는 사용 기록을 `https://odml.pa.googleapis.com/v1/log`로 보내는 코드가 있음(2026-11-22 확인). 추적 화면에 콘텐츠 보안 정책(`connect-src 'self'`)을 적용해 차단하고, 브라우저에서 차단과 이 PC 밖 요청 없음을 확인
 
 ## 5. 라이선스 주의
 

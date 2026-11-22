@@ -1,5 +1,6 @@
-// debutkit 캐릭터 화면: OBS 브라우저 소스용. PNGTuber와 VRM을 목소리 크기(/voice)에 맞춰 움직인다.
+// debutkit 캐릭터 화면: OBS 브라우저 소스용. PNGTuber와 VRM을 목소리 크기(/voice)와 얼굴 추적 값(/tracking)에 맞춰 움직인다.
 // ?id=캐릭터 로 지정하지 않으면 방송에 사용할 캐릭터를 표시하고, 바뀌면 다시 불러온다. ?demo 는 말하기 시험 표시.
+// 얼굴 추적 값은 별도 브라우저 창의 추적 화면(/tracker)이 보낸다. 0.6초 넘게 오지 않으면 기본 움직임으로 돌아간다.
 
 const params = new URLSearchParams(location.search);
 const explicit = params.get("id") || "";
@@ -7,7 +8,17 @@ const demo = params.has("demo");
 const stage = document.getElementById("stage");
 const notice = document.getElementById("notice");
 const voice = { talking: false, level: 0 };
+const tracked = { found: false, time: 0 };
 let currentId = "";
+
+function tracking() {  // 최근 추적 값이 있으면 그 값, 없으면 null
+  return tracked.found && Date.now() / 1000 - tracked.time < 0.6 ? tracked : null;
+}
+
+function listenTracking() {
+  const source = new EventSource("/tracking");
+  source.onmessage = (message) => Object.assign(tracked, { found: false }, JSON.parse(message.data));
+}
 
 function show(text) {
   notice.textContent = text;
@@ -53,9 +64,11 @@ function startPng(info) {
   });
   let shown = "idle";
   const frame = () => {
-    const talking = voice.talking;
+    const face = tracking();
+    const talking = voice.talking || Boolean(face && face.mouth > 0.35);
+    const closed = face ? (face.blinkLeft + face.blinkRight) / 2 > 0.55 : blinking;
     let state = talking ? "talk" : "idle";
-    if (blinking && images[talking ? "talk_blink" : "blink"]) state = talking ? "talk_blink" : "blink";
+    if (closed && images[talking ? "talk_blink" : "blink"]) state = talking ? "talk_blink" : "blink";
     if (state !== shown) {
       images[shown].hidden = true;
       images[state].hidden = false;
@@ -123,12 +136,17 @@ async function startVrm(info) {
   let mouth = 0;
   const spine = bone("spine");
   const neck = bone("neck");
+  const head = bone("head");
+  const pose = { yaw: 0, pitch: 0, roll: 0, blinkLeft: 0, blinkRight: 0, mouth: 0, smile: 0 };  // 추적 값(부드럽게 따라감)
   const animate = (timestamp) => {
     timer.update(timestamp);
     const delta = Math.min(timer.getDelta(), 0.1);
     const t = timer.getElapsed();
+    const face = tracking();
+    const follow = Math.min(1, delta * 14);
+    for (const name of Object.keys(pose)) pose[name] += ((face ? face[name] || 0 : 0) - pose[name]) * follow;
     const target = voice.talking ? Math.min(1, 0.35 + voice.level * 0.8) : 0;
-    mouth += (target - mouth) * Math.min(1, delta * 18);
+    mouth += (Math.max(target, pose.mouth * 1.1) - mouth) * Math.min(1, delta * 18);
     if (blinkStart >= 0) {
       const phase = (t - blinkStart) / 0.16;
       blink = phase < 1 ? Math.sin(phase * Math.PI) : 0;
@@ -136,13 +154,30 @@ async function startVrm(info) {
     }
     const expressions = vrm.expressionManager;
     if (expressions) {
-      expressions.setValue("aa", mouth);
-      expressions.setValue("blink", blink);
+      expressions.setValue("aa", Math.min(1, mouth));
+      if (face) {  // 추적 중: 양쪽 눈 따로, 웃음
+        expressions.setValue("blink", 0);
+        expressions.setValue("blinkLeft", pose.blinkLeft);
+        expressions.setValue("blinkRight", pose.blinkRight);
+        expressions.setValue("happy", Math.min(1, pose.smile * 0.8));
+      } else {
+        expressions.setValue("blink", Math.max(blink, (pose.blinkLeft + pose.blinkRight) / 2));
+        expressions.setValue("blinkLeft", 0);
+        expressions.setValue("blinkRight", 0);
+        expressions.setValue("happy", pose.smile * 0.8);
+      }
     }
     if (spine) spine.rotation.x = Math.sin(t * 1.6) * 0.015 * flip;  // 호흡
-    if (neck) {
-      neck.rotation.y = Math.sin(t * 0.5) * 0.06;
-      neck.rotation.z = Math.sin(t * 0.7) * 0.02 * flip + (voice.talking ? Math.sin(t * 9) * 0.01 : 0);
+    const idle = face ? 0 : 1;  // 추적이 없을 때만 기본 흔들림
+    if (neck) {  // 머리 회전은 목 40%, 머리 60%로 나눔(VRM 0.x는 x, z 방향 반대)
+      neck.rotation.y = pose.yaw * 0.4 + Math.sin(t * 0.5) * 0.06 * idle;
+      neck.rotation.x = pose.pitch * 0.4 * flip;
+      neck.rotation.z = (pose.roll * 0.4 + Math.sin(t * 0.7) * 0.02 * idle) * flip + (voice.talking ? Math.sin(t * 9) * 0.01 * idle : 0);
+    }
+    if (head) {
+      head.rotation.y = pose.yaw * 0.6;
+      head.rotation.x = pose.pitch * 0.6 * flip;
+      head.rotation.z = pose.roll * 0.6 * flip;
     }
     vrm.update(delta);
     renderer.render(scene, camera);
@@ -159,6 +194,7 @@ async function info() {
 
 async function main() {
   listenVoice();
+  listenTracking();
   const found = await info();
   currentId = found.id;
   if (!found.renders) {
