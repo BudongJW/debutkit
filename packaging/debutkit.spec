@@ -15,6 +15,9 @@ from pathlib import Path
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules, copy_metadata
 
 ROOT = Path(SPECPATH).parent
+sys.path.insert(0, SPECPATH)
+from build_app import unused  # noqa: E402
+
 VERSION = re.search(r'__version__ = "([^"]+)"', (ROOT / "src" / "debutkit" / "__init__.py").read_text(encoding="utf-8")).group(1)
 
 # 쓰지 않는 Qt 모듈을 빼서 용량을 줄인다
@@ -24,6 +27,7 @@ excludes = [
     "PySide6.QtMultimediaWidgets", "PySide6.Qt3DCore", "PySide6.QtCharts", "PySide6.QtDataVisualization", "PySide6.QtGraphs",
     "PySide6.QtNetwork", "PySide6.QtSql", "PySide6.QtBluetooth", "PySide6.QtPositioning", "PySide6.QtDesigner",
     "faster_whisper", "ctranslate2", "onnxruntime", "yt_dlp",
+    "PIL._avif",  # AVIF 이미지 미사용. Pillow는 모듈이 없으면 AVIF만 비활성화
 ]
 
 # 메타데이터: doctor가 채팅 연결 모듈 버전을 importlib.metadata로 읽는다
@@ -39,7 +43,10 @@ else:
 
 
 def analysis(script):
-    return Analysis([str(ROOT / "packaging" / script)], pathex=[str(ROOT / "src")], datas=datas, hiddenimports=hiddenimports, excludes=excludes)
+    result = Analysis([str(ROOT / "packaging" / script)], pathex=[str(ROOT / "src")], datas=datas, hiddenimports=hiddenimports, excludes=excludes)
+    result.binaries = [entry for entry in result.binaries if not unused(entry[0])]
+    result.datas = [entry for entry in result.datas if not unused(entry[0])]
+    return result
 
 
 gui = analysis("entry_gui.py")

@@ -54,22 +54,35 @@
 | 표기 정리 | 표기 원칙 자동 검사(구어체, 번역체, 홍보성 수식어, 용어, 특수문자, 느낌표, 제목 형식) 통과 |
 | 사이트 디자인 개편 | 데스크톱, 모바일 폭에서 화면 확인 |
 
+### 0.6
+
+| 기능 | 검증 내용 |
+|---|---|
+| 실제 OBS 자동 검증(Verify 작업) | Linux(Ubuntu 24.04)에 실제 OBS 32.2.0(WebSocket 5.7.4) 설치. 장면 5종과 소스 생성, 고급 출력 모드(AdvOut) 리플레이 버퍼 설정 저장(30초), OBS 재시작 후 스트리머 `!clip` 입력으로 10.7초 클립 저장 |
+| 운영체제별 점검 | CI에서 Windows, macOS, Linux 실제 `doctor --json`, `scenes --dry-run` 실행과 필수 항목 확인 |
+| 설치 프로그램의 ffmpeg 다운로드 작업 | 릴리스 빌드에서 실제 다운로드, 설치한 debutkit의 ffmpeg 사용, 제거 후 보존 확인 |
+| YouTube 채팅 스트리밍(streamList, gRPC) | 로컬 gRPC 서버로 단위 테스트(필드 번호, 기록 건너뛰기, 재연결, 방송 종료, API 키 전달, 요청 방식 자동 전환, 할당량 초과). 실제 YouTube 미확인 |
+| macOS, Linux 실행 파일 | 릴리스 빌드에서 파이썬 없이 실행 확인. 압축 파일 크기 SIZES |
+| 미사용 Qt 라이브러리 제외 | Qt Quick, QML, PDF, 가상 키보드, 소프트웨어 OpenGL 제외. Windows 압축 해제 크기 WINSIZE |
+| Windows 코드 서명 | 서명 절차 구현, 인증서 등록 시 자동 적용. 인증서 미보유로 미적용 |
+| 아바타 창 캡처 소스 없음 안내 | Linux OBS(Xvfb)에 창 캡처 소스 종류가 없음을 확인. 장면 구성 결과에 안내 추가 |
+
 ## 미확인 항목
 
 - SOOP 별풍선, 애드벌룬, 영상풍선의 닉네임 위치(실제 후원 패킷 필요)
 - VTube Studio 실행 중 아바타 창 지정 문자열(`VTube Studio:UnityWndClass:VTube Studio.exe`)
-- macOS, Linux의 OBS 장면 구성(소스 종류 이름)과 마이크, 웹캠 인식
+- macOS 실제 OBS의 장면 구성(소스 종류 이름)
+- Linux 데스크톱 환경의 아바타 창 캡처 소스(xcomposite_input)
+- 실제 macOS, Linux PC의 마이크, 웹캠 인식
 - 치지직 공식 API의 실제 계정 사용
-- YouTube 공식 API의 실제 방송 사용(API 키만으로 채팅 수신 가능 여부 포함)
-- 고급 출력 모드(AdvOut)에서 리플레이 버퍼 설정
-- 설치 프로그램의 ffmpeg 다운로드 작업(실제 115 MB 다운로드)
+- YouTube 공식 API의 실제 방송 사용(요청 방식, 스트리밍 방식, API 키만으로 채팅 수신 가능 여부)
 
-## 0.6 계획
+## 0.7 계획
 
-- 미확인 항목의 실제 환경 검증
-- YouTube streamList 적용(서버 스트리밍 방식, 지연 감소, 할당량 동일)
-- 코드 서명(SmartScreen 경고 제거)
-- macOS, Linux 실행 파일
+- Windows 코드 서명 인증서 확보와 적용(선택지와 절차: [RELEASING.md](RELEASING.md))
+- macOS 서명과 공증(Apple Developer 계정 필요)
+- Windows, macOS 실제 OBS 자동 검증(현재 Linux만 자동 검증)
+- 실제 방송으로 YouTube 스트리밍 방식 확인
 
 ## 채팅 연결 모듈 개선 요청
 

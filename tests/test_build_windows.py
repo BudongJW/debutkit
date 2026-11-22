@@ -67,6 +67,19 @@ def test_archive_names_per_system():
     assert build_app.programs(Path("dist/debutkit"), "linux")[0].name == "debutkit"
 
 
+def test_unused_qt_files_are_dropped_and_needed_ones_kept():
+    import build_app
+
+    dropped = ["PySide6\\Qt6Quick.dll", "PySide6\\Qt6QmlModels.dll", "PySide6\\Qt6Pdf.dll", "PySide6\\opengl32sw.dll",
+               "PySide6\\plugins\\imageformats\\qpdf.dll", "PySide6/Qt/plugins/platforminputcontexts/libqtvirtualkeyboardplugin.so",
+               "PySide6/Qt/lib/libQt6Quick.so.6", "PySide6/Qt/lib/QtPdf.framework/Versions/A/QtPdf"]
+    kept = ["PySide6\\Qt6Core.dll", "PySide6\\Qt6Gui.dll", "PySide6\\Qt6Widgets.dll", "PySide6\\Qt6OpenGL.dll", "PySide6\\plugins\\platforms\\qwindows.dll",
+            "PySide6/Qt/plugins/platforms/libqxcb.so", "PySide6/Qt/plugins/platformthemes/libqgtk3.so", "PySide6/Qt/lib/libicudata.so.73",
+            "PySide6/Qt/plugins/platforms/libqcocoa.dylib", "grpc/_cython/cygrpc.cpython-312-x86_64-linux-gnu.so", "numpy.libs/libscipy_openblas64_.so"]
+    assert all(build_app.unused(name) for name in dropped)
+    assert not any(build_app.unused(name) for name in kept)
+
+
 def test_installer_script_is_utf8_with_bom_and_has_no_claude():
     raw = (ROOT / "packaging" / "installer.iss").read_bytes()
     assert raw.startswith(b"\xef\xbb\xbf")  # Inno Setup이 한국어 문구를 UTF-8로 읽도록

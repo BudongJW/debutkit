@@ -25,6 +25,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 SPEC = ROOT / "packaging" / "debutkit.spec"
 SYSTEMS = {"win32": "windows", "darwin": "macos"}
+# 위젯 화면만 사용: Qt Quick, QML, PDF, 가상 키보드, 소프트웨어 OpenGL 라이브러리는 PySide6 수집 규칙이 함께 넣지만 쓰지 않음
+UNUSED_QT = ("qt6quick", "qtquick", "qt6qml", "qtqml", "qt6pdf", "qtpdf", "qpdf", "virtualkeyboard", "opengl32sw")
+
+
+def unused(dest: str) -> bool:
+    """묶음에서 뺄 Qt 파일인지(debutkit.spec에서 사용)."""
+    name = dest.replace("\\", "/").lower()
+    return "pyside6/" in name and any(part in name for part in UNUSED_QT)
 
 
 def project_version() -> str:
