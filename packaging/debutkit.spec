@@ -29,7 +29,8 @@ excludes = [
 # 메타데이터: doctor가 채팅 연결 모듈 버전을 importlib.metadata로 읽는다
 datas = collect_data_files("debutkit") + collect_data_files("stream2clip") + copy_metadata("stream2clip") + copy_metadata("debutkit")
 hiddenimports = collect_submodules("debutkit") + ["stream2clip.live", "stream2clip.chzzk_api", "stream2clip.vrm", "stream2clip.obs",
-                                                  "stream2clip.tools", "stream2clip.ffmpeg", "stream2clip.export", "websocket"]
+                                                  "stream2clip.tools", "stream2clip.ffmpeg", "stream2clip.export", "websocket",
+                                                  "grpc", "google.protobuf.descriptor_pb2", "google.protobuf.json_format", "google.protobuf.message_factory"]
 
 if sys.platform == "win32":
     icon = str(ROOT / "assets" / "brand" / "app-icon" / "debutkit.ico")  # packaging/build_brand.py 로 생성

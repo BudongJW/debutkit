@@ -1,4 +1,6 @@
-"""YouTube 라이브 채팅: 공식 YouTube Data API(liveChatMessages.list)를 API 키로 읽는다.
+"""YouTube 라이브 채팅(요청 방식): 공식 YouTube Data API(liveChatMessages.list)를 API 키로 읽는다.
+
+스트리밍 방식(streamList, gRPC)은 :mod:`.youtube_stream`. 기본 수신기는 :func:`youtube_source` 가 고른다.
 
 - 필요: Google Cloud 프로젝트에서 YouTube Data API v3 사용 설정, API 키 발급
 - 할당량: 기본 일일 10,000 단위. 채팅 요청 1회 5 단위, 방송 확인(videos.list) 1회 1 단위
@@ -163,21 +165,23 @@ class YouTubeLiveChat:
         data = json.loads(body or b"{}")
         return data if isinstance(data, dict) else {}
 
-    def _chat(self) -> str:
-        items = self._call("videos", {"part": "liveStreamingDetails", "id": self.video}).get("items") or []
-        if not items:
-            raise RuntimeError(f"YouTube 영상을 찾지 못함: {self.video}")
-        chat = (items[0].get("liveStreamingDetails") or {}).get("activeLiveChatId")
-        if not chat:
-            raise RuntimeError("라이브 채팅 없음: 방송 중이 아니거나 채팅이 꺼져 있음")
-        return str(chat)
+    def chat_id(self) -> str:
+        """방송의 라이브 채팅 ID(videos.list, 1 단위). 한 번 받으면 다시 묻지 않는다."""
+        if self._chat_id is None:
+            items = self._call("videos", {"part": "liveStreamingDetails", "id": self.video}).get("items") or []
+            if not items:
+                raise RuntimeError(f"YouTube 영상을 찾지 못함: {self.video}")
+            chat = (items[0].get("liveStreamingDetails") or {}).get("activeLiveChatId")
+            if not chat:
+                raise RuntimeError("라이브 채팅 없음: 방송 중이 아니거나 채팅이 꺼져 있음")
+            self._chat_id = str(chat)
+        return self._chat_id
 
     def read(self) -> list[OverlayEvent]:
         if self.ended or self._clock() < self._next:
             return []
         self._next = self._clock() + self.interval  # 실패해도 간격을 지킨다
-        if self._chat_id is None:
-            self._chat_id = self._chat()
+        self.chat_id()
         params: dict[str, Any] = {"liveChatId": self._chat_id, "part": "snippet,authorDetails", "maxResults": 2000, "hl": "ko"}
         if self._page:
             params["pageToken"] = self._page
@@ -197,5 +201,17 @@ class YouTubeLiveChat:
         self.ended = True
 
 
-def youtube_source(address: str, api_key: str | None = None, interval: float = DEFAULT_INTERVAL) -> YouTubeLiveChat:
-    return YouTubeLiveChat(address, api_key, interval=interval)
+MODES = ("auto", "stream", "poll")
+
+
+def youtube_source(address: str, api_key: str | None = None, interval: float = DEFAULT_INTERVAL, mode: str = "auto") -> Any:
+    """수신기 선택. auto: gRPC가 설치되어 있으면 스트리밍(실패 시 요청 방식으로 전환), 없으면 요청 방식."""
+    from .youtube_stream import YouTubeStreamChat, available
+
+    if mode not in MODES:
+        raise ValueError(f"YouTube 수신 방식은 {', '.join(MODES)} 중 하나")
+    if mode == "stream" and not available():
+        raise RuntimeError('YouTube 스트리밍에는 grpcio, protobuf 필요: pip install "debutkit[youtube]"')
+    if mode == "poll" or (mode == "auto" and not available()):
+        return YouTubeLiveChat(address, api_key, interval=interval)
+    return YouTubeStreamChat(address, api_key, interval=interval)

@@ -22,7 +22,9 @@ Changelog = "https://github.com/BudongJW/debutkit/blob/main/CHANGELOG.md"
 [project.optional-dependencies]
 # 채팅 연결 모듈: 방송 플랫폼 채팅 수신, OBS 제어, 급증 판단, ffmpeg 내려받기
 live = ["stream2clip @ git+https://github.com/BudongJW/stream2clip@v0.14.1", "websocket-client>=1.6"]
-gui = ["debutkit[live]", "PySide6>=6.6"]
+# YouTube 채팅 스트리밍(streamList, gRPC). 없으면 요청 방식 사용
+youtube = ["grpcio>=1.60", "protobuf>=4.25"]
+gui = ["debutkit[live,youtube]", "PySide6>=6.6"]
 build = ["pyinstaller>=6.10"]
 dev = ["pytest>=8", "ruff>=0.6"]
 

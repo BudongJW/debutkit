@@ -70,7 +70,7 @@ def _overlay(args: argparse.Namespace) -> int:
     for channel in args.twitch or []:
         sources.append((f"Twitch {channel}", lambda c=channel: events.twitch_source(c)))
     for video in args.youtube or []:
-        sources.append((f"YouTube {video}", lambda v=video: youtube_source(v, args.youtube_key, args.youtube_interval)))
+        sources.append((f"YouTube {video}", lambda v=video: youtube_source(v, args.youtube_key, args.youtube_interval, args.youtube_mode)))
     if args.demo or not sources:
         sources.append(("데모", lambda: events.DemoChat()))
     try:
@@ -215,6 +215,8 @@ def build_parser() -> argparse.ArgumentParser:
     overlay.add_argument("--twitch", action="append", metavar="채널", help="Twitch 채널 이름")
     overlay.add_argument("--youtube", action="append", metavar="방송", help="YouTube 방송 주소 또는 영상 ID (공식 API, API 키 필요)")
     overlay.add_argument("--youtube-key", help="YouTube Data API 키 (또는 YOUTUBE_API_KEY)")
+    overlay.add_argument("--youtube-mode", choices=["auto", "stream", "poll"], default="auto",
+                         help="YouTube 수신 방식: stream(스트리밍, 할당량 적음), poll(요청 방식), auto(스트리밍 우선, 실패 시 요청 방식. 기본)")
     overlay.add_argument("--youtube-interval", type=float, default=10.0, metavar="초",
                          help="YouTube 채팅 요청 간격 (기본 %(default)s초, 최소 5초. 짧을수록 할당량 빨리 소진)")
     overlay.add_argument("--demo", action="store_true", help="데모 채팅 함께 표시 (표시 형태 확인용)")

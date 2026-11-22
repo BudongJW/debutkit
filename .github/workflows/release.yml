@@ -111,7 +111,7 @@ jobs:
           if-no-files-found: error
 
   macos:
-    runs-on: macos-14
+    runs-on: macos-latest  # Apple Silicon(arm64)
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v7
