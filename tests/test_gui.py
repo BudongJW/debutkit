@@ -79,7 +79,7 @@ def test_checks_run_on_open_and_show_states(app):
         assert "준비 필요 1건" in window.check_summary.text()
         names = [window.check_rows.itemAtPosition(row, 0).widget().objectName() for row in range(3)]
         assert names == ["StateOk", "StateWarn", "StateMissing"]
-        assert "해결: 정리" in window.check_rows.itemAtPosition(2, 2).widget().text()
+        assert "조치: 정리" in window.check_rows.itemAtPosition(2, 2).widget().text()
         assert not window.ffmpeg_button.isVisibleTo(window)  # ffmpeg 항목이 없으면 버튼도 없음
     finally:
         window.close()
@@ -102,7 +102,7 @@ def test_missing_ffmpeg_offers_download_and_rechecks(app):
         assert wait_for(app, lambda: bool(window.checked))
         assert window.ffmpeg_button.isVisibleTo(window)
         window.ffmpeg_button.click()
-        assert wait_for(app, lambda: "준비 완료" in window.ffmpeg_status.text())
+        assert wait_for(app, lambda: "설치 완료" in window.ffmpeg_status.text())
         assert wait_for(app, lambda: len(runs) == 2 and not window.ffmpeg_button.isVisibleTo(window))  # 받은 뒤 다시 점검
     finally:
         window.close()
@@ -271,7 +271,7 @@ def test_speed_button_shows_advice(app):
     try:
         window.speed_button.click()
         assert wait_for(app, lambda: "5.0 Mbps" in window.speed_result.text())
-        assert "[주의]" in window.speed_result.text() and "해결: 유선 연결 권장" in window.speed_result.text()
+        assert "[주의]" in window.speed_result.text() and "조치: 유선 연결 권장" in window.speed_result.text()
         assert window.speed_button.isEnabled()
     finally:
         window.close()

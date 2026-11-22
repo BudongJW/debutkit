@@ -24,7 +24,7 @@ excludes = [
 
 # 메타데이터: doctor가 stream2clip 버전을 importlib.metadata로 읽는다
 datas = collect_data_files("debutkit") + collect_data_files("stream2clip") + copy_metadata("stream2clip") + copy_metadata("debutkit")
-hiddenimports = collect_submodules("debutkit") + ["stream2clip.live", "stream2clip.chzzk_api", "stream2clip.vrm", "stream2clip.obs", "stream2clip.gui.theme",
+hiddenimports = collect_submodules("debutkit") + ["stream2clip.live", "stream2clip.chzzk_api", "stream2clip.vrm", "stream2clip.obs",
                                                   "stream2clip.tools", "stream2clip.ffmpeg", "stream2clip.export", "websocket"]
 
 

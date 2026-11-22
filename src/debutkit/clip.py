@@ -26,10 +26,10 @@ KINDS = {"chat": "text", "donation": "paid", "member": "member"}
 #: 채팅 연결 모듈이 영어로 주는 안내와 그 한국어
 _MESSAGES: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"replay buffer holds (\d+) s but the clip wanted (\d+) s"),
-     "리플레이 버퍼 길이 {0}초, 필요한 길이 {1}초. OBS 설정의 출력 탭에서 리플레이 버퍼 최대 시간 늘리기"),
+     "리플레이 버퍼 길이 {0}초, 필요한 길이 {1}초. OBS 설정의 출력 탭에서 리플레이 버퍼 최대 시간 연장 필요"),
     (re.compile(r"replay buffer is not running"), "리플레이 버퍼 꺼짐. OBS 제어 영역에서 리플레이 버퍼 시작"),
     (re.compile(r"replay buffer did not start"), "OBS가 리플레이 버퍼를 시작하지 않음. OBS 창의 확인 창(예: 소스 없음) 확인"),
-    (re.compile(r"(ffmpeg|ffprobe) not found"), "ffmpeg 없음. debutkit setup --ffmpeg 로 내려받기"),
+    (re.compile(r"(ffmpeg|ffprobe) not found"), "ffmpeg 없음. debutkit setup --ffmpeg로 다운로드"),
 ]
 
 

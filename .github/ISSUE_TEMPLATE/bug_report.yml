@@ -5,14 +5,14 @@ body:
   - type: markdown
     attributes:
       value: |
-        - 시청자 닉네임, 채팅 내용, 치지직 토큰, Client Secret, OBS 비밀번호는 넣지 않기
-        - 소속 의향 등록은 이슈로 받지 않음(참여 안내 페이지 참고)
+        - 시청자 닉네임, 채팅 내용, 치지직 토큰, Client Secret, OBS 비밀번호, YouTube API 키 입력 금지
+        - 소속 의향 등록은 이슈로 접수하지 않음(참여 안내 페이지 참고)
   - type: input
     id: version
     attributes:
       label: debutkit 버전
       description: "debutkit --version 결과 또는 마법사 창 제목"
-      placeholder: debutkit 0.5.0
+      placeholder: debutkit 0.5.1
     validations:
       required: true
   - type: dropdown
@@ -46,13 +46,13 @@ body:
         - 업로드 속도 측정
         - 자동 클립
         - 치지직 로그인
-        - ffmpeg 내려받기(setup)
+        - ffmpeg 다운로드(setup)
         - 프로젝트 사이트, 문서
   - type: textarea
     id: what
     attributes:
       label: 증상
-      description: 실제 동작과 기대한 동작
+      description: 실제 동작과 예상 동작
     validations:
       required: true
   - type: textarea

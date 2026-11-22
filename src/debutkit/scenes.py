@@ -44,8 +44,8 @@ class SceneOptions:
     background: int = 0xFF3D1F2A  # OBS 색은 ABGR 순서: 짙은 남보라
     os_name: str = field(default_factory=lambda: {"win32": "Windows", "darwin": "Darwin"}.get(sys.platform, "Linux"))
     starting_text: str = "곧 방송을 시작합니다"
-    brb_text: str = "잠시 자리를 비웠어요"
-    ending_text: str = "오늘도 와 주셔서 고마워요!"
+    brb_text: str = "잠시 자리를 비웠습니다"
+    ending_text: str = "시청해 주셔서 감사합니다"
 
 
 @dataclass(frozen=True)
@@ -157,10 +157,10 @@ def build_scenes(width: int, height: int, kinds: dict[str, str], options: SceneO
         return Scene(name, purpose, tuple(item for item in items if item is not None))
 
     return [
-        scene("대기 화면", "방송 시작 전. 문구와 채팅만", background(), caption("대기 문구", options.starting_text), chat(), alerts()),
-        scene("본방송", "게임 화면 + 아바타 + 채팅 + 후원 알림", background(), game(), main_avatar, chat(), alerts()),
-        scene("토크", "잡담, 노래. 아바타를 크게", background(), talk_avatar, chat(), alerts()),
-        scene("자리 비움", "잠시 쉴 때. 마이크는 직접 음소거", background(), caption("자리 비움 문구", options.brb_text), chat(), alerts()),
+        scene("대기 화면", "방송 시작 전 대기. 안내 문구와 채팅", background(), caption("대기 문구", options.starting_text), chat(), alerts()),
+        scene("본방송", "게임 화면, 아바타, 채팅, 후원 알림", background(), game(), main_avatar, chat(), alerts()),
+        scene("토크", "잡담, 노래. 아바타 크게 표시", background(), talk_avatar, chat(), alerts()),
+        scene("자리 비움", "휴식 시간. 마이크는 직접 음소거", background(), caption("자리 비움 문구", options.brb_text), chat(), alerts()),
         scene("엔딩", "방송 마무리", background(), caption("엔딩 문구", options.ending_text), chat()),
     ]
 
@@ -226,7 +226,7 @@ def enable_replay_buffer(client: Any, seconds: int = 60) -> tuple[bool, str]:
         client.request("StartReplayBuffer")
     except ObsError as error:
         if getattr(error, "code", None) == NOT_AVAILABLE:
-            return False, f"리플레이 버퍼 설정 완료 (최대 {seconds}초). OBS를 한 번 껐다 켜면 사용 가능"
+            return False, f"리플레이 버퍼 설정 완료(최대 {seconds}초). OBS 재시작 후 사용 가능"
         raise
     return True, f"리플레이 버퍼 시작 (최대 {seconds}초)"
 
@@ -266,7 +266,7 @@ def format_report(report: Report) -> str:
     if report.created_scenes:
         lines.append("만든 장면: " + ", ".join(report.created_scenes))
     if report.skipped_scenes:
-        lines.append("이미 있어 건너뛴 장면: " + ", ".join(report.skipped_scenes) + "  (--replace 로 다시 만들기)")
+        lines.append("기존 장면이 있어 건너뜀: " + ", ".join(report.skipped_scenes) + " (--replace로 다시 생성)")
     if report.created_sources:
         lines.append("만든 소스: " + ", ".join(report.created_sources))
     if report.reused_sources:

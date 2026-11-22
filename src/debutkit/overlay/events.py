@@ -196,7 +196,7 @@ def twitch_event(line: str) -> OverlayEvent | None:
 
 
 def chzzk_source(channel: str) -> Any:
-    """CHZZK 채널의 라이브 채팅(로그인 없이 시청자로 읽기)."""
+    """CHZZK 채널의 라이브 채팅(로그인 없는 비공식 수신)."""
     from stream2clip.live import ChzzkLiveChat
 
     class ChzzkOverlayChat(ChzzkLiveChat):
@@ -237,7 +237,7 @@ def chzzk_api_source() -> Any:
 
 
 def soop_source(channel: str) -> Any:
-    """SOOP 채널의 라이브 채팅(로그인 없이 시청자로 읽기)."""
+    """SOOP 채널의 라이브 채팅(로그인 없는 비공식 수신)."""
     from stream2clip.live import SoopLiveChat
 
     class SoopOverlayChat(SoopLiveChat):
@@ -249,7 +249,7 @@ def soop_source(channel: str) -> Any:
 
 
 def twitch_source(channel: str) -> Any:
-    """Twitch 채널의 채팅(익명 시청자로 읽기). 연결은 stream2clip ``TwitchLiveChat`` 그대로, 줄 해석만 바꾼다."""
+    """Twitch 채널의 채팅(익명 수신). 연결은 stream2clip ``TwitchLiveChat`` 그대로, 줄 해석만 바꾼다."""
     import ssl
 
     from stream2clip.live import TwitchLiveChat
@@ -297,7 +297,7 @@ SAMPLE_NAMES = ["치즈냥", "숲속토끼", "새벽감성", "고양이집사", 
 
 
 class DemoChat:
-    """방송 없이 오버레이 모양을 맞춰 볼 때 쓰는 가짜 채팅. 몇 초마다 채팅, 가끔 후원."""
+    """방송 없이 오버레이 표시 형태를 확인할 때 쓰는 가짜 채팅. 몇 초마다 채팅, 가끔 후원."""
 
     ended = False
 

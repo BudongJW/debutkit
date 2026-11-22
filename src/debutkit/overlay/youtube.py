@@ -1,7 +1,7 @@
 """YouTube 라이브 채팅: 공식 YouTube Data API(liveChatMessages.list)를 API 키로 읽는다.
 
 - 필요: Google Cloud 프로젝트에서 YouTube Data API v3 사용 설정, API 키 발급
-- 할당량: 기본 하루 10,000 단위. 채팅 요청 1회 5 단위, 방송 확인(videos.list) 1회 1 단위
+- 할당량: 기본 일일 10,000 단위. 채팅 요청 1회 5 단위, 방송 확인(videos.list) 1회 1 단위
 - 요청 간격: YouTube가 알려 주는 간격(pollingIntervalMillis)과 ``interval`` 중 긴 쪽.
   기본 10초면 1시간에 약 1,800 단위, 기본 할당량으로 약 5시간
 - API 키는 요청 머리글(X-Goog-Api-Key)로만 보내고 저장하지 않는다
@@ -30,9 +30,9 @@ _VIDEO_ID = re.compile(r"^[A-Za-z0-9_-]{11}$")
 
 #: API 오류 이유(reason)와 한국어 안내
 _REASONS = {
-    "quotaExceeded": "YouTube API 하루 할당량 초과(태평양 시간 자정 초기화). --youtube-interval 을 늘리거나 할당량 증설 신청",
-    "dailyLimitExceeded": "YouTube API 하루 할당량 초과(태평양 시간 자정 초기화)",
-    "rateLimitExceeded": "요청 간격이 너무 짧음. --youtube-interval 을 늘리기",
+    "quotaExceeded": "YouTube API 일일 할당량 초과(태평양 시간 자정 초기화). --youtube-interval 값을 늘리거나 할당량 증설 신청 필요",
+    "dailyLimitExceeded": "YouTube API 일일 할당량 초과(태평양 시간 자정 초기화)",
+    "rateLimitExceeded": "요청 간격이 너무 짧음. --youtube-interval 값 증가 필요",
     "keyInvalid": "API 키 확인 필요(잘못된 키)",
     "accessNotConfigured": "Google Cloud 프로젝트에서 YouTube Data API v3 사용 설정 필요",
     "liveChatEnded": "라이브 채팅 종료",

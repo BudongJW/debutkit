@@ -21,8 +21,12 @@ SITE = ROOT / "site"
 
 #: 사이트 안 경로와 저장소 파일
 ASSETS: dict[str, str] = {
-    "assets/lockup.svg": "assets/brand/lockup/horizontal_dark-bg.svg",
-    "assets/symbol.svg": "assets/brand/symbol/symbol_dark-bg.svg",
+    "assets/lockup.svg": "assets/brand/lockup/horizontal_light-bg.svg",
+    "assets/symbol.svg": "assets/brand/symbol/symbol_light-bg.svg",
+    "assets/shots/wizard-check.png": "docs/images/wizard-check.png",
+    "assets/shots/wizard-chat.png": "docs/images/wizard-chat.png",
+    "assets/shots/overlay-settings.png": "docs/images/overlay-settings.png",
+    "assets/shots/overlay-themes.png": "docs/images/overlay-themes.png",
     "assets/favicon.svg": "assets/brand/favicon/favicon.svg",
     "assets/favicon.ico": "assets/brand/favicon/favicon.ico",
     "assets/apple-touch-icon.png": "assets/brand/favicon/favicon-180.png",

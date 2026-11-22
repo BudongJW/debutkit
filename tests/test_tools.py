@@ -20,7 +20,7 @@ def test_progress_printer_writes_every_step():
 
 def test_download_refused_off_windows(monkeypatch):
     monkeypatch.setattr(tools.sys, "platform", "linux")
-    with pytest.raises(RuntimeError, match="내려받기 미지원"):
+    with pytest.raises(RuntimeError, match="다운로드 미지원"):
         tools.download_ffmpeg()
 
 

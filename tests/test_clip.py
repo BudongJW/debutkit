@@ -124,7 +124,7 @@ def test_enable_replay_buffer_writes_the_right_settings(mode, category):
 
 def test_enable_replay_buffer_asks_for_restart_when_obs_has_none_yet():
     ready, message = enable_replay_buffer(FakeObs(available=False), 30)
-    assert not ready and "껐다 켜면" in message
+    assert not ready and "재시작" in message
 
 
 def test_enable_replay_buffer_leaves_running_buffer():
@@ -137,7 +137,7 @@ def test_english_notes_become_korean():
     from debutkit.clip import korean
 
     note = "the replay buffer holds 30 s but the clip wanted 45 s: raise Settings > Output > Replay Buffer > Maximum Replay Time in OBS"
-    assert korean(note) == "리플레이 버퍼 길이 30초, 필요한 길이 45초. OBS 설정의 출력 탭에서 리플레이 버퍼 최대 시간 늘리기"
+    assert korean(note) == "리플레이 버퍼 길이 30초, 필요한 길이 45초. OBS 설정의 출력 탭에서 리플레이 버퍼 최대 시간 연장 필요"
     assert "리플레이 버퍼 꺼짐" in korean("The replay buffer is not running. Start it in OBS")
     assert "debutkit setup --ffmpeg" in korean("ffprobe not found: run ...")
     assert korean("그대로") == "그대로"

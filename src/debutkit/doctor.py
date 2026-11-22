@@ -233,7 +233,7 @@ class System:
     package_version: Callable[[str], str | None] = _import_version
     steam_root: Callable[[], str | None] = _steam_root
     read_text: Callable[[str], str | None] = _read_text
-    find_ffmpeg: Callable[[], str | None] = _find_ffmpeg  # PATH 밖에 내려받은 ffmpeg까지 찾는다
+    find_ffmpeg: Callable[[], str | None] = _find_ffmpeg  # PATH 밖에 다운로드한 ffmpeg까지 찾는다
     audio_inputs: Callable[[], list[str] | None] = _audio_inputs
     cameras: Callable[[], list[str] | None] = _cameras
     home: str = field(default_factory=lambda: str(Path.home()))
@@ -274,7 +274,7 @@ def check_hardware(system: System) -> list[Check]:
         elif any(re.search(r"apple|m\d", name, re.I) for name in gpus):
             found.append(Check("gpu", "그래픽카드", OK, joined, "OBS 설정의 출력 탭에서 Apple VT 하드웨어 인코더 선택 가능"))
         else:
-            found.append(Check("gpu", "그래픽카드", WARN, joined, "내장 그래픽은 트래킹과 게임 동시 실행 시 부하 큼. Intel QSV 인코더 권장"))
+            found.append(Check("gpu", "그래픽카드", WARN, joined, "내장 그래픽은 트래킹과 게임을 함께 실행하면 성능 부족 가능. Intel QSV 인코더 사용 권장"))
     videos = os.path.join(system.home, "Videos")
     free = system.disk_free_gb(videos if system.exists(videos) else system.home)
     if free is None:
@@ -302,7 +302,7 @@ def check_devices(system: System) -> list[Check]:
         found.append(Check("mic", "마이크", OK, _names(mics)))
     else:
         found.append(Check("mic", "마이크", FAIL, "사용 가능한 입력 장치 없음",
-                           "마이크 연결 후 운영체제 소리 설정에서 입력 장치 사용 확인. 꺼진 장치, 분리된 장치는 제외"))
+                           "마이크 연결 후 운영체제 소리 설정에서 입력 장치 사용 여부 확인(꺼진 장치, 분리된 장치는 점검 대상에서 제외)"))
     cameras = system.cameras()
     if cameras is None:
         found.append(Check("camera", "웹캠", INFO, "확인하지 못함"))
@@ -335,7 +335,7 @@ def check_obs(system: System) -> list[Check]:
         found.append(Check("obs-websocket", "OBS 원격 제어", OK, f"127.0.0.1:{OBS_WEBSOCKET_PORT} 응답", "debutkit scenes 로 장면 세트 구성 가능"))
     else:
         found.append(Check("obs-websocket", "OBS 원격 제어", WARN, "응답 없음",
-                           "OBS 실행, 도구 메뉴의 WebSocket 서버 설정에서 WebSocket 서버 사용 체크 (장면 자동 구성, 자동 클립에 필요)"))
+                           "OBS 실행 후 도구 메뉴의 WebSocket 서버 설정에서 WebSocket 서버 사용 체크(장면 자동 구성, 자동 클립에 필요)"))
     return found
 
 
@@ -364,7 +364,7 @@ def check_tracking(system: System) -> list[Check]:
         found = [Check("tracking", "트래킹 프로그램", OK, ", ".join(names))]
     else:
         found = [Check("tracking", "트래킹 프로그램", WARN, "Steam에서 찾지 못함",
-                       f"Live2D는 VTube Studio, 3D(VRM)는 VSeeFace, Warudo 등. Steam 밖에 설치한 경우 무시. 목록: {SOFTWARE_URL}")]
+                       f"Live2D는 VTube Studio, 3D(VRM)는 VSeeFace, Warudo 등 사용. Steam 외 경로에 설치한 경우 해당 없음. 목록: {SOFTWARE_URL}")]
     if system.port_open("127.0.0.1", VTS_API_PORT):
         found.append(Check("vts-api", "VTube Studio API", OK, f"127.0.0.1:{VTS_API_PORT} 응답"))
     return found
@@ -385,14 +385,14 @@ def check_live_tools(system: System) -> list[Check]:
         from .tools import install_hint
 
         platform_name = {"Windows": "win32", "Darwin": "darwin"}.get(system.os_name, "linux")
-        found.append(Check("ffmpeg", "ffmpeg", INFO, "찾지 못함", f"자동 클립에만 필요 (방송에는 불필요). {install_hint(platform_name)}"))
+        found.append(Check("ffmpeg", "ffmpeg", INFO, "찾지 못함", f"자동 클립에만 필요(방송에는 불필요). {install_hint(platform_name)}"))
     return found
 
 
 def check_overlay_port(system: System, port: int = OVERLAY_PORT) -> list[Check]:
     if system.port_open("127.0.0.1", port):
         return [Check("overlay-port", "오버레이 포트", WARN, f"{port} 사용 중",
-                      "overlay 실행 중이거나 다른 프로그램이 사용. 다른 프로그램이면 debutkit overlay --port 로 다른 번호 지정")]
+                      "debutkit overlay가 이미 실행 중이거나 다른 프로그램이 사용 중. 다른 프로그램인 경우 --port로 다른 번호 지정")]
     return [Check("overlay-port", "오버레이 포트", OK, f"{port} 사용 가능")]
 
 
@@ -454,7 +454,7 @@ def format_report(checks: list[Check]) -> str:
         title = check.title + " " * (width - _display_width(check.title))
         lines.append(f"  [{LABELS.get(check.status, check.status)}] {title}  {check.detail}".rstrip())
         if check.hint and check.status != OK:
-            lines.append(f"         해결: {check.hint}")
+            lines.append(f"         조치: {check.hint}")
     lines += ["", summary(checks)]
     return "\n".join(lines)
 

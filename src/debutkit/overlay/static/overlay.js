@@ -1,4 +1,4 @@
-// debutkit overlay: /events 사건 흐름을 받아 채팅창과 알림을 그린다. 글은 textContent로만 넣는다.
+// debutkit overlay: /events 사건 흐름을 받아 채팅창과 알림을 표시한다. 글은 textContent로만 넣는다.
 "use strict";
 
 const PLATFORMS = {
@@ -111,7 +111,7 @@ function startAlerts(root) {
     card.appendChild(badge(event));
     const title = document.createElement("div");
     title.className = "alert-title";
-    title.textContent = event.kind === "member" ? `${event.name} 님 구독 감사합니다!` : `${event.name} 님 ${amountText(event)} 후원!`;
+    title.textContent = event.kind === "member" ? `${event.name} 님, 구독해 주셔서 감사합니다` : `${event.name} 님, ${amountText(event)} 후원 감사합니다`;
     card.appendChild(title);
     const text = document.createElement("div");
     text.className = "alert-text";

@@ -3,17 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>소식 - debutkit</title>
-<meta name="description" content="debutkit 릴리스 소식과 개발 기록.">
-<meta name="theme-color" content="#15131F">
+<title>릴리스 노트 - debutkit</title>
+<meta name="description" content="debutkit 버전별 변경 사항과 검증 범위.">
+<meta name="theme-color" content="#ffffff">
+<meta property="og:image" content="https://budongjw.github.io/debutkit/assets/social.png">
 <link rel="canonical" href="https://budongjw.github.io/debutkit/news.html">
 <link rel="icon" href="assets/favicon.ico" sizes="48x48">
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
-<meta property="og:image" content="https://budongjw.github.io/debutkit/assets/social.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Noto+Sans+KR:wght@400;500;700;900&family=Outfit:wght@300;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Noto+Sans+KR:wght@400;600;700&display=swap">
 <link rel="stylesheet" href="css/site.css">
 </head>
 <body>
@@ -21,13 +21,11 @@
 
 <header class="top">
   <div class="wrap">
-    <a class="lockup" href="./" aria-label="debutkit 홈">
-      <img src="assets/lockup.svg" alt="debutkit" width="120" height="44">
-    </a>
+    <a class="lockup" href="./" aria-label="debutkit 홈"><img src="assets/lockup.svg" alt="debutkit" width="110" height="40"></a>
     <nav class="nav" aria-label="주요 메뉴">
       <a href="guide.html">사용 설명서</a>
       <a href="software.html">방송 소프트웨어</a>
-      <a href="news.html" aria-current="page">소식</a>
+      <a href="news.html" aria-current="page">릴리스 노트</a>
       <a href="join.html">참여 안내</a>
       <a href="https://github.com/BudongJW/debutkit">GitHub</a>
     </nav>
@@ -37,153 +35,129 @@
 <main id="main">
   <div class="wrap">
     <header class="dochead">
-      <h1>소식</h1>
-      <p>릴리스와 개발 기록. 전체 변경 내역은 <a href="https://github.com/BudongJW/debutkit/blob/main/CHANGELOG.md">CHANGELOG</a></p>
+      <h1>릴리스 노트</h1>
+      <p>버전별 주요 변경 사항과 검증 범위. 전체 변경 내역은 <a href="https://github.com/BudongJW/debutkit/blob/main/CHANGELOG.md">CHANGELOG</a>에 있습니다.</p>
     </header>
 
     <div class="doc">
-      <nav class="toc" aria-label="글 목록">
-        <h2>글 목록</h2>
+      <nav class="toc" aria-label="버전 목록">
+        <h2>버전</h2>
         <ul>
-          <li><a href="#v0-5">debutkit 0.5</a></li>
-          <li><a href="#v0-4">debutkit 0.4</a></li>
-          <li><a href="#v0-3">debutkit 0.3</a></li>
-          <li><a href="#v0-2">debutkit 0.2</a></li>
-          <li><a href="#v0-1">debutkit 0.1</a></li>
+          <li><a href="#v0-5-1">0.5.1</a></li>
+          <li><a href="#v0-5">0.5.0</a></li>
+          <li><a href="#v0-4">0.4.0</a></li>
+          <li><a href="#v0-3">0.3.0</a></li>
+          <li><a href="#v0-2">0.2.0</a></li>
+          <li><a href="#v0-1">0.1.0</a></li>
         </ul>
       </nav>
 
       <div>
-        <article class="post" id="v0-5">
-          <header>
-            <time datetime="2026-11-22">2026-11-22</time>
-            <h2>debutkit 0.5: YouTube 채팅, 업로드 속도 측정, 설치 프로그램</h2>
-          </header>
-          <h3>추가</h3>
+        <article class="release" id="v0-5-1">
+          <h2>0.5.1</h2>
+          <p class="date">2026-11-22</p>
+          <h3>변경</h3>
           <ul>
-            <li>YouTube 라이브 채팅: 공식 YouTube Data API(API 키). 채팅, 슈퍼챗, 슈퍼스티커, 멤버십 알림. 치지직, SOOP, Twitch와 한 화면에 표시, 자동 클립 판단에도 합산</li>
-            <li>업로드 속도 측정: <code>debutkit doctor --speed</code>, 설정 마법사 PC 점검 화면 버튼. 측정값으로 해상도와 영상 비트레이트 추천</li>
-            <li>채팅창 테마 3종: 카드(이름 줄 분리), 외곽선 글자, 밝은 말풍선</li>
-            <li>오버레이 설정 화면의 채팅창 모양 선택: 테마, 글자 크기, 줄 수, 사라짐, 플랫폼 표시를 고르면 OBS용 주소에 반영</li>
-            <li>Windows 설치 프로그램: 관리자 권한 없이 설치, 시작 메뉴 바로 가기, ffmpeg 내려받기 선택</li>
-          </ul>
-          <h3>참고</h3>
-          <ul>
-            <li>YouTube API 기본 할당량: 하루 약 5시간 방송분(요청 간격 10초 기준). 긴 방송은 간격 조정</li>
-            <li>업로드 속도 측정과 새 버전 확인만 외부 서버에 연결. 둘 다 직접 실행할 때만</li>
-          </ul>
-          <h3>확인 범위</h3>
-          <ul>
-            <li>확인 완료: 업로드 속도 실제 측정, 테마 화면, 설치 프로그램의 설치, 실행, 제거(릴리스 빌드)</li>
-            <li>미확인: 실제 YouTube 방송과 API 키로 채팅 수신</li>
+            <li>문서, 사이트, 프로그램 안내 문구를 사업 문서 기준으로 정리. 구어체, 번역체, 홍보성 수식어 제거, 용어 통일(다운로드, 스트리머, 비공식 수신)</li>
+            <li>프로젝트 사이트 디자인 개편. 밝은 배경의 문서형 구성, 실제 프로그램 화면 수록</li>
+            <li>설정 마법사, 오버레이 설정 화면, 후원 알림의 디자인을 브랜드 색상 기준으로 정리. 그라데이션 제거, 스트리머와 매니저 표시를 문자 표시로 변경</li>
+            <li>OBS 장면 기본 문구를 표준 존댓말로 변경</li>
           </ul>
         </article>
 
-        <article class="post" id="v0-4">
-          <header>
-            <time datetime="2026-11-22">2026-11-22</time>
-            <h2>debutkit 0.4: 마이크와 웹캠 점검, 새 버전 확인</h2>
-          </header>
+        <article class="release" id="v0-5">
+          <h2>0.5.0</h2>
+          <p class="date">2026-11-22</p>
           <h3>추가</h3>
           <ul>
-            <li>PC 점검 마이크 항목: 사용 중인 입력 장치 확인. 없으면 필요 표시(꺼진 장치, 분리된 장치 제외)</li>
-            <li>PC 점검 웹캠 항목: 연결된 카메라 확인. 없으면 주의 표시(아이폰 얼굴 트래킹, PNGTuber는 불필요)</li>
-            <li>새 버전 확인: <code>debutkit setup --check-update</code>, 설정 마법사 마무리 단계 버튼. 직접 실행할 때만 GitHub 연결</li>
-            <li>GitHub 이슈 양식: 문제 제보(<code>doctor --json</code> 결과 칸), 기능 제안</li>
+            <li>YouTube 라이브 채팅 수신. 공식 YouTube Data API(API 키) 사용, 슈퍼챗, 슈퍼스티커, 멤버십 알림 지원, 자동 클립 판단에 합산</li>
+            <li>업로드 속도 측정과 송출 비트레이트 추천(<code>doctor --speed</code>, 설정 마법사 PC 점검 화면)</li>
+            <li>채팅창 표시 형태 3종 추가(card, outline, light)와 설정 화면의 표시 형태 선택</li>
+            <li>Windows 설치 프로그램. 관리자 권한 없이 설치, 시작 메뉴 등록, ffmpeg 다운로드 선택 작업</li>
           </ul>
-          <h3>확인 범위</h3>
+          <h3>참고</h3>
           <ul>
-            <li>확인 완료: Windows PC의 마이크, 웹캠 인식, GitHub 최신 릴리스 조회</li>
+            <li>YouTube API 기본 할당량은 요청 간격 10초 기준 일일 약 5시간 분량</li>
+            <li>외부 서버 연결은 업로드 속도 측정과 새 버전 확인을 직접 실행한 경우에만 발생</li>
+          </ul>
+          <h3>검증 범위</h3>
+          <ul>
+            <li>확인: 업로드 속도 실측, 표시 형태 화면, 설치 프로그램의 설치, 실행, 제거(릴리스 빌드)</li>
+            <li>미확인: 실제 YouTube 방송과 API 키를 사용한 채팅 수신</li>
+          </ul>
+        </article>
+
+        <article class="release" id="v0-4">
+          <h2>0.4.0</h2>
+          <p class="date">2026-11-22</p>
+          <h3>추가</h3>
+          <ul>
+            <li>PC 점검 마이크 항목. 사용 중인 입력 장치 확인, 없으면 필요로 표시(꺼진 장치, 분리된 장치 제외)</li>
+            <li>PC 점검 웹캠 항목. 연결된 카메라 확인, 없으면 주의로 표시</li>
+            <li>새 버전 확인(<code>debutkit setup --check-update</code>, 설정 마법사 마무리 단계). 실행 시에만 GitHub 연결</li>
+            <li>GitHub 이슈 양식(문제 제보, 기능 제안)</li>
+          </ul>
+          <h3>검증 범위</h3>
+          <ul>
+            <li>확인: Windows PC의 마이크, 웹캠 인식, GitHub 최신 릴리스 조회</li>
             <li>미확인: macOS, Linux의 마이크, 웹캠 인식</li>
           </ul>
         </article>
 
-        <article class="post" id="v0-3">
-          <header>
-            <time datetime="2026-11-22">2026-11-22</time>
-            <h2>debutkit 0.3: 외부 명령 없이 준비 완료</h2>
-          </header>
-          <h3>목표</h3>
-          <ul>
-            <li>자동 클립, 치지직 공식 API 준비 과정에서 다른 프로그램의 명령 입력 제거</li>
-            <li>방송 중 실패하던 상황을 시작 전에 확인</li>
-          </ul>
+        <article class="release" id="v0-3">
+          <h2>0.3.0</h2>
+          <p class="date">2026-11-22</p>
           <h3>추가</h3>
           <ul>
-            <li><code>debutkit setup --ffmpeg</code>: ffmpeg 내려받기(Windows, SHA-256 확인)</li>
-            <li>설정 마법사 PC 점검 화면의 ffmpeg 내려받기 버튼, 완료 후 자동 재점검</li>
-            <li><code>debutkit chzzk login</code>, <code>logout</code>: 치지직 공식 API 로그인</li>
-            <li>설정 마법사 치지직 API 칸(Client ID, Client Secret)과 로그인 버튼</li>
-            <li>오버레이 설정 화면의 방장 !clip 테스트 버튼</li>
-            <li>마무리 단계의 자동 클립 저장 폴더 열기</li>
-            <li>프로젝트 사이트 개설: 사용 설명서, 방송 소프트웨어, 소식, 참여 안내</li>
+            <li>ffmpeg 다운로드(<code>debutkit setup --ffmpeg</code>, Windows, SHA-256 검증)와 설정 마법사의 다운로드 버튼</li>
+            <li>치지직 공식 API 로그인(<code>debutkit chzzk login</code>, <code>logout</code>)과 설정 마법사의 로그인 입력란</li>
+            <li>오버레이 설정 화면의 스트리머 !clip 테스트 버튼, 마무리 단계의 클립 폴더 열기</li>
+            <li>프로젝트 사이트 개설(사용 설명서, 방송 소프트웨어, 릴리스 노트, 참여 안내)</li>
           </ul>
           <h3>수정</h3>
           <ul>
-            <li>OBS 연결 실패 시 <code>overlay --clip</code> 이 끝나지 않고 멈추던 문제</li>
-            <li>내려받은 ffmpeg를 PC 점검이 찾지 못하던 문제(PATH만 확인)</li>
-            <li>ffmpeg 없이 자동 클립을 켜면 클립마다 실패하던 문제: 시작 전 확인으로 변경</li>
-            <li>자동 클립 안내 문구(리플레이 버퍼 길이 부족 등)의 영어 표시: 한국어로 변경</li>
+            <li>OBS 연결 실패 시 <code>overlay --clip</code>이 종료되지 않는 문제</li>
+            <li>다운로드한 ffmpeg를 PC 점검이 인식하지 못하는 문제</li>
+            <li>ffmpeg 없이 자동 클립을 켜면 클립마다 실패하는 문제. 시작 전 확인하도록 변경</li>
+            <li>자동 클립 안내가 영어로 표시되는 문제</li>
           </ul>
         </article>
 
-        <article class="post" id="v0-2">
-          <header>
-            <time datetime="2026-11-21">2026-11-21</time>
-            <h2>debutkit 0.2: 설정 마법사와 방송 중 자동 클립</h2>
-          </header>
-          <h3>목표</h3>
+        <article class="release" id="v0-2">
+          <h2>0.2.0</h2>
+          <p class="date">2026-11-21</p>
+          <h3>추가</h3>
           <ul>
-            <li>명령줄 입력 없이 첫 방송 준비</li>
+            <li>설정 마법사. PC 점검, 아바타, OBS 장면, 채팅과 알림, 마무리의 5단계로 명령줄 없이 준비</li>
+            <li>방송 중 자동 클립. 채팅이 평소 수준보다 크게 증가하거나 스트리머, 매니저가 <code>!clip</code>을 입력하면 OBS 리플레이 버퍼를 클립으로 저장. 방송별 평소 채팅량을 기준으로 판단해 시청자가 적은 방송에도 적용</li>
+            <li>Windows 실행 파일(zip). 파이썬 없이 실행</li>
           </ul>
-          <h3>설정 마법사 5단계</h3>
-          <ol>
-            <li>PC 점검: 사양과 프로그램 확인, 문제 항목에 해결 방법 표시</li>
-            <li>아바타: 모델 종류별 트래킹 프로그램 안내, 모델 사용 조건(수익 활동, 소속사 활동) 확인</li>
-            <li>OBS 장면: 버튼 하나로 장면 5종 생성</li>
-            <li>채팅과 알림: 치지직, SOOP, Twitch 채널 주소 입력 후 시작</li>
-            <li>마무리: 준비 상태 재확인</li>
-          </ol>
-          <h3>방송 중 자동 클립</h3>
+          <h3>검증 범위</h3>
           <ul>
-            <li>저장 조건: 채팅이 평소보다 크게 몰릴 때, 방장이나 매니저의 <code>!clip</code></li>
-            <li>판단 기준: 방송별 평소 채팅량 대비. 시청자가 적은 신입 버튜버 방송에도 적용</li>
-            <li>동시 송출: 치지직, SOOP 채팅 합산 판단</li>
-            <li>저장 방식: OBS 리플레이 버퍼. 마법사가 설정을 켜고, OBS 재시작 후 사용 가능</li>
-          </ul>
-          <h3>Windows 실행 파일</h3>
-          <ul>
-            <li><a href="https://github.com/BudongJW/debutkit/releases">릴리스 페이지</a>의 zip 압축 해제 후 <code>debutkit-gui.exe</code> 실행</li>
-          </ul>
-          <h3>확인 범위</h3>
-          <ul>
-            <li>확인 완료: 실제 OBS 33에서 장면 생성부터 <code>!clip</code> 클립 저장까지</li>
-            <li>미확인: macOS, Linux의 OBS, VTube Studio 실행 상태의 아바타 캡처, SOOP 별풍선 알림 닉네임</li>
-            <li>문제 제보: <a href="https://github.com/BudongJW/debutkit/issues">GitHub 이슈</a></li>
+            <li>확인: 실제 OBS 33에서 장면 생성부터 <code>!clip</code> 입력에 따른 클립 저장까지</li>
+            <li>미확인: macOS, Linux의 OBS, VTube Studio 실행 상태의 아바타 캡처, SOOP 별풍선 알림의 닉네임</li>
           </ul>
         </article>
 
-        <article class="post" id="v0-1">
-          <header>
-            <time datetime="2026-11-21">2026-11-21</time>
-            <h2>debutkit 0.1: 첫 방송 준비 키트 공개</h2>
-          </header>
+        <article class="release" id="v0-1">
+          <h2>0.1.0</h2>
+          <p class="date">2026-11-21</p>
           <h3>배경</h3>
           <ul>
-            <li>데뷔 준비의 주요 장벽은 아바타 이후 단계: OBS 투명 배경 설정, 치지직과 SOOP 채팅 통합, 후원 알림, PC 사양 확인</li>
-            <li>개별 방법은 검색 가능하지만 처음 하는 사람에게는 프로그램 여러 개와 설정 수십 개</li>
+            <li>신규 버튜버의 준비 과정에서 어려움이 집중되는 단계는 아바타 제작 이후의 설정 작업(OBS 투명 배경, 치지직과 SOOP 채팅 통합, 후원 알림, PC 사양 확인)</li>
+            <li>개별 방법은 공개되어 있으나 여러 프로그램과 설정을 각각 익혀야 하는 부담이 있음</li>
           </ul>
-          <h3>포함 기능</h3>
+          <h3>최초 공개 기능</h3>
           <ul>
-            <li><code>debutkit doctor</code>: 메모리, CPU, 그래픽카드, 저장 공간, OBS와 원격 제어, 트래킹 프로그램 점검. VRM 모델의 수익화, 기획사(법인) 사용 허락 확인</li>
-            <li><code>debutkit scenes</code>: 대기 화면, 본방송, 토크, 자리 비움, 엔딩 장면 생성. 아바타 투명 배경 캡처, 채팅창과 후원 알림 연결. 기존 장면 유지</li>
-            <li><code>debutkit overlay</code>: 치지직, SOOP, Twitch 채팅 통합 표시. 내 치지직 채널은 공식 Open API. 데모 채팅과 테스트 후원. 이 PC에서만 열림, 채팅 저장 없음</li>
+            <li>PC 점검(<code>debutkit doctor</code>). 메모리, CPU, 그래픽카드, 저장 공간, OBS와 원격 제어, 트래킹 프로그램 점검. VRM 모델의 수익화, 기획사(법인) 사용 허락 확인</li>
+            <li>OBS 장면 구성(<code>debutkit scenes</code>). 대기 화면, 본방송, 토크, 자리 비움, 엔딩 장면 생성. 아바타 투명 배경 캡처, 채팅창과 후원 알림 연결</li>
+            <li>통합 채팅창과 후원 알림(<code>debutkit overlay</code>). 치지직, SOOP, Twitch 채팅 통합 표시. 본인 치지직 채널은 공식 Open API 사용</li>
           </ul>
-          <h3>오픈소스로 만드는 이유</h3>
+          <h3>오픈소스로 공개하는 이유</h3>
           <ul>
-            <li>트래킹 프로그램, 해외 플랫폼용 채팅 오버레이는 이미 다수 존재</li>
-            <li>치지직, SOOP 우선, 데뷔 전 점검부터 방송 중 클립까지 잇는 도구는 없음</li>
-            <li>기존 프로그램(OBS, VTube Studio, VSeeFace)은 그대로 사용, 연결 부분만 공개</li>
+            <li>트래킹 프로그램과 해외 플랫폼용 채팅 오버레이는 이미 다수 존재</li>
+            <li>치지직, SOOP을 우선 지원하면서 데뷔 전 점검부터 방송 중 클립까지 연결하는 도구는 없음</li>
+            <li>기존 프로그램(OBS, VTube Studio, VSeeFace)은 그대로 사용하고 연결 부분만 공개</li>
           </ul>
         </article>
       </div>
@@ -193,12 +167,12 @@
 
 <footer>
   <div class="wrap">
-    <span class="tagline">첫 방송까지, 한 번에.</span>
+    <strong>debutkit</strong>
     <a href="https://github.com/BudongJW/debutkit">GitHub</a>
     <a href="https://github.com/BudongJW/debutkit/releases">릴리스</a>
     <a href="https://github.com/BudongJW/debutkit/blob/main/CHANGELOG.md">변경 내역</a>
     <a href="https://github.com/BudongJW/debutkit/blob/main/LICENSE">라이선스</a>
-    <p>오픈소스 소프트웨어(Apache-2.0). 본 페이지는 Google Fonts 서체 사용</p>
+    <p>Apache-2.0 오픈소스 소프트웨어. 본 페이지는 Google Fonts 서체를 사용합니다.</p>
   </div>
 </footer>
 </body>

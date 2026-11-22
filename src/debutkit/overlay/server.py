@@ -197,7 +197,7 @@ class OverlayServer:
                             self.hub.publish(event)
                     self._stop.wait(self._poll)
             except Exception as error:
-                self.hub.publish(system_event(f"{label} 끊김: {error}. {self._retry:.0f}초 뒤 다시 연결"))
+                self.hub.publish(system_event(f"{label} 연결 끊김: {error}. {self._retry:.0f}초 후 재연결"))
             finally:
                 try:
                     source.close()

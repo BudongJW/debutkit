@@ -3,9 +3,9 @@
 ; python packaging/build_windows.py --installer 로 만든다(ISCC.exe가 PATH나 Program Files에 있어야 함).
 ; - 현재 사용자 계정에 설치, 관리자 권한 불필요
 ; - 시작 메뉴 바로 가기, 바탕 화면 바로 가기(선택)
-; - ffmpeg는 포함하지 않음. 자동 클립을 쓸 경우 선택 작업으로 고정 빌드를 내려받고(SHA-256 확인)
+; - ffmpeg는 포함하지 않음. 자동 클립을 쓸 경우 선택 작업으로 고정 빌드를 다운로드하고(SHA-256 확인)
 ;   설치한 debutkit.exe가 사용자 캐시 폴더에 넣는다. 연결이 없어도 프로그램 설치는 계속 진행
-; - 내려받은 ffmpeg는 다른 프로그램과 같이 쓰는 폴더에 있으므로 제거할 때 지우지 않음
+; - 다운로드한 ffmpeg는 다른 프로그램과 같이 쓰는 폴더에 있으므로 제거할 때 지우지 않음
 
 #ifndef AppVersion
   #define AppVersion "0.0.0"
@@ -57,11 +57,11 @@ Name: "ko"; MessagesFile: "compiler:Default.isl"
 [CustomMessages]
 ko.DesktopShortcut=바탕 화면에 바로 가기 만들기
 ko.StartApp=debutkit 설정 마법사 실행
-ko.FfmpegTask=ffmpeg 내려받기 (자동 클립에만 필요, {#FfmpegSize} MB)
-ko.FfmpegPage=ffmpeg 내려받는 중
-ko.FfmpegPageNote=ffmpeg.org가 안내하는 Windows용 빌드를 GitHub에서 내려받는 중. 인터넷 속도에 따라 몇 분 소요
+ko.FfmpegTask=ffmpeg 다운로드(자동 클립에만 필요, {#FfmpegSize} MB)
+ko.FfmpegPage=ffmpeg 다운로드 중
+ko.FfmpegPageNote=ffmpeg.org가 안내하는 Windows용 빌드를 GitHub에서 다운로드합니다. 인터넷 속도에 따라 몇 분이 걸릴 수 있습니다.
 ko.FfmpegInstalling=ffmpeg 설치 중
-ko.FfmpegFailed=ffmpeg 내려받기 실패. 설치는 계속 진행. 설치 후 설정 마법사 PC 점검 화면의 ffmpeg 내려받기로 다시 시도 가능
+ko.FfmpegFailed=ffmpeg를 다운로드하지 못했습니다. 프로그램 설치는 계속 진행합니다. 설치 후 설정 마법사 PC 점검 화면의 ffmpeg 다운로드 버튼으로 다시 시도할 수 있습니다.
 
 [Tasks]
 Name: "ffmpeg"; Description: "{cm:FfmpegTask}"; Check: FfmpegMissing; Flags: unchecked
@@ -86,7 +86,7 @@ var
 
 function FfmpegMissing: Boolean;
 begin
-  { debutkit이 ffmpeg를 찾는 곳: PATH, 내려받은 폴더 }
+  { debutkit이 ffmpeg를 찾는 곳: PATH, 다운로드 폴더 }
   Result := (FileSearch('ffmpeg.exe', GetEnv('PATH')) = '')
     and not FileExists(ExpandConstant('{%USERPROFILE}\.cache\stream2clip\tools\ffmpeg.exe'));
 end;

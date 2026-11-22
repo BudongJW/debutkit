@@ -137,6 +137,6 @@ def test_report_and_json():
     checks = run_checks(fake_system(port_open=lambda h, p: False))
     text = format_report(checks)
     assert "[정상]" in text and "[주의]" in text
-    assert "해결:" in text  # 주의 항목에는 해결 방법을 붙인다
+    assert "조치:" in text  # 주의 항목에는 조치 방법을 붙인다
     data = json.loads(to_json(checks))
     assert {"key", "title", "status", "detail", "hint"} <= set(data[0])

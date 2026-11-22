@@ -15,9 +15,9 @@ from typing import Any, Callable
 DEFAULT_REDIRECT = "http://localhost:8765/callback"
 
 _MESSAGES = {
-    "client id and secret": "치지직 애플리케이션 Client ID와 Client Secret 필요: CHZZK_CLIENT_ID, CHZZK_CLIENT_SECRET 환경 변수 또는 입력 칸 사용",
+    "client id and secret": "치지직 애플리케이션 Client ID와 Client Secret 필요: CHZZK_CLIENT_ID, CHZZK_CLIENT_SECRET 환경 변수 또는 입력란 사용",
     "must be a local address": "로그인 돌아올 주소는 이 PC 주소여야 함 (예: http://localhost:8765/callback, 개발자 센터 등록 주소와 동일)",
-    "No answer from CHZZK": "제한 시간 안에 치지직 로그인 응답 없음. 다시 시도",
+    "No answer from CHZZK": "제한 시간 안에 치지직 로그인 응답 없음. 다시 시도 필요",
     "gave no access token": "치지직이 접근 토큰을 주지 않음. 애플리케이션 설정 확인",
 }
 

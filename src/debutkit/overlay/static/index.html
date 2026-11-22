@@ -6,74 +6,80 @@
   <title>debutkit 오버레이 설정</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <style>
-    :root { color-scheme: dark; --bg: #15131f; --card: #211d30; --line: #34304a; --text: #f7f4fa; --dim: #a9a3b8; --accent: #ff4f8b; }
+    :root { color-scheme: light; --bg: #ffffff; --panel: #faf7f5; --line: #e3dfdb; --text: #1e2327; --dim: #5b6670; --link: #bf3b68; }
     * { box-sizing: border-box; }
-    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.6 "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; }
-    main { max-width: 980px; margin: 0 auto; padding: 32px 20px 60px; }
-    h1 { font-size: 24px; margin: 0 0 4px; }
-    h1 b { color: var(--accent); }
-    .lead { color: var(--dim); margin: 0 0 24px; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
-    section { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
-    h2 { font-size: 16px; margin: 0 0 8px; }
-    .url { display: flex; gap: 8px; margin: 8px 0; }
-    .url input { flex: 1; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font: 13px ui-monospace, Consolas, monospace; }
-    button { background: var(--accent); color: #fff; border: 0; border-radius: 8px; padding: 8px 14px; font: inherit; font-weight: 700; cursor: pointer; }
-    button.ghost { background: transparent; border: 1px solid var(--line); color: var(--text); }
-    .hint { color: var(--dim); font-size: 13px; margin: 6px 0 0; }
-    .preview { position: relative; height: 260px; margin-top: 12px; border-radius: 10px; overflow: hidden;
-      background: repeating-conic-gradient(#2a2638 0% 25%, #221f30 0% 50%) 0 0 / 24px 24px; }
-    /* color-scheme이 바깥 페이지(dark)와 다르면 브라우저가 iframe에 흰 배경을 깐다 */
+    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.65 "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; }
+    header { display: flex; align-items: center; gap: 12px; padding: 14px 24px; border-bottom: 1px solid var(--line); }
+    header img { width: 28px; height: 28px; }
+    header h1 { font-size: 17px; margin: 0; font-weight: 700; }
+    #status { margin-left: auto; color: var(--dim); font-size: 13px; }
+    main { max-width: 1040px; margin: 0 auto; padding: 24px 24px 56px; }
+    .lead { color: var(--dim); margin: 0 0 20px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
+    section { border: 1px solid var(--line); border-radius: 4px; padding: 18px 20px; }
+    h2 { font-size: 16px; margin: 0 0 10px; }
+    .url { display: flex; gap: 6px; margin: 0 0 12px; }
+    .url input { flex: 1; min-width: 0; background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 3px; padding: 7px 10px; font: 13px ui-monospace, Consolas, monospace; }
+    button { background: var(--text); color: #fff; border: 1px solid var(--text); border-radius: 3px; padding: 7px 14px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+    button.secondary { background: #fff; color: var(--text); border-color: #c9c3bd; }
+    button:hover { opacity: 0.88; }
+    .hint { color: var(--dim); font-size: 13px; margin: 8px 0 0; }
+    .preview { position: relative; height: 260px; margin-top: 12px; border-radius: 3px; overflow: hidden;
+      background: repeating-conic-gradient(#30373c 0% 25%, #2a3035 0% 50%) 0 0 / 20px 20px; }
     .preview iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; color-scheme: normal; }
-    code { background: var(--bg); padding: 1px 6px; border-radius: 5px; font-size: 13px; }
-    .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
-    #status { color: var(--dim); font-size: 13px; }
-    .opts { display: flex; flex-wrap: wrap; gap: 8px 14px; margin: 10px 0 4px; font-size: 13px; color: var(--dim); }
-    .opts label { display: inline-flex; align-items: center; gap: 6px; }
-    .opts select, .opts input[type=number] { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; font: inherit; }
-    .opts input[type=number] { width: 4.5em; }
+    code { background: var(--panel); border: 1px solid var(--line); padding: 0 5px; border-radius: 3px; font-size: 13px; white-space: nowrap; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+    .opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px 14px; font-size: 13px; color: var(--dim); }
+    .opts label { display: flex; flex-direction: column; gap: 3px; }
+    .opts label.check { flex-direction: row; align-items: center; gap: 6px; padding-top: 18px; }
+    .opts select, .opts input[type=number] { background: #fff; color: var(--text); border: 1px solid #c9c3bd; border-radius: 3px; padding: 5px 6px; font: inherit; font-size: 14px; }
+    .test { margin-top: 20px; }
   </style>
 </head>
 <body>
+<header>
+  <img src="/favicon.svg" alt="">
+  <h1>debutkit 오버레이 설정</h1>
+  <span id="status"></span>
+</header>
 <main>
-  <h1><b>debutkit</b> 오버레이</h1>
-  <p class="lead">아래 주소를 OBS <b>브라우저 소스</b>로 추가. <code>debutkit scenes</code> 로 만든 장면은 연결 완료 상태 <span id="status"></span></p>
+  <p class="lead">아래 주소를 OBS 브라우저 소스로 추가합니다. <code>debutkit scenes</code>로 만든 장면에는 이미 연결되어 있습니다.</p>
 
   <div class="grid">
     <section>
       <h2>통합 채팅창</h2>
-      <div class="url"><input id="chat-url" readonly><button data-copy="chat-url">복사</button></div>
+      <div class="url"><input id="chat-url" readonly aria-label="채팅창 주소"><button data-copy="chat-url">복사</button></div>
       <div class="opts">
-        <label>테마 <select id="opt-theme">
+        <label>표시 형태 <select id="opt-theme">
           <option value="shadow">글자 그림자</option>
           <option value="bubble">말풍선</option>
           <option value="card">카드(이름 줄 분리)</option>
           <option value="outline">외곽선 글자</option>
           <option value="light">밝은 말풍선</option>
         </select></label>
-        <label>글자 <input id="opt-font" type="number" min="12" max="64" value="22"></label>
-        <label>줄 수 <input id="opt-max" type="number" min="1" max="50" value="12"></label>
-        <label>사라짐(초) <input id="opt-fade" type="number" min="0" max="600" value="0"></label>
-        <label><input id="opt-platform" type="checkbox" checked> 플랫폼 표시</label>
+        <label>글자 크기(px) <input id="opt-font" type="number" min="12" max="64" value="22"></label>
+        <label>표시 줄 수 <input id="opt-max" type="number" min="1" max="50" value="12"></label>
+        <label>사라짐 시간(초) <input id="opt-fade" type="number" min="0" max="600" value="0"></label>
+        <label class="check"><input id="opt-platform" type="checkbox" checked> 플랫폼 표시</label>
       </div>
-      <p class="hint">권장 크기 420x1000. 선택한 모양이 위 주소에 반영. 사라짐 0은 계속 표시</p>
+      <p class="hint">권장 크기 420x1000. 선택 내용은 위 주소에 반영되며, 사라짐 시간 0은 계속 표시를 의미합니다.</p>
       <div class="preview"><iframe id="chat-preview" title="채팅창 미리보기"></iframe></div>
     </section>
     <section>
       <h2>후원, 구독 알림</h2>
-      <div class="url"><input id="alerts-url" readonly><button data-copy="alerts-url">복사</button></div>
-      <p class="hint">권장 크기 1920x1080(방송 화면 전체). 알림 소리는 브라우저 소스의 OBS를 통해 오디오 제어 체크. <code>?seconds=8</code> 로 표시 시간 조절</p>
+      <div class="url"><input id="alerts-url" readonly aria-label="알림 주소"><button data-copy="alerts-url">복사</button></div>
+      <p class="hint">권장 크기 1920x1080(방송 화면 전체). 알림 소리를 내보내려면 브라우저 소스 속성의 OBS 오디오 제어 항목을 체크합니다. 표시 시간은 주소에 <code>?seconds=8</code> 형식으로 지정합니다.</p>
       <div class="preview"><iframe id="alerts-preview" title="알림 미리보기"></iframe></div>
     </section>
   </div>
 
-  <section style="margin-top:16px">
-    <h2>테스트</h2>
-    <p class="hint">방송 없이 모양 확인. 테스트 메시지는 외부로 보내지 않고 이 화면과 OBS에만 표시. 자동 클립 실행 중이면 방장 !clip 버튼으로 클립 저장 시험</p>
+  <section class="test">
+    <h2>테스트 메시지</h2>
+    <p class="hint">방송 없이 표시 형태를 확인합니다. 테스트 메시지는 외부로 전송되지 않으며 이 화면과 OBS에만 표시됩니다. 자동 클립 실행 중에는 스트리머 !clip 버튼으로 클립 저장을 시험할 수 있습니다.</p>
     <div class="row">
       <button id="test-chat">테스트 채팅</button>
-      <button id="test-donation" class="ghost">테스트 후원</button>
-      <button id="test-clip" class="ghost">방장 !clip</button>
+      <button id="test-donation" class="secondary">테스트 후원</button>
+      <button id="test-clip" class="secondary">스트리머 !clip</button>
     </div>
   </section>
 </main>
@@ -81,7 +87,7 @@
   "use strict";
   const base = location.origin;
   const $ = (id) => document.getElementById(id);
-  // 선택한 모양을 채팅창 주소와 미리보기에 반영. 기본값과 같은 항목은 주소에 넣지 않는다
+  // 선택 내용을 채팅창 주소와 미리보기에 반영. 기본값과 같은 항목은 주소에 넣지 않는다
   const chatQuery = () => {
     const query = new URLSearchParams();
     const theme = $("opt-theme").value;
@@ -100,7 +106,7 @@
     const query = chatQuery();
     const text = query.toString();
     $("chat-url").value = `${base}/chat${text ? "?" + text : ""}`;
-    query.set("hide", "");  // 미리보기는 연결 상태, 클립 저장 같은 알림도 표시
+    query.set("hide", "");  // 미리보기에는 연결 상태, 클립 저장 결과도 표시
     $("chat-preview").src = `/chat?${query.toString()}`;
   };
   for (const id of ["opt-theme", "opt-font", "opt-max", "opt-fade", "opt-platform"]) $(id).addEventListener("change", updateChat);
@@ -117,11 +123,11 @@
     });
   }
   const send = (body) => fetch("/test", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-  document.getElementById("test-chat").addEventListener("click", () => send({ kind: "chat", text: "테스트 채팅" }));
-  document.getElementById("test-donation").addEventListener("click", () => send({ kind: "donation", text: "테스트 후원" }));
-  document.getElementById("test-clip").addEventListener("click", () => send({ kind: "chat", role: "owner", text: "!clip" }));
+  $("test-chat").addEventListener("click", () => send({ kind: "chat", text: "테스트 채팅" }));
+  $("test-donation").addEventListener("click", () => send({ kind: "donation", text: "테스트 후원" }));
+  $("test-clip").addEventListener("click", () => send({ kind: "chat", role: "owner", text: "!clip" }));
   const refresh = () => fetch("/status").then((r) => r.json()).then((s) => {
-    document.getElementById("status").textContent = `(연결된 화면 ${s.listeners}개)`;
+    $("status").textContent = `연결된 화면 ${s.listeners}개`;
   }).catch(() => {});
   refresh();
   setInterval(refresh, 3000);

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "debutkit"
-version = "0.5.0"
+version = "0.5.1"
 description = "버튜버 데뷔 키트: 방송 준비 점검, OBS 장면 세트 자동 구성, CHZZK SOOP Twitch YouTube 통합 채팅 오버레이, 방송 중 자동 클립"
 readme = "README.md"
 license = "Apache-2.0"

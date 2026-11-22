@@ -4,11 +4,11 @@
 - ``scenes``  OBS 장면 세트 자동 구성
 - ``overlay`` CHZZK, SOOP, Twitch 통합 채팅창과 후원 알림
 - ``clip``    방송 중 자동 클립 (채팅 급증 판단, OBS 리플레이 버퍼)
-- ``tools``   ffmpeg 찾기와 내려받기
+- ``tools``   ffmpeg 찾기와 다운로드, 새 버전 확인
 - ``chzzk``   치지직 공식 Open API 로그인
 - ``gui``     위 과정을 순서대로 안내하는 설정 마법사
 
 채팅 수신, OBS 제어, 급증 판단은 채팅 연결 모듈(``pip install "debutkit[live]"``)을 쓴다.
 """
 
-__version__ = "0.5.0"
+__version__ = "0.5.1"

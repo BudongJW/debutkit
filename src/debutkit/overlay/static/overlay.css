@@ -1,9 +1,14 @@
-/* debutkit overlay. OBS 브라우저 소스 속성의 사용자 지정 CSS 로 덮어써서 꾸밀 수 있다 */
+/* debutkit overlay. 색은 브랜드 컬러(Slate #1E2327, Cream #FAF7F5, Pink #FF4F8B).
+   OBS 브라우저 소스 속성의 사용자 지정 CSS로 덮어써서 변경 가능 */
 :root {
   --font-size: 22px;
   --font: "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans CJK KR", sans-serif;
+  --slate: #1e2327;
+  --cream: #faf7f5;
   --accent: #ff4f8b;
   --gold: #ffd84d;
+  --name: #ffb3cb;
+  --moderator: #8fd3ff;
 }
 
 html, body.overlay {
@@ -22,28 +27,30 @@ html, body.overlay {
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  gap: 0.35em;
+  gap: 0.3em;
   padding: 0.5em;
   box-sizing: border-box;
 }
 
 .line {
-  line-height: 1.35;
+  line-height: 1.4;
   word-break: break-word;
-  animation: rise 0.25s ease-out;
+  animation: rise 0.2s ease-out;
   transition: opacity 0.6s;
 }
 .line.gone { opacity: 0; }
 .line.system { opacity: 0.6; font-size: 0.8em; }
 
+/* shadow(기본): 배경 없이 글자 그림자 */
 body[data-theme="shadow"] .line {
   text-shadow: 0 0 3px #000, 0 0 3px #000, 1px 1px 2px #000;
 }
+
+/* bubble: 반투명 Slate 말풍선 */
 body[data-theme="bubble"] .line {
-  background: rgba(21, 19, 31, 0.78);
-  border-radius: 0.7em;
-  padding: 0.35em 0.6em;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  background: rgba(30, 35, 39, 0.82);
+  border-radius: 0.45em;
+  padding: 0.3em 0.6em;
 }
 
 /* card: 이름 줄과 글 줄 분리, 왼쪽에 플랫폼 색 띠 */
@@ -51,11 +58,10 @@ body[data-theme="card"] .line {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  background: rgba(30, 35, 39, 0.88);
-  border-left: 0.22em solid var(--line-color, var(--accent));
-  border-radius: 0.45em;
-  padding: 0.35em 0.65em 0.45em;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  background: rgba(30, 35, 39, 0.9);
+  border-left: 0.2em solid var(--line-color, var(--accent));
+  border-radius: 0.3em;
+  padding: 0.3em 0.65em 0.4em;
 }
 body[data-theme="card"] .name { font-size: 0.85em; }
 body[data-theme="card"] .text { flex-basis: 100%; }
@@ -67,16 +73,14 @@ body[data-theme="outline"] .line {
                0 -2px 0 #000, 0 2px 0 #000, -2px 0 0 #000, 2px 0 0 #000;
 }
 
-/* light: 밝은 말풍선, 어두운 글자 */
+/* light: Cream 말풍선, 어두운 글자 */
 body[data-theme="light"] .line {
-  background: rgba(250, 247, 245, 0.94);
-  color: #1e2327;
-  border-radius: 0.7em;
-  padding: 0.35em 0.6em;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  background: rgba(250, 247, 245, 0.95);
+  color: var(--slate);
+  border-radius: 0.45em;
+  padding: 0.3em 0.6em;
 }
 body[data-theme="light"] .name { color: #bf3b68; }
-body[data-theme="light"] .line.owner .name { color: #9a6700; }
 body[data-theme="light"] .line.moderator .name { color: #1d6fa5; }
 body[data-theme="light"] .line.donation { color: #8a5a00; }
 
@@ -84,31 +88,40 @@ body[data-theme="light"] .line.donation { color: #8a5a00; }
   display: inline-block;
   font-size: 0.6em;
   font-weight: 700;
-  padding: 0.1em 0.45em;
+  padding: 0.1em 0.4em;
   margin-right: 0.45em;
-  border-radius: 0.4em;
+  border-radius: 0.25em;
   vertical-align: 0.2em;
   background: var(--platform);
   color: #fff;
   text-shadow: none;
 }
 
-.name { font-weight: 800; color: #ffd0e1; margin-right: 0.45em; }
-.line.owner .name { color: var(--gold); }
-.line.moderator .name { color: #8fe3ff; }
-.line.owner .name::before { content: "★ "; }
+.name { font-weight: 700; color: var(--name); margin-right: 0.45em; }
+.line.moderator .name { color: var(--moderator); }
 
-.line.donation {
-  color: var(--gold);
+/* 스트리머, 매니저 표시 */
+.line.owner .name::before,
+.line.moderator .name::before {
+  display: inline-block;
+  font-size: 0.6em;
+  font-weight: 700;
+  padding: 0.1em 0.4em;
+  margin-right: 0.4em;
+  border-radius: 0.25em;
+  vertical-align: 0.2em;
+  text-shadow: none;
+  color: var(--slate);
 }
-.line.donation .amount {
-  font-weight: 800;
-  margin-right: 0.45em;
-}
+.line.owner .name::before { content: "스트리머"; background: var(--gold); }
+.line.moderator .name::before { content: "매니저"; background: var(--moderator); }
+
+.line.donation { color: var(--gold); }
+.line.donation .amount { font-weight: 700; margin-right: 0.45em; }
 
 .emote { height: 1.4em; vertical-align: middle; margin: 0 0.1em; }
 
-/* ---------------------------------------------------------------- 알림 */
+/* ---------------------------------------------------------------- 후원, 구독 알림 */
 #alerts {
   position: fixed;
   inset: 0;
@@ -119,20 +132,22 @@ body[data-theme="light"] .line.donation { color: #8a5a00; }
 }
 
 .alert {
-  min-width: 40vw;
-  max-width: 70vw;
-  text-align: center;
-  padding: 0.9em 1.4em;
-  border-radius: 1.2em;
-  background: linear-gradient(135deg, rgba(255, 79, 139, 0.95), rgba(120, 70, 220, 0.95));
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
-  animation: pop 0.45s cubic-bezier(0.2, 1.4, 0.4, 1);
+  min-width: 36vw;
+  max-width: 64vw;
+  padding: 0.8em 1.2em 0.9em 1.3em;
+  border-left: 0.3em solid var(--accent);
+  border-radius: 0.35em;
+  background: rgba(30, 35, 39, 0.94);
+  color: var(--cream);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
+  animation: enter 0.3s ease-out;
   transition: opacity 0.6s, transform 0.6s;
 }
-.alert.gone { opacity: 0; transform: translateY(-20px); }
-.alert .platform { font-size: 0.7em; }
-.alert-title { font-size: 1.5em; font-weight: 900; margin: 0.25em 0; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4); }
-.alert-text { font-size: 1.05em; }
+.alert.member { border-left-color: var(--gold); }
+.alert.gone { opacity: 0; transform: translateY(-12px); }
+.alert .platform { font-size: 0.65em; }
+.alert-title { font-size: 1.35em; font-weight: 700; margin: 0.3em 0 0.15em; }
+.alert-text { font-size: 1em; color: #d8dde1; }
 
-@keyframes rise { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
-@keyframes pop { from { transform: scale(0.6); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes rise { from { transform: translateY(6px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes enter { from { transform: translateY(-10px); opacity: 0; } to { transform: none; opacity: 1; } }

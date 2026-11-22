@@ -5,15 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>방송 소프트웨어 - debutkit</title>
 <meta name="description" content="버튜버 첫 방송에 필요한 소프트웨어 6단계, 라이선스, 소속사 운영 시 확인 사항.">
-<meta name="theme-color" content="#15131F">
+<meta name="theme-color" content="#ffffff">
+<meta property="og:image" content="https://budongjw.github.io/debutkit/assets/social.png">
 <link rel="canonical" href="https://budongjw.github.io/debutkit/software.html">
 <link rel="icon" href="assets/favicon.ico" sizes="48x48">
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
-<meta property="og:image" content="https://budongjw.github.io/debutkit/assets/social.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Noto+Sans+KR:wght@400;500;700;900&family=Outfit:wght@300;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Noto+Sans+KR:wght@400;600;700&display=swap">
 <link rel="stylesheet" href="css/site.css">
 </head>
 <body>
@@ -21,13 +21,11 @@
 
 <header class="top">
   <div class="wrap">
-    <a class="lockup" href="./" aria-label="debutkit 홈">
-      <img src="assets/lockup.svg" alt="debutkit" width="120" height="44">
-    </a>
+    <a class="lockup" href="./" aria-label="debutkit 홈"><img src="assets/lockup.svg" alt="debutkit" width="110" height="40"></a>
     <nav class="nav" aria-label="주요 메뉴">
       <a href="guide.html">사용 설명서</a>
       <a href="software.html" aria-current="page">방송 소프트웨어</a>
-      <a href="news.html">소식</a>
+      <a href="news.html">릴리스 노트</a>
       <a href="join.html">참여 안내</a>
       <a href="https://github.com/BudongJW/debutkit">GitHub</a>
     </nav>
@@ -38,50 +36,50 @@
   <div class="wrap">
     <header class="dochead">
       <h1>방송 소프트웨어</h1>
-      <p>첫 방송까지 필요한 소프트웨어 6단계. 단계마다 필수 항목 1개, 나머지는 필요 시 추가. 기준일 2026-11-21, 설치 전 공식 페이지에서 가격과 라이선스 재확인</p>
+      <p>첫 방송에 필요한 소프트웨어를 6단계로 정리했습니다. 단계마다 필수 항목은 하나이며 나머지는 필요에 따라 추가합니다. 기준일은 2026-11-21이며, 가격과 라이선스는 설치 전 공식 페이지에서 다시 확인해야 합니다.</p>
     </header>
 
     <div class="doc">
       <nav class="toc" aria-label="목차">
         <h2>목차</h2>
         <ul>
-          <li><a href="#steps">6단계 요약</a></li>
-          <li><a href="#check">필수 확인 2가지</a></li>
+          <li><a href="#steps">단계별 구성</a></li>
+          <li><a href="#check">사전 확인 사항</a></li>
           <li><a href="#tracking">트래킹 프로그램</a></li>
           <li><a href="#platforms">플랫폼 API</a></li>
           <li><a href="#agency">소속사 운영 시 라이선스</a></li>
-          <li><a href="#scope">debutkit 범위</a></li>
+          <li><a href="#scope">debutkit의 범위</a></li>
         </ul>
       </nav>
 
       <article>
-        <h2 id="steps">6단계 요약</h2>
+        <h2 id="steps">단계별 구성</h2>
         <div class="tablewrap">
           <table>
-            <thead><tr><th>단계</th><th>필수</th><th>처음 추천</th><th>debutkit 역할</th></tr></thead>
+            <thead><tr><th>단계</th><th>필수</th><th>권장 시작 구성</th><th>debutkit 역할</th></tr></thead>
             <tbody>
-              <tr><th scope="row">아바타</th><td>모델 1개</td><td>VRoid Studio(3D, 무료) 또는 PNG 2장</td><td>모델 사용 조건 확인</td></tr>
+              <tr><th scope="row">아바타</th><td>모델 1개</td><td>VRoid Studio(3D, 무료) 또는 PNG 이미지 2장</td><td>모델 사용 조건 확인</td></tr>
               <tr><th scope="row">트래킹</th><td>프로그램 1개, 웹캠</td><td>Live2D는 VTube Studio, 3D는 VSeeFace</td><td>설치 확인, OBS 투명 배경 연결</td></tr>
-              <tr><th scope="row">송출</th><td>OBS Studio</td><td>OBS Studio(무료, GPL-2.0)</td><td>장면 5종 자동 구성</td></tr>
-              <tr><th scope="row">소리</th><td>마이크, 잡음 제거</td><td>OBS 내장 잡음 제거</td><td>없음</td></tr>
-              <tr><th scope="row">채팅과 후원</th><td>채팅창</td><td>한 플랫폼은 내장 위젯, 동시 송출은 debutkit overlay</td><td>통합 채팅창(치지직, SOOP, Twitch, YouTube), 후원 알림</td></tr>
-              <tr><th scope="row">방송 후</th><td>없음</td><td>클립 편집 도구(DaVinci Resolve 등)</td><td>방송 중 자동 클립</td></tr>
+              <tr><th scope="row">송출</th><td>OBS Studio</td><td>OBS Studio(무료, GPL-2.0)</td><td>장면 5종 자동 구성, 업로드 속도 측정</td></tr>
+              <tr><th scope="row">음향</th><td>마이크, 잡음 제거</td><td>OBS 내장 잡음 제거</td><td>마이크 인식 확인</td></tr>
+              <tr><th scope="row">채팅과 후원</th><td>채팅창</td><td>단일 플랫폼은 기본 위젯, 동시 송출은 debutkit overlay</td><td>통합 채팅창(치지직, SOOP, Twitch, YouTube), 후원 알림</td></tr>
+              <tr><th scope="row">방송 후</th><td>해당 없음</td><td>클립 편집 도구(DaVinci Resolve 등)</td><td>방송 중 자동 클립</td></tr>
             </tbody>
           </table>
         </div>
 
-        <h2 id="check">필수 확인 2가지</h2>
-        <h3>아바타 모델 사용 조건</h3>
+        <h2 id="check">사전 확인 사항</h2>
+        <h3>아바타 모델의 사용 조건</h3>
         <ul>
-          <li>판매 모델 대부분 개인 활동만 허락</li>
-          <li>수익 활동, 소속사 활동(법인 사용)은 제작자 별도 허락 필요한 경우 많음</li>
-          <li>VRM 모델은 파일에 조건 포함: <code>debutkit doctor --avatar 모델.vrm --agency</code></li>
+          <li>판매 모델은 대부분 개인 활동만 허락합니다.</li>
+          <li>수익 활동과 소속사 활동(법인 사용)은 제작자의 별도 허락이 필요한 경우가 많습니다.</li>
+          <li>VRM 모델은 파일에 사용 조건이 포함되어 <code>debutkit doctor --avatar 모델.vrm --agency</code>로 확인할 수 있습니다.</li>
         </ul>
-        <h3>트래킹 프로그램 수익 방송 조건</h3>
+        <h3>트래킹 프로그램의 수익 방송 조건</h3>
         <ul>
-          <li>VTube Studio: 무료로 시작, 후원이나 수익 창출이 있는 방송은 유료 버전(DLC) 필요(<a href="https://store.steampowered.com/eula/1325860_eula_0">EULA</a>)</li>
-          <li>VTube Studio: 일정 규모 이상 회사, 소속사는 별도 회사 라이선스 필요</li>
-          <li>VSeeFace: 상업적 이용 허용</li>
+          <li>VTube Studio는 무료로 시작할 수 있으나, 후원이나 수익 창출이 있는 방송은 유료 버전(DLC)이 필요합니다(<a href="https://store.steampowered.com/eula/1325860_eula_0">EULA</a>).</li>
+          <li>일정 규모 이상의 회사나 소속사는 VTube Studio의 회사 라이선스가 필요합니다.</li>
+          <li>VSeeFace는 상업적 이용을 허용합니다.</li>
         </ul>
 
         <h2 id="tracking">트래킹 프로그램</h2>
@@ -89,7 +87,7 @@
           <table>
             <thead><tr><th>프로그램</th><th>모델</th><th>라이선스, 가격</th></tr></thead>
             <tbody>
-              <tr><th scope="row">VTube Studio</th><td>Live2D</td><td>독점. 개인 무료 시작, 수익 방송은 유료 버전 필요</td></tr>
+              <tr><th scope="row">VTube Studio</th><td>Live2D</td><td>독점. 개인은 무료로 시작, 수익 방송은 유료 버전 필요</td></tr>
               <tr><th scope="row">VSeeFace</th><td>VRM</td><td>무료(독점). 상업적 이용 허용, 프로그램 수정 금지</td></tr>
               <tr><th scope="row">Warudo</th><td>VRM 등</td><td>Steam판 무료(독점). 기업용 Warudo Pro 별도</td></tr>
               <tr><th scope="row">VMagicMirror</th><td>VRM</td><td>MIT</td></tr>
@@ -97,42 +95,40 @@
             </tbody>
           </table>
         </div>
-        <ul>
-          <li>OBS 연결은 게임 캡처의 투명도 허용(Windows)이 공식 권장 방식. 그린스크린 비권장</li>
-        </ul>
+        <p>OBS 연결은 게임 캡처의 투명도 허용(Windows)이 공식 권장 방식이며, 그린스크린은 권장하지 않습니다.</p>
 
         <h2 id="platforms">플랫폼 API</h2>
         <div class="tablewrap">
           <table>
             <thead><tr><th>플랫폼</th><th>공식 경로</th><th>debutkit</th></tr></thead>
             <tbody>
-              <tr><th scope="row">치지직</th><td>CHZZK Open API Session(내 채널의 채팅, 후원, 구독)</td><td><code>--chzzk-api</code></td></tr>
-              <tr><th scope="row">SOOP</th><td>자체 위젯 주소. 공식 Open API 채팅 이벤트 확인 중</td><td>시청자 읽기</td></tr>
-              <tr><th scope="row">YouTube</th><td>YouTube Data API 라이브 채팅(API 키, 하루 할당량 있음)</td><td><code>--youtube</code></td></tr>
-              <tr><th scope="row">Twitch</th><td>IRC, EventSub</td><td>익명 IRC 읽기</td></tr>
+              <tr><th scope="row">치지직</th><td>CHZZK Open API Session(본인 채널의 채팅, 후원, 구독)</td><td><code>--chzzk-api</code></td></tr>
+              <tr><th scope="row">SOOP</th><td>자체 위젯 주소. 공식 Open API의 채팅 이벤트 제공 여부 확인 중</td><td>비공식 수신</td></tr>
+              <tr><th scope="row">YouTube</th><td>YouTube Data API 라이브 채팅(API 키, 일일 할당량)</td><td><code>--youtube</code></td></tr>
+              <tr><th scope="row">Twitch</th><td>IRC, EventSub</td><td>익명 IRC 수신</td></tr>
             </tbody>
           </table>
         </div>
 
         <h2 id="agency">소속사 운영 시 라이선스</h2>
-        <p>개인에게 무료인 프로그램도 회사(소속사) 사용 시 조건 변경. 소속 계약 전 확인</p>
+        <p>개인에게 무료인 프로그램도 회사(소속사)가 사용하면 조건이 달라집니다. 소속 계약 전에 확인해야 합니다.</p>
         <div class="tablewrap">
           <table>
             <thead><tr><th>대상</th><th>조건</th></tr></thead>
             <tbody>
-              <tr><th scope="row">VTube Studio</th><td>직전 연도 수입 미화 20만 달러 초과 회사는 Company License(구독형) 필요. 모바일 앱은 기기별 구매</td></tr>
-              <tr><th scope="row">Live2D</th><td>앱이 사업의 주요 요소이고 연매출 2,000만 엔 초과 시 별도 라이선스 필요 가능</td></tr>
-              <tr><th scope="row">Warudo</th><td>기업 사용자용 Warudo Pro 별도. 무료 Steam판 회사 사용 조건은 문의 필요</td></tr>
+              <tr><th scope="row">VTube Studio</th><td>직전 연도 수입이 미화 20만 달러를 넘는 회사는 Company License(구독형) 필요. 모바일 앱은 기기별 구매</td></tr>
+              <tr><th scope="row">Live2D</th><td>앱이 사업의 주요 요소이고 연매출이 2,000만 엔을 넘는 경우 별도 라이선스가 필요할 수 있음</td></tr>
+              <tr><th scope="row">Warudo</th><td>기업 사용자용 Warudo Pro 별도. 무료 Steam판의 회사 사용 조건은 명시되지 않아 문의 필요</td></tr>
               <tr><th scope="row">VSeeFace</th><td>상업적 이용 허용. 회사 대상 별도 제한 없음</td></tr>
-              <tr><th scope="row">아바타 모델</th><td>법인 사용은 제작자 허락 필요. VRM은 <code>doctor --avatar --agency</code> 로 확인</td></tr>
+              <tr><th scope="row">아바타 모델</th><td>법인 사용은 제작자 허락 필요. VRM은 <code>doctor --avatar --agency</code>로 확인</td></tr>
             </tbody>
           </table>
         </div>
 
-        <h2 id="scope">debutkit 범위</h2>
+        <h2 id="scope">debutkit의 범위</h2>
         <ul>
-          <li>트래킹 엔진, 송출 프로그램, 모델 제작 도구는 만들지 않음(대부분 독점 소프트웨어, 번들 불가)</li>
-          <li>설치 여부 점검, 설정 연결, 사용 안내만 담당</li>
+          <li>트래킹 엔진, 송출 프로그램, 모델 제작 도구는 개발하지 않습니다. 기존 프로그램이 충분하며 대부분 독점 소프트웨어여서 함께 배포할 수 없습니다.</li>
+          <li>설치 여부 점검, 프로그램 간 설정 연결, 사용 안내를 담당합니다.</li>
           <li>전체 목록과 출처: <a href="https://github.com/BudongJW/debutkit/blob/main/docs/SOFTWARE.md">SOFTWARE.md</a></li>
         </ul>
       </article>
@@ -142,12 +138,12 @@
 
 <footer>
   <div class="wrap">
-    <span class="tagline">첫 방송까지, 한 번에.</span>
+    <strong>debutkit</strong>
     <a href="https://github.com/BudongJW/debutkit">GitHub</a>
     <a href="https://github.com/BudongJW/debutkit/releases">릴리스</a>
     <a href="https://github.com/BudongJW/debutkit/blob/main/CHANGELOG.md">변경 내역</a>
     <a href="https://github.com/BudongJW/debutkit/blob/main/LICENSE">라이선스</a>
-    <p>오픈소스 소프트웨어(Apache-2.0). 본 페이지는 Google Fonts 서체 사용</p>
+    <p>Apache-2.0 오픈소스 소프트웨어. 본 페이지는 Google Fonts 서체를 사용합니다.</p>
   </div>
 </footer>
 </body>

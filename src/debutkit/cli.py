@@ -110,7 +110,7 @@ def _start_autoclip(server: Any, args: argparse.Namespace) -> bool:
         print("  확인: OBS 실행, WebSocket 서버 사용, 리플레이 버퍼 사용(debutkit scenes --replay-buffer)", file=sys.stderr)
         return False
     server.attach(AutoClipper(server.hub, clipper).start())
-    print(f"  자동 클립: 켬 (OBS {version}, 저장 위치 {out}). 채팅 급증 또는 방장 !clip 시 저장")
+    print(f"  자동 클립: 사용(OBS {version}, 저장 위치 {out}). 채팅 급증 또는 스트리머의 !clip 입력 시 저장")
     return True
 
 
@@ -124,11 +124,11 @@ def _setup(args: argparse.Namespace) -> int:
     if args.ffmpeg and (args.force or not found):
         size = tools.ffmpeg_megabytes()
         if not args.archive:
-            print(f"ffmpeg 내려받는 중 ({size} MB)", flush=True)
+            print(f"ffmpeg 다운로드 중({size} MB)", flush=True)
         try:
             written = tools.download_ffmpeg(archive=args.archive, on_progress=tools.progress_printer(size, write=lambda line: print(line, flush=True)))
         except Exception as error:
-            print(f"ffmpeg 내려받기 실패: {error}", file=sys.stderr)
+            print(f"ffmpeg 다운로드 실패: {error}", file=sys.stderr)
             return 1
         for path in written:
             print(f"저장: {path}")
@@ -151,7 +151,7 @@ def _chzzk_login(args: argparse.Namespace) -> int:
     def show(url: str) -> None:
         print(f"치지직 로그인 주소: {url}", flush=True)
 
-    print(f"치지직 로그인 대기 중 (5분, 돌아올 주소 {args.redirect})", flush=True)
+    print(f"치지직 로그인 대기 중(제한 시간 5분, 리디렉션 주소 {args.redirect})", flush=True)
     try:
         path = login(args.client_id, args.client_secret, args.redirect, open_browser=(lambda url: None) if args.no_browser else None, on_url=show)
     except ChzzkLoginError as error:
@@ -184,7 +184,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--version", action="version", version=f"debutkit {__version__}")
     sub = parser.add_subparsers(dest="command", required=True)
 
-    gui = sub.add_parser("gui", help="설정 마법사 창 열기 (PySide6 필요)")
+    gui = sub.add_parser("gui", help="설정 마법사 실행(PySide6 필요)")
     gui.set_defaults(func=_gui)
 
     doctor = sub.add_parser("doctor", help="이 PC의 방송 준비 상태 점검")
@@ -195,13 +195,13 @@ def build_parser() -> argparse.ArgumentParser:
     doctor.add_argument("--speed", action="store_true", help="업로드 속도 측정, 송출 비트레이트 추천 (약 10초, 지정할 때만 외부 연결)")
     doctor.set_defaults(func=_doctor)
 
-    scenes = sub.add_parser("scenes", help="OBS에 버튜버 장면 세트(대기, 본방송, 토크, 자리 비움, 엔딩) 만들기")
+    scenes = sub.add_parser("scenes", help="OBS에 버튜버 장면 세트(대기, 본방송, 토크, 자리 비움, 엔딩) 생성")
     scenes.add_argument("--host", default="127.0.0.1")
     scenes.add_argument("--port", type=int, default=4455, help="OBS WebSocket 포트 (기본 %(default)s)")
     scenes.add_argument("--password", help="OBS WebSocket 비밀번호 (또는 OBS_WEBSOCKET_PASSWORD)")
     scenes.add_argument("--avatar", default="vts", choices=["vts", "vseeface", "warudo", "vmagicmirror", "none"], help="아바타 프로그램 (기본 %(default)s)")
     scenes.add_argument("--overlay-port", type=int, default=OVERLAY_PORT, help="debutkit overlay 포트 (기본 %(default)s)")
-    scenes.add_argument("--replace", action="store_true", help="같은 이름의 장면이 있으면 지우고 다시 만들기")
+    scenes.add_argument("--replace", action="store_true", help="같은 이름의 장면을 삭제 후 다시 생성")
     scenes.add_argument("--switch", action="store_true", help="생성 후 대기 화면으로 전환")
     scenes.add_argument("--replay-buffer", type=int, nargs="?", const=60, metavar="초",
                         help="자동 클립용 리플레이 버퍼 켜기 (길이 기본 60초)")
@@ -209,28 +209,28 @@ def build_parser() -> argparse.ArgumentParser:
     scenes.set_defaults(func=_scenes)
 
     overlay = sub.add_parser("overlay", help="OBS 브라우저 소스용 통합 채팅창, 후원 알림 서버 실행")
-    overlay.add_argument("--chzzk", action="append", metavar="채널", help="CHZZK 채널 주소 또는 ID (여러 번 지정 가능, 로그인 없이 읽기)")
-    overlay.add_argument("--chzzk-api", action="store_true", help="내 CHZZK 채널을 공식 Open API로 읽기 (debutkit chzzk login 필요, 권장)")
+    overlay.add_argument("--chzzk", action="append", metavar="채널", help="CHZZK 채널 주소 또는 ID (여러 번 지정 가능, 로그인 없는 비공식 수신)")
+    overlay.add_argument("--chzzk-api", action="store_true", help="본인 CHZZK 채널을 공식 Open API로 수신 (debutkit chzzk login 필요, 권장)")
     overlay.add_argument("--soop", action="append", metavar="채널", help="SOOP 방송국 주소 또는 아이디")
     overlay.add_argument("--twitch", action="append", metavar="채널", help="Twitch 채널 이름")
     overlay.add_argument("--youtube", action="append", metavar="방송", help="YouTube 방송 주소 또는 영상 ID (공식 API, API 키 필요)")
     overlay.add_argument("--youtube-key", help="YouTube Data API 키 (또는 YOUTUBE_API_KEY)")
     overlay.add_argument("--youtube-interval", type=float, default=10.0, metavar="초",
                          help="YouTube 채팅 요청 간격 (기본 %(default)s초, 최소 5초. 짧을수록 할당량 빨리 소진)")
-    overlay.add_argument("--demo", action="store_true", help="데모 채팅 함께 표시 (모양 맞추기)")
+    overlay.add_argument("--demo", action="store_true", help="데모 채팅 함께 표시 (표시 형태 확인용)")
     overlay.add_argument("--port", type=int, default=OVERLAY_PORT, help="포트 (기본 %(default)s)")
     clip = overlay.add_argument_group("자동 클립")
-    clip.add_argument("--clip", action="store_true", help="채팅 급증 또는 방장 !clip 시 OBS 리플레이 버퍼를 클립으로 저장 (ffmpeg 필요)")
+    clip.add_argument("--clip", action="store_true", help="채팅 급증 또는 스트리머의 !clip 입력 시 OBS 리플레이 버퍼를 클립으로 저장 (ffmpeg 필요)")
     clip.add_argument("--clip-dir", help="클립 저장 폴더 (기본 동영상/debutkit-clips)")
     clip.add_argument("--obs-host", default="127.0.0.1")
     clip.add_argument("--obs-port", type=int, default=4455)
     clip.add_argument("--obs-password", help="OBS WebSocket 비밀번호 (또는 OBS_WEBSOCKET_PASSWORD)")
     overlay.set_defaults(func=_overlay)
 
-    setup = sub.add_parser("setup", help="필요한 외부 프로그램 확인, ffmpeg 내려받기")
-    setup.add_argument("--ffmpeg", action="store_true", help="ffmpeg 내려받기 (Windows, 약 115 MB, SHA-256 확인)")
-    setup.add_argument("--from", dest="archive", metavar="ZIP", help="이미 받은 ffmpeg 압축 파일 사용")
-    setup.add_argument("--force", action="store_true", help="이미 있어도 다시 받기")
+    setup = sub.add_parser("setup", help="외부 프로그램 확인, ffmpeg 다운로드, 새 버전 확인")
+    setup.add_argument("--ffmpeg", action="store_true", help="ffmpeg 다운로드 (Windows, 약 115 MB, SHA-256 검증)")
+    setup.add_argument("--from", dest="archive", metavar="ZIP", help="이미 다운로드한 ffmpeg 압축 파일 사용")
+    setup.add_argument("--force", action="store_true", help="설치되어 있어도 다시 다운로드")
     setup.add_argument("--check-update", action="store_true", help="GitHub에서 새 버전 확인 (지정할 때만 연결)")
     setup.set_defaults(func=_setup)
 

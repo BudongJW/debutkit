@@ -6,7 +6,7 @@ body:
     id: situation
     attributes:
       label: 필요한 상황
-      description: 방송 준비나 방송 중 어떤 상황에서 필요한지
+      description: 기능이 필요한 방송 준비 또는 방송 중 상황
     validations:
       required: true
   - type: textarea
@@ -19,4 +19,4 @@ body:
     id: alternatives
     attributes:
       label: 현재 대안
-      description: 지금 쓰는 다른 프로그램이나 방법
+      description: 현재 사용하는 다른 프로그램이나 방법
