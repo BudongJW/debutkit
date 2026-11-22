@@ -5,7 +5,8 @@
 - ``/alerts``  후원, 구독 알림
 - ``/events``  화면들이 받는 사건 흐름 (Server-Sent Events)
 - ``/character`` 캐릭터 화면(PNGTuber, VRM, GLB, FBX). ``?id=캐릭터`` 로 지정, 없으면 방송에 사용할 캐릭터
-- ``/live``    캐릭터 화면, 설정 화면이 받는 말하기 상태와 얼굴 추적 값 (Server-Sent Events 하나, ``/voice`` 와 ``/tracking`` 은 각각)
+- ``/live``    캐릭터 화면, 설정 화면이 받는 말하기 상태, 얼굴 추적 값, 동작 실행 요청 (Server-Sent Events 하나, ``/voice`` 와 ``/tracking`` 은 각각)
+- ``/motion/list`` 등록한 동작(VRMA, FBX, GLB)과 기본 동작. ``POST /motion`` 으로 동작 실행(``{"id": 동작}``, 멈춤은 ``{"stop": true}``)
 - ``/tracker`` 얼굴 추적 화면(일반 브라우저에서 열고 카메라 허용). ``POST /tracking`` 으로 값을 보낸다
 - ``POST /test`` 설정 화면의 테스트 메시지, ``POST /voice/test`` 말하기 시험
 
@@ -30,6 +31,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
 from typing import Any, Callable, Iterable
 
+from .. import motion as motions
 from .events import OverlayEvent, system_event
 from .tracking import TrackingState, clean
 from .voice import VoiceState
@@ -41,7 +43,7 @@ TRACKER_POLICY = ("default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; con
                   "media-src 'self' blob: mediastream:; style-src 'self' 'unsafe-inline'; worker-src 'self' blob:; frame-ancestors 'none'")
 TYPES = {".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".svg": "image/svg+xml",
          ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".json": "application/json",
-         ".vrm": "model/gltf-binary", ".glb": "model/gltf-binary", ".fbx": "application/octet-stream", ".txt": "text/plain; charset=utf-8",
+         ".vrm": "model/gltf-binary", ".glb": "model/gltf-binary", ".vrma": "model/gltf-binary", ".fbx": "application/octet-stream", ".txt": "text/plain; charset=utf-8",
          ".mjs": "text/javascript; charset=utf-8", ".wasm": "application/wasm", ".task": "application/octet-stream"}
 _SAFE_PATH = re.compile(r"^[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)*$")
 
@@ -109,10 +111,12 @@ def _static(name: str) -> bytes:
 
 
 def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.0, voice: VoiceState | None = None,
-                 tracking: TrackingState | None = None, stopping: threading.Event | None = None) -> type[BaseHTTPRequestHandler]:
+                 tracking: TrackingState | None = None, motion: motions.MotionState | None = None,
+                 stopping: threading.Event | None = None) -> type[BaseHTTPRequestHandler]:
     """``stopping`` 이 설정되면 열린 사건 흐름을 모두 끝낸다(화면은 새 서버에 다시 연결)."""
     voice = voice or VoiceState()
     tracking = tracking or TrackingState()
+    motion = motion or motions.MotionState()
     stopping = stopping or threading.Event()
     step = min(0.5, keepalive)
 
@@ -163,6 +167,10 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
                 return self._character_info(urllib.parse.parse_qs(query).get("id", [""])[0])
             if path.startswith("/character/files/"):
                 return self._character_file(path.removeprefix("/character/files/"))
+            if path == "/motion/list":
+                return self._send(HTTPStatus.OK, json.dumps(motions.overview(), ensure_ascii=False).encode(), "application/json")
+            if path.startswith("/motion/files/"):
+                return self._motion_file(path.removeprefix("/motion/files/"))
             if path.startswith("/vendor/"):
                 body = _vendor(path)
                 if body is None:
@@ -183,7 +191,7 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
             if not self._local():
                 return self._send(HTTPStatus.FORBIDDEN, b"forbidden")
             path = self.path.split("?", 1)[0]
-            if path not in ("/test", "/voice/test", "/tracking"):
+            if path not in ("/test", "/voice/test", "/tracking", "/motion"):
                 return self._send(HTTPStatus.NOT_FOUND, b"not found")
             try:
                 raw = json.loads(body or b"{}")
@@ -193,6 +201,15 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
             if path == "/voice/test":
                 voice.test(bool(data.get("talking", True)))
                 return self._send(HTTPStatus.OK, b"ok")
+            if path == "/motion":
+                if data.get("stop"):
+                    motion.play(stop=True)
+                    return self._send(HTTPStatus.OK, b"ok")
+                found = motions.get(str(data.get("id") or ""))
+                if found is None:
+                    return self._send(HTTPStatus.NOT_FOUND, json.dumps({"error": "등록한 동작 없음"}, ensure_ascii=False).encode(), "application/json")
+                motion.play(found.id)
+                return self._send(HTTPStatus.OK, json.dumps({"play": found.id, "name": found.name}, ensure_ascii=False).encode(), "application/json")
             if path == "/tracking":
                 values = clean(raw)
                 if values is None:
@@ -254,7 +271,14 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
             # 파일 이름은 character.json에 등록한 이름과 정확히 같아야 하고 캐릭터 폴더 안이어야 한다(character.file_path)
             character_id, _, relative = urllib.parse.unquote(rest).partition("/")
             found = character.get(character_id)
-            target = character.file_path(found, relative) if found and "\\" not in relative else None
+            self._file(character.file_path(found, relative) if found and "\\" not in relative else None)
+
+        def _motion_file(self, rest: str) -> None:
+            motion_id, _, relative = urllib.parse.unquote(rest).partition("/")
+            found = motions.get(motion_id)
+            self._file(motions.file_path(found, relative) if found and "\\" not in relative else None)
+
+        def _file(self, target: Any) -> None:
             if target is None:
                 return self._send(HTTPStatus.NOT_FOUND, b"not found")
             self.send_response(HTTPStatus.OK)  # VRM은 수백 MB일 수 있어 나눠 보낸다
@@ -274,11 +298,11 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
             self._feeds({"": state})
 
         def _live(self) -> None:
-            """캐릭터 화면, 설정 화면용: 말하기 상태(event: voice)와 추적 값(event: tracking)을 연결 하나로 보낸다.
+            """캐릭터 화면, 설정 화면용: 말하기 상태(event: voice), 추적 값(event: tracking), 동작 실행 요청(event: motion)을 연결 하나로 보낸다.
 
             브라우저는 같은 주소에 동시 연결을 6개까지만 열기 때문에(OBS 브라우저 소스끼리도 공유) 화면 하나가 연결을 여러 개 쓰지 않도록 한다.
             """
-            self._feeds({"voice": voice, "tracking": tracking})
+            self._feeds({"voice": voice, "tracking": tracking, "motion": motion})
 
         def _feeds(self, feeds: dict[str, Any]) -> None:
             """상태들의 새 값을 연결 하나로. 이름이 있으면 ``event:`` 줄을 붙인다."""
@@ -344,6 +368,7 @@ class OverlayServer:
         self.hub = Hub()
         self.voice = VoiceState()
         self.tracking = TrackingState()
+        self.motion = motions.MotionState()
         self._sources = list(sources)
         self._poll = poll
         self._retry = retry
@@ -351,7 +376,7 @@ class OverlayServer:
         self._threads: list[threading.Thread] = []
         self._attached: list[Any] = []
         self.httpd = _HttpServer(("127.0.0.1", port), make_handler(self.hub, lambda: self.port, voice=self.voice, tracking=self.tracking,
-                                                                   stopping=self._stop))
+                                                                   motion=self.motion, stopping=self._stop))
 
     @property
     def port(self) -> int:

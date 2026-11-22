@@ -37,7 +37,7 @@
     <header class="dochead">
       <h1>사용 설명서</h1>
       <dl>
-        <dt>대상 버전</dt><dd>debutkit 1.0.0rc6</dd>
+        <dt>대상 버전</dt><dd>debutkit 1.0.0rc7</dd>
         <dt>방송 플랫폼</dt><dd>치지직, SOOP, Twitch, YouTube</dd>
         <dt>지원 환경</dt><dd>Windows 64비트(설치 프로그램, zip), macOS(Apple Silicon), Linux(x64), 파이썬 패키지</dd>
       </dl>
@@ -122,7 +122,7 @@ debutkit-gui</code></pre>
             <thead><tr><th>단계</th><th>내용</th></tr></thead>
             <tbody>
               <tr><th scope="row">PC 점검</th><td>이 단계를 열면 자동으로 점검. ffmpeg가 없으면 ffmpeg 다운로드 버튼 표시(Windows). 업로드 속도 측정 버튼</td></tr>
-              <tr><th scope="row">캐릭터</th><td>캐릭터 등록(파일, 폴더), PNG 이미지로 만들기, 방송에 사용할 캐릭터 지정, VTube Studio와 Warudo로 보내기, 사용 조건 확인</td></tr>
+              <tr><th scope="row">캐릭터</th><td>캐릭터 등록(파일, 폴더), PNG 이미지로 만들기, 방송에 사용할 캐릭터 지정, 3D 캐릭터 동작(기본 동작, 후원 반응), VTube Studio와 Warudo로 보내기, 사용 조건 확인</td></tr>
               <tr><th scope="row">OBS 장면</th><td>WebSocket 포트, 비밀번호, 아바타 프로그램을 지정해 장면 생성</td></tr>
               <tr><th scope="row">채팅과 알림</th><td>플랫폼별 채널 입력, 치지직 로그인, 자동 클립 선택 후 오버레이 시작</td></tr>
               <tr><th scope="row">마무리</th><td>단계별 준비 상태, 자동 클립 저장 폴더, 새 버전 확인, 저장한 설정 삭제, 문제 제보(점검 결과 복사, 기록 폴더 열기)</td></tr>
@@ -146,7 +146,7 @@ debutkit-gui</code></pre>
         </ul>
 
         <h2 id="character">캐릭터</h2>
-        <p>방송에 사용할 캐릭터를 등록하고 사용 조건을 확인합니다. PNGTuber와 3D(VRM)는 debutkit 캐릭터 화면으로 바로 방송하고, Live2D는 VTube Studio로 보내 방송합니다.</p>
+        <p>방송에 사용할 캐릭터를 등록하고 사용 조건을 확인합니다. PNGTuber와 3D(VRM, GLB, FBX)는 debutkit 캐릭터 화면으로 바로 방송하고, Live2D는 VTube Studio로 보내 방송합니다.</p>
         <figure>
           <img src="assets/shots/wizard-character.png" alt="설정 마법사 캐릭터 단계. 캐릭터 목록, 사용 조건, 추가, PNG로 만들기, 방송에 사용, 얼굴 추적 창 열기, VTube Studio 연결" width="1200" height="934" loading="lazy">
           <figcaption>그림 2. 캐릭터 단계</figcaption>
@@ -204,6 +204,30 @@ debutkit-gui</code></pre>
           <li>거울처럼 움직이기(기본)는 고개를 돌린 방향이 화면의 같은 쪽으로 보이게 합니다.</li>
           <li>Live2D 캐릭터의 얼굴 추적은 VTube Studio가 담당합니다.</li>
         </ul>
+        <h3 id="character-motion">3D 캐릭터 동작</h3>
+        <p>동작 파일을 등록하면 3D 캐릭터(VRM, GLB, FBX)가 대기 중 반복하는 기본 동작, 후원 반응, 수동 실행으로 움직입니다. 입 움직임과 얼굴 추적은 동작 위에 더해집니다.</p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>파일</th><th>구하는 곳</th><th>비고</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">VRMA(VRM Animation)</th><td><a href="https://booth.pm/ja/items/5512385">VRoid 공식 동작 7종</a>(BOOTH, 무료) 등</td><td>받은 zip을 그대로 등록. VRoid 공식 동작은 방송 화면이나 설명에 표기 필요, 파일 재배포 불가</td></tr>
+              <tr><th scope="row">FBX</th><td><a href="https://www.mixamo.com/">Mixamo</a>(무료, Adobe 계정)에서 동작을 고른 뒤 FBX로 받은 파일</td><td>Skin은 With, Without 모두 가능. 걷기 등 이동 동작은 In Place 선택 권장. Mixamo 원본 파일 재배포 불가</td></tr>
+              <tr><th scope="row">GLB</th><td>Blender 등에서 동작을 포함해 내보낸 파일</td><td>파일 안에 동작이 여러 개면 등록할 때 하나를 선택</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ol class="procedure">
+          <li>설정 마법사 캐릭터 단계의 3D 캐릭터 동작 카드에서 동작 파일 추가를 누릅니다. zip은 안의 동작 파일을 모두 등록합니다. 명령줄: <code>debutkit motion add 파일</code></li>
+          <li>기본 동작에서 대기 중 반복할 동작을 고릅니다. 없음은 기본 움직임(호흡, 흔들림)입니다. 명령줄: <code>debutkit motion idle 동작</code></li>
+          <li>후원 반응에 동작과 최소 금액을 지정한 뒤 오버레이를 시작합니다. 명령줄: <code>debutkit overlay --motion-reaction 1000:동작</code></li>
+          <li>오버레이 실행 중에는 한 번 실행 버튼, 오버레이 설정 화면의 동작 버튼, <code>debutkit motion play 동작</code>으로 바로 실행합니다.</li>
+        </ol>
+        <ul>
+          <li>FBX, GLB는 뼈 이름(Mixamo, VRoid, Unreal, Blender, MMD 등)으로 캐릭터의 뼈에 맞춰 변환합니다. 이동 거리는 캐릭터 키에 맞추고, A자 자세 캐릭터는 팔 방향을 보정합니다.</li>
+          <li>동작에 든 입 모양, 눈 감기, 웃음 표정은 사용하지 않습니다. 목소리, 눈 깜빡임, 얼굴 추적이 우선합니다.</li>
+          <li>BVH 동작은 VRM 공식 변환 도구 <a href="https://github.com/vrm-c/bvh2vrma">bvh2vrma</a>로 VRMA로 바꿔 등록합니다.</li>
+          <li>PNGTuber 캐릭터에는 동작이 적용되지 않습니다.</li>
+        </ul>
         <h3 id="character-vts">VTube Studio 연동(Live2D)</h3>
         <p>VTube Studio의 공개 API로 모델을 불러오고, 후원이 오면 VTube Studio 단축키(표정, 효과, 애니메이션)를 실행합니다.</p>
         <ol class="procedure">
@@ -223,6 +247,9 @@ debutkit character add 모델.vrm                      # VRM, GLB, FBX, Live2D �
 debutkit character png --idle 입다문.png --talk 입벌린.png --name 이름
 debutkit character use 캐릭터                         # 방송에 사용
 debutkit character send 캐릭터 --to vts               # Live2D를 VTube Studio로(VRM은 --to warudo)
+debutkit motion add VRMA_MotionPack.zip               # 3D 캐릭터 동작 등록(VRMA, FBX, GLB, zip)
+debutkit motion idle 동작                              # 기본 동작 지정(--off 해제)
+debutkit motion play 동작                              # 실행 중인 캐릭터 화면에서 한 번 실행
 debutkit vts login                                    # VTube Studio 연결(허용 요청 수락)
 debutkit vts load 모델                                 # VTube Studio 모델 불러오기
 debutkit vts trigger 단축키                            # 단축키 실행</code></pre>
@@ -314,7 +341,7 @@ debutkit scenes --dry-run</code></pre>
               <tr><th scope="row"><code>http://127.0.0.1:8790</code></th><td>설정 화면. 주소 복사, 표시 형태 선택, 미리보기, 테스트 메시지, 캐릭터 음량과 말하기 시험</td></tr>
               <tr><th scope="row"><code>/chat</code></th><td>통합 채팅창. 권장 크기 420x1000</td></tr>
               <tr><th scope="row"><code>/alerts</code></th><td>후원, 구독 알림. 권장 크기 1920x1080</td></tr>
-              <tr><th scope="row"><code>/character</code></th><td>debutkit 캐릭터 화면(PNGTuber, VRM). 권장 크기 720x900</td></tr>
+              <tr><th scope="row"><code>/character</code></th><td>debutkit 캐릭터 화면(PNGTuber, 3D). 권장 크기 720x900</td></tr>
               <tr><th scope="row"><code>/tracker</code></th><td>웹캠 얼굴 추적 화면. OBS가 아닌 일반 브라우저(Chrome, Edge)에서 엽니다</td></tr>
             </tbody>
           </table>
@@ -488,6 +515,7 @@ debutkit overlay --youtube 영상ID --youtube-interval 15</code></pre>
               <tr><th scope="row"><code>debutkit chzzk login</code></th><td>치지직 공식 API 로그인. <code>logout</code>으로 토큰 삭제</td></tr>
               <tr><th scope="row"><code>debutkit youtube check</code></th><td>YouTube API 키, 라이브 채팅, 요청 방식, 스트리밍 방식 확인</td></tr>
               <tr><th scope="row"><code>debutkit character</code></th><td>캐릭터 등록, 목록, 방송 사용, 방송 프로그램으로 보내기</td></tr>
+              <tr><th scope="row"><code>debutkit motion</code></th><td>3D 캐릭터 동작 등록, 목록, 기본 동작 지정, 실행</td></tr>
               <tr><th scope="row"><code>debutkit vts</code></th><td>VTube Studio 연결, 모델 불러오기, 단축키 목록과 실행</td></tr>
               <tr><th scope="row"><code>debutkit settings</code></th><td>저장한 설정 보기. <code>--clear</code>로 삭제</td></tr>
             </tbody>

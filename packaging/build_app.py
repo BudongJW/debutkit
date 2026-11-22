@@ -243,7 +243,7 @@ def notarize(app: Path, dist: Path, config: tuple[str, str, str], *, run: Callab
 
 #: 캐릭터 화면에 필요한 함께 배포 파일(빠지면 PNGTuber, VRM 표시 불가)
 BUNDLED = ("character.html", "character.js", "three.module.js", "three.core.js", "GLTFLoader.js", "FBXLoader.js", "fflate.module.js", "NURBSCurve.js",
-           "NURBSUtils.js", "three-vrm.module.min.js", "idle.svg", "talk_blink.svg",
+           "NURBSUtils.js", "three-vrm.module.min.js", "three-vrm-animation.module.min.js", "idle.svg", "talk_blink.svg",
            "tracker.html", "tracker.js", "vision_bundle.mjs", "vision_wasm_internal.wasm", "face_landmarker.task")
 
 

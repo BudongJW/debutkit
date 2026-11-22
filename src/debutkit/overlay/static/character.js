@@ -10,6 +10,7 @@ const stage = document.getElementById("stage");
 const notice = document.getElementById("notice");
 const voice = { talking: false, level: 0 };
 const tracked = { found: false, time: 0 };
+const motionRequests = { handler: null };  // 3D 캐릭터를 불러온 뒤 동작 실행 요청을 처리
 let currentId = "";
 
 function tracking() {  // 최근 추적 값이 있으면 그 값, 없으면 null
@@ -26,6 +27,7 @@ function listen() {
   // 브라우저의 같은 주소 동시 연결 수 제한(6개, OBS 브라우저 소스끼리 공유) 때문에 연결 하나로 받는다
   const source = new EventSource("/live");
   source.addEventListener("tracking", (message) => Object.assign(tracked, { found: false }, JSON.parse(message.data)));
+  source.addEventListener("motion", (message) => motionRequests.handler?.(JSON.parse(message.data)));
   if (demo) {  // 말하기 시험: 0.6초 말하고 0.6초 쉼
     setInterval(() => {
       voice.talking = !voice.talking;
@@ -131,7 +133,7 @@ async function loadVrm(THREE, lib, info) {
 }
 
 async function loadModel(THREE, lib, info) {
-  const table = await (await fetch("/character/humanoid.json", { cache: "no-store" })).json();
+  const table = await nameTable();
   let root;
   if (/\.fbx$/i.test(info.files.model)) {
     const { FBXLoader } = await import("three/addons/loaders/FBXLoader.js");
@@ -190,6 +192,276 @@ async function loadModel(THREE, lib, info) {
   return new lib.VRMCore({ scene, meta, humanoid, expressionManager });
 }
 
+// ------------------------------------------------------------------ 동작(VRMA, FBX, GLB)
+// 동작은 정규화 뼈대(VRM 1.0 방향, 기준 자세에서 회전 0)의 회전으로 바꿔 AnimationMixer로 재생한다.
+// 매 프레임 기본 움직임(팔 내림, 호흡, 흔들림)을 먼저 정하고, 동작이 있으면 그 위에 섞은 뒤 얼굴 추적 회전을 더한다.
+
+const FADE = 0.4;  // 동작 사이 전환 시간(초)
+const DRIVEN = new Set(["aa", "ih", "ou", "ee", "oh", "blink", "blinkLeft", "blinkRight", "happy"]);  // 목소리, 눈 깜빡임, 추적이 정하는 표정
+let humanoidTable = null;
+
+async function nameTable() {  // 뼈와 표정 이름 표(/character/humanoid.json)
+  humanoidTable ??= fetch("/character/humanoid.json", { cache: "no-store" }).then((response) => response.json());
+  return humanoidTable;
+}
+
+function trackNode(track) {
+  return track.name.slice(0, track.name.lastIndexOf("."));
+}
+
+// 동작 파일의 뼈 회전을 정규화 뼈대 기준으로: 부모의 기준 자세 월드 회전 * 동작 회전 * 기준 자세 월드 회전의 역(three-vrm 공식 예제 방식)
+export function retarget(THREE, root, source, vrm, bones) {
+  root.updateMatrixWorld(true);
+  const nodes = {};
+  const order = [];
+  root.traverse((node) => {
+    if (node.name && !(node.name in nodes)) {
+      nodes[node.name] = node;
+      order.push(node);
+    }
+  });
+  const found = matchBones([...order.filter((node) => node.isBone), ...order.filter((node) => !node.isBone)].map((node) => node.name), bones);
+  const boneOf = Object.fromEntries(Object.entries(found).map(([bone, name]) => [name, bone]));
+  const vrm0 = vrm.meta?.metaVersion === "0";
+  const rig = (vector) => (vrm0 ? vector.set(-vector.x, vector.y, -vector.z) : vector);  // VRM 0.x 정규화 뼈대는 반대 방향
+  const at = (bone) => nodes[found[bone]].getWorldPosition(new THREE.Vector3());
+  const rest = vrm.humanoid.normalizedRestPose;
+  const legs = ["leftUpperLeg", "leftLowerLeg", "leftFoot"].reduce((sum, bone) => sum + (rest[bone]?.position?.[1] || 0), 0);
+  const sourceHeight = found.leftFoot ? at("hips").y - at("leftFoot").y : at("hips").y;
+  const scale = sourceHeight > 1e-6 && legs < 0 ? -legs / sourceHeight : 1;  // 엉덩이에서 발목까지 높이 비율
+  const hipsRest = at("hips");
+  const tracks = [];
+  const quaternion = new THREE.Quaternion();
+  const point = new THREE.Vector3();
+  for (const track of source.tracks) {
+    const name = trackNode(track);
+    const bone = boneOf[name];
+    const target = bone && vrm.humanoid.getNormalizedBoneNode(bone);
+    if (!target) continue;
+    const node = nodes[name];
+    if (track instanceof THREE.QuaternionKeyframeTrack) {
+      const inverse = node.getWorldQuaternion(new THREE.Quaternion()).invert();
+      const parent = node.parent ? node.parent.getWorldQuaternion(new THREE.Quaternion()) : new THREE.Quaternion();
+      const values = new Float32Array(track.values.length);
+      for (let i = 0; i < values.length; i += 4) {
+        quaternion.fromArray(track.values, i).premultiply(parent).multiply(inverse);
+        if (vrm0) quaternion.set(-quaternion.x, quaternion.y, -quaternion.z, quaternion.w);
+        quaternion.toArray(values, i);
+      }
+      tracks.push(new THREE.QuaternionKeyframeTrack(`${target.name}.quaternion`, track.times, values));
+    } else if (bone === "hips" && track.name.endsWith(".position")) {  // 엉덩이 이동: 기준 자세에서 움직인 거리를 캐릭터 크기에 맞춤
+      const parentMatrix = node.parent ? node.parent.matrixWorld : new THREE.Matrix4();
+      const origin = new THREE.Vector3().fromArray(rest.hips.position);
+      const values = new Float32Array(track.values.length);
+      for (let i = 0; i < values.length; i += 3) {
+        rig(point.fromArray(track.values, i).applyMatrix4(parentMatrix).sub(hipsRest).multiplyScalar(scale)).add(origin).toArray(values, i);
+      }
+      tracks.push(new THREE.VectorKeyframeTrack(`${target.name}.position`, track.times, values));
+    }
+  }
+  if (!tracks.length) throw new Error("사람 모양 뼈를 움직이는 동작이 없음");
+  const arm = (side) => (found[`${side}UpperArm`] && found[`${side}LowerArm`] ? rig(at(`${side}LowerArm`).sub(at(`${side}UpperArm`))) : null);
+  return { clip: new THREE.AnimationClip(source.name, source.duration, tracks), arms: { left: arm("left"), right: arm("right") } };
+}
+
+// 기준 자세 차이 보정: 동작의 기준 팔 방향(VRMA는 T자)과 캐릭터의 기준 팔 방향(A자 모델 등)이 다르면 위팔, 아래팔, 손 회전을 맞춘다
+export function fitArms(THREE, clip, vrm, arms) {
+  const rest = vrm.humanoid.normalizedRestPose;
+  const name = (bone) => vrm.humanoid.getNormalizedBoneNode(bone)?.name;
+  const quaternion = new THREE.Quaternion();
+  for (const side of ["left", "right"]) {
+    const offset = rest[`${side}LowerArm`]?.position;
+    if (!offset || !arms[side]) continue;
+    const fix = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3().fromArray(offset).normalize(), arms[side].clone().normalize());
+    if (fix.angleTo(new THREE.Quaternion()) < 0.02) continue;
+    const back = fix.clone().invert();
+    const upper = name(`${side}UpperArm`);
+    if (!clip.tracks.some((track) => trackNode(track) === upper)) continue;
+    const children = new Set([name(`${side}LowerArm`), name(`${side}Hand`)]);
+    for (const track of clip.tracks) {
+      const node = trackNode(track);
+      if (!(track instanceof THREE.QuaternionKeyframeTrack) || (node !== upper && !children.has(node))) continue;
+      for (let i = 0; i < track.values.length; i += 4) {
+        quaternion.fromArray(track.values, i);
+        if (node === upper) quaternion.multiply(fix);
+        else quaternion.premultiply(back).multiply(fix);
+        quaternion.toArray(track.values, i);
+      }
+    }
+  }
+}
+
+async function loadClip(THREE, vrm, item) {
+  const { GLTFLoader } = await import("three/addons/loaders/GLTFLoader.js");
+  const vrm0 = vrm.meta?.metaVersion === "0";
+  let made;
+  if (item.kind === "vrma") {
+    const animation = await import("/vendor/three-vrm-animation/three-vrm-animation.module.min.js");
+    const loader = new GLTFLoader();
+    loader.register((parser) => new animation.VRMAnimationLoaderPlugin(parser));
+    const source = (await loader.loadAsync(item.url)).userData.vrmAnimations?.[0];
+    if (!source) throw new Error("VRMA 동작을 읽지 못함");
+    // 시선은 카메라를 보도록 두고 동작의 시선은 쓰지 않음(lookAt 제외)
+    const target = { humanoid: vrm.humanoid, meta: vrm.meta, expressionManager: vrm.expressionManager, scene: vrm.scene, lookAt: null };
+    const sign = vrm0 ? -1 : 1;
+    made = { clip: animation.createVRMAnimationClip(source, target), arms: { left: new THREE.Vector3(sign, 0, 0), right: new THREE.Vector3(-sign, 0, 0) } };
+  } else {
+    let root;
+    let clips;
+    if (item.kind === "fbx") {
+      const { FBXLoader } = await import("three/addons/loaders/FBXLoader.js");
+      root = await new FBXLoader().loadAsync(item.url);
+      clips = root.animations;
+    } else {
+      const gltf = await new GLTFLoader().loadAsync(item.url);
+      root = gltf.scene;
+      clips = gltf.animations;
+    }
+    const source = (item.clip && clips.find((clip) => clip.name === item.clip)) || clips[0];
+    if (!source) throw new Error("동작이 없는 파일");
+    made = retarget(THREE, root, source, vrm, await nameTable());
+  }
+  const expression = (track) => trackNode(track).startsWith("VRMExpression_") && DRIVEN.has(trackNode(track).slice("VRMExpression_".length));
+  made.clip.tracks = made.clip.tracks.filter((track) => !expression(track));
+  fitArms(THREE, made.clip, vrm, made.arms);
+  return made.clip;
+}
+
+function motionPlayer(THREE, vrm) {
+  const mixer = new THREE.AnimationMixer(vrm.scene);
+  const clips = new Map();
+  const entries = [];  // { id, action, weight, target, idle }
+  const bones = Object.keys(vrm.humanoid.rawHumanBones).filter((bone) => !bone.endsWith("Eye"))  // 눈은 시선(lookAt)이 정함
+    .map((bone) => vrm.humanoid.getNormalizedBoneNode(bone)).filter(Boolean);
+  const hips = vrm.humanoid.getNormalizedBoneNode("hips");
+  const hipsRest = new THREE.Vector3().fromArray(vrm.humanoid.normalizedRestPose.hips?.position || [0, 0, 0]);
+  const saved = bones.map(() => new THREE.Quaternion());
+  const savedHips = new THREE.Vector3();
+  const blended = new THREE.Quaternion();
+  let idleId = "";
+
+  const clipOf = (item) => {
+    if (!clips.has(item.id)) clips.set(item.id, loadClip(THREE, vrm, item).catch((error) => {
+      clips.delete(item.id);
+      throw error;
+    }));
+    return clips.get(item.id);
+  };
+  const failed = (item, error) => {
+    console.warn("debutkit 동작", item.name, error);
+    show(`동작을 불러오지 못함(${item.name}): ${error.message}`);
+    setTimeout(() => show(""), 6000);
+  };
+  const once = () => entries.some((entry) => !entry.idle && entry.target === 1);
+
+  return {
+    entries,
+    reset() {  // 매 프레임 기준 자세에서 시작(기본 움직임이 정하지 않는 뼈는 기준 자세)
+      for (const bone of bones) bone.quaternion.identity();
+      if (hips) hips.position.copy(hipsRest);
+    },
+    async play(item, idle = false) {
+      try {
+        const clip = await clipOf(item);
+        if (idle && item.id !== idleId) return;  // 불러오는 사이 기본 동작이 바뀜
+        const action = mixer.clipAction(clip);
+        let entry = entries.find((found) => found.action === action);
+        if (entry?.idle) return;  // 기본 동작으로 재생 중인 동작은 그대로
+        if (entry && idle) {  // 실행 중인 동작을 기본 동작으로 지정
+          entry.idle = true;
+          action.paused = false;
+          action.setLoop(THREE.LoopRepeat, Infinity);
+          return;
+        }
+        if (!entry) {
+          entry = { id: item.id, action, weight: 0, target: 1, idle };
+          entries.push(entry);
+        }
+        entry.target = 1;
+        action.reset();
+        action.setLoop(idle ? THREE.LoopRepeat : THREE.LoopOnce, Infinity);
+        action.clampWhenFinished = true;
+        action.play();
+        if (!idle) for (const other of entries) if (other !== entry && !other.idle) other.target = 0;
+      } catch (error) {
+        failed(item, error);
+      }
+    },
+    idle(item) {  // 기본 동작 지정(null이면 해제)
+      idleId = item ? item.id : "";
+      if (item && !entries.some((entry) => entry.idle && entry.id === item.id)) this.play(item, true);
+    },
+    stop() {
+      for (const entry of entries) if (!entry.idle) entry.target = 0;
+    },
+    update(delta) {
+      for (const entry of entries) {
+        if (!entry.idle && entry.target === 1 && entry.action.time >= entry.action.getClip().duration - FADE) entry.target = 0;  // 끝나기 전에 되돌아감
+      }
+      const busy = once();
+      for (const entry of entries) {
+        if (entry.idle) entry.target = !busy && entry.id === idleId ? 1 : 0;
+        const step = Math.min(Math.abs(entry.target - entry.weight), delta / FADE);
+        entry.weight += Math.sign(entry.target - entry.weight) * step;
+      }
+      for (let i = entries.length - 1; i >= 0; i--) {
+        const entry = entries[i];
+        if (entry.weight <= 0 && entry.target === 0 && !(entry.idle && entry.id === idleId)) {
+          entry.action.stop();
+          entries.splice(i, 1);
+        }
+      }
+      const total = entries.reduce((sum, entry) => sum + entry.weight, 0);
+      if (total <= 0) return;
+      bones.forEach((bone, i) => saved[i].copy(bone.quaternion));
+      if (hips) savedHips.copy(hips.position);
+      for (const entry of entries) entry.action.setEffectiveWeight(entry.weight / total);  // 동작끼리는 합이 1(기준 자세와 섞이지 않게)
+      mixer.update(delta);
+      const weight = Math.min(1, total);  // 기본 움직임과 동작 사이
+      if (weight < 1) {
+        bones.forEach((bone, i) => {
+          blended.copy(bone.quaternion);
+          bone.quaternion.copy(saved[i]).slerp(blended, weight);
+        });
+        if (hips) hips.position.lerp(savedHips, 1 - weight);
+      }
+    },
+  };
+}
+
+async function motionList() {
+  const response = await fetch("/motion/list", { cache: "no-store" });
+  if (!response.ok) throw new Error("동작 목록을 받지 못함");
+  return response.json();
+}
+
+function startMotions(player) {
+  // 동작 실행 요청(/live의 motion). 연결할 때 받는 지난 요청은 재생하지 않는다
+  let seen = -1;
+  motionRequests.handler = async (data) => {
+    const fresh = data.seq !== seen && Date.now() / 1000 - data.time < 5;
+    seen = data.seq;
+    if (!fresh) return;
+    if (data.stop) return player.stop();
+    const item = (await motionList()).motions.find((found) => found.id === data.play);
+    if (item) player.play(item);
+  };
+  let idleId = null;
+  const watch = async () => {
+    try {
+      const list = await motionList();
+      if (list.idle !== idleId) {
+        idleId = list.idle;
+        player.idle(list.motions.find((found) => found.id === list.idle) || null);
+      }
+    } catch (error) {
+      // 오버레이를 다시 시작하는 중
+    }
+  };
+  watch();
+  setInterval(watch, 5000);
+}
+
 async function start3d(info) {
   const THREE = await import("three");
   const lib = await import("/vendor/three-vrm/three-vrm.module.min.js");
@@ -207,7 +479,8 @@ async function start3d(info) {
 
   const vrm = info.kind === "vrm" ? await loadVrm(THREE, lib, info) : await loadModel(THREE, lib, info);
   scene.add(vrm.scene);
-  window.debutkitCharacter = { vrm, THREE };  // 시험용
+  const player = motionPlayer(THREE, vrm);
+  window.debutkitCharacter = { vrm, THREE, player };  // 시험용
 
   // 상반신이 보이도록 머리 위치에 맞춰 카메라 배치
   vrm.scene.updateMatrixWorld(true);
@@ -237,9 +510,12 @@ async function start3d(info) {
   };
   const leftArm = bone("leftUpperArm");
   const rightArm = bone("rightUpperArm");
-  if (leftArm) leftArm.rotation.z = -lowered("left") * flip;
-  if (rightArm) rightArm.rotation.z = lowered("right") * flip;
+  const leftLowered = -lowered("left") * flip;
+  const rightLowered = lowered("right") * flip;
   const jaw = vrm.expressionManager?.getExpression("aa") ? null : bone("jaw");  // 입 모양 표정이 없으면 턱 뼈로
+  startMotions(player);
+  const euler = new THREE.Euler();
+  const turn = new THREE.Quaternion();
 
   const timer = new THREE.Timer();
   let blink = 0;
@@ -264,6 +540,9 @@ async function start3d(info) {
       blink = phase < 1 ? Math.sin(phase * Math.PI) : 0;
       if (phase >= 1) blinkStart = -1;
     }
+    player.reset();
+    if (leftArm) leftArm.rotation.z = leftLowered;
+    if (rightArm) rightArm.rotation.z = rightLowered;
     if (jaw) jaw.rotation.x = Math.min(1, mouth) * 0.3 * flip;
     const expressions = vrm.expressionManager;
     if (expressions) {
@@ -282,16 +561,11 @@ async function start3d(info) {
     }
     if (spine) spine.rotation.x = Math.sin(t * 1.6) * 0.015 * flip;  // 호흡
     const idle = face ? 0 : 1;  // 추적이 없을 때만 기본 흔들림
-    if (neck) {  // 머리 회전은 목 40%, 머리 60%로 나눔(VRM 0.x는 x, z 방향 반대)
-      neck.rotation.y = pose.yaw * 0.4 + Math.sin(t * 0.5) * 0.06 * idle;
-      neck.rotation.x = pose.pitch * 0.4 * flip;
-      neck.rotation.z = (pose.roll * 0.4 + Math.sin(t * 0.7) * 0.02 * idle) * flip + (voice.talking ? Math.sin(t * 9) * 0.01 * idle : 0);
-    }
-    if (head) {
-      head.rotation.y = pose.yaw * 0.6;
-      head.rotation.x = pose.pitch * 0.6 * flip;
-      head.rotation.z = pose.roll * 0.6 * flip;
-    }
+    if (neck) neck.rotation.set(0, Math.sin(t * 0.5) * 0.06 * idle, Math.sin(t * 0.7) * 0.02 * idle * flip + (voice.talking ? Math.sin(t * 9) * 0.01 * idle : 0));
+    player.update(delta);  // 동작(있으면 기본 움직임 위에 섞음)
+    // 얼굴 추적 머리 회전은 동작 위에 더함: 목 40%, 머리 60%(VRM 0.x는 x, z 방향 반대)
+    if (neck) neck.quaternion.multiply(turn.setFromEuler(euler.set(pose.pitch * 0.4 * flip, pose.yaw * 0.4, pose.roll * 0.4 * flip)));
+    if (head) head.quaternion.multiply(turn.setFromEuler(euler.set(pose.pitch * 0.6 * flip, pose.yaw * 0.6, pose.roll * 0.6 * flip)));
     vrm.update(delta);
     renderer.render(scene, camera);
     requestAnimationFrame(animate);

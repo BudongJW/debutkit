@@ -1,6 +1,6 @@
 # 캐릭터 기능 참고 자료와 설계
 
-캐릭터 등록, 제작, Live2D와 3D 방송 기능의 근거 자료와 debutkit의 처리 방식. 조사 기준일 2026-11-22(약관 항목 2026-11-23 보완). 가격과 약관은 바뀔 수 있으므로 사용 전 각 공식 페이지에서 다시 확인.
+캐릭터 등록, 제작, Live2D와 3D 방송 기능의 근거 자료와 debutkit의 처리 방식. 조사 기준일 2026-11-22(약관, 동작 항목 2026-11-23 보완). 가격과 약관은 바뀔 수 있으므로 사용 전 각 공식 페이지에서 다시 확인.
 
 ## 요약
 
@@ -9,6 +9,7 @@
 | PNGTuber(이미지 2장에서 4장) | 이미지 형식, 크기 확인 | debutkit 캐릭터 화면(OBS 브라우저 소스)이 목소리 크기로 이미지 전환 | 직접 구현 |
 | 3D(VRM 0.x, 1.0) | 파일 구조, 사용 조건, 미리보기 이미지 읽기 | debutkit 캐릭터 화면이 three-vrm으로 표시, 목소리로 입 움직임, 자동 눈 깜빡임과 호흡. 또는 Warudo, VSeeFace 등으로 전달 | 직접 구현과 연계 |
 | 3D(GLB, FBX) | 뼈 이름으로 사람 모양 뼈 15개 확인, 표정 이름 대응, 외부 텍스처 확인 | debutkit 캐릭터 화면이 VRM과 같은 방식으로 표시(입, 눈, 머리, 호흡, 얼굴 추적) | 직접 구현(1.0.0rc6) |
+| 3D 동작(VRMA, FBX, GLB) | 동작 구조, 움직이는 사람 모양 뼈, 길이 확인 | debutkit 캐릭터 화면의 3D 캐릭터가 기본 동작(반복), 후원 반응, 수동 실행으로 재생. 얼굴 추적과 입 움직임은 동작 위에 더함 | 직접 구현(1.0.0rc7) |
 | Live2D | model3.json과 참조 파일 확인 | VTube Studio로 전달(모델 폴더에 복사) | 연계. 직접 표시하지 않음(라이선스) |
 | Inochi2D | 파일 머리글 확인 | Inochi Session 안내 | 안내 |
 
@@ -40,6 +41,16 @@
 
 - VRoid Studio는 Linux 판이 없음
 - 대안: Vket Avatar Maker(웹, 법인 사용 조건 위 참고), Blender와 VRM Add-on for Blender, 다른 PC에서 만든 VRM 등록
+
+### 3D 동작 구하기
+
+| 자료 | 형식 | 방송 사용 조건 | 비고 |
+|---|---|---|---|
+| VRoid 공식 동작 7종(BOOTH, 무료) | VRMA(`VRMA_MotionPack.zip`, VRMA_01에서 07) | 개인, 법인 상업 이용 가능. 표기 필요(キャラクターアニメーション: ピクシブ株式会社 VRoidプロジェクト). 추출 가능한 형태의 재배포 금지 | zip 그대로 등록 가능. https://booth.pm/ja/items/5512385 |
+| Mixamo 동작 | FBX | 프로젝트 안 사용료 없음. 원본 파일 재배포 금지 | 동작 선택 후 FBX Binary로 받기. Skin은 With, Without 모두 가능. 이동 동작은 In Place 권장 |
+| BVH 동작 자료 | BVH | 자료별 조건 | VRM 공식 변환 도구 bvh2vrma(MIT)로 VRMA 변환 후 등록. https://github.com/vrm-c/bvh2vrma |
+
+- 함께 배포할 수 있는 CC0 동작 묶음은 조사에서 찾지 못함. debutkit은 동작 파일을 포함하지 않고 사용자가 받은 파일만 등록
 
 ### Live2D 의뢰 절차
 
@@ -73,6 +84,22 @@
 - 사용 조건 정보가 파일에 없으므로 수익 방송, 소속사 사용, 수정 허용 여부는 제작자, 판매처 조건으로 직접 확인. Mixamo 뼈 이름이면 Adobe 약관(원본 파일 재배포 금지) 안내
 - 지원하지 않음: `.gltf`(GLB로 내보내기), PMX(Blender MMD Tools로 변환), 다른 방송 프로그램으로 보내기(VRM 변환 필요)
 
+### 3D 동작(VRMA, FBX, GLB)
+
+- VRMA: `extensions.VRMC_vrm_animation`(VRM Animation 1.0). 뼈는 VRM 뼈 이름으로 지정(`humanoid.humanBones`). 엉덩이(hips) 필수. 규격: https://github.com/vrm-c/vrm-specification/tree/master/specification/VRMC_vrm_animation-1.0
+- FBX: `AnimationStack`(동작), `AnimationLayer`, `AnimationCurveNode`와 `Connections`로 동작마다 움직이는 뼈를 확인. Mixamo FBX의 비어 있는 동작(Take 001)은 제외하고 곡선이 가장 많은 동작을 기본으로 선택. 길이는 `LocalStop`(KTime, 1초 46,186,158,000)
+- GLB: `animations`의 이름, 채널이 움직이는 노드, 시간 접근자의 최댓값(길이). 동작이 여러 개면 하나를 골라 등록
+- FBX, GLB는 캐릭터와 같은 뼈 이름 표(`humanoid.py`)로 사람 모양 뼈 15개를 확인
+- 캐릭터 화면 처리
+  - VRMA: three-vrm-animation(`VRMAnimationLoaderPlugin`, `createVRMAnimationClip`)으로 재생
+  - FBX, GLB: 동작 파일의 기준 자세 월드 회전으로 정규화 뼈대 회전 계산(부모의 기준 자세 회전, 동작 회전, 기준 자세 회전의 역 순서. three-vrm 공식 Mixamo 예제 방식). 엉덩이 이동은 엉덩이에서 발목까지 높이 비율로 맞춤
+  - 기준 자세 차이: 동작의 기준 팔 방향(VRMA는 T자)과 캐릭터의 기준 팔 방향이 다르면(A자 모델) 위팔, 아래팔, 손 회전 보정
+  - 동작의 입 모양, 눈 감기, 웃음 표정과 시선은 사용하지 않음(목소리, 눈 깜빡임, 얼굴 추적, 카메라 시선 우선)
+  - 매 프레임 기준 자세에서 기본 움직임(팔 내림, 호흡, 흔들림)을 정한 뒤 동작을 섞음. 동작 전환 0.4초. 얼굴 추적 머리 회전은 동작 위에 더함
+- 실행 요청: 오버레이 서버 `POST /motion`이 `/live` 연결의 `motion` 사건으로 전달. 캐릭터 화면은 연결할 때 받는 지난 요청은 재생하지 않음
+- 기본 동작은 저장 설정 `idle_motion`, 후원 반응은 `motion_reactions`(`최소 금액:동작`, VTube Studio 후원 반응과 같은 규칙)
+- 지원하지 않음: BVH(bvh2vrma로 변환), PNGTuber, Live2D 캐릭터
+
 ### Live2D
 
 - `model3.json`: `Version`과 `FileReferences` 필수. `FileReferences`의 `Moc`(.moc3)와 `Textures` 필수, `Physics`, `Pose`, `Expressions`, `Motions`, `DisplayInfo` 선택. https://github.com/Live2D/CubismSpecs/blob/master/FileFormats/model3.json.md
@@ -101,9 +128,10 @@
 |---|---|---|---|
 | three.js | 0.18x | MIT | 3D 표시 |
 | @pixiv/three-vrm | 3.x | MIT | VRM 0.x, 1.0 불러오기, 표정(aa, blink 등), 시선 |
+| @pixiv/three-vrm-animation | 3.x | MIT | VRMA 동작 재생 |
 | OBS WebSocket InputVolumeMeters | OBS 28 이상 | GPL-2.0(OBS) | 마이크 음량으로 말하는 상태 판단 |
 
-- three.js, three-vrm은 debutkit에 포함(외부 CDN 접속 없음)
+- three.js, three-vrm, three-vrm-animation은 debutkit에 포함(외부 CDN 접속 없음)
 - OBS 브라우저 소스는 카메라와 마이크 권한 요청을 거부. `--enable-media-stream` 실행 옵션은 모든 브라우저 소스와 도크에 권한을 주므로 권장하지 않음. https://github.com/obsproject/obs-browser
 - 웹캠 얼굴 추적: MediaPipe Face Landmarker(@mediapipe/tasks-vision 1.2.3, 모델 float16 버전 1, Apache-2.0)를 포함. 52개 표정 값 중 눈 감음, 입 벌림, 웃음과 얼굴 변환 행렬의 머리 회전을 사용
 - MediaPipe 웹 배포 파일에는 사용 기록을 `https://odml.pa.googleapis.com/v1/log`로 보내는 코드가 있음(2026-11-22 확인). 추적 화면에 콘텐츠 보안 정책(`connect-src 'self'`)을 적용해 차단하고, 브라우저에서 차단과 이 PC 밖 요청 없음을 확인
@@ -123,7 +151,8 @@
 |---|---|---|
 | VRoid Studio 이용 약관(아바타 제작 앱 조항, 2026-06-24 개정 후 번호 이동) | VRoid 제공 요소나 이를 포함한 모델로 메시 변형, 메시나 텍스처 조합 방식의 아바타 제작 앱 개발 시 pixiv 별도 라이선스 필요. https://policies.pixiv.net/en.html#vroidstudio | VRoid 요소 기반 제작 기능 만들지 않음. 사용자 VRoid 출력 파일의 등록과 표시는 해당 없음 |
 | Vket Avatar Maker 약관 제7조, 제8조 | 저작권 HIKKY, 법인 사용 사전 확인, 앱 포함과 모델 데이터 배포 금지 | 기본 캐릭터나 예제로 포함하지 않음, 등록 시 경고 |
-| Mixamo | 원본 캐릭터, 동작 파일 재배포 금지 | 사용자가 받은 파일의 등록만 지원 |
+| Mixamo | 원본 캐릭터, 동작 파일 재배포 금지 | 사용자가 받은 파일의 등록만 지원(캐릭터, 동작) |
+| VRoid 공식 동작 7종 | 표기 조건으로 개인, 법인 상업 이용 가능. 추출 가능한 형태의 재배포 금지 | 포함하지 않음. 사용자가 받은 파일 등록, 표기 조건 안내 |
 | VRoid Hub SDK 지침 | 모델 데이터 자체 저장 기능 금지 | 로컬 파일 등록 방식과 충돌, 연동 보류 |
 | Hunyuan3D 라이선스 | 사용 지역에서 한국 제외 | 사용, 안내하지 않음 |
 

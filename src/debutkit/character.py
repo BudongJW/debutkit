@@ -277,13 +277,13 @@ FBX_MAGIC = b"Kaydara FBX Binary  \x00"
 
 
 def _fbx_binary(data: bytes) -> list[tuple[str, list[Any], list[Any]]]:
-    """FBX 바이너리의 노드 트리(이름, 속성, 자식). 숫자 배열은 건너뛰고 문자열과 원시 자료 길이만 읽는다.
+    """FBX 바이너리의 노드 트리(이름, 속성, 자식). 숫자 배열은 건너뛰고 문자열, 숫자 하나(ID, 시간 등), 원시 자료 길이만 읽는다.
 
     형식: https://code.blender.org/2013/08/fbx-binary-file-format-specification/ (7.5부터 노드 머리글 64비트)
     """
     version = struct.unpack_from("<I", data, 23)[0]
     head = struct.Struct("<QQQB" if version >= 7500 else "<IIIB")
-    sizes = {b"Y": 2, b"C": 1, b"I": 4, b"F": 4, b"D": 8, b"L": 8}
+    scalars = {code: struct.Struct(fmt) for code, fmt in ((b"Y", "<h"), (b"C", "<?"), (b"I", "<i"), (b"F", "<f"), (b"D", "<d"), (b"L", "<q"))}
 
     def node(offset: int, depth: int) -> tuple[Any, int]:
         end, count, _, name_length = head.unpack_from(data, offset)
@@ -303,9 +303,9 @@ def _fbx_binary(data: bytes) -> list[tuple[str, list[Any], list[Any]]]:
                 raw = data[position + 4:position + 4 + size]
                 properties.append(raw.decode("utf-8", "replace") if code == b"S" else len(raw))
                 position += 4 + size
-            elif code in sizes:
-                properties.append(None)
-                position += sizes[code]
+            elif code in scalars:
+                properties.append(scalars[code].unpack_from(data, position)[0])
+                position += scalars[code].size
             elif code in (b"f", b"d", b"l", b"i", b"b"):
                 properties.append(None)
                 position += 12 + struct.unpack_from("<I", data, position + 8)[0]

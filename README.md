@@ -9,7 +9,7 @@
 PC 점검, OBS 장면 구성, 통합 채팅창과 후원 알림, 방송 중 자동 클립
 
 <a href="LICENSE"><img alt="license" src="https://img.shields.io/badge/license-Apache--2.0-1E2327?style=flat-square"></a>
-<img alt="version" src="https://img.shields.io/badge/version-1.0.0rc6-BF3B68?style=flat-square">
+<img alt="version" src="https://img.shields.io/badge/version-1.0.0rc7-BF3B68?style=flat-square">
 <a href="https://github.com/BudongJW/debutkit/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/BudongJW/debutkit/ci.yml?branch=main&style=flat-square&label=CI"></a>
 <img alt="python" src="https://img.shields.io/badge/Python-3.10%2B-1E2327?style=flat-square">
 
@@ -29,7 +29,7 @@ PC 점검, OBS 장면 구성, 통합 채팅창과 후원 알림, 방송 중 자�
 |---|---|---|
 | 설정 마법사 | `debutkit-gui` | PC 점검, 캐릭터, OBS 장면, 채팅과 알림, 마무리의 5단계 안내. 모든 기능을 창에서 사용 |
 | PC 점검 | `debutkit doctor` | 메모리, CPU, 그래픽카드, 저장 공간, 마이크, 웹캠, OBS, 트래킹 프로그램, ffmpeg 점검 및 조치 안내. 아바타 모델(VRM) 사용 조건 확인, 업로드 속도 측정 |
-| 캐릭터 | `debutkit character` | PNGTuber, 3D(VRM), Live2D 등록과 사용 조건 확인. PNGTuber와 VRM은 debutkit 캐릭터 화면으로 방송(OBS 마이크 음량으로 입 움직임, 웹캠 얼굴 추적). Live2D는 VTube Studio로 보내기, 모델 불러오기, 후원 시 단축키 실행(`debutkit vts`) |
+| 캐릭터 | `debutkit character`, `debutkit motion` | PNGTuber, 3D(VRM, GLB, FBX), Live2D 등록과 사용 조건 확인. PNGTuber와 3D는 debutkit 캐릭터 화면으로 방송(OBS 마이크 음량으로 입 움직임, 웹캠 얼굴 추적). 3D 캐릭터 동작(VRMA, Mixamo 등의 FBX, GLB)으로 기본 동작과 후원 반응. Live2D는 VTube Studio로 보내기, 모델 불러오기, 후원 시 단축키 실행(`debutkit vts`) |
 | OBS 장면 구성 | `debutkit scenes` | 대기 화면, 본방송, 토크, 자리 비움, 엔딩 장면 생성. 아바타 투명 배경 캡처, 채팅창과 후원 알림 연결 |
 | 채팅창과 후원 알림 | `debutkit overlay` | OBS 브라우저 소스용 통합 채팅창과 후원 알림. 표시 형태 5종 |
 | 방송 중 자동 클립 | `debutkit overlay --clip` | 채팅 급증 또는 스트리머와 매니저의 `!clip` 입력 시 OBS 리플레이 버퍼를 클립으로 저장 |
@@ -65,6 +65,8 @@ debutkit overlay --youtube https://www.youtube.com/watch?v=영상ID --youtube-ke
 debutkit youtube check https://www.youtube.com/watch?v=영상ID --youtube-key API키   # 방송 전 YouTube 연결 확인
 debutkit character add 모델.vrm                 # 캐릭터 등록(VRM, GLB, FBX, Live2D 폴더나 zip, PNG는 character png)
 debutkit character use 캐릭터                     # 방송에 사용. OBS 브라우저 소스 http://127.0.0.1:8790/character
+debutkit motion add VRMA_MotionPack.zip          # 3D 캐릭터 동작 등록(VRMA, FBX, GLB, zip)
+debutkit motion idle 동작                         # 기본 동작(대기 중 반복). 후원 반응은 overlay --motion-reaction 1000:동작
 debutkit overlay --chzzk 채널주소 --clip --save   # 채널과 옵션 저장
 debutkit overlay --saved                         # 다음 방송부터 저장한 설정으로 실행
 ```

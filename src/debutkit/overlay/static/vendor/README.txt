@@ -1,10 +1,12 @@
-함께 배포하는 외부 라이브러리(캐릭터 화면의 VRM 표시, 얼굴 추적). 원본 파일을 수정하지 않고 포함.
+함께 배포하는 외부 라이브러리(캐릭터 화면의 VRM 표시, 동작 재생, 얼굴 추적). 원본 파일을 수정하지 않고 포함.
 
 three 0.187.0 (MIT) https://github.com/mrdoob/three.js
   출처 https://cdn.jsdelivr.net/npm/three@0.187.0/ (build, examples/jsm 일부)
   examples/jsm: GLTFLoader, FBXLoader(GLB, FBX 캐릭터)와 의존 파일 libs/fflate.module.js(fflate 0.8.3, MIT), curves/NURBSCurve.js, NURBSUtils.js
 @pixiv/three-vrm 3.5.5 (MIT) https://github.com/pixiv/three-vrm
   출처 https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3.5.5/lib/three-vrm.module.min.js
+@pixiv/three-vrm-animation 3.5.5 (MIT) https://github.com/pixiv/three-vrm
+  출처 https://cdn.jsdelivr.net/npm/@pixiv/three-vrm-animation@3.5.5/lib/three-vrm-animation.module.min.js (VRMA 동작 재생)
 @mediapipe/tasks-vision 1.2.3 (Apache-2.0) https://github.com/google-ai-edge/mediapipe
   출처 https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.2.3/ (vision_bundle.mjs, wasm/vision_wasm_internal.*)
   사용 기록 전송 코드(odml.pa.googleapis.com)가 들어 있어 얼굴 추적 화면은 콘텐츠 보안 정책으로 외부 접속을 차단
@@ -19,6 +21,8 @@ SHA-256
   225bc06c0f51a9cf31fea0e9e0b0243e9e01fb5ef332cc1a7fa6656dbdfdaabf  mediapipe/wasm/vision_wasm_internal.wasm
   279ec82987aec7e72ecb9850bb704a87e352d577bc7581454c30f3551a88ea92  three-vrm/LICENSE
   99f943e956e52dbf52bbe418899e8a8ae5e35f5c79a94ab8e404926afc620bf2  three-vrm/three-vrm.module.min.js
+  279ec82987aec7e72ecb9850bb704a87e352d577bc7581454c30f3551a88ea92  three-vrm-animation/LICENSE
+  31de9586a36a8ad806303b84358f11d74ce70ac1d2656b04e8a5da7a913aa907  three-vrm-animation/three-vrm-animation.module.min.js
   8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc  three/LICENSE
   613e370f76638fdef83926642bf256dc9615684922de1ce1f63a8583e5d78578  three/build/three.core.js
   104f56145899722094556490d787aae0617cc2fc3382f31df02d724ea1aee341  three/build/three.module.js

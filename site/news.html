@@ -43,6 +43,7 @@
       <nav class="toc" aria-label="버전 목록">
         <h2>버전</h2>
         <ul>
+          <li><a href="#v1-0-0rc7">1.0.0rc7</a></li>
           <li><a href="#v1-0-0rc6">1.0.0rc6</a></li>
           <li><a href="#v1-0-0rc5">1.0.0rc5</a></li>
           <li><a href="#v1-0-0rc4">1.0.0rc4</a></li>
@@ -63,6 +64,23 @@
       </nav>
 
       <div>
+        <article class="release" id="v1-0-0rc7">
+          <h2>1.0.0rc7</h2>
+          <p class="date">2026-11-23, 사전 릴리스(1.0 후보 7차)</p>
+          <h3>추가</h3>
+          <ul>
+            <li>3D 캐릭터 동작: VRMA(VRoid 공식 동작 등), Mixamo 등에서 받은 FBX, 동작이 든 GLB 등록. zip은 안의 동작 파일 모두 등록</li>
+            <li>기본 동작(대기 중 반복), 후원 반응 동작, 수동 실행(설정 마법사, 오버레이 설정 화면, <code>debutkit motion play</code>)</li>
+            <li>FBX, GLB 동작을 뼈 이름으로 캐릭터에 맞춰 변환. 캐릭터 키에 맞춘 이동 거리, A자 자세 캐릭터 팔 방향 보정</li>
+            <li>동작 사이 0.4초 전환, 입 움직임과 얼굴 추적은 동작 위에 더함</li>
+          </ul>
+          <h3>검증 범위</h3>
+          <ul>
+            <li>확인: three-vrm 예제 VRMA, three.js 예제의 Mixamo 춤 FBX와 Xbot GLB 동작을 VRM, GLB 캐릭터와 A자 자세 시험 모델에서 재생. 원본 동작과 팔, 다리 방향 차이 1도에서 7.5도</li>
+            <li>미확인: VRoid 공식 동작 7종, 사용자가 받은 Mixamo 동작, 실제 OBS 화면에서의 장시간 재생</li>
+          </ul>
+        </article>
+
         <article class="release" id="v1-0-0rc6">
           <h2>1.0.0rc6</h2>
           <p class="date">2026-11-23, 사전 릴리스(1.0 후보 6차)</p>

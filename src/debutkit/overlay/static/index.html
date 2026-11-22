@@ -86,6 +86,8 @@
         <button id="voice-test" class="secondary">말하기 시험(3초)</button>
         <a class="button" href="/tracker" target="_blank" rel="noopener">얼굴 추적 창 열기</a>
       </div>
+      <p class="state" id="motion-state">등록한 동작 확인 중</p>
+      <div class="row" id="motion-buttons"></div>
       <div class="preview"><iframe id="character-preview" title="캐릭터 미리보기"></iframe></div>
     </section>
   </div>
@@ -151,6 +153,24 @@
     $("tracking-state").textContent = !live ? "얼굴 추적 꺼짐" : tracked.found ? "얼굴 추적 중" : "얼굴 추적 창 열림, 얼굴을 찾지 못함";
   }, 500);
   $("voice-test").addEventListener("click", () => fetch("/voice/test", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ talking: true }) }));
+  // 3D 캐릭터 동작: 등록한 동작마다 실행 버튼
+  const playMotion = (body) => fetch("/motion", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const motionButton = (label, title, body) => {
+    const button = document.createElement("button");
+    button.className = "secondary";
+    button.textContent = label;
+    button.title = title;
+    button.addEventListener("click", () => playMotion(body));
+    return button;
+  };
+  fetch("/motion/list").then((r) => r.json()).then((list) => {
+    const idle = list.motions.find((item) => item.id === list.idle);
+    $("motion-buttons").replaceChildren(...list.motions.map((item) => motionButton(item.name, `${item.kind.toUpperCase()}, ${Number(item.duration).toFixed(1)}초`, { id: item.id })),
+      ...(list.motions.length ? [motionButton("동작 멈춤", "실행 중인 동작을 멈추고 기본 동작으로", { stop: true })] : []));
+    $("motion-state").textContent = list.motions.length
+      ? `3D 캐릭터 동작 ${list.motions.length}개, 기본 동작 ${idle ? idle.name : "없음(기본 움직임)"}. 버튼을 누르면 한 번 실행합니다.`
+      : "등록한 동작 없음. 설정 마법사 캐릭터 단계 또는 debutkit motion add로 3D 캐릭터 동작(VRMA, FBX, GLB)을 등록합니다.";
+  }).catch(() => ($("motion-state").textContent = "동작 목록을 확인하지 못함"));
   for (const button of document.querySelectorAll("[data-copy]")) {
     button.addEventListener("click", async () => {
       const input = document.getElementById(button.dataset.copy);

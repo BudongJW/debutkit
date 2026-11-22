@@ -166,6 +166,7 @@ def test_live_stream_carries_voice_and_tracking_on_one_connection(server):
 
     assert event() == ("voice", {"talking": False, "level": 0.0, "db": -120.0, "source": ""})
     assert event()[0] == "tracking"
+    assert event()[0] == "motion"
     post = http.client.HTTPConnection("127.0.0.1", server.port, timeout=5)
     post.request("POST", "/voice/test", body=b'{"talking": true}', headers={"Content-Type": "application/json"})
     assert post.getresponse().status == 200
@@ -178,12 +179,13 @@ def test_live_stream_carries_voice_and_tracking_on_one_connection(server):
     assert name == "tracking" and data["found"] is True and data["yaw"] == 0.2
     stream.close()
     conn.close()
-    deadline = time.monotonic() + 5  # 연결을 닫으면 두 상태 모두 구독 해제
-    while (server.voice._subscribers or server.tracking._subscribers) and time.monotonic() < deadline:
+    deadline = time.monotonic() + 5  # 연결을 닫으면 세 상태 모두 구독 해제
+    while (server.voice._subscribers or server.tracking._subscribers or server.motion._subscribers) and time.monotonic() < deadline:
         server.voice.publish(False, -90.0, "x", force=True)
         server.tracking.publish({"found": False})
+        server.motion.play("x")
         time.sleep(0.05)
-    assert not server.voice._subscribers and not server.tracking._subscribers
+    assert not server.voice._subscribers and not server.tracking._subscribers and not server.motion._subscribers
 
 
 def test_stopping_the_server_ends_open_streams():

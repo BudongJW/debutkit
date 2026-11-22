@@ -1,5 +1,21 @@
 # 변경 내역
 
+## 1.0.0rc7 (2026-11-23)
+
+1.0 후보 7차(사전 릴리스). 3D 캐릭터 동작 불러오기.
+
+### 추가
+- 3D 캐릭터 동작 등록(`debutkit motion`, 설정 마법사 캐릭터 단계): VRMA(VRM Animation 1.0), 사람 모양 뼈가 있는 FBX(Mixamo 등), 동작이 든 GLB. zip, 폴더는 안의 동작 파일을 모두 등록
+- 동작 확인: VRMA 확장, FBX 동작 구조(AnimationStack, AnimationLayer, AnimationCurveNode, Connections), GLB animations에서 움직이는 사람 모양 뼈와 길이 확인. Mixamo FBX의 비어 있는 동작(Take 001) 제외
+- 캐릭터 화면 동작 재생: VRMA는 three-vrm-animation, FBX와 GLB는 뼈 이름 대응 후 정규화 뼈대 회전으로 변환. 캐릭터 키에 맞춘 엉덩이 이동, A자 자세 캐릭터의 팔 방향 보정, 동작 사이 0.4초 전환. 입 움직임과 얼굴 추적은 동작 위에 더함
+- 기본 동작(대기 중 반복, 저장 설정 `idle_motion`), 후원 반응 동작(`overlay --motion-reaction 금액:동작`, 저장 설정 `motion_reactions`)
+- 동작 실행: `POST /motion`, `/live` 연결의 `motion` 사건, `debutkit motion play`, 설정 마법사의 한 번 실행, 오버레이 설정 화면의 동작 버튼
+- @pixiv/three-vrm-animation 3.5.5(MIT) 포함
+
+### 변경
+- 캐릭터 화면이 매 프레임 기준 자세에서 기본 움직임을 정한 뒤 동작과 얼굴 추적을 더하는 순서로 변경
+- FBX 구조 읽기가 숫자 값(ID, 시간)도 읽음
+
 ## 1.0.0rc6 (2026-11-23)
 
 1.0 후보 6차(사전 릴리스). 일반 3D 모델(GLB, FBX) 불러오기, 캐릭터 제작 안내와 약관 경고 보완.

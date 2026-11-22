@@ -29,6 +29,7 @@ from PySide6.QtWidgets import (
     QFrame,
     QGridLayout,
     QHBoxLayout,
+    QInputDialog,
     QLabel,
     QLineEdit,
     QListWidget,
@@ -42,7 +43,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from .. import __version__, character, chzzk, clip, doctor, logs, scenes, settings, speed, tools, vts
+from .. import __version__, character, chzzk, clip, doctor, logs, motion, scenes, settings, speed, tools, vts
 from ..doctor import FAIL, INFO, JOIN_URL, LABELS, OK, OVERLAY_PORT, SOFTWARE_URL, WARN
 
 STEPS = ["1  PC 점검", "2  캐릭터", "3  OBS 장면", "4  채팅과 알림", "5  마무리"]
@@ -82,9 +83,9 @@ QCheckBox:disabled, QLineEdit:disabled, QSpinBox:disabled, QComboBox:disabled {{
 QListWidget#Steps {{ background: {nav}; border: none; border-right: 1px solid {border}; padding: 14px 0; outline: 0; }}
 QListWidget#Steps::item {{ padding: 10px 18px; border: none; border-left: 3px solid transparent; color: {muted}; }}
 QListWidget#Steps::item:selected {{ background: {surface}; color: {text}; font-weight: 700; border-left: 3px solid {pink}; }}
-QListWidget#Characters {{ background: {field}; border: 1px solid {border}; border-radius: 4px; padding: 4px; outline: 0; }}
-QListWidget#Characters::item {{ padding: 6px 8px; border-radius: 3px; color: {text}; }}
-QListWidget#Characters::item:selected {{ background: {border}; color: {text}; }}
+QListWidget#Characters, QListWidget#Motions {{ background: {field}; border: 1px solid {border}; border-radius: 4px; padding: 4px; outline: 0; }}
+QListWidget#Characters::item, QListWidget#Motions::item {{ padding: 6px 8px; border-radius: 3px; color: {text}; }}
+QListWidget#Characters::item:selected, QListWidget#Motions::item:selected {{ background: {border}; color: {text}; }}
 QToolTip {{ background: {field}; color: {text}; border: 1px solid {border}; }}
 """.format(**COLORS)
 EXTRA_STYLE = ""
@@ -169,6 +170,17 @@ def _pick_character() -> str | None:
     return path or None
 
 
+def _pick_motion() -> str | None:
+    path, _ = QFileDialog.getOpenFileName(None, "동작 파일", "", "동작 (*.vrma *.fbx *.glb *.zip);;모든 파일 (*)")
+    return path or None
+
+
+def _pick_clip(clips: list[str]) -> str | None:
+    """파일 안에 동작이 여러 개일 때 사용할 동작 선택. 취소하면 None."""
+    chosen, accepted = QInputDialog.getItem(QApplication.activeWindow(), "동작 선택", "파일 안의 동작 중 등록할 동작", clips, 0, False)
+    return chosen if accepted else None
+
+
 def _pick_folder(title: str) -> str | None:
     return QFileDialog.getExistingDirectory(None, title) or None
 
@@ -241,6 +253,14 @@ class Backend:
     vts_connect: Callable[..., Any] = vts.connect
     vts_token: Callable[[], str | None] = vts.load_token
     make_vts_reactor: Callable[..., Any] = _make_vts_reactor
+    list_motions: Callable[[], list[Any]] = motion.all_motions
+    inspect_motion: Callable[..., Any] = motion.inspect
+    add_motion: Callable[..., Any] = motion.add
+    remove_motion: Callable[[str], Any] = motion.remove
+    idle_motion: Callable[[], str] = field(default=lambda: getattr(motion.idle(), "id", ""))
+    set_idle_motion: Callable[[str | None], Any] = motion.set_idle
+    pick_motion: Callable[[], str | None] = _pick_motion
+    pick_clip: Callable[[list[str]], str | None] = _pick_clip
 
 
 class Bridge(QObject):
@@ -528,6 +548,35 @@ class Wizard(QMainWindow):
         self.remove_button.clicked.connect(self.remove_character)
         layout.addWidget(card(self.characters, self.character_detail, row(add, make, self.use_button), row(self.send_button, self.preview_button, self.tracker_button, self.remove_button),
                               title="내 캐릭터"))
+        self._filling = False
+        self._pending_reaction = ""
+        self.motions = QListWidget()
+        self.motions.setObjectName("Motions")
+        self.motions.setMaximumHeight(110)
+        self.motions.currentRowChanged.connect(self._show_motion)
+        self.motion_detail = text("", muted=True)
+        add_motion = QPushButton("동작 파일 추가")
+        add_motion.setToolTip("VRMA(VRoid 공식 동작 등), Mixamo 등에서 받은 FBX, 동작이 든 GLB 또는 이 파일들을 담은 zip")
+        add_motion.clicked.connect(self.add_motion)
+        self.play_motion_button = QPushButton("한 번 실행")
+        self.play_motion_button.clicked.connect(self.play_motion)
+        self.remove_motion_button = QPushButton("삭제")
+        self.remove_motion_button.clicked.connect(self.remove_motion)
+        self.idle_motion = QComboBox()
+        self.idle_motion.setMinimumWidth(200)
+        self.idle_motion.setToolTip("대기 중 반복할 동작. 없음은 캐릭터 화면의 기본 움직임(호흡, 흔들림)")
+        self.idle_motion.currentIndexChanged.connect(self._idle_changed)
+        self.motion_reaction = QComboBox()
+        self.motion_reaction.setMinimumWidth(160)
+        self.motion_reaction.setToolTip("후원이 오면 실행할 동작")
+        self.motion_min = QSpinBox()
+        self.motion_min.setRange(0, 1_000_000)
+        self.motion_min.setSingleStep(1000)
+        self.motion_min.setSuffix(" 원 이상")
+        self.motion_min.setToolTip("이 금액 이상의 후원에 반응(별풍선은 1개 100원으로 계산). 0은 모든 후원과 멤버십")
+        layout.addWidget(card(self.motions, self.motion_detail, row(add_motion, self.play_motion_button, self.remove_motion_button),
+                              row(QLabel("기본 동작"), self.idle_motion), row(QLabel("후원 반응"), self.motion_reaction, self.motion_min),
+                              title="3D 캐릭터 동작(VRM, GLB, FBX)"))
         create = text(
             "<b>PNGTuber</b>: 입 다문 이미지와 입 벌린 이미지(투명 PNG, 같은 크기) 2장으로 시작. 눈 감은 이미지를 더하면 눈 깜빡임 표시<br>"
             '<b>3D(VRM)</b>: <a href="https://store.steampowered.com/app/1486350/VRoid_Studio/" style="{0}">VRoid Studio</a>(무료, 한국어, Windows와 macOS) 또는 '
@@ -580,6 +629,7 @@ class Wizard(QMainWindow):
         layout.addWidget(card(guide, title="방송 프로그램"))
         layout.addStretch(1)
         self.refresh_characters()
+        self.refresh_motions()
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
@@ -693,6 +743,111 @@ class Wizard(QMainWindow):
         if self.server is None:
             return self._character_message("채팅과 알림 단계에서 오버레이를 시작한 뒤 미리보기를 열 수 있습니다.")
         self.backend.open_url(f"{self.server.url}/character?id={urllib.parse.quote(item.id)}&demo")
+
+    # 3D 캐릭터 동작
+    def refresh_motions(self, select: str | None = None) -> None:
+        self._motion_list = self.backend.list_motions()
+        idle = self.backend.idle_motion()
+        self.motions.blockSignals(True)
+        self.motions.clear()
+        for item in self._motion_list:
+            length = f", {item.duration:.1f}초" if item.duration else ""
+            mark = "  [기본 동작]" if item.id == idle else ""
+            warn = f"  확인 필요 {len(item.warnings)}건" if item.warnings else ""
+            self.motions.addItem(f"{item.name}  ({item.kind_name}{length}){mark}{warn}")
+        self.motions.blockSignals(False)
+        self._filling = True
+        reaction = self.motion_reaction.currentData() or self._pending_reaction
+        self.idle_motion.clear()
+        self.motion_reaction.clear()
+        self.idle_motion.addItem("없음(기본 움직임)", "")
+        self.motion_reaction.addItem("사용 안 함", "")
+        for item in self._motion_list:
+            self.idle_motion.addItem(item.name, item.id)
+            self.motion_reaction.addItem(item.name, item.id)
+        self.idle_motion.setCurrentIndex(max(0, self.idle_motion.findData(idle)))
+        self.motion_reaction.setCurrentIndex(max(0, self.motion_reaction.findData(reaction)) if reaction else 0)
+        self._filling = False
+        ids = [item.id for item in self._motion_list]
+        if not ids:
+            self._show_motion(-1)
+            return
+        target = ids.index(select) if select in ids else 0
+        self.motions.setCurrentRow(target)
+        self._show_motion(target)
+
+    def selected_motion(self) -> Any:
+        row_ = self.motions.currentRow()
+        return self._motion_list[row_] if 0 <= row_ < len(self._motion_list) else None
+
+    def _show_motion(self, row_: int) -> None:
+        item = self._motion_list[row_] if 0 <= row_ < len(self._motion_list) else None
+        self.play_motion_button.setEnabled(item is not None)
+        self.remove_motion_button.setEnabled(item is not None)
+        if item is None:
+            self.motion_detail.setText("VRMA(VRoid 공식 동작 등), Mixamo 등에서 받은 FBX, 동작이 든 GLB를 등록하면 3D 캐릭터(VRM, GLB, FBX)가 "
+                                       "기본 동작이나 후원 반응으로 움직입니다. 동작 파일은 직접 받은 파일만 사용합니다.")
+            return
+        lines = [f"{item.kind_name}" + (f" {item.version}" if item.version else "") + (f", {item.duration:.1f}초" if item.duration else "")
+                 + f", 움직이는 뼈 {item.bones}개" + (f", 동작 이름 {item.clip}" if item.clip else "")]
+        lines += [f"사용 조건: {line}" for line in item.license] + [f"확인 필요: {line}" for line in item.warnings]
+        self.motion_detail.setText("\n".join(lines))
+
+    def _motion_message(self, message: str) -> None:
+        self.motion_detail.setText(message)
+
+    def add_motion(self) -> None:
+        path = self.backend.pick_motion()
+        if not path:
+            return
+        clip_name = ""
+        try:
+            if Path(path).suffix.lower() != ".zip":
+                found = self.backend.inspect_motion(path)
+                if len(found.clips) > 1:
+                    picked = self.backend.pick_clip(found.clips)
+                    if picked is None:
+                        return
+                    clip_name = picked
+            added, skipped = self.backend.add_motion(path, clip=clip_name)
+        except (ValueError, OSError) as error:
+            return self._motion_message(f"등록 실패: {error}")
+        self.refresh_motions(added[0].id)
+        if len(added) > 1 or skipped:
+            note = f"동작 {len(added)}개 등록" + (f", 건너뜀 {len(skipped)}개: " + " / ".join(skipped[:3]) if skipped else "")
+            self._motion_message(note)
+
+    def remove_motion(self) -> None:
+        item = self.selected_motion()
+        if item is None:
+            return
+        self.backend.remove_motion(item.id)
+        self.refresh_motions()
+
+    def play_motion(self) -> None:
+        item = self.selected_motion()
+        if item is None:
+            return
+        state = getattr(self.server, "motion", None) if self.server is not None else None
+        if state is None:
+            return self._motion_message("채팅과 알림 단계에서 오버레이를 시작한 뒤 실행할 수 있습니다.")
+        state.play(item.id)
+        self._motion_message(f"실행: {item.name}. 방송에 사용하는 캐릭터가 3D(VRM, GLB, FBX)일 때 캐릭터 화면에 표시됩니다.")
+
+    def _idle_changed(self, _index: int) -> None:
+        if self._filling:
+            return
+        chosen = self.idle_motion.currentData() or None
+        try:
+            self.backend.set_idle_motion(chosen)
+        except (ValueError, OSError) as error:
+            return self._motion_message(f"기본 동작 지정 실패: {error}")
+        selected = self.selected_motion()
+        self.refresh_motions(selected.id if selected else None)
+
+    def motion_reaction_rules(self) -> list[str]:
+        chosen = self.motion_reaction.currentData()
+        return [f"{self.motion_min.value()}:{chosen}"] if chosen else []
 
     # VTube Studio
     def vts_reaction_rules(self) -> list[str]:
@@ -982,6 +1137,11 @@ class Wizard(QMainWindow):
             self._append_log(f"VTube Studio 후원 반응: {self.vts_min.value():,}원 이상 후원 시 {reactions[0].hotkey} 실행")
         elif reactions:
             self._append_log("VTube Studio 후원 반응: 연결 전(캐릭터 단계의 VTube Studio 연결 필요)")
+        motion_rules = vts.parse_reactions(self.motion_reaction_rules())
+        motion_state = getattr(server, "motion", None)
+        if motion_rules and motion_state is not None:
+            server.hub.taps.append(motion.MotionReactor(motion_rules, motion_state))
+            self._append_log(f"동작 후원 반응: {self.motion_min.value():,}원 이상 후원 시 {self.motion_reaction.currentText()} 실행")
         self._append_log(f"오버레이 실행 중: {server.url}/chat (채팅창), {server.url}/alerts (알림)")
         if self.autoclip.isChecked():
             port, password = self.obs_port.value(), self.obs_password.text() or None
@@ -1076,7 +1236,8 @@ class Wizard(QMainWindow):
                       clip=self.autoclip.isChecked(), overlay_port=self.port.value(), obs_port=self.obs_port.value(),
                       avatar_app=str(self.avatar_app.currentData()), replay_buffer=60 if self.replay.isChecked() else 0,
                       avatar_path=self.avatar_path.text().strip(), agency=self.avatar_agency.isChecked(),
-                      voice_threshold=float(self.voice_threshold.value()), voice_input=self._voice_input, vts_reactions=self.vts_reaction_rules())
+                      voice_threshold=float(self.voice_threshold.value()), voice_input=self._voice_input, vts_reactions=self.vts_reaction_rules(),
+                      motion_reactions=self.motion_reaction_rules())
         return settings.clean(values)
 
     def apply_settings(self, values: dict[str, Any]) -> None:
@@ -1104,9 +1265,14 @@ class Wizard(QMainWindow):
         if rules:  # 설정 마법사는 규칙 하나를 보여 준다(명령줄은 여러 개 가능)
             self.vts_hotkey.setEditText(rules[-1].hotkey)
             self.vts_min.setValue(rules[-1].min_won)
+        motion_rules = vts.parse_reactions(values.get("motion_reactions"))
+        if motion_rules:
+            self._pending_reaction = motion_rules[-1].hotkey  # 동작을 다시 등록하면 선택되도록 기억
+            self.motion_reaction.setCurrentIndex(max(0, self.motion_reaction.findData(motion_rules[-1].hotkey)))
+            self.motion_min.setValue(motion_rules[-1].min_won)
 
     #: 입력란이 없어 collect_settings가 모르는 저장값. 저장할 때 기존 값을 유지한다(캐릭터 단계의 사용 버튼이 따로 저장)
-    KEPT_SETTINGS = ("character",)
+    KEPT_SETTINGS = ("character", "idle_motion")
 
     def remember(self) -> None:
         try:

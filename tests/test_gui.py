@@ -507,3 +507,68 @@ def test_vts_card_connects_loads_triggers_and_saves_reaction(app):
     finally:
         window.close()
         fake.close()
+
+
+def test_motion_card_adds_sets_idle_plays_and_saves_reaction(app, tmp_path):
+    from model_fake import humanoid_glb, vrma
+
+    from debutkit import motion
+
+    plays = []
+
+    class FakeMotion:
+        def play(self, motion_id):
+            plays.append(motion_id)
+
+    class FakeServer:
+        url = "http://127.0.0.1:8790"
+
+        def __init__(self):
+            self.hub = type("Hub", (), {"taps": []})()
+            self.motion = FakeMotion()
+
+        def start(self):
+            return self
+
+        def stop(self):
+            pass
+
+        def attach(self, part):
+            pass
+
+    server = FakeServer()
+    motion.add(vrma(tmp_path / "bow.vrma"))
+    picks = {"file": str(vrma(tmp_path / "wave.vrma")), "clip": "Wave"}
+    calls = Calls()
+    calls.stored = {"motion_reactions": ["2000:bow"]}
+    window = Wizard(calls.backend(pick_motion=lambda: picks["file"], pick_clip=lambda clips: picks["clip"], make_overlay=lambda sources, port: server))
+    try:
+        assert window.motions.count() == 1 and window.motion_reaction.currentData() == "bow" and window.motion_min.value() == 2000
+        window.add_motion()
+        assert window.motions.count() == 2 and window.selected_motion().id == "wave" and "VRMA 1.0" in window.motion_detail.text()
+        picks["file"] = str(humanoid_glb(tmp_path / "pack.glb", clips=("Idle", "Wave")))
+        window.add_motion()
+        assert motion.get("pack-wave").clip == "Wave" and window.selected_motion().id == "pack-wave"
+        picks["clip"] = None  # 동작 선택 취소: 등록하지 않음
+        window.add_motion()
+        assert window.motions.count() == 3
+        window.idle_motion.setCurrentIndex(window.idle_motion.findData("wave"))
+        assert motion.idle().id == "wave" and any("[기본 동작]" in window.motions.item(row).text() for row in range(window.motions.count()))
+        window.motion_reaction.setCurrentIndex(window.motion_reaction.findData("pack-wave"))
+        window.motion_min.setValue(3000)
+        assert window.collect_settings()["motion_reactions"] == ["3000:pack-wave"]
+        window.play_motion()
+        assert "오버레이를 시작한 뒤" in window.motion_detail.text() and plays == []
+        window.toggle_overlay()
+        assert any(isinstance(tap, motion.MotionReactor) for tap in server.hub.taps)
+        assert "3,000원 이상 후원 시 pack Wave 실행" in window.overlay_log.toPlainText()
+        window.play_motion()
+        assert plays == ["pack-wave"] and "실행: pack Wave" in window.motion_detail.text()
+        picks["file"] = str(tmp_path / "missing.vrma")
+        window.add_motion()
+        assert "등록 실패" in window.motion_detail.text()
+        window.motions.setCurrentRow([item.id for item in window._motion_list].index("wave"))
+        window.remove_motion()
+        assert motion.idle() is None and window.idle_motion.currentData() == "" and window.motions.count() == 2
+    finally:
+        window.close()

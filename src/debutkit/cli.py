@@ -1,4 +1,4 @@
-"""명령줄: debutkit gui | doctor | scenes | overlay | setup | chzzk"""
+"""명령줄: debutkit gui | doctor | scenes | overlay | character | motion | vts | settings | setup | chzzk"""
 
 from __future__ import annotations
 
@@ -60,7 +60,7 @@ def _scenes(args: argparse.Namespace) -> int:
 OVERLAY_SETTINGS = {"chzzk": "chzzk", "chzzk_api": "chzzk_api", "soop": "soop", "twitch": "twitch", "youtube": "youtube",
                     "youtube_mode": "youtube_mode", "youtube_interval": "youtube_interval", "demo": "demo", "port": "overlay_port",
                     "clip": "clip", "clip_dir": "clip_dir", "obs_port": "obs_port", "voice_input": "voice_input", "voice_threshold": "voice_threshold",
-                    "vts_reaction": "vts_reactions"}
+                    "vts_reaction": "vts_reactions", "motion_reaction": "motion_reactions"}
 
 
 def apply_saved(args: argparse.Namespace, saved: dict[str, Any], defaults: dict[str, Any]) -> list[str]:
@@ -125,6 +125,7 @@ def _overlay(args: argparse.Namespace) -> int:
         print("  채널 미지정, 데모 채팅 표시. 예: debutkit overlay --chzzk 채널주소 --soop 방송국주소")
     _start_voice(server, args)
     _start_vts_reactions(server, args)
+    _start_motion_reactions(server, args)
     if args.clip:
         if not _start_autoclip(server, args):
             server.stop()
@@ -341,6 +342,103 @@ def _start_vts_reactions(server: Any, args: argparse.Namespace) -> None:
     print(f"  VTube Studio 후원 반응: {rules}")
 
 
+def _start_motion_reactions(server: Any, args: argparse.Namespace) -> None:
+    """후원, 멤버십 알림 때 debutkit 캐릭터 화면의 3D 캐릭터 동작 실행."""
+    from . import motion, vts
+
+    reactions = vts.parse_reactions(args.motion_reaction)
+    if not reactions:
+        return
+    server.hub.taps.append(motion.MotionReactor(reactions, server.motion))
+    unknown = [reaction.hotkey for reaction in reactions if motion.get(reaction.hotkey) is None]
+    rules = ", ".join(f"{reaction.min_won:,}원 이상 {reaction.hotkey}" if reaction.min_won else f"모든 후원 {reaction.hotkey}" for reaction in reactions)
+    print(f"  동작 후원 반응: {rules}" + (f" (등록하지 않은 동작: {', '.join(unknown)})" if unknown else ""))
+
+
+def _motion_line(item: Any, idle_id: str) -> str:
+    mark = "* " if item.id == idle_id else "  "
+    length = f"{item.duration:.1f}초" if item.duration else "길이 미확인"
+    return f"{mark}{item.id:20} {item.kind_name:5} {length:>9}  {item.name}"
+
+
+def _motion(args: argparse.Namespace) -> int:
+    from . import motion
+
+    command = args.motion_command
+    try:
+        if command == "list":
+            current = motion.idle()
+            print("등록한 동작(* 기본 동작). 3D 캐릭터(VRM, GLB, FBX)에 사용")
+            for item in motion.all_motions():
+                print(_motion_line(item, current.id if current else ""))
+            print(f"보관 위치: {motion.library_dir()}")
+            return 0
+        if command == "play":
+            return _motion_play(args)
+        if command == "idle":
+            if args.off:
+                motion.set_idle(None)
+                print("기본 동작 해제: 캐릭터 화면의 기본 움직임 사용")
+                return 0
+            if not args.id:
+                current = motion.idle()
+                print(f"기본 동작: {current.name} ({current.id})" if current else "기본 동작 없음")
+                return 0
+            chosen = motion.set_idle(args.id)
+            print(f"기본 동작: {chosen.name if chosen else args.id}. 실행 중인 캐릭터 화면은 5초 안에 바뀜")
+            return 0
+        if command == "add":
+            added, skipped = motion.add(args.path, name=args.name or "", clip=args.clip or "")
+            for found in added:
+                print(f"등록: {found.id} ({found.kind_name}, {found.name})")
+            for line in skipped:
+                print(f"  건너뜀: {line}", file=sys.stderr)
+            if len(added) != 1:
+                return 0
+            item = added[0]
+        else:
+            item = motion.get(args.id)
+            if item is None:
+                print(f"등록한 동작 없음: {args.id}. debutkit motion list 로 확인", file=sys.stderr)
+                return 1
+            if command == "remove":
+                print(f"삭제: {motion.remove(item.id)}")
+                return 0
+    except (motion.MotionError, OSError) as error:
+        print(f"동작 작업 실패: {error}", file=sys.stderr)
+        return 1
+    print(f"  종류: {item.kind_name}" + (f" ({item.version})" if item.version else "") + (f", 동작 이름 {item.clip}" if item.clip else ""))
+    print(f"  길이: {item.duration:.1f}초, 움직이는 뼈 {item.bones}개" if item.duration else f"  움직이는 뼈 {item.bones}개")
+    for line in item.license:
+        print(f"  사용 조건: {line}")
+    for line in item.warnings:
+        print(f"  확인 필요: {line}")
+    return 0
+
+
+def _motion_play(args: argparse.Namespace) -> int:
+    """실행 중인 오버레이(명령줄 또는 설정 마법사)에 동작 실행 요청."""
+    import urllib.error
+    import urllib.request
+
+    if not args.stop and not args.id:
+        print("실행할 동작을 지정하거나 --stop 사용", file=sys.stderr)
+        return 2
+    body = json.dumps({"stop": True} if args.stop else {"id": args.id}).encode()
+    request = urllib.request.Request(f"http://127.0.0.1:{args.port}/motion", data=body, headers={"Content-Type": "application/json"}, method="POST")
+    try:
+        with urllib.request.urlopen(request, timeout=5) as response:
+            answer = {} if args.stop else json.loads(response.read() or b"{}")
+    except urllib.error.HTTPError as error:
+        print(f"동작 실행 실패: 등록한 동작 없음({args.id})" if error.code == 404 else f"동작 실행 실패: {error}", file=sys.stderr)
+        return 1
+    except (urllib.error.URLError, OSError, ValueError) as error:
+        print(f"오버레이에 연결하지 못함({args.port}번 포트): debutkit overlay 또는 설정 마법사의 오버레이 시작 필요 ({error})", file=sys.stderr)
+        return 1
+    print("동작 멈춤" if args.stop else f"동작 실행: {answer.get('name', args.id)}")
+    return 0
+
+
 def _settings(args: argparse.Namespace) -> int:
     from . import settings
 
@@ -440,9 +538,11 @@ def build_parser() -> argparse.ArgumentParser:
     voice.add_argument("--no-voice", action="store_true", help="OBS 마이크 음량으로 캐릭터 입 움직이기 끄기")
     voice.add_argument("--voice-input", metavar="소스", help="음량을 읽을 OBS 오디오 소스 이름 (기본: OBS 설정의 마이크)")
     voice.add_argument("--voice-threshold", type=float, default=-40.0, metavar="dB", help="말하는 것으로 판단할 음량 (기본 %(default)s dBFS)")
-    reaction = overlay.add_argument_group("VTube Studio 후원 반응")
+    reaction = overlay.add_argument_group("후원 반응(VTube Studio 단축키, 3D 캐릭터 동작)")
     reaction.add_argument("--vts-reaction", action="append", metavar="금액:단축키",
                           help="후원이 금액(원) 이상이면 VTube Studio 단축키 실행. 예: 1000:Heart. 0은 모든 후원. 여러 번 지정 가능 (debutkit vts login 필요)")
+    reaction.add_argument("--motion-reaction", action="append", metavar="금액:동작",
+                          help="후원이 금액(원) 이상이면 debutkit 캐릭터 화면의 3D 캐릭터 동작 실행. 예: 1000:wave (debutkit motion list 의 동작)")
     saved = overlay.add_argument_group("저장한 설정")
     saved.add_argument("--saved", action="store_true", help="저장한 설정(채널, 포트, 자동 클립 등) 사용. 명령줄에 지정한 항목이 우선")
     saved.add_argument("--save", action="store_true", help="이번 실행의 채널과 옵션을 저장 (API 키, 비밀번호 제외)")
@@ -468,6 +568,24 @@ def build_parser() -> argparse.ArgumentParser:
     send.add_argument("--to", required=True, choices=["vts", "warudo"])
     send.add_argument("--folder", help="모델 폴더(자동으로 찾지 못한 경우)")
     chars.set_defaults(func=_character)
+
+    motions = sub.add_parser("motion", help="3D 캐릭터 동작 등록, 기본 동작, 실행(VRMA, Mixamo 등의 FBX, GLB)")
+    motions_sub = motions.add_subparsers(dest="motion_command", required=True)
+    motions_sub.add_parser("list", help="등록한 동작 목록(* 기본 동작)")
+    motion_add = motions_sub.add_parser("add", help="동작 등록: VRMA, 사람 모양 뼈가 있는 FBX, GLB 또는 이 파일들을 담은 zip, 폴더")
+    motion_add.add_argument("path", metavar="경로")
+    motion_add.add_argument("--name", help="표시할 이름(파일 하나일 때)")
+    motion_add.add_argument("--clip", metavar="동작 이름", help="파일 안에 동작이 여러 개일 때 사용할 동작(기본: 첫 동작)")
+    for command, text in (("show", "사용 조건, 확인 필요 사항 보기"), ("remove", "등록 삭제")):
+        motions_sub.add_parser(command, help=text).add_argument("id", metavar="동작")
+    motion_idle = motions_sub.add_parser("idle", help="기본 동작(대기 중 반복) 지정. 동작을 생략하면 현재 기본 동작 표시")
+    motion_idle.add_argument("id", nargs="?", metavar="동작")
+    motion_idle.add_argument("--off", action="store_true", help="기본 동작 해제")
+    motion_play = motions_sub.add_parser("play", help="실행 중인 캐릭터 화면에서 동작 한 번 실행")
+    motion_play.add_argument("id", nargs="?", metavar="동작")
+    motion_play.add_argument("--stop", action="store_true", help="실행 중인 동작 멈춤")
+    motion_play.add_argument("--port", type=int, default=OVERLAY_PORT, help="오버레이 포트 (기본 %(default)s)")
+    motions.set_defaults(func=_motion)
 
     vts_parser = sub.add_parser("vts", help="VTube Studio 연동: 연결, 모델 불러오기, 단축키 실행")
     vts_parser.add_argument("--url", default="ws://127.0.0.1:8001", help="VTube Studio API 주소 (기본 %(default)s)")
