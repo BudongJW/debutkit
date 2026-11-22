@@ -71,7 +71,6 @@
 
 - SOOP 별풍선, 애드벌룬, 영상풍선의 닉네임 위치(실제 후원 패킷 필요)
 - VTube Studio 실행 중 아바타 창 지정 문자열(`VTube Studio:UnityWndClass:VTube Studio.exe`)
-- macOS 실제 OBS의 장면 구성(소스 종류 이름)
 - Linux 데스크톱 환경의 아바타 창 캡처 소스(xcomposite_input)
 - 실제 macOS, Linux PC의 마이크, 웹캠 인식
 - 치지직 공식 API의 실제 계정 사용
@@ -81,8 +80,13 @@
 
 - Windows 코드 서명 인증서 확보와 적용(선택지와 절차: [RELEASING.md](RELEASING.md))
 - macOS 서명과 공증(Apple Developer 계정 필요)
-- Windows, macOS 실제 OBS 자동 검증(현재 Linux만 자동 검증)
 - 실제 방송으로 YouTube 스트리밍 방식 확인
+
+### 0.7 완료 항목
+
+| 기능 | 검증 내용 |
+|---|---|
+| Windows, macOS 실제 OBS 자동 검증 | Verify 작업을 3개 운영체제로 확대. Windows Server 2025의 OBS 33.0.2: 장면 5종, 소스 8개(아바타 게임 캡처 포함), 리플레이 버퍼 설정, 13.7초 클립 저장. macOS 26의 OBS 33.0.1: 화면 캡처(screen_capture), 아바타 창 캡처(window_capture), 12.8초 클립 저장. Windows의 ffmpeg는 `debutkit setup --ffmpeg`로 다운로드 |
 
 ## 채팅 연결 모듈 개선 요청
 

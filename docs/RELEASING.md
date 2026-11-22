@@ -8,7 +8,7 @@
 4. `main`에 반영 후 CI 통과 확인
 5. 태그 생성과 push: `git tag -a v0.6.0 -m "debutkit 0.6.0"`, `git push origin v0.6.0`
 6. `.github/workflows/release.yml`이 운영체제별 배포 파일을 만들고 검증한 뒤 릴리스에 첨부
-7. `.github/workflows/verify.yml`이 실제 OBS로 장면 생성, 리플레이 버퍼, 자동 클립을 검증
+7. `.github/workflows/verify.yml`이 Windows, macOS, Linux 각각 실제 OBS로 장면 생성, 리플레이 버퍼, 자동 클립을 검증
 
 | 배포 파일 | 생성 위치 | 검증 내용 |
 |---|---|---|

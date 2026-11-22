@@ -111,7 +111,7 @@ pytest -q && ruff check .
 
 - Windows 실행 파일: `pip install -e ".[gui,build]"` 후 `python packaging/build_windows.py`. 생성한 프로그램을 파이썬 없이 실행해 동작 확인. `--installer` 지정 시 설치 프로그램도 생성(Inno Setup 6 필요)
 - macOS, Linux 실행 파일: `python packaging/build_app.py`(각 운영체제에서 실행)
-- 릴리스: [docs/RELEASING.md](docs/RELEASING.md). `v*` 태그 push 시 GitHub Actions가 운영체제별 배포 파일을 만들어 첨부하고, 실제 OBS 검증(`verify.yml`)을 실행
+- 릴리스: [docs/RELEASING.md](docs/RELEASING.md). `v*` 태그 push 시 GitHub Actions가 운영체제별 배포 파일을 만들어 첨부하고, Windows, macOS, Linux의 실제 OBS 검증(`verify.yml`)을 실행
 - 프로젝트 사이트: `site/` 수정 후 `python packaging/build_site.py`로 확인. main 반영 시 GitHub Pages에 자동 배포
 
 ## 라이선스
