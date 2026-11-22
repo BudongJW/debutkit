@@ -91,7 +91,7 @@ def version_strings(path: Path) -> dict[str, str]:
     for name in ("ProductName", "ProductVersion", "FileDescription", "OriginalFilename", "CompanyName"):
         value = ctypes.c_void_p()
         if api.VerQueryValueW(data, f"\\StringFileInfo\\{language:04x}{codepage:04x}\\{name}", ctypes.byref(value), ctypes.byref(length)) and length.value:
-            found[name] = ctypes.wstring_at(value, length.value - 1)
+            found[name] = ctypes.wstring_at(value, length.value - 1).rstrip("\x00 ")  # Inno Setup은 문자열 끝을 공백으로 채움
     return found
 
 
