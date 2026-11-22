@@ -67,6 +67,16 @@
 | Windows 코드 서명 | 서명 절차 구현, 인증서 등록 시 자동 적용. 인증서 미보유로 미적용 |
 | 아바타 창 캡처 소스 없음 안내 | Linux OBS(Xvfb)에 창 캡처 소스 종류가 없음을 확인. 장면 구성 결과에 안내 추가 |
 
+### 0.7
+
+| 기능 | 검증 내용 |
+|---|---|
+| Windows, macOS 실제 OBS 자동 검증 | Verify 작업을 3개 운영체제로 확대. Windows Server 2025의 OBS 33.0.2: 장면 5종, 소스 8개(아바타 게임 캡처 포함), 리플레이 버퍼 설정, 13.7초 클립 저장. macOS 26의 OBS 33.0.1: 화면 캡처(screen_capture), 아바타 창 캡처(window_capture), 12.8초 클립 저장. Windows의 ffmpeg는 `debutkit setup --ffmpeg`로 다운로드 |
+| 실제 YouTube 서버 검증 | 잘못된 키로 실제 서버에 요청. debutkit의 streamList 메서드 경로는 `INVALID_ARGUMENT: API key not valid`, 없는 메서드 이름은 `UNKNOWN` 응답으로 경로와 키 전달 방식 확인. 요청 방식의 잘못된 키 안내 확인. 실제 채팅 수신은 API 키 필요로 미확인 |
+| YouTube 연결 확인(`youtube check`, 설정 마법사 버튼) | 단위 테스트(단계별 결과, 잘못된 키, 방송 아님, 채널 주소, gRPC 없음, 첫 응답 후 종료, 응답 시간 초과). 실제 서버로 잘못된 키 안내 확인 |
+| Windows 서명 절차 | 임시 자체 서명 인증서로 릴리스 빌드 전체 실행. 실행 파일 2개, 설치 프로그램, 설치된 제거 프로그램에 서명과 DigiCert 타임스탬프 확인 |
+| macOS 강화된 런타임 서명 | 임시 서명(ad-hoc)과 강화된 런타임으로 서명 후 `codesign --verify --deep --strict` 통과, 서명 상태로 명령줄과 설정 마법사 실행 확인. 0.6.0 앱의 대상 없는 바로 가기 16개 발견, 제거 |
+
 ## 미확인 항목
 
 - SOOP 별풍선, 애드벌룬, 영상풍선의 닉네임 위치(실제 후원 패킷 필요)
@@ -74,19 +84,15 @@
 - Linux 데스크톱 환경의 아바타 창 캡처 소스(xcomposite_input)
 - 실제 macOS, Linux PC의 마이크, 웹캠 인식
 - 치지직 공식 API의 실제 계정 사용
-- YouTube 공식 API의 실제 방송 사용(요청 방식, 스트리밍 방식, API 키만으로 채팅 수신 가능 여부)
+- YouTube 공식 API의 실제 채팅 수신(요청 방식, 스트리밍 방식). 저장소 비밀값 `YOUTUBE_API_KEY` 등록 시 Verify 작업이 자동 확인
+- 공인 인증서를 사용한 Windows 서명의 SmartScreen 평가, macOS 공증
 
-## 0.7 계획
+## 0.8 계획
 
-- Windows 코드 서명 인증서 확보와 적용(선택지와 절차: [RELEASING.md](RELEASING.md))
-- macOS 서명과 공증(Apple Developer 계정 필요)
-- 실제 방송으로 YouTube 스트리밍 방식 확인
-
-### 0.7 완료 항목
-
-| 기능 | 검증 내용 |
-|---|---|
-| Windows, macOS 실제 OBS 자동 검증 | Verify 작업을 3개 운영체제로 확대. Windows Server 2025의 OBS 33.0.2: 장면 5종, 소스 8개(아바타 게임 캡처 포함), 리플레이 버퍼 설정, 13.7초 클립 저장. macOS 26의 OBS 33.0.1: 화면 캡처(screen_capture), 아바타 창 캡처(window_capture), 12.8초 클립 저장. Windows의 ffmpeg는 `debutkit setup --ffmpeg`로 다운로드 |
+- Windows 코드 서명 인증서 확보(SignPath Foundation 신청 권장, 절차: [RELEASING.md](RELEASING.md))와 첫 서명 릴리스
+- macOS 공증(Apple Developer 계정 등록 후 비밀값 6개 등록)
+- YouTube 검증용 API 키 등록과 실제 채팅 수신 확인
+- 위 항목은 계정, 인증서 등 저장소 소유자 결정이 필요
 
 ## 채팅 연결 모듈 개선 요청
 
