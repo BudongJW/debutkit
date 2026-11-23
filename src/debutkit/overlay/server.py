@@ -20,6 +20,8 @@
 - ``/camera`` 휴대폰 카메라 영상 연결 정보(camera.py: PC 주소, 포트, 암호, Larix 가져오기 주소), ``/camera/qr.svg?address=`` QR 코드,
   ``/camera/status`` OBS 소스 상태. ``POST /camera/obs`` OBS 소스 만들기, ``POST /camera/config`` 포트, 지연 여유, 새 암호.
   OBS 작업은 오버레이를 시작한 명령줄이나 설정 마법사가 알려 준 OBS 연결 정보(``obs_target``)를 사용
+- ``/remote/admin`` 휴대폰 조작 화면(remote.py) 관리: 켜기, 끄기, QR(``/remote/admin/qr.svg?id=``), 승인, 삭제.
+  휴대폰 조작 화면 자체는 이 서버가 아닌 별도 창구(내부 네트워크 주소, 기본 8792번)에서 연다
 - ``POST /test`` 설정 화면의 테스트 메시지, ``POST /voice/test`` 말하기 시험
 
 127.0.0.1에만 열리고, 다른 웹사이트가 이 서버에 요청을 끼워 넣지 못하도록 Host와
@@ -50,6 +52,7 @@ from .. import draw as drawing
 from .. import motion as motions
 from .. import raffle as raffles
 from . import phone as phones
+from . import remote as remotes
 from .events import OverlayEvent, system_event
 from .tracking import TrackingState, clean
 from .voice import VoiceState
@@ -137,7 +140,7 @@ def _static(name: str) -> bytes:
 def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.0, voice: VoiceState | None = None,
                  tracking: TrackingState | None = None, motion: motions.MotionState | None = None, draw: drawing.DrawState | None = None,
                  raffle: raffles.Raffle | None = None, phone: phones.PhoneTracker | None = None,
-                 obs_target: Callable[[], tuple[str, int, str | None] | None] | None = None,
+                 obs_target: Callable[[], tuple[str, int, str | None] | None] | None = None, remote: remotes.RemoteControl | None = None,
                  stopping: threading.Event | None = None) -> type[BaseHTTPRequestHandler]:
     """``stopping`` 이 설정되면 열린 사건 흐름을 모두 끝낸다(화면은 새 서버에 다시 연결)."""
     voice = voice or VoiceState()
@@ -147,6 +150,7 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
     raffle = raffle or raffles.Raffle()
     phone = phone or phones.PhoneTracker(tracking)
     obs_target = obs_target or (lambda: None)
+    remote = remote or remotes.RemoteControl(raffle, motion, draw)
     states: dict[str, Any] = {"voice": voice, "tracking": tracking, "motion": motion, "draw": draw, "raffle": raffle}
     stopping = stopping or threading.Event()
     step = min(0.5, keepalive)
@@ -217,6 +221,14 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
                 return self._send(HTTPStatus.OK, body, TYPES[".svg"])
             if path == "/camera/status":
                 return self._camera_obs(lambda client: cameras.media_state(client))
+            if path == "/remote/admin":
+                return self._json(remote.status())
+            if path == "/remote/admin/qr.svg":
+                try:
+                    url = remote.pair_url(urllib.parse.parse_qs(query).get("id", [""])[0])
+                except remotes.RemoteError:
+                    return self._send(HTTPStatus.NOT_FOUND, b"expired")
+                return self._send(HTTPStatus.OK, cameras.qr_svg(url).encode(), TYPES[".svg"])
             if path == "/motion/list":
                 return self._send(HTTPStatus.OK, json.dumps(motions.overview(), ensure_ascii=False).encode(), "application/json")
             if path.startswith("/motion/files/"):
@@ -243,7 +255,8 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
                 return self._send(HTTPStatus.FORBIDDEN, b"forbidden")
             if path not in ("/test", "/voice/test", "/tracking", "/motion", "/draw/config", "/draw/test", "/draw/clear", "/raffle/start", "/raffle/stop",
                             "/raffle/clear", "/raffle/add", "/raffle/remove", "/raffle/draw", "/phone/start", "/phone/stop", "/phone/options",
-                            "/phone/calibrate", "/camera/obs", "/camera/config"):
+                            "/phone/calibrate", "/camera/obs", "/camera/config", "/remote/admin/start",
+                            "/remote/admin/stop", "/remote/admin/pair", "/remote/admin/approve", "/remote/admin/remove"):
                 return self._send(HTTPStatus.NOT_FOUND, b"not found")
             try:
                 raw = json.loads(body or b"{}")
@@ -265,6 +278,8 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
                 return self._camera_obs(lambda client: {**cameras.add_to_obs(client, cameras.load_config(), names), **cameras.media_state(client)})
             if path == "/camera/config":
                 return self._camera_config(data)
+            if path.startswith("/remote/admin/"):
+                return self._remote_admin(path, data)
             if path == "/motion":
                 if data.get("stop"):
                     motion.play(stop=True)
@@ -372,6 +387,23 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
                 return self._json({"error": str(error)}, HTTPStatus.BAD_REQUEST)
             except Exception as error:  # OBS 꺼짐, 비밀번호 오류 등
                 return self._json({"error": cameras.obs_failure(error)}, HTTPStatus.BAD_GATEWAY)
+
+        def _remote_admin(self, path: str, data: dict[str, Any]) -> None:
+            """휴대폰 조작 화면 켜기, 끄기, 새 QR, 승인, 삭제. 잘못된 요청은 400과 한국어 안내."""
+            try:
+                if path == "/remote/admin/start":
+                    return self._json(remote.start(data.get("address"), data.get("port")))
+                if path == "/remote/admin/stop":
+                    return self._json(remote.stop())
+                if path == "/remote/admin/pair":
+                    return self._json(remote.pair())
+                if path == "/remote/admin/approve":
+                    return self._json(remote.approve(str(data.get("id") or "")))
+                return self._json(remote.remove(str(data.get("id") or "")))
+            except remotes.RemoteError as error:
+                return self._json({"error": str(error)}, HTTPStatus.BAD_REQUEST)
+            except OSError as error:
+                return self._json({"error": f"설정 저장 실패: {error}"}, HTTPStatus.INTERNAL_SERVER_ERROR)
 
         def _camera_config(self, data: dict[str, Any]) -> None:
             """포트, 지연 여유, 새 암호 저장. OBS에 소스가 있으면 그 설정도 바꾼다(연결 정보가 있을 때)."""
@@ -524,6 +556,16 @@ class _PhoneStopper:
         self.phone.stop(save=False)
 
 
+class _RemoteStopper:
+    """서버를 멈출 때 휴대폰 조작 화면도 닫는다(저장한 사용 여부는 그대로)."""
+
+    def __init__(self, remote: remotes.RemoteControl) -> None:
+        self.remote = remote
+
+    def stop(self) -> None:
+        self.remote.stop(save=False)
+
+
 class _HttpServer(ThreadingHTTPServer):
     """Windows에서는 같은 포트를 다른 프로그램(다른 debutkit 포함)이 함께 열지 못하게 한다.
 
@@ -558,6 +600,7 @@ class OverlayServer:
         self.hub.taps.append(self.commands)  # 스트리머, 매니저 채팅 명령
         self.phone = phones.PhoneTracker(self.tracking)  # 휴대폰 얼굴 추적(켠 경우만 수신 창구를 연다)
         self.obs_target: tuple[str, int, str | None] | None = None  # OBS 연결 정보(휴대폰 카메라 소스 만들기). 명령줄, 설정 마법사가 지정
+        self.remote = remotes.RemoteControl(self.raffle, self.motion, self.draw, notify=lambda text: self.hub.publish(system_event(text)))
         self._sources = list(sources)
         self._poll = poll
         self._retry = retry
@@ -566,9 +609,10 @@ class OverlayServer:
         self._attached: list[Any] = []
         self.httpd = _HttpServer(("127.0.0.1", port), make_handler(self.hub, lambda: self.port, voice=self.voice, tracking=self.tracking,
                                                                    motion=self.motion, draw=self.draw, raffle=self.raffle, phone=self.phone,
-                                                                   obs_target=lambda: self.obs_target, stopping=self._stop))
+                                                                   obs_target=lambda: self.obs_target, remote=self.remote, stopping=self._stop))
         self._attached.append(self.commands)  # 단축키 실행 스레드 정리
         self._attached.append(_PhoneStopper(self.phone))
+        self._attached.append(_RemoteStopper(self.remote))
 
     @property
     def port(self) -> int:
@@ -611,6 +655,7 @@ class OverlayServer:
             pump.start()
             self._threads.append(pump)
         self.start_phone()
+        self.remote.start_saved()
         return self
 
     def start_phone(self, options: dict[str, Any] | None = None) -> bool:

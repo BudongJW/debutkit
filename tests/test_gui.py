@@ -461,6 +461,9 @@ def test_overlay_start_attaches_voice_meter(app):
         assert calls.urls[-1] == "http://127.0.0.1:8790/phone" and "Wi-Fi" in window.character_detail.text()
         assert "/phone" in window.overlay_log.toPlainText()
         assert server.obs_target == ("127.0.0.1", 4455, None)  # 휴대폰 화면에서 OBS 카메라 소스 만들기
+        assert window.remote_button.isEnabled()
+        window.remote_button.click()
+        assert calls.urls[-1] == "http://127.0.0.1:8790/phone#remote"
         assert calls.saves[-1]["voice_threshold"] == -35.0
     finally:
         window.close()
@@ -625,13 +628,15 @@ def test_chat_commands_checkbox_saves_and_restores(app):
         window.close()
     calls = Calls()
     calls.stored = {"chat_commands": False, "raffle_command": "!들어감", "raffle_title": "노래 신청", "phone_enabled": True, "phone_app": "vts",
-                    "phone_ip": "192.168.0.12", "phone_center_yaw": 0.1}
+                    "phone_ip": "192.168.0.12", "phone_center_yaw": 0.1,
+                    "remote_enabled": True, "remote_address": "192.168.0.5", "remote_port": 8800}
     window = Wizard(calls.backend())
     try:
         assert not window.chat_commands.isChecked()
         window.remember()
         assert calls.saves[-1]["raffle_command"] == "!들어감" and calls.saves[-1]["raffle_title"] == "노래 신청"
         assert calls.saves[-1]["phone_enabled"] is True and calls.saves[-1]["phone_ip"] == "192.168.0.12" and calls.saves[-1]["phone_center_yaw"] == 0.1
+        assert calls.saves[-1]["remote_enabled"] is True and calls.saves[-1]["remote_address"] == "192.168.0.5" and calls.saves[-1]["remote_port"] == 8800
     finally:
         window.close()
 

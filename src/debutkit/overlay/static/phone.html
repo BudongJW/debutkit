@@ -47,6 +47,12 @@
     .qr dl { margin: 0; }
     .mono { font-family: ui-monospace, Consolas, monospace; word-break: break-all; }
     input[type=number] { width: 110px; padding: 6px 9px; border: 1px solid #c9c3bd; border-radius: 3px; font: inherit; }
+    ul.devices { list-style: none; margin: 10px 0 0; padding: 0; }
+    ul.devices li { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; border-top: 1px solid var(--line); padding: 8px 0; font-size: 14px; }
+    ul.devices li b { min-width: 110px; }
+    ul.devices li .code { font: 700 18px ui-monospace, Consolas, monospace; letter-spacing: 3px; }
+    ul.devices li .push { margin-left: auto; display: flex; gap: 6px; }
+    .warn { color: #8a5a00; font-size: 13px; margin: 8px 0 0; }
   </style>
 </head>
 <body>
@@ -175,6 +181,42 @@
         <li>연결 확인 결과가 연결 대기이면 휴대폰 앱의 주소, 포트, 암호 확인</li>
         <li>OBS 소스 상태가 오류이면 다른 프로그램이 같은 포트를 쓰는지 확인하고 포트 변경</li>
       </ol>
+    </section>
+  </div>
+  <h2 class="group" id="remote">휴대폰 조작 화면(추첨, 동작)</h2>
+  <p class="lead">같은 Wi-Fi의 휴대폰 브라우저로 시청자 참여 추첨(모집, 마감, 뽑기, 순서)과 3D 캐릭터 동작을 조작하고 후원 추첨 결과를 봅니다. 앱 설치는 필요 없습니다. QR 코드로 등록하고 PC에서 승인한 휴대폰만 조작할 수 있습니다.</p>
+  <div class="grid">
+    <section>
+      <h2>조작 화면 켜기</h2>
+      <label class="field">이 PC 주소(휴대폰이 접속하는 곳)
+        <select id="rm-address"></select>
+      </label>
+      <label class="field">포트 <input type="number" id="rm-port" min="1024" max="65535"></label>
+      <div class="row">
+        <button id="rm-start">켜기</button>
+        <button id="rm-stop" class="secondary">끄기</button>
+      </div>
+      <p class="state" id="rm-state">확인 중</p>
+      <p class="hint">켜면 이 주소와 포트에만 열리고 오버레이를 다시 시작할 때도 켜집니다. 처음 켤 때 Windows 보안 경고가 나오면 개인 네트워크를 허용합니다.</p>
+    </section>
+    <section>
+      <h2>휴대폰 등록</h2>
+      <div class="row"><button id="rm-pair">새 휴대폰 QR 만들기</button></div>
+      <div class="qr" id="rm-qr-box" hidden>
+        <img id="rm-qr" alt="휴대폰 조작 화면 등록 QR 코드">
+        <dl>
+          <dt>유효 시간</dt><dd id="rm-expire">-</dd>
+          <dt>확인 번호</dt><dd class="mono" id="rm-code">-</dd>
+        </dl>
+      </div>
+      <p class="hint">휴대폰 카메라로 QR 코드를 찍어 조작 화면을 연 뒤, 아래 목록에서 휴대폰에 보이는 확인 번호가 같은지 보고 승인합니다. QR은 5분 동안 1대만 등록할 수 있습니다.</p>
+      <p class="warn">QR 코드를 방송 화면에 띄우지 않도록 주의합니다. 노출되어도 승인하지 않은 휴대폰은 조작할 수 없습니다.</p>
+    </section>
+    <section>
+      <h2>등록 기기</h2>
+      <ul class="devices" id="rm-devices"></ul>
+      <p class="hint" id="rm-empty">등록한 휴대폰이 없습니다.</p>
+      <p class="hint">삭제하면 그 휴대폰은 즉시 조작할 수 없습니다. 최대 5대.</p>
     </section>
   </div>
 </main>
@@ -322,7 +364,89 @@
   $("cam-newpass").addEventListener("click", () => saveCamera({ new_passphrase: true }));
   cameraCall("/camera").then((info) => { showCamera(info); checkCamera(); }).catch((error) => setCamState(error.message, "bad"));
   setInterval(() => document.visibilityState === "visible" && checkCamera(), 5000);
-  window.debutkitPhone = { render, refresh, showCamera };  // 시험용
+
+  // ------------------------------------------------------------------ 휴대폰 조작 화면(추첨, 동작)
+  let remoteFilled = false;
+  let pairing = null;
+  const minutes = (seconds) => seconds >= 60 ? `${Math.floor(seconds / 60)}분 ${seconds % 60}초` : `${seconds}초`;
+  function setRemoteState(text, kind) {
+    $("rm-state").textContent = text;
+    $("rm-state").className = `state ${kind || ""}`;
+  }
+  function deviceRow(item) {
+    const row = document.createElement("li");
+    const name = document.createElement("b");
+    name.textContent = item.name;
+    const state = document.createElement("span");
+    const push = document.createElement("span");
+    push.className = "push";
+    if (item.approved) {
+      state.textContent = item.last_seen ? `승인됨, 마지막 접속 ${new Date(item.last_seen * 1000).toLocaleTimeString()}` : "승인됨";
+    } else if (item.claimed) {
+      state.innerHTML = "승인 대기, 휴대폰 확인 번호 ";
+      const code = document.createElement("span");
+      code.className = "code";
+      code.textContent = item.code;
+      state.appendChild(code);
+      const approve = document.createElement("button");
+      approve.textContent = "승인";
+      approve.addEventListener("click", () => remoteAct("/remote/admin/approve", { id: item.id }));
+      push.appendChild(approve);
+    } else {
+      state.textContent = "QR 대기(아직 휴대폰이 열지 않음)";
+    }
+    const remove = document.createElement("button");
+    remove.className = "secondary";
+    remove.textContent = item.approved ? "삭제" : "취소";
+    remove.addEventListener("click", () => remoteAct("/remote/admin/remove", { id: item.id }));
+    push.appendChild(remove);
+    row.append(name, state, push);
+    return row;
+  }
+  function showRemote(status) {
+    if (!remoteFilled) {
+      $("rm-address").replaceChildren(...status.addresses.map((address) => new Option(address, address)));
+      $("rm-address").value = status.addresses.includes(status.address) ? status.address : status.addresses[0] || "";
+      $("rm-port").value = status.port;
+      remoteFilled = true;
+    }
+    if (status.running) setRemoteState(`켜짐: ${status.url}`, "ok");
+    else setRemoteState(status.error || (status.addresses.length ? "꺼짐" : "이 PC의 내부 네트워크 주소를 찾지 못함: Wi-Fi나 유선 연결 확인"), status.error ? "bad" : "");
+    $("rm-start").textContent = status.running ? "다시 켜기" : "켜기";
+    $("rm-stop").disabled = !status.running;
+    $("rm-pair").disabled = !status.running;
+    $("rm-devices").replaceChildren(...status.devices.map(deviceRow));
+    $("rm-empty").hidden = status.devices.length > 0;
+    const pending = pairing && status.devices.find((item) => item.id === pairing.id && !item.approved && !item.claimed);
+    if (!pending) {
+      $("rm-qr-box").hidden = true;
+      if (pairing && !status.devices.some((item) => item.id === pairing.id)) pairing = null;
+    } else {
+      const left = Math.max(0, Math.round(pairing.expires - Date.now() / 1000));
+      $("rm-expire").textContent = minutes(left);
+    }
+  }
+  async function remoteAct(path, body) {
+    try {
+      const answer = await cameraCall(path, body || {});
+      if (path === "/remote/admin/pair") {
+        pairing = answer;
+        $("rm-qr").src = `/remote/admin/qr.svg?id=${encodeURIComponent(answer.id)}`;
+        $("rm-code").textContent = answer.code;
+        $("rm-qr-box").hidden = false;
+      }
+      showRemote(await cameraCall("/remote/admin"));
+    } catch (error) {
+      setRemoteState(error.message, "bad");
+    }
+  }
+  $("rm-start").addEventListener("click", () => remoteAct("/remote/admin/start", { address: $("rm-address").value, port: Number($("rm-port").value) }));
+  $("rm-stop").addEventListener("click", () => remoteAct("/remote/admin/stop"));
+  $("rm-pair").addEventListener("click", () => remoteAct("/remote/admin/pair"));
+  const refreshRemote = () => cameraCall("/remote/admin").then(showRemote).catch((error) => setRemoteState(error.message, "bad"));
+  refreshRemote();
+  setInterval(() => document.visibilityState === "visible" && refreshRemote(), 2000);
+  window.debutkitPhone = { render, refresh, showCamera, showRemote };  // 시험용
 </script>
 </body>
 </html>

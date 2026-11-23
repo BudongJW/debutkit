@@ -65,6 +65,9 @@ FIELDS: dict[str, type] = {
     "phone_center_yaw": float,  # 정면 맞추기(라디안)
     "phone_center_pitch": float,
     "phone_center_roll": float,
+    "remote_enabled": bool,  # 휴대폰 조작 화면(overlay/remote.py): 오버레이 시작 때 함께 켬. 기기 비밀값은 remote-devices.json
+    "remote_address": str,  # 이 PC의 내부 네트워크 주소(휴대폰이 접속하는 곳)
+    "remote_port": int,
 }
 
 #: 이 단어가 들어간 항목은 저장하지 않는다(실수로 FIELDS에 추가해도 막음)

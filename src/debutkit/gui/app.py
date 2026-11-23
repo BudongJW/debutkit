@@ -1127,11 +1127,15 @@ class Wizard(QMainWindow):
         self.draw_button.setToolTip("후원 추첨(상품, 확률, 금액별 횟수, 연출, 시험 추첨)과 시청자 참여 추첨(모집, 당첨자 뽑기, 순서 정하기)")
         self.draw_button.setEnabled(False)
         self.draw_button.clicked.connect(lambda: self.server and self.backend.open_url(f"{self.server.url}/draw/control"))
+        self.remote_button = QPushButton("휴대폰 조작 화면")
+        self.remote_button.setToolTip("같은 Wi-Fi의 휴대폰 브라우저로 시청자 참여 추첨, 3D 캐릭터 동작 조작(QR로 등록하고 PC에서 승인한 휴대폰만)")
+        self.remote_button.setEnabled(False)
+        self.remote_button.clicked.connect(lambda: self.server and self.backend.open_url(f"{self.server.url}/phone#remote"))
         self.overlay_log = QPlainTextEdit()
         self.overlay_log.setReadOnly(True)
         self.overlay_log.setMaximumBlockCount(200)
         self.overlay_log.setPlaceholderText("연결 상태와 저장한 클립이 이곳에 표시됩니다.")
-        layout.addWidget(card(fields, row(self.overlay_button, self.open_button, self.draw_button)))
+        layout.addWidget(card(fields, row(self.overlay_button, self.open_button, self.draw_button, self.remote_button)))
         layout.addWidget(self.overlay_log, 1)
         return page
 
@@ -1252,6 +1256,7 @@ class Wizard(QMainWindow):
         self.overlay_button.setText("오버레이 중지" if running else "오버레이 시작")
         self.open_button.setEnabled(running)
         self.draw_button.setEnabled(running)
+        self.remote_button.setEnabled(running)
         for widget in (self.chzzk, self.soop, self.twitch, self.youtube, self.youtube_key, self.youtube_check_button, self.chzzk_api, self.chzzk_id, self.chzzk_secret, self.chzzk_login_button,
                        self.demo, self.autoclip, self.voice_threshold, self.port):
             widget.setEnabled(not running)
@@ -1369,7 +1374,7 @@ class Wizard(QMainWindow):
     KEPT_SETTINGS = ("character", "idle_motion", "draw_enabled", "draw_prizes", "draw_rules", "draw_exact", "draw_members", "draw_style",
                      "draw_seconds", "draw_title", "draw_position", "draw_scale", "draw_sound", "draw_show_percent", "raffle_command", "raffle_title",
                      "raffle_donation_min", "phone_enabled", "phone_app", "phone_ip", "phone_mirror", "phone_flip_pitch", "phone_center_yaw",
-                     "phone_center_pitch", "phone_center_roll")
+                     "phone_center_pitch", "phone_center_roll", "remote_enabled", "remote_address", "remote_port")
 
     def remember(self) -> None:
         try:

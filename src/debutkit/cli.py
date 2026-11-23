@@ -1,4 +1,4 @@
-"""명령줄: debutkit gui | doctor | scenes | camera | overlay | draw | raffle | phone | character | motion | vts | settings | setup | chzzk"""
+"""명령줄: debutkit gui | doctor | scenes | camera | overlay | draw | raffle | phone | remote | character | motion | vts | settings | setup | chzzk"""
 
 from __future__ import annotations
 
@@ -604,6 +604,32 @@ def _phone(args: argparse.Namespace) -> int:
     return _post_overlay(args.port, "/phone/stop", {}, describe)
 
 
+def _remote(args: argparse.Namespace) -> int:
+    """실행 중인 오버레이의 휴대폰 조작 화면(켜기, 끄기, 등록, 승인, 삭제)."""
+    command = args.remote_command
+
+    def describe(status: dict[str, Any]) -> str:
+        if "url" in status and "secret" not in status and "devices" not in status:  # 등록 QR 주소
+            return (f"휴대폰 브라우저에서 열기(5분 유효, 1대): {status['url']}\n  휴대폰에 확인 번호 {status['code']}가 보이면 "
+                    f"debutkit remote approve {status['id']} 또는 PC의 휴대폰 연결 화면에서 승인")
+        state = f"켜짐: {status['url']}" if status.get("running") else (status.get("error") or "꺼짐")
+        lines = [f"휴대폰 조작 화면 {state}"]
+        for item in status.get("devices", []):
+            mark = "승인됨" if item["approved"] else f"승인 대기(확인 번호 {item['code']})" if item["claimed"] else "QR 대기"
+            lines.append(f"  {item['id']}  {item['name']}  {mark}")
+        if not status.get("running") and status.get("addresses"):
+            lines.append(f"  이 PC 주소: {', '.join(status['addresses'])}")
+        return "\n".join(lines)
+
+    if command == "status":
+        return _get_overlay(args.port, "/remote/admin", describe)
+    if command == "start":
+        return _post_overlay(args.port, "/remote/admin/start", {"address": args.address, "port": args.listen_port}, describe)
+    if command in ("approve", "remove"):
+        return _post_overlay(args.port, f"/remote/admin/{command}", {"id": args.id}, describe)
+    return _post_overlay(args.port, f"/remote/admin/{command}", {}, describe)
+
+
 def _get_overlay(port: int, path: str, describe: Callable[[dict[str, Any]], str]) -> int:
     import urllib.error
     import urllib.request
@@ -843,6 +869,20 @@ def build_parser() -> argparse.ArgumentParser:
     phone_cal.add_argument("--reset", action="store_true", help="정면 맞추기 되돌리기")
     phone_sub.add_parser("stop", help="연결 끊기(다음 오버레이 실행 때 시작하지 않음)")
     phone.set_defaults(func=_phone)
+
+    remote = sub.add_parser("remote", help="휴대폰 조작 화면: 같은 Wi-Fi의 휴대폰 브라우저로 참여 추첨, 3D 캐릭터 동작 조작(실행 중인 오버레이)")
+    remote.add_argument("--port", type=int, default=OVERLAY_PORT, help="오버레이 포트 (기본 %(default)s)")
+    remote_sub = remote.add_subparsers(dest="remote_command", required=True)
+    remote_sub.add_parser("status", help="켜짐 여부, 주소, 등록 기기")
+    remote_start = remote_sub.add_parser("start", help="켜기(설정 저장, 다음 오버레이 실행에도 켬)")
+    remote_start.add_argument("--address", help="이 PC의 내부 네트워크 주소(기본 지난 설정, debutkit remote status로 확인)")
+    remote_start.add_argument("--listen-port", type=int, help="휴대폰이 접속할 포트(기본 8792)")
+    remote_sub.add_parser("stop", help="끄기(다음 실행 때 켜지 않음)")
+    remote_sub.add_parser("pair", help="새 휴대폰 등록 주소(5분 유효). 휴대폰 브라우저에서 연 뒤 승인")
+    for name, text in (("approve", "승인(휴대폰과 같은 확인 번호인지 확인)"), ("remove", "등록 삭제(즉시 차단)")):
+        command_ = remote_sub.add_parser(name, help=text)
+        command_.add_argument("id", metavar="기기")
+    remote.set_defaults(func=_remote)
 
     motions = sub.add_parser("motion", help="3D 캐릭터 동작 등록, 기본 동작, 실행(VRMA, Mixamo 등의 FBX, GLB)")
     motions_sub = motions.add_subparsers(dest="motion_command", required=True)
