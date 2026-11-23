@@ -1,5 +1,30 @@
 # 변경 내역
 
+## 1.0.0rc16 (2026-11-23)
+
+1.0 후보 16차(사전 릴리스). OBS 없이 바로 방송(Windows).
+
+### 추가
+- OBS 없이 바로 방송(`broadcast.py`): 캐릭터, 채팅, 후원 알림, 추첨 연출, 휴대폰 앱 카메라 영상을 모은 송출 화면을 치지직, SOOP, YouTube, Twitch로 바로 송출. 토크 방송용(게임 화면 캡처와 장면 전환은 OBS 사용)
+  - 송출 화면(`/program`): 1920x1080 무대를 창 크기에 맞춰 표시. 주소 뒤 `?camera=1`(휴대폰 앱 카메라 영상 크게), `?bg=`(배경색), `?title=`(왼쪽 위 글자)
+  - 송출 화면 창(`program_window.py`): Edge(없으면 Chrome) 앱 창, 전용 프로필(Edge는 InPrivate), 화면 배율 1 고정, 다른 창에 가려져도 계속 그림. 최소화하면 방송 화면이 멈추므로 경고
+  - 영상: ffmpeg `gfxcapture`(Windows Graphics Capture)로 송출 화면 창만 캡처하고 제목 표시줄과 여백을 잘라 냄. 인코더는 NVIDIA NVENC, Intel Quick Sync, AMD AMF 중 시험 인코딩으로 되는 것을 먼저, 없으면 x264. 고정 비트레이트, 키프레임 간격 고정(치지직 1초, 그 외 2초)
+  - 화질 720p 30fps(권장), 1080p 30fps, 1080p 60fps. 영상 비트레이트는 플랫폼 상한 이하(치지직, SOOP 8000 kbps, Twitch 6000 kbps)
+  - 소리: 마이크와 함께 보낼 소리 장치 하나(스테레오 믹스 등)를 섞어 AAC 160 kbps로. 고르지 않으면 무음
+  - 송출 서버: YouTube(`rtmps://a.rtmps.youtube.com/live2`), Twitch(`rtmps://live.twitch.tv:443/app`) 기본값, 치지직과 SOOP은 방송 설정 화면의 주소 붙여 넣기, 직접 입력. 플랫폼마다 따로 기억
+  - 스트림 키: Windows DPAPI로 이 Windows 사용자만 풀 수 있게 암호화해 설정 폴더의 `broadcast-keys.json`에 저장. 상태, 오류 문장, 명령줄 출력에서 가림
+  - 방송한 지 20초가 지난 뒤 끊기면 5초 뒤 다시 연결(연속 5번까지). 시작하자마자 끝나면 이유 안내(서버 연결 실패, 키 거부, 창 캡처 실패, 소리 장치, 인코더)
+  - 경고: 창 최소화, 방송 중 창 크기 변경, 창이 작아 화질 저하, PC가 실시간을 따라가지 못함(최근 10초 기준)
+- 방송 조작 화면(`/broadcast/control`): 플랫폼, 송출 서버, 스트림 키 저장과 삭제, 화질, 비트레이트, 인코더, 마이크, 함께 보낼 소리, 송출 화면 글자와 배경색, 송출 화면 열기, 방송 시작과 끝내기, 방송 시간, 초당 프레임, 보내는 속도
+- `debutkit broadcast`(status, devices, set, key, window, start, stop). 스트림 키는 화면에 표시하지 않는 입력 또는 `--stdin`
+- 설정 마법사 OBS 화면의 OBS 없이 바로 방송 버튼(Windows)
+- 서버 `/broadcast`, `/broadcast/devices`, `POST /broadcast/config`, `/broadcast/key`, `/broadcast/window`, `/broadcast/start`, `/broadcast/stop`, `/program/size`
+- Verify 작업에 Windows 바로 방송 확인(Edge 창, x264, 이 PC 안의 RTMP 수신. `packaging/verify_broadcast.py`)
+
+### 알려진 제한
+- 컴퓨터 소리(후원 알림 효과음, 음악)는 스테레오 믹스 같은 녹음 장치를 함께 보낼 소리로 골라야 함. 직접 캡처는 다음 버전
+- Windows 10 1903 이상, ffmpeg 8 이상(`debutkit setup --ffmpeg`의 9.0.2 포함) 필요. macOS, Linux는 다음 버전 이후
+
 ## 1.0.0rc15 (2026-11-23)
 
 1.0 후보 15차(사전 릴리스). 휴대폰 앱 카메라 영상(WebRTC).

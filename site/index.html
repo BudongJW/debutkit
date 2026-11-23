@@ -121,11 +121,11 @@
         <p class="price">무료</p>
         <p class="price-note">모든 기능 무상 공개, Apache-2.0</p>
         <dl class="meta">
-          <dt>버전</dt><dd>0.9.0. 1.0 후보 1.0.0rc15 사전 릴리스</dd>
+          <dt>버전</dt><dd>0.9.0. 1.0 후보 1.0.0rc16 사전 릴리스</dd>
           <dt>최근 릴리스</dt><dd>2026-11-23</dd>
           <dt>지원 환경</dt><dd>Windows 64비트, macOS(Apple Silicon), Linux(x64)</dd>
           <dt>방송 플랫폼</dt><dd>치지직, SOOP, Twitch, YouTube</dd>
-          <dt>필요 프로그램</dt><dd>OBS Studio 28 이상</dd>
+          <dt>필요 프로그램</dt><dd>OBS Studio 28 이상(OBS 없이 바로 방송은 Windows와 ffmpeg)</dd>
         </dl>
         <details class="files">
           <summary>배포 파일</summary>
@@ -179,6 +179,7 @@
           <li><b>휴대폰 앱</b> 안드로이드, 아이폰 앞면 카메라로 얼굴 추적(MediaPipe, ARKit)해 표정 52개와 머리 움직임을 PC로 전송. 카메라 영상 모드는 WebRTC로 OBS에 직접 전송. QR 등록과 PC 승인 <code>mobile</code></li>
           <li><b>휴대폰 조작 화면</b> 같은 Wi-Fi의 휴대폰 브라우저로 참여 추첨과 3D 캐릭터 동작 조작, 후원 추첨 결과 확인. QR 등록과 PC 승인, 요청 서명 <code>remote</code></li>
           <li><b>휴대폰 카메라 영상</b> 휴대폰 카메라 영상(실사, 손 캠)을 같은 Wi-Fi로 받는 OBS 소스. 암호 연결, Larix Broadcaster QR 가져오기 <code>camera</code></li>
+          <li><b>OBS 없이 바로 방송</b> 캐릭터, 채팅, 후원 알림, 추첨 연출을 모은 송출 화면을 치지직, SOOP, YouTube, Twitch로 바로 송출. 하드웨어 H.264, 스트림 키 암호화 저장. Windows, 토크 방송용 <code>broadcast</code></li>
           <li><b>휴대폰 얼굴 추적</b> 아이폰 앱(iFacialMocap, VTube Studio)의 ARKit 표정 52개와 머리 움직임을 같은 Wi-Fi로 받아 캐릭터에 반영. 퍼펙트 싱크 모델은 얼굴 전체가 움직임 <code>phone</code></li>
           <li><b>3D 캐릭터 동작</b> VRMA, Mixamo 등의 FBX, GLB 동작 등록. 대기 중 반복하는 기본 동작과 후원 반응 <code>motion</code></li>
           <li><b>VTube Studio 연동</b> Live2D 모델 보내기와 불러오기, 후원 시 단축키 실행. VRM은 Warudo로 보내기 <code>vts</code></li>
@@ -248,6 +249,7 @@ debutkit-gui</code></pre>
           <table>
             <thead><tr><th>버전</th><th>날짜</th><th>주요 내용</th></tr></thead>
             <tbody>
+              <tr><th scope="row"><a href="news.html#v1-0-0rc16">1.0.0rc16</a></th><td>2026-11-23</td><td>1.0 후보 16차. OBS 없이 바로 방송(Windows, 송출 화면 창 캡처와 하드웨어 H.264)</td></tr>
               <tr><th scope="row"><a href="news.html#v1-0-0rc15">1.0.0rc15</a></th><td>2026-11-23</td><td>1.0 후보 15차. 휴대폰 앱 카메라 영상(WebRTC로 OBS 브라우저 소스에 직접)</td></tr>
               <tr><th scope="row"><a href="news.html#v1-0-0rc14">1.0.0rc14</a></th><td>2026-11-23</td><td>1.0 후보 14차. debutkit 휴대폰 앱(안드로이드 APK, 아이폰 소스 빌드) 얼굴 추적</td></tr>
               <tr><th scope="row"><a href="news.html#v1-0-0rc13">1.0.0rc13</a></th><td>2026-11-23</td><td>1.0 후보 13차. 휴대폰 조작 화면(참여 추첨, 3D 캐릭터 동작, QR 등록과 PC 승인)</td></tr>

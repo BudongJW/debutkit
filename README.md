@@ -21,7 +21,7 @@ PC 점검, OBS 장면 구성, 통합 채팅창과 후원 알림, 방송 중 자�
 
 - 신규 버튜버의 방송 전 준비 작업(PC 점검, 장면 구성, 채팅 연결)을 하나의 프로그램으로 제공
 - 지원 플랫폼: 치지직, SOOP, Twitch, YouTube
-- 트래킹(VTube Studio 등)과 송출(OBS Studio)은 기존 프로그램을 사용하고, 프로그램 사이의 설정과 연결을 담당
+- 트래킹(VTube Studio 등)과 송출(OBS Studio)은 기존 프로그램을 사용하고, 프로그램 사이의 설정과 연결을 담당. OBS 없이 송출 화면을 바로 보내는 토크 방송용 송출도 제공(Windows)
 
 ## 기능
 
@@ -33,6 +33,7 @@ PC 점검, OBS 장면 구성, 통합 채팅창과 후원 알림, 방송 중 자�
 | OBS 장면 구성 | `debutkit scenes`, `debutkit camera` | 대기 화면, 본방송, 토크, 자리 비움, 엔딩 장면 생성. 아바타 투명 배경 캡처, 채팅창과 후원 알림 연결. 휴대폰 카메라 영상(SRT, 암호)을 받는 OBS 소스와 휴대폰 앱 연결 QR |
 | 채팅창과 후원 알림 | `debutkit overlay`, `debutkit draw`, `debutkit raffle` | OBS 브라우저 소스용 통합 채팅창과 후원 알림. 표시 형태 5종. 후원 추첨 연출(상품과 확률표, 금액별 추첨 횟수, 카드 뒤집기와 룰렛). 시청자 참여 추첨(채팅 !참가로 모집, 당첨자 뽑기, 순서 정하기). 스트리머, 매니저 채팅 명령. 휴대폰 조작 화면(`debutkit remote`, QR 등록과 PC 승인, 요청 서명) |
 | 휴대폰 앱 | `mobile/` | 안드로이드(APK, MediaPipe), 아이폰(ARKit, 소스 빌드) 얼굴 추적과 카메라 영상(WebRTC, OBS 브라우저 소스로 직접 전송) 앱. 같은 QR로 등록하고 PC에서 승인, 서명된 요청과 값만 사용. [mobile/README.md](mobile/README.md) |
+| OBS 없이 바로 방송 | `debutkit broadcast` | Windows. 캐릭터, 채팅, 후원 알림, 추첨 연출을 모은 송출 화면을 치지직, SOOP, YouTube, Twitch로 바로 송출(ffmpeg 창 캡처, 하드웨어 H.264, 마이크). 스트림 키는 암호화 저장. 토크 방송용(게임 방송은 OBS) |
 | 방송 중 자동 클립 | `debutkit overlay --clip` | 채팅 급증 또는 스트리머와 매니저의 `!clip` 입력 시 OBS 리플레이 버퍼를 클립으로 저장 |
 | 준비 도구 | `debutkit setup`, `debutkit chzzk` | ffmpeg 다운로드, 새 버전 확인, 치지직 공식 API 로그인 |
 

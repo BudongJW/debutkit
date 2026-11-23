@@ -8,7 +8,7 @@
 4. `main`에 반영 후 CI 통과 확인
 5. 태그 생성과 push: `git tag -a v0.6.0 -m "debutkit 0.6.0"`, `git push origin v0.6.0`
 6. `.github/workflows/release.yml`이 운영체제별 배포 파일을 만들고 검증한 뒤 릴리스에 첨부
-7. `.github/workflows/verify.yml`이 Windows, macOS, Linux 각각 실제 OBS로 장면 생성, 리플레이 버퍼, 자동 클립을 검증하고, 실제 YouTube 서버로 채팅 수신 경로를 확인
+7. `.github/workflows/verify.yml`이 Windows, macOS, Linux 각각 실제 OBS로 장면 생성, 리플레이 버퍼, 자동 클립을 검증하고, 실제 YouTube 서버로 채팅 수신 경로를 확인. Windows에서는 OBS 없이 바로 방송(Edge 송출 화면 창, x264, 이 PC 안의 RTMP 수신)도 확인
 
 ### 사전 릴리스(후보)
 
