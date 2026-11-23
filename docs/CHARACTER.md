@@ -15,6 +15,11 @@
 
 - 목소리 크기는 OBS WebSocket의 입력 음량(InputVolumeMeters)을 사용. OBS에 설정한 마이크와 필터를 그대로 쓰고 추가 장치 권한이 필요 없음
 - 웹캠 얼굴 추적: OBS 브라우저 소스는 카메라를 쓸 수 없어(아래 참고) 일반 브라우저에서 여는 추적 화면(`/tracker`)이 MediaPipe로 값을 계산하고 캐릭터 화면으로 전달(1.0.0rc3)
+- 휴대폰 얼굴 추적: 아이폰 앱 iFacialMocap, VTube Studio의 공개 전송 형식을 debutkit이 직접 수신(`/phone`, `debutkit phone`). 휴대폰 IP 지정, 그 휴대폰의 값만 사용(1.0.0rc11)
+  - iFacialMocap: 개발자 안내의 UDP 형식(시작 문자열, 49983번). https://www.ifacialmocap.com/for-developer/
+  - VTube Studio: 3rd Party PC Clients 요청과 JSON 형식(21412번, 예제 MIT). https://github.com/DenchiSoft/VTubeStudioBlendshapeUDPReceiverTest
+  - 머리 회전 변환: iFacialMocap은 Unity 오일러 각(x 위아래, y 좌우, z 기울기), VTube Studio는 Live2D 얼굴 각도 순서(x 좌우, y 위아래, z 기울기)로 해석. 실제 앱에서 방향이 반대면 거울처럼 움직이기, 위아래 반전, 앱의 축 설정으로 조정
+- 퍼펙트 싱크: ARKit 표정 52개 이름(대소문자, `_L`과 `_R` 표기 무시)의 표정이 12개 이상이면 추적 값으로 얼굴 전체를 움직이고 입, 눈, 웃음 기본 표정은 0(같은 형태 변형 중복 방지)(1.0.0rc11)
 
 ## 1. 캐릭터 제작 도구
 
@@ -133,7 +138,7 @@
 
 - three.js, three-vrm, three-vrm-animation은 debutkit에 포함(외부 CDN 접속 없음)
 - OBS 브라우저 소스는 카메라와 마이크 권한 요청을 거부. `--enable-media-stream` 실행 옵션은 모든 브라우저 소스와 도크에 권한을 주므로 권장하지 않음. https://github.com/obsproject/obs-browser
-- 웹캠 얼굴 추적: MediaPipe Face Landmarker(@mediapipe/tasks-vision 1.2.3, 모델 float16 버전 1, Apache-2.0)를 포함. 52개 표정 값 중 눈 감음, 입 벌림, 웃음과 얼굴 변환 행렬의 머리 회전을 사용
+- 웹캠 얼굴 추적: MediaPipe Face Landmarker(@mediapipe/tasks-vision 1.2.3, 모델 float16 버전 1, Apache-2.0)를 포함. 표정 값(ARKit 이름 51개)과 얼굴 변환 행렬의 머리 회전을 사용
 - MediaPipe 웹 배포 파일에는 사용 기록을 `https://odml.pa.googleapis.com/v1/log`로 보내는 코드가 있음(2026-11-22 확인). 추적 화면에 콘텐츠 보안 정책(`connect-src 'self'`)을 적용해 차단하고, 브라우저에서 차단과 이 PC 밖 요청 없음을 확인
 
 ## 5. 라이선스 주의

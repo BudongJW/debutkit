@@ -1,4 +1,4 @@
-"""명령줄: debutkit gui | doctor | scenes | overlay | draw | raffle | character | motion | vts | settings | setup | chzzk"""
+"""명령줄: debutkit gui | doctor | scenes | overlay | draw | raffle | phone | character | motion | vts | settings | setup | chzzk"""
 
 from __future__ import annotations
 
@@ -158,6 +158,7 @@ def _start_voice(server: Any, args: argparse.Namespace) -> None:
     server.attach(meter.start())
     print(f"  캐릭터 화면: {server.url}/character (OBS 마이크 음량으로 입 움직임, 기준 {args.voice_threshold:.0f} dB)")
     print(f"  얼굴 추적: {server.url}/tracker (일반 브라우저에서 열고 카메라 허용. OBS에는 추가하지 않음)")
+    print(f"  휴대폰 얼굴 추적: {server.url}/phone (아이폰 iFacialMocap, VTube Studio 앱. debutkit phone start)")
 
 
 def _start_autoclip(server: Any, args: argparse.Namespace) -> bool:
@@ -524,6 +525,35 @@ def _raffle(args: argparse.Namespace) -> int:
     return _post_overlay(args.port, f"/raffle/{command}", {}, describe)
 
 
+def _phone(args: argparse.Namespace) -> int:
+    """실행 중인 오버레이의 휴대폰 얼굴 추적 조작."""
+    command = args.phone_command
+
+    def describe(status: dict[str, Any]) -> str:
+        app = status.get("apps", {}).get(status.get("app"), status.get("app"))
+        if not status.get("running"):
+            return f"휴대폰 얼굴 추적 꺼짐(저장한 설정: {app}, 휴대폰 {status.get('ip') or '없음'})"
+        if status.get("receiving"):
+            state = f"추적 중, 초당 {status['fps']}회, 표정 {status['shapes']}개" if status.get("found") else "연결됨, 얼굴을 찾지 못함"
+        else:
+            state = status.get("error") or "휴대폰 응답 대기: 앱 실행, 같은 Wi-Fi, 방화벽 허용 확인"
+        options = ", ".join(name for name, on in (("거울처럼", status.get("mirror")), ("위아래 반전", status.get("flip_pitch"))) if on) or "선택 없음"
+        return f"{app}, 휴대폰 {status['ip']}, PC 수신 {status['local']}:{status['port']}\n  {state}\n  {options}"
+
+    if command == "status":
+        return _get_overlay(args.port, "/phone/status", describe)
+    if command == "start":
+        body: dict[str, Any] = {"app": args.app, "ip": args.ip}
+        if args.mirror is not None:
+            body["mirror"] = args.mirror
+        if args.flip_pitch is not None:
+            body["flip_pitch"] = args.flip_pitch
+        return _post_overlay(args.port, "/phone/start", body, describe)
+    if command == "calibrate":
+        return _post_overlay(args.port, "/phone/calibrate", {"reset": args.reset}, describe)
+    return _post_overlay(args.port, "/phone/stop", {}, describe)
+
+
 def _get_overlay(port: int, path: str, describe: Callable[[dict[str, Any]], str]) -> int:
     import urllib.error
     import urllib.request
@@ -734,6 +764,20 @@ def build_parser() -> argparse.ArgumentParser:
     raffle_draw.add_argument("count", nargs="?", type=int, default=1, metavar="인원", help="당첨 인원(1에서 30)")
     raffle_draw.add_argument("--order", action="store_true", help="참가자 전체 순서 정하기")
     raffles.set_defaults(func=_raffle)
+
+    phone = sub.add_parser("phone", help="휴대폰 얼굴 추적: 아이폰 iFacialMocap, VTube Studio 앱의 ARKit 표정을 캐릭터에 반영(실행 중인 오버레이)")
+    phone.add_argument("--port", type=int, default=OVERLAY_PORT, help="오버레이 포트 (기본 %(default)s)")
+    phone_sub = phone.add_subparsers(dest="phone_command", required=True)
+    phone_sub.add_parser("status", help="연결 상태")
+    phone_start = phone_sub.add_parser("start", help="연결 시작(설정 저장, 다음 오버레이 실행에도 시작)")
+    phone_start.add_argument("--app", choices=["ifacialmocap", "vts"], help="휴대폰 앱(지난 설정 유지, 처음은 ifacialmocap)")
+    phone_start.add_argument("--ip", metavar="주소", help="휴대폰 앱에 표시된 IP 주소(같은 Wi-Fi)")
+    phone_start.add_argument("--mirror", action=argparse.BooleanOptionalAction, default=None, help="거울처럼 움직이기(기본 켬)")
+    phone_start.add_argument("--flip-pitch", action=argparse.BooleanOptionalAction, default=None, help="위아래 반전")
+    phone_cal = phone_sub.add_parser("calibrate", help="정면 맞추기: 지금 머리 각도를 정면으로 저장")
+    phone_cal.add_argument("--reset", action="store_true", help="정면 맞추기 되돌리기")
+    phone_sub.add_parser("stop", help="연결 끊기(다음 오버레이 실행 때 시작하지 않음)")
+    phone.set_defaults(func=_phone)
 
     motions = sub.add_parser("motion", help="3D 캐릭터 동작 등록, 기본 동작, 실행(VRMA, Mixamo 등의 FBX, GLB)")
     motions_sub = motions.add_subparsers(dest="motion_command", required=True)

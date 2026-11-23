@@ -31,7 +31,11 @@ export function headRotation(m) {
   };
 }
 
+// 왼쪽과 오른쪽 표정 이름 바꾸기(거울처럼)
+const swapSide = (name) => name.endsWith("Left") ? name.slice(0, -4) + "Right" : name.endsWith("Right") ? name.slice(0, -5) + "Left" : name;
+
 // 인식 결과를 캐릭터 값으로. 거울처럼: 좌우 회전과 기울기를 반대로, 왼눈과 오른눈을 바꿈
+// arkit: MediaPipe 표정 51개(ARKit 이름, tongueOut 없음). 같은 이름의 표정이 있는 모델(퍼펙트 싱크)은 얼굴 전체가 움직인다
 export function toValues(result, mirror) {
   if (!result || !result.faceBlendshapes || !result.faceBlendshapes.length) return { found: false };
   const shapes = {};
@@ -39,7 +43,12 @@ export function toValues(result, mirror) {
   const matrix = result.facialTransformationMatrixes && result.facialTransformationMatrixes[0];
   const head = matrix ? headRotation(matrix.data) : { yaw: 0, pitch: 0, roll: 0 };
   const side = mirror ? -1 : 1;
+  const arkit = {};
+  for (const [name, score] of Object.entries(shapes)) {
+    if (!name.startsWith("_")) arkit[mirror ? swapSide(name) : name] = Math.round(score * 1000) / 1000;
+  }
   return {
+    arkit,
     found: true,
     yaw: head.yaw * side,
     pitch: head.pitch,

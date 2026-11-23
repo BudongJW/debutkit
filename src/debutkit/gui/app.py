@@ -544,9 +544,12 @@ class Wizard(QMainWindow):
         self.tracker_button = QPushButton("얼굴 추적 창 열기")
         self.tracker_button.setToolTip("웹캠으로 얼굴을 추적해 캐릭터의 머리 움직임, 눈, 입, 웃음에 반영(브라우저에서 카메라 허용)")
         self.tracker_button.clicked.connect(self.open_tracker)
+        self.phone_button = QPushButton("휴대폰 얼굴 추적")
+        self.phone_button.setToolTip("아이폰 앱(iFacialMocap, VTube Studio)의 얼굴 추적 값(ARKit 표정 52개)을 캐릭터에 반영. 같은 Wi-Fi 필요")
+        self.phone_button.clicked.connect(self.open_phone)
         self.remove_button = QPushButton("삭제")
         self.remove_button.clicked.connect(self.remove_character)
-        layout.addWidget(card(self.characters, self.character_detail, row(add, make, self.use_button), row(self.send_button, self.preview_button, self.tracker_button, self.remove_button),
+        layout.addWidget(card(self.characters, self.character_detail, row(add, make, self.use_button), row(self.send_button, self.preview_button, self.tracker_button, self.phone_button, self.remove_button),
                               title="내 캐릭터"))
         self._filling = False
         self._pending_reaction = ""
@@ -673,6 +676,7 @@ class Wizard(QMainWindow):
         self.remove_button.setEnabled(not item.builtin)
         self.preview_button.setEnabled(item.renders_in_overlay)
         self.tracker_button.setEnabled(item.renders_in_overlay)
+        self.phone_button.setEnabled(item.renders_in_overlay)
 
     def _character_message(self, message: str) -> None:
         self.character_detail.setText(message)
@@ -900,6 +904,14 @@ class Wizard(QMainWindow):
             return self._character_message("채팅과 알림 단계에서 오버레이를 시작한 뒤 얼굴 추적 창을 열 수 있습니다.")
         self.backend.open_url(f"{self.server.url}/tracker")
         self._character_message("브라우저에서 추적 시작을 누르고 카메라 사용을 허용하십시오. 추적 창을 닫으면 기본 움직임으로 돌아갑니다.")
+
+    def open_phone(self) -> None:
+        """휴대폰 얼굴 추적 설정 화면(휴대폰 앱의 IP 입력, 연결, 정면 맞추기)을 브라우저에서 연다."""
+        if self.server is None:
+            return self._character_message("채팅과 알림 단계에서 오버레이를 시작한 뒤 휴대폰 얼굴 추적을 설정할 수 있습니다.")
+        self.backend.open_url(f"{self.server.url}/phone")
+        self._character_message("휴대폰과 PC를 같은 Wi-Fi에 연결하고, 휴대폰 앱에 표시된 IP 주소를 입력한 뒤 연결 시작을 누르십시오. "
+                                "처음 연결할 때 Windows 보안 경고가 나오면 개인 네트워크를 허용하십시오.")
 
     def _pick_avatar(self) -> None:
         path, _ = QFileDialog.getOpenFileName(self, "아바타 모델", "", "모델 (*.vrm *.model3.json *.moc3);;모든 파일 (*)")
@@ -1138,7 +1150,8 @@ class Wizard(QMainWindow):
                                               self._voice_input or None)
         if meter is not None:
             server.attach(meter)
-            self._append_log(f"캐릭터 화면: {server.url}/character (OBS 마이크 음량으로 입 움직임). 얼굴 추적: {server.url}/tracker(일반 브라우저)")
+            self._append_log(f"캐릭터 화면: {server.url}/character (OBS 마이크 음량으로 입 움직임). 얼굴 추적: {server.url}/tracker(일반 브라우저), "
+                             f"휴대폰 얼굴 추적: {server.url}/phone")
         reactions = vts.parse_reactions(self.vts_reaction_rules())
         if reactions and self.backend.vts_token():
             server.attach(self.backend.make_vts_reactor(server, reactions))
@@ -1284,7 +1297,8 @@ class Wizard(QMainWindow):
     #: 입력란이 없어 collect_settings가 모르는 저장값. 저장할 때 기존 값을 유지한다(캐릭터 단계의 사용 버튼이 따로 저장)
     KEPT_SETTINGS = ("character", "idle_motion", "draw_enabled", "draw_prizes", "draw_rules", "draw_exact", "draw_members", "draw_style",
                      "draw_seconds", "draw_title", "draw_position", "draw_scale", "draw_sound", "draw_show_percent", "raffle_command", "raffle_title",
-                     "raffle_donation_min")
+                     "raffle_donation_min", "phone_enabled", "phone_app", "phone_ip", "phone_mirror", "phone_flip_pitch", "phone_center_yaw",
+                     "phone_center_pitch", "phone_center_roll")
 
     def remember(self) -> None:
         try:

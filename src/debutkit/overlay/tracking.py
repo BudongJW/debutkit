@@ -2,7 +2,8 @@
 
 - 카메라 영상은 추적 화면(브라우저) 안에서만 처리하고, 이 서버에는 숫자 값만 들어온다. 저장하거나 외부로 보내지 않는다
 - 값: ``yaw``, ``pitch``, ``roll`` (머리 회전, 라디안), ``blinkLeft``, ``blinkRight``, ``mouth``, ``smile`` (0에서 1), ``found`` (얼굴 인식 여부)
-- OBS 브라우저 소스는 카메라를 쓸 수 없어 추적은 별도 브라우저 창에서 한다(docs/CHARACTER.md)
+- ``arkit``: ARKit 이름의 표정 52개(0에서 1). 같은 이름의 표정을 가진 모델(퍼펙트 싱크)은 이 값으로 얼굴 전체를 움직인다
+- OBS 브라우저 소스는 카메라를 쓸 수 없어 추적은 별도 브라우저 창에서 한다(docs/CHARACTER.md). 휴대폰 추적은 phone.py
 """
 
 from __future__ import annotations
@@ -17,6 +18,36 @@ from typing import Any
 FIELDS: dict[str, tuple[float, float]] = {"yaw": (-1.2, 1.2), "pitch": (-1.2, 1.2), "roll": (-1.2, 1.2), "blinkLeft": (0.0, 1.0),
                                           "blinkRight": (0.0, 1.0), "mouth": (0.0, 1.0), "smile": (0.0, 1.0)}
 
+#: ARKit 표정 52개(Apple ARFaceAnchor.BlendShapeLocation 이름). MediaPipe Face Landmarker도 같은 이름(tongueOut 제외)
+ARKIT_NAMES = (
+    "browDownLeft", "browDownRight", "browInnerUp", "browOuterUpLeft", "browOuterUpRight", "cheekPuff", "cheekSquintLeft", "cheekSquintRight",
+    "eyeBlinkLeft", "eyeBlinkRight", "eyeLookDownLeft", "eyeLookDownRight", "eyeLookInLeft", "eyeLookInRight", "eyeLookOutLeft", "eyeLookOutRight",
+    "eyeLookUpLeft", "eyeLookUpRight", "eyeSquintLeft", "eyeSquintRight", "eyeWideLeft", "eyeWideRight", "jawForward", "jawLeft", "jawOpen",
+    "jawRight", "mouthClose", "mouthDimpleLeft", "mouthDimpleRight", "mouthFrownLeft", "mouthFrownRight", "mouthFunnel", "mouthLeft",
+    "mouthLowerDownLeft", "mouthLowerDownRight", "mouthPressLeft", "mouthPressRight", "mouthPucker", "mouthRight", "mouthRollLower",
+    "mouthRollUpper", "mouthShrugLower", "mouthShrugUpper", "mouthSmileLeft", "mouthSmileRight", "mouthStretchLeft", "mouthStretchRight",
+    "mouthUpperUpLeft", "mouthUpperUpRight", "noseSneerLeft", "noseSneerRight", "tongueOut",
+)
+
+
+def _aliases() -> dict[str, str]:
+    """표기 차이(대소문자, iFacialMocap과 ARKit 원래 문자열의 ``_L``, ``_R``)를 ARKit 이름으로."""
+    found: dict[str, str] = {}
+    for name in ARKIT_NAMES:
+        found[name.lower()] = name
+        for side, short in (("Left", "_l"), ("Right", "_r")):
+            if name.endswith(side) and name not in ("jawLeft", "jawRight", "mouthLeft", "mouthRight"):
+                found[(name[: -len(side)] + short).lower()] = name
+    return found
+
+
+ALIASES = _aliases()
+
+
+def arkit_name(name: str) -> str | None:
+    """앱마다 다른 표정 이름 표기를 ARKit 이름으로(모르는 이름은 None)."""
+    return ALIASES.get(str(name).strip().lower())
+
 
 def clean(data: Any) -> dict[str, Any] | None:
     """추적 화면이 보낸 값 확인. 형식이 아니면 None, 범위를 벗어난 값은 잘라냄, 모르는 항목은 버림."""
@@ -27,6 +58,13 @@ def clean(data: Any) -> dict[str, Any] | None:
         value = data.get(name)
         if isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value):
             found[name] = round(min(high, max(low, float(value))), 4)
+    shapes = data.get("arkit")
+    if isinstance(shapes, dict):
+        found["arkit"] = {}
+        for name, value in list(shapes.items())[:64]:
+            canonical = arkit_name(str(name))
+            if canonical and isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value):
+                found["arkit"][canonical] = round(min(1.0, max(0.0, float(value))), 3)
     return found
 
 

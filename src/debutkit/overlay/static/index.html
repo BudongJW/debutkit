@@ -85,7 +85,9 @@
       <div class="row">
         <button id="voice-test" class="secondary">말하기 시험(3초)</button>
         <a class="button" href="/tracker" target="_blank" rel="noopener">얼굴 추적 창 열기</a>
+        <a class="button" href="/phone" target="_blank" rel="noopener">휴대폰 얼굴 추적</a>
       </div>
+      <p class="hint">웹캠 추적은 얼굴 추적 창(일반 브라우저), 아이폰 추적(iFacialMocap, VTube Studio 앱)은 휴대폰 얼굴 추적 화면에서 시작합니다. 휴대폰 값을 받는 중에는 휴대폰 값을 사용합니다.</p>
       <p class="state" id="motion-state">등록한 동작 확인 중</p>
       <div class="row" id="motion-buttons"></div>
       <div class="preview"><iframe id="character-preview" title="캐릭터 미리보기"></iframe></div>
@@ -162,7 +164,8 @@
   live.addEventListener("tracking", (message) => Object.assign(tracked, { found: false }, JSON.parse(message.data)));
   setInterval(() => {
     const live = Date.now() / 1000 - tracked.time < 1;
-    $("tracking-state").textContent = !live ? "얼굴 추적 꺼짐" : tracked.found ? "얼굴 추적 중" : "얼굴 추적 창 열림, 얼굴을 찾지 못함";
+    const where = tracked.source === "phone" ? "휴대폰" : "웹캠";
+    $("tracking-state").textContent = !live ? "얼굴 추적 꺼짐" : tracked.found ? `얼굴 추적 중(${where})` : `${where} 추적 연결됨, 얼굴을 찾지 못함`;
   }, 500);
   $("voice-test").addEventListener("click", () => fetch("/voice/test", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ talking: true }) }));
   // 3D 캐릭터 동작: 등록한 동작마다 실행 버튼

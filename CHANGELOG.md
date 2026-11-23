@@ -1,5 +1,25 @@
 # 변경 내역
 
+## 1.0.0rc11 (2026-11-23)
+
+1.0 후보 11차(사전 릴리스). 휴대폰 얼굴 추적, 퍼펙트 싱크.
+
+### 추가
+- 휴대폰 얼굴 추적(`overlay/phone.py`): 아이폰 앱 iFacialMocap(FaceMotion3D의 iFacialMocap 호환 모드 포함), VTube Studio(아이폰, 아이패드)가 보내는 ARKit 표정 52개와 머리 회전을 캐릭터 화면에 반영. 같은 Wi-Fi의 휴대폰 IP를 지정하면 debutkit이 휴대폰에 송신 요청
+  - iFacialMocap 공개 형식(UDP 49983, `이름-값` v1과 `이름&값` v2), VTube Studio 3rd Party PC Clients 형식(UDP 21412 요청, JSON 수신)
+  - 수신 창구는 사용자가 켠 경우에만, 휴대폰과 연결된 네트워크 주소 하나에 열고 지정한 휴대폰의 값만 사용. 공인 주소 거부
+  - 거울처럼 움직이기(기본 켬), 위아래 반전, 정면 맞추기(휴대폰을 비스듬히 둔 경우), 값이 끊기면 다시 송신 요청
+  - 휴대폰 값을 받는 중에는 웹캠 추적 값 미사용
+  - 설정 저장(`phone_enabled`, `phone_app`, `phone_ip`, `phone_mirror`, `phone_flip_pitch`, `phone_center_yaw` 등). 켜 둔 경우 다음 오버레이 실행 때 자동 시작
+- 휴대폰 얼굴 추적 화면(`/phone`): 앱 선택, IP 입력, 연결 상태(받는 횟수, 얼굴 인식, 표정 수), 표정 값 막대, 정면 맞추기, 앱별 준비와 연결 문제 안내
+- 서버 `/phone/status`, `POST /phone/start`, `stop`, `options`, `calibrate`. 명령 `debutkit phone status`, `start`, `stop`, `calibrate`. 설정 마법사 캐릭터 단계의 휴대폰 얼굴 추적 버튼
+- 퍼펙트 싱크: ARKit 이름 표정이 12개 이상인 3D 캐릭터(VRM 사용자 표정, GLB와 FBX 형태 변형)는 추적 값으로 눈썹, 눈, 볼, 코, 입, 혀까지 움직임. 이름 표기 차이(대소문자, `_L`과 `_R`, 앞에 붙은 메시 이름) 허용
+- 웹캠 얼굴 추적도 MediaPipe 표정 51개를 ARKit 이름으로 전달(퍼펙트 싱크 모델에 반영)
+
+### 변경
+- 추적 값에 출처(`source`: phone, webcam) 추가. 오버레이 설정 화면에 추적 출처 표시
+- 말하기 시험 테스트의 시간 여유 확대(느린 macOS 실행 환경)
+
 ## 1.0.0rc10 (2026-11-23)
 
 1.0 후보 10차(사전 릴리스). 시청자 참여 추첨, 스트리머와 매니저 채팅 명령.

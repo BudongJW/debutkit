@@ -417,6 +417,9 @@ def test_character_page_add_make_use_send_and_preview(app, tmp_path):
         window.open_tracker()
         assert "얼굴 추적 창을 열 수 있습니다" in window.character_detail.text()
         assert window.tracker_button.isEnabled() == window.selected_character().renders_in_overlay  # Live2D는 VTube Studio가 추적
+        assert window.phone_button.isEnabled() == window.selected_character().renders_in_overlay
+        window.open_phone()
+        assert "휴대폰 얼굴 추적을 설정할 수 있습니다" in window.character_detail.text()
         picks["file"] = str(tmp_path / "missing.vrm")
         window.add_character()
         assert "등록 실패" in window.character_detail.text()
@@ -454,6 +457,9 @@ def test_overlay_start_attaches_voice_meter(app):
         assert "/tracker" in window.overlay_log.toPlainText()
         window.open_tracker()
         assert calls.urls[-1] == "http://127.0.0.1:8790/tracker"
+        window.open_phone()
+        assert calls.urls[-1] == "http://127.0.0.1:8790/phone" and "Wi-Fi" in window.character_detail.text()
+        assert "/phone" in window.overlay_log.toPlainText()
         assert calls.saves[-1]["voice_threshold"] == -35.0
     finally:
         window.close()
@@ -617,11 +623,13 @@ def test_chat_commands_checkbox_saves_and_restores(app):
     finally:
         window.close()
     calls = Calls()
-    calls.stored = {"chat_commands": False, "raffle_command": "!들어감", "raffle_title": "노래 신청"}
+    calls.stored = {"chat_commands": False, "raffle_command": "!들어감", "raffle_title": "노래 신청", "phone_enabled": True, "phone_app": "vts",
+                    "phone_ip": "192.168.0.12", "phone_center_yaw": 0.1}
     window = Wizard(calls.backend())
     try:
         assert not window.chat_commands.isChecked()
         window.remember()
         assert calls.saves[-1]["raffle_command"] == "!들어감" and calls.saves[-1]["raffle_title"] == "노래 신청"
+        assert calls.saves[-1]["phone_enabled"] is True and calls.saves[-1]["phone_ip"] == "192.168.0.12" and calls.saves[-1]["phone_center_yaw"] == 0.1
     finally:
         window.close()

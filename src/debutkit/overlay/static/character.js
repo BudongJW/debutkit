@@ -86,6 +86,41 @@ const normalize = (name) => name.replace(/[\s_\-.:\/\[\]\\|]+/g, "").toLowerCase
 const boneKey = (name) => normalize(name).replace(/^mixamorig\d*/, "");
 const morphKeys = (name) => [...new Set([normalize(name), normalize(name.split(/[.|:]/).pop())])];
 
+// 퍼펙트 싱크: ARKit 표정 52개(파이썬 tracking.ARKIT_NAMES와 같아야 함). 같은 이름의 표정이 있는 모델은 추적 값으로 얼굴 전체를 움직인다
+export const ARKIT = [
+  "browDownLeft", "browDownRight", "browInnerUp", "browOuterUpLeft", "browOuterUpRight", "cheekPuff", "cheekSquintLeft", "cheekSquintRight",
+  "eyeBlinkLeft", "eyeBlinkRight", "eyeLookDownLeft", "eyeLookDownRight", "eyeLookInLeft", "eyeLookInRight", "eyeLookOutLeft", "eyeLookOutRight",
+  "eyeLookUpLeft", "eyeLookUpRight", "eyeSquintLeft", "eyeSquintRight", "eyeWideLeft", "eyeWideRight", "jawForward", "jawLeft", "jawOpen",
+  "jawRight", "mouthClose", "mouthDimpleLeft", "mouthDimpleRight", "mouthFrownLeft", "mouthFrownRight", "mouthFunnel", "mouthLeft",
+  "mouthLowerDownLeft", "mouthLowerDownRight", "mouthPressLeft", "mouthPressRight", "mouthPucker", "mouthRight", "mouthRollLower",
+  "mouthRollUpper", "mouthShrugLower", "mouthShrugUpper", "mouthSmileLeft", "mouthSmileRight", "mouthStretchLeft", "mouthStretchRight",
+  "mouthUpperUpLeft", "mouthUpperUpRight", "noseSneerLeft", "noseSneerRight", "tongueOut",
+];
+const PERFECT_SYNC_MIN = 12;  // ARKit 이름 표정이 이만큼 있으면 퍼펙트 싱크 모델로 판단
+const ARKIT_KEYS = new Map();
+for (const name of ARKIT) {
+  ARKIT_KEYS.set(normalize(name), name);
+  const side = name.match(/(Left|Right)$/);
+  if (side && !/^(jaw|mouth)(Left|Right)$/.test(name)) ARKIT_KEYS.set(normalize(name.slice(0, -side[1].length) + side[1][0]), name);  // eyeBlink_L
+}
+
+export function arkitName(name) {  // 표정이나 형태 변형 이름 -> ARKit 이름(대소문자, _L, _R, 앞 붙은 이름 무시). 없으면 null
+  for (const key of morphKeys(name)) {
+    const found = ARKIT_KEYS.get(key);
+    if (found) return found;
+  }
+  return null;
+}
+
+export function perfectSyncMap(names) {  // 표정 이름 목록 -> Map(ARKit 이름 -> 표정 이름). 먼저 나온 이름 사용
+  const found = new Map();
+  for (const name of names) {
+    const key = arkitName(name);
+    if (key && !found.has(key)) found.set(key, name);
+  }
+  return found;
+}
+
 export function matchBones(names, table) {  // VRM 뼈 이름 -> 모델 뼈 이름(먼저 나온 뼈)
   const found = {};
   for (const name of names) {
@@ -184,6 +219,16 @@ async function loadModel(THREE, lib, info) {
         const index = mesh.morphTargetDictionary[morph];
         if (index !== undefined) expression.addBind(new lib.VRMExpressionMorphTargetBind({ primitives: [mesh], index, weight }));
       }
+    }
+    expressionManager.registerExpression(expression);
+    scene.add(expression);
+  }
+  for (const [canonical, morph] of perfectSyncMap(names)) {  // ARKit 이름 형태 변형(퍼펙트 싱크)은 그 이름의 표정으로
+    if (expressionManager.getExpression(canonical)) continue;
+    const expression = new lib.VRMExpression(canonical);
+    for (const mesh of meshes) {
+      const index = mesh.morphTargetDictionary[morph];
+      if (index !== undefined) expression.addBind(new lib.VRMExpressionMorphTargetBind({ primitives: [mesh], index, weight: 1 }));
     }
     expressionManager.registerExpression(expression);
     scene.add(expression);
@@ -526,6 +571,11 @@ async function start3d(info) {
   const neck = bone("neck");
   const head = bone("head");
   const pose = { yaw: 0, pitch: 0, roll: 0, blinkLeft: 0, blinkRight: 0, mouth: 0, smile: 0 };  // 추적 값(부드럽게 따라감)
+  // 퍼펙트 싱크: 모델에 ARKit 이름 표정이 충분하면 추적 값(arkit)으로 얼굴 전체를 움직이고 입, 눈, 웃음 기본 표정은 쓰지 않는다
+  const perfect = vrm.expressionManager ? perfectSyncMap(vrm.expressionManager.expressions.map((item) => item.expressionName)) : new Map();
+  const perfectSync = perfect.size >= PERFECT_SYNC_MIN;
+  const shapes = Object.fromEntries([...perfect.keys()].map((name) => [name, 0]));
+  window.debutkitCharacter.perfectSync = perfectSync ? Object.fromEntries(perfect) : null;  // 시험용
   const animate = (timestamp) => {
     timer.update(timestamp);
     const delta = Math.min(timer.getDelta(), 0.1);
@@ -533,6 +583,11 @@ async function start3d(info) {
     const face = tracking();
     const follow = Math.min(1, delta * 14);
     for (const name of Object.keys(pose)) pose[name] += ((face ? face[name] || 0 : 0) - pose[name]) * follow;
+    const synced = perfectSync && Boolean(face && face.arkit && Object.keys(face.arkit).length);  // 이번 프레임에 퍼펙트 싱크로 움직임
+    if (perfectSync) {
+      const quick = Math.min(1, delta * 20);
+      for (const name of Object.keys(shapes)) shapes[name] += ((synced ? face.arkit[name] || 0 : 0) - shapes[name]) * quick;
+    }
     const target = voice.talking ? Math.min(1, 0.35 + voice.level * 0.8) : 0;
     mouth += (Math.max(target, pose.mouth * 1.1) - mouth) * Math.min(1, delta * 18);
     if (blinkStart >= 0) {
@@ -543,9 +598,12 @@ async function start3d(info) {
     player.reset();
     if (leftArm) leftArm.rotation.z = leftLowered;
     if (rightArm) rightArm.rotation.z = rightLowered;
-    if (jaw) jaw.rotation.x = Math.min(1, mouth) * 0.3 * flip;
+    if (jaw) jaw.rotation.x = (synced ? shapes.jawOpen || 0 : Math.min(1, mouth)) * 0.3 * flip;
     const expressions = vrm.expressionManager;
-    if (expressions) {
+    if (perfectSync) for (const [name, expression] of perfect) expressions.setValue(expression, shapes[name]);
+    if (expressions && synced) {  // 퍼펙트 싱크 중: 기본 표정은 0(같은 형태 변형을 두 번 움직이지 않도록)
+      for (const name of ["aa", "blink", "blinkLeft", "blinkRight", "happy"]) expressions.setValue(name, 0);
+    } else if (expressions) {
       expressions.setValue("aa", Math.min(1, mouth));
       if (face) {  // 추적 중: 양쪽 눈 따로, 웃음
         expressions.setValue("blink", 0);

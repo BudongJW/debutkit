@@ -57,6 +57,14 @@ FIELDS: dict[str, type] = {
     "raffle_command": str,  # 시청자 참여 추첨 참가 명령
     "raffle_title": str,
     "raffle_donation_min": int,
+    "phone_enabled": bool,  # 휴대폰 얼굴 추적 수신(overlay/phone.py): 오버레이 시작 때 함께 시작
+    "phone_app": str,  # ifacialmocap, vts
+    "phone_ip": str,  # 같은 Wi-Fi의 휴대폰 주소
+    "phone_mirror": bool,
+    "phone_flip_pitch": bool,
+    "phone_center_yaw": float,  # 정면 맞추기(라디안)
+    "phone_center_pitch": float,
+    "phone_center_roll": float,
 }
 
 #: 이 단어가 들어간 항목은 저장하지 않는다(실수로 FIELDS에 추가해도 막음)

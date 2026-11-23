@@ -14,10 +14,14 @@
 - ``/live?feeds=voice,tracking,motion,draw,raffle`` 처럼 받을 항목을 고를 수 있다(기본은 draw, raffle 제외)
 - 스트리머, 매니저 채팅 명령(commands.py): ``!동작``, ``!단축키``, ``!모집``, ``!마감``, ``!추첨``, ``!순서``
 - ``/tracker`` 얼굴 추적 화면(일반 브라우저에서 열고 카메라 허용). ``POST /tracking`` 으로 값을 보낸다
+- ``/phone`` 휴대폰 얼굴 추적 설정 화면(phone.py, iFacialMocap과 VTube Studio 아이폰 앱). ``/phone/status`` 상태,
+  ``POST /phone/start`` (``{"app": "ifacialmocap", "ip": "192.168.0.12"}``), ``/phone/stop``, ``/phone/options``, ``/phone/calibrate``.
+  휴대폰 값을 받는 중에는 웹캠 추적 화면의 값을 쓰지 않는다
 - ``POST /test`` 설정 화면의 테스트 메시지, ``POST /voice/test`` 말하기 시험
 
 127.0.0.1에만 열리고, 다른 웹사이트가 이 서버에 요청을 끼워 넣지 못하도록 Host와
 Origin을 확인한다. 받은 채팅은 저장하지 않고 최근 몇십 개만 메모리에 둔다.
+휴대폰 얼굴 추적의 수신 창구(UDP)는 사용자가 켠 경우에만, 휴대폰과 연결된 네트워크 주소 하나에 열고 지정한 휴대폰의 값만 받는다.
 """
 
 from __future__ import annotations
@@ -41,13 +45,14 @@ from .. import commands
 from .. import draw as drawing
 from .. import motion as motions
 from .. import raffle as raffles
+from . import phone as phones
 from .events import OverlayEvent, system_event
 from .tracking import TrackingState, clean
 from .voice import VoiceState
 
 STATIC = {"/": "index.html", "/chat": "chat.html", "/alerts": "alerts.html", "/overlay.css": "overlay.css", "/overlay.js": "overlay.js",
           "/favicon.svg": "favicon.svg", "/character": "character.html", "/character.js": "character.js", "/tracker": "tracker.html", "/tracker.js": "tracker.js",
-          "/draw": "draw.html", "/draw.js": "draw.js", "/draw.css": "draw.css", "/draw/control": "draw-control.html"}
+          "/draw": "draw.html", "/draw.js": "draw.js", "/draw.css": "draw.css", "/draw/control": "draw-control.html", "/phone": "phone.html"}
 #: /live 로 받을 수 있는 항목. feeds를 지정하지 않으면 DEFAULT_FEEDS
 LIVE_FEEDS = ("voice", "tracking", "motion", "draw", "raffle")
 DEFAULT_FEEDS = ("voice", "tracking", "motion")
@@ -127,13 +132,15 @@ def _static(name: str) -> bytes:
 
 def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.0, voice: VoiceState | None = None,
                  tracking: TrackingState | None = None, motion: motions.MotionState | None = None, draw: drawing.DrawState | None = None,
-                 raffle: raffles.Raffle | None = None, stopping: threading.Event | None = None) -> type[BaseHTTPRequestHandler]:
+                 raffle: raffles.Raffle | None = None, phone: phones.PhoneTracker | None = None,
+                 stopping: threading.Event | None = None) -> type[BaseHTTPRequestHandler]:
     """``stopping`` 이 설정되면 열린 사건 흐름을 모두 끝낸다(화면은 새 서버에 다시 연결)."""
     voice = voice or VoiceState()
     tracking = tracking or TrackingState()
     motion = motion or motions.MotionState()
     draw = draw or drawing.DrawState()
     raffle = raffle or raffles.Raffle()
+    phone = phone or phones.PhoneTracker(tracking)
     states: dict[str, Any] = {"voice": voice, "tracking": tracking, "motion": motion, "draw": draw, "raffle": raffle}
     stopping = stopping or threading.Event()
     step = min(0.5, keepalive)
@@ -192,6 +199,8 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
                 return self._json({"results": draw.recent()})
             if path == "/raffle":
                 return self._json(raffle.status())
+            if path == "/phone/status":
+                return self._json(phone.status())
             if path == "/motion/list":
                 return self._send(HTTPStatus.OK, json.dumps(motions.overview(), ensure_ascii=False).encode(), "application/json")
             if path.startswith("/motion/files/"):
@@ -217,7 +226,8 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
             if not self._local():
                 return self._send(HTTPStatus.FORBIDDEN, b"forbidden")
             if path not in ("/test", "/voice/test", "/tracking", "/motion", "/draw/config", "/draw/test", "/draw/clear", "/raffle/start", "/raffle/stop",
-                            "/raffle/clear", "/raffle/add", "/raffle/remove", "/raffle/draw"):
+                            "/raffle/clear", "/raffle/add", "/raffle/remove", "/raffle/draw", "/phone/start", "/phone/stop", "/phone/options",
+                            "/phone/calibrate"):
                 return self._send(HTTPStatus.NOT_FOUND, b"not found")
             try:
                 raw = json.loads(body or b"{}")
@@ -231,6 +241,8 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
                 return self._draw_post(path, raw, data)
             if path.startswith("/raffle/"):
                 return self._raffle_post(path, data)
+            if path.startswith("/phone/"):
+                return self._phone_post(path, data)
             if path == "/motion":
                 if data.get("stop"):
                     motion.play(stop=True)
@@ -244,7 +256,9 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
                 values = clean(raw)
                 if values is None:
                     return self._send(HTTPStatus.BAD_REQUEST, b"bad tracking data")
-                tracking.publish(values)
+                if phone.receiving():  # 휴대폰 추적이 우선
+                    return self._send(HTTPStatus.OK, b"phone")
+                tracking.publish({**values, "source": "webcam"})
                 return self._send(HTTPStatus.OK, b"ok")
             kind = "donation" if data.get("kind") == "donation" else "chat"
             role = "owner" if data.get("role") == "owner" else ""  # 스트리머 표시 명령(!clip) 시험용
@@ -300,6 +314,25 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
                     return self._json(raffle.status())
                 return self._json(raffle.draw(data.get("count", 1), str(data.get("mode") or "pick")))
             except raffles.RaffleError as error:
+                return self._json({"error": str(error)}, HTTPStatus.BAD_REQUEST)
+            except OSError as error:
+                return self._json({"error": f"설정 저장 실패: {error}"}, HTTPStatus.INTERNAL_SERVER_ERROR)
+
+        def _phone_post(self, path: str, data: dict[str, Any]) -> None:
+            """휴대폰 얼굴 추적 시작, 멈춤, 선택 변경, 정면 맞추기. 잘못된 요청은 400과 한국어 안내."""
+
+            def flag(name: str) -> bool | None:
+                return data[name] if isinstance(data.get(name), bool) else None
+
+            try:
+                if path == "/phone/start":
+                    return self._json(phone.start(data.get("app"), data.get("ip"), flag("mirror"), flag("flip_pitch")))
+                if path == "/phone/stop":
+                    return self._json(phone.stop())
+                if path == "/phone/options":
+                    return self._json(phone.options(flag("mirror"), flag("flip_pitch")))
+                return self._json(phone.calibrate(reset=data.get("reset") is True))
+            except phones.PhoneError as error:
                 return self._json({"error": str(error)}, HTTPStatus.BAD_REQUEST)
             except OSError as error:
                 return self._json({"error": f"설정 저장 실패: {error}"}, HTTPStatus.INTERNAL_SERVER_ERROR)
@@ -424,6 +457,16 @@ class _Tagged:
         self.target.put_nowait((self.name, item))
 
 
+class _PhoneStopper:
+    """서버를 멈출 때 휴대폰 수신도 멈춘다(저장한 사용 여부는 그대로: 다음 실행에도 시작)."""
+
+    def __init__(self, phone: phones.PhoneTracker) -> None:
+        self.phone = phone
+
+    def stop(self) -> None:
+        self.phone.stop(save=False)
+
+
 class _HttpServer(ThreadingHTTPServer):
     """Windows에서는 같은 포트를 다른 프로그램(다른 debutkit 포함)이 함께 열지 못하게 한다.
 
@@ -456,6 +499,7 @@ class OverlayServer:
         self.commands = commands.ChatCommands(motion_state=self.motion, raffle_state=self.raffle, enabled=chat_commands,
                                               notify=lambda text: self.hub.publish(system_event(text)))
         self.hub.taps.append(self.commands)  # 스트리머, 매니저 채팅 명령
+        self.phone = phones.PhoneTracker(self.tracking)  # 휴대폰 얼굴 추적(켠 경우만 수신 창구를 연다)
         self._sources = list(sources)
         self._poll = poll
         self._retry = retry
@@ -463,8 +507,10 @@ class OverlayServer:
         self._threads: list[threading.Thread] = []
         self._attached: list[Any] = []
         self.httpd = _HttpServer(("127.0.0.1", port), make_handler(self.hub, lambda: self.port, voice=self.voice, tracking=self.tracking,
-                                                                   motion=self.motion, draw=self.draw, raffle=self.raffle, stopping=self._stop))
+                                                                   motion=self.motion, draw=self.draw, raffle=self.raffle, phone=self.phone,
+                                                                   stopping=self._stop))
         self._attached.append(self.commands)  # 단축키 실행 스레드 정리
+        self._attached.append(_PhoneStopper(self.phone))
 
     @property
     def port(self) -> int:
@@ -506,7 +552,22 @@ class OverlayServer:
             pump = threading.Thread(target=self._pump, args=(label, factory), name=f"overlay-{label}", daemon=True)
             pump.start()
             self._threads.append(pump)
+        self.start_phone()
         return self
+
+    def start_phone(self, options: dict[str, Any] | None = None) -> bool:
+        """저장 설정에서 켠 휴대폰 얼굴 추적을 시작(실패는 오버레이 상태 메시지로). ``options`` 로 이번 실행만 지정(저장 안 함)."""
+        chosen = options if options is not None else phones.saved_options()
+        if not chosen.get("enabled") or not chosen.get("ip"):
+            return False
+        try:
+            self.phone.start(chosen.get("app"), chosen.get("ip"), chosen.get("mirror"), chosen.get("flip_pitch"), save=options is None)
+        except phones.PhoneError as error:
+            self.hub.publish(system_event(f"휴대폰 얼굴 추적: {error}"))
+            return False
+        app = phones.APPS[self.phone.app].split("(")[0]
+        self.hub.publish(system_event(f"휴대폰 얼굴 추적: {app}, 휴대폰 {self.phone.ip}에 송신 요청"))
+        return True
 
     def attach(self, part: Any) -> Any:
         """서버와 함께 멈출 부품(자동 클립 등). ``stop()`` 을 가진 객체."""

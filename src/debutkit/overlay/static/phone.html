@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>debutkit 휴대폰 얼굴 추적</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <style>
+    :root { color-scheme: light; --bg: #ffffff; --panel: #faf7f5; --line: #e3dfdb; --text: #1e2327; --dim: #5b6670; --ok: #1f7a4d; --bad: #b3261e; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.6 "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; }
+    header { display: flex; align-items: center; gap: 12px; padding: 14px 24px; border-bottom: 1px solid var(--line); }
+    header img { width: 28px; height: 28px; }
+    header h1 { font-size: 17px; margin: 0; }
+    header a { margin-left: auto; color: var(--dim); font-size: 13px; }
+    main { max-width: 1100px; margin: 0 auto; padding: 20px 24px 56px; }
+    .lead { color: var(--dim); margin: 0 0 18px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 20px; align-items: start; }
+    section { border: 1px solid var(--line); border-radius: 6px; padding: 16px 18px; }
+    h2 { font-size: 16px; margin: 0 0 10px; }
+    h3 { font-size: 14px; margin: 14px 0 4px; }
+    .hint { color: var(--dim); font-size: 13px; margin: 6px 0 0; }
+    ol.steps { margin: 4px 0 0; padding-left: 20px; font-size: 14px; }
+    ol.steps li { margin: 2px 0; }
+    label.field { display: grid; gap: 4px; font-weight: 600; font-size: 14px; margin-top: 10px; }
+    label.check { display: flex; gap: 8px; align-items: center; font-size: 14px; margin-top: 8px; }
+    select, input[type=text] { padding: 6px 9px; border: 1px solid #c9c3bd; border-radius: 3px; font: inherit; background: #fff; }
+    input[type=text] { font-family: ui-monospace, Consolas, monospace; }
+    button { background: var(--text); color: #fff; border: 1px solid var(--text); border-radius: 3px; padding: 6px 13px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+    button.secondary { background: #fff; color: var(--text); border-color: #c9c3bd; }
+    button:disabled { opacity: 0.5; cursor: default; }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+    .state { font-size: 14px; font-weight: 600; margin: 12px 0 0; }
+    .state.ok { color: var(--ok); }
+    .state.bad { color: var(--bad); }
+    dl { display: grid; grid-template-columns: max-content 1fr; gap: 3px 14px; margin: 10px 0 0; font-size: 14px; }
+    dt { color: var(--dim); }
+    dd { margin: 0; font-variant-numeric: tabular-nums; }
+    .bars { display: grid; grid-template-columns: max-content 1fr; gap: 4px 10px; align-items: center; margin-top: 10px; font-size: 13px; }
+    .bar { height: 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 2px; overflow: hidden; }
+    .bar span { display: block; height: 100%; width: 0; background: var(--text); }
+    code { background: var(--panel); border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; font-size: 13px; }
+  </style>
+</head>
+<body>
+<header>
+  <img src="/favicon.svg" alt="">
+  <h1>debutkit 휴대폰 얼굴 추적</h1>
+  <a href="/">오버레이 설정 화면</a>
+</header>
+<main>
+  <p class="lead">아이폰의 얼굴 인식 카메라로 추적한 머리 움직임과 표정 52개(ARKit)를 받아 캐릭터 화면에 반영합니다. 웹캠 추적보다 눈, 입, 눈썹이 정확하고, ARKit 이름 표정을 가진 모델(퍼펙트 싱크)은 얼굴 전체가 움직입니다. 값은 이 PC의 메모리에서만 처리하며 저장하거나 외부로 보내지 않습니다.</p>
+  <div class="grid">
+    <section>
+      <h2>연결</h2>
+      <label class="field">휴대폰 앱
+        <select id="app"></select>
+      </label>
+      <label class="field">휴대폰 IP 주소
+        <input type="text" id="ip" placeholder="예: 192.168.0.12" inputmode="decimal" autocomplete="off" spellcheck="false">
+      </label>
+      <label class="check"><input type="checkbox" id="mirror"> 거울처럼 움직이기</label>
+      <label class="check"><input type="checkbox" id="flip-pitch"> 위아래 반전(고개를 들 때 숙이는 경우)</label>
+      <div class="row">
+        <button id="start">연결 시작</button>
+        <button id="stop" class="secondary">연결 끊기</button>
+      </div>
+      <p class="state" id="state">상태 확인 중</p>
+      <p class="hint" id="detail"></p>
+    </section>
+    <section>
+      <h2>정면 맞추기</h2>
+      <p class="hint">휴대폰을 옆이나 아래에 비스듬히 둔 경우, 화면을 정면으로 보는 자세에서 누르면 그 각도를 정면으로 저장합니다.</p>
+      <div class="row">
+        <button id="calibrate">지금 자세를 정면으로</button>
+        <button id="reset" class="secondary">되돌리기</button>
+      </div>
+      <dl>
+        <dt>받는 횟수</dt><dd id="fps">-</dd>
+        <dt>얼굴 인식</dt><dd id="found">-</dd>
+        <dt>받은 표정 수</dt><dd id="shapes">-</dd>
+        <dt>PC 수신 주소</dt><dd id="local">-</dd>
+        <dt>정면 각도</dt><dd id="center">-</dd>
+      </dl>
+      <div class="bars" id="bars"></div>
+    </section>
+    <section>
+      <h2>휴대폰 앱 준비</h2>
+      <h3>iFacialMocap(App Store 유료, FaceMotion3D는 iFacialMocap 호환 모드)</h3>
+      <ol class="steps">
+        <li>휴대폰과 PC를 같은 Wi-Fi(공유기)에 연결</li>
+        <li>앱을 실행하고 화면 위쪽에 표시된 IP 주소를 왼쪽에 입력</li>
+        <li>연결 시작을 누르면 debutkit이 앱에 송신 요청(앱에서 PC IP를 입력하는 방식도 사용 가능)</li>
+      </ol>
+      <h3>VTube Studio(아이폰, 아이패드)</h3>
+      <ol class="steps">
+        <li>설정 첫 번째 탭 맨 아래의 3rd Party PC Clients 켜기</li>
+        <li>그 아래 표시된 IP 주소를 왼쪽에 입력하고 연결 시작</li>
+        <li>연결되면 휴대폰 화면이 어두워지는 것이 정상(배터리 절약)</li>
+      </ol>
+      <h3>연결되지 않을 때</h3>
+      <ol class="steps">
+        <li>처음 연결할 때 나오는 Windows 보안 경고에서 개인 네트워크 허용</li>
+        <li>Windows 설정의 네트워크 프로필을 개인 네트워크로(공용이면 차단될 수 있음)</li>
+        <li>아이폰 설정의 앱 항목에서 로컬 네트워크 허용</li>
+        <li>VSeeFace, Warudo, VMagicMirror 등 같은 앱을 받는 프로그램은 끄기</li>
+        <li>머리가 반대로 돌면 거울처럼 움직이기를 바꾸고, 위아래가 반대면 위아래 반전 선택</li>
+      </ol>
+      <p class="hint">휴대폰 앱의 추적 품질 설정과 발열 대책(장시간 방송 최적화 등)은 각 앱의 안내를 따릅니다.</p>
+    </section>
+  </div>
+</main>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const WATCH = ["eyeBlinkLeft", "eyeBlinkRight", "jawOpen", "mouthSmileLeft", "browInnerUp"];
+  const post = async (path, body) => {
+    const response = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || `요청 실패(${response.status})`);
+    return data;
+  };
+  let filled = false;
+  let lastError = "";
+  const degrees = (value) => `${Math.round(value * 180 / Math.PI)}도`;
+  function render(status) {
+    if (!filled) {  // 처음 한 번 저장한 설정으로 채움
+      $("app").replaceChildren(...Object.entries(status.apps).map(([value, label]) => new Option(label, value)));
+      $("app").value = status.app;
+      $("ip").value = status.ip;
+      $("mirror").checked = status.mirror;
+      $("flip-pitch").checked = status.flip_pitch;
+      filled = true;
+    }
+    const state = $("state");
+    if (lastError) {
+      state.textContent = lastError;
+      state.className = "state bad";
+    } else if (status.receiving) {
+      state.textContent = status.found ? "추적 중" : "연결됨, 얼굴을 찾지 못함: 휴대폰 카메라 정면을 보십시오";
+      state.className = status.found ? "state ok" : "state";
+    } else if (status.running) {
+      state.textContent = status.error || "휴대폰 응답 대기: 앱 실행, 같은 Wi-Fi, 방화벽 허용 확인";
+      state.className = status.error ? "state bad" : "state";
+    } else {
+      state.textContent = "꺼짐";
+      state.className = "state";
+    }
+    $("detail").textContent = status.running ? `휴대폰 ${status.ip}${status.dropped ? `, 다른 기기에서 온 값 ${status.dropped}개 무시` : ""}` : "";
+    $("fps").textContent = status.receiving ? `초당 ${status.fps}회` : "-";
+    $("found").textContent = status.receiving ? (status.found ? "인식" : "인식 안 됨") : "-";
+    $("shapes").textContent = status.receiving ? `${status.shapes}개` : "-";
+    $("local").textContent = status.running ? `${status.local}:${status.port}` : "-";
+    $("center").textContent = status.center.some((value) => value !== 0)
+      ? `좌우 ${degrees(status.center[0])}, 위아래 ${degrees(status.center[1])}, 기울기 ${degrees(status.center[2])}` : "보정 없음";
+    $("start").textContent = status.running ? "다시 연결" : "연결 시작";
+    $("stop").disabled = !status.running;
+    $("calibrate").disabled = !status.receiving;
+  }
+  async function refresh() {
+    try {
+      render(await (await fetch("/phone/status", { cache: "no-store" })).json());
+    } catch (error) {
+      $("state").textContent = "debutkit 서버에 연결하지 못함: 오버레이 실행 여부 확인";
+      $("state").className = "state bad";
+    }
+  }
+  async function act(path, body) {
+    try {
+      lastError = "";
+      render(await post(path, body));
+    } catch (error) {
+      lastError = error.message;
+      refresh();
+    }
+  }
+  $("start").addEventListener("click", () => act("/phone/start", { app: $("app").value, ip: $("ip").value.trim(), mirror: $("mirror").checked, flip_pitch: $("flip-pitch").checked }));
+  $("stop").addEventListener("click", () => act("/phone/stop"));
+  $("calibrate").addEventListener("click", () => act("/phone/calibrate"));
+  $("reset").addEventListener("click", () => act("/phone/calibrate", { reset: true }));
+  for (const id of ["mirror", "flip-pitch"]) $(id).addEventListener("change", () => act("/phone/options", { mirror: $("mirror").checked, flip_pitch: $("flip-pitch").checked }));
+  // 표정 값 막대(받는 값 확인용). 캐릭터 화면과 같은 연결(/live)의 추적 값
+  $("bars").replaceChildren(...WATCH.flatMap((name) => {
+    const label = document.createElement("span");
+    label.textContent = name;
+    const bar = document.createElement("div");
+    bar.className = "bar";
+    bar.innerHTML = `<span id="bar-${name}"></span>`;
+    return [label, bar];
+  }));
+  const live = new EventSource("/live?feeds=tracking");
+  live.addEventListener("tracking", (message) => {
+    const values = JSON.parse(message.data);
+    for (const name of WATCH) $(`bar-${name}`).style.width = `${Math.round(((values.arkit || {})[name] || 0) * 100)}%`;
+  });
+  refresh();
+  setInterval(refresh, 1000);
+  window.debutkitPhone = { render, refresh };  // 시험용
+</script>
+</body>
+</html>
