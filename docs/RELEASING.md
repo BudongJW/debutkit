@@ -155,6 +155,20 @@ python packaging/build_windows.py --installer
 - 인증서 3개만 등록하면 서명만, 6개 모두 등록하면 공증까지 진행
 - 공증 후에는 릴리스 노트의 macOS 첫 실행 안내(우클릭 후 열기) 삭제 가능
 
+## 휴대폰 앱(안드로이드 APK) 서명
+
+릴리스 작업이 안드로이드 APK(`debutkit-phone-버전-android.apk`)를 만들어 첨부한다. 서명 키 비밀값이 없으면 시험용 디버그 키(빌드마다 달라짐)로 서명하므로 새 버전 설치 전에 이전 앱을 지워야 한다. 배포 키는 한 번 정하면 바꿀 수 없다(바꾸면 기존 사용자가 업데이트 불가).
+
+1. 저장소 소유자 PC에서 키 생성(JDK의 keytool): `keytool -genkeypair -v -keystore debutkit-release.jks -alias debutkit -keyalg RSA -keysize 4096 -validity 10000`
+2. 키 파일과 비밀번호를 오프라인 두 곳 이상에 보관(분실하면 같은 앱으로 업데이트 불가)
+3. 저장소 비밀값 등록
+   - `ANDROID_KEYSTORE_BASE64`: 키 파일의 base64(`base64 -w0 debutkit-release.jks`, Windows는 `certutil -encode` 후 머리글과 꼬리글 제거)
+   - `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`(위 예시는 `debutkit`), `ANDROID_KEY_PASSWORD`
+4. 등록 후 첫 릴리스 노트에 이전 시험용 서명 앱을 지운 뒤 설치하라는 안내 유지(릴리스 노트는 서명 상태에 따라 자동)
+5. F-Droid 신청 시 F-Droid 서명 또는 재현 가능 빌드 방식 선택. Android 개발자 인증(2027 전 세계 적용 예정)은 서명 키 지문 등록 필요
+
+iOS 앱은 앱 스토어 계정(개인 연 99달러, 판매자명에 본명 표시)이 정해질 때까지 소스 빌드만 안내한다(`mobile/ios/README.md`).
+
 ## YouTube 실제 수신 검증
 
 - Verify 작업의 youtube 단계는 API 키 없이 실제 서버의 스트리밍 메서드 경로와 API 키 전달 방식을 확인

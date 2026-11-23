@@ -102,5 +102,5 @@ def test_android_app_line(capsys, monkeypatch):
     assert f"debutkit-phone-{__version__}-android.apk" in out and "이전 앱을 지운 뒤 설치" in out and "mobile/ios/README.md" in out
     assert release_notes.main([f"v{__version__}", "--android", "--android-signed"]) == 0
     out = capsys.readouterr().out
-    assert "android.apk" in out and "이전 앱을 지운 뒤" not in out
-    assert release_notes.main([f"v{__version__}"]) == 0 and "android.apk" not in capsys.readouterr().out
+    assert f"debutkit-phone-{__version__}-android.apk" in out and "이전 앱을 지운 뒤" not in out
+    assert release_notes.main([f"v{__version__}"]) == 0 and f"debutkit-phone-{__version__}-android.apk" not in capsys.readouterr().out

@@ -184,7 +184,7 @@
     </section>
   </div>
   <h2 class="group" id="remote">휴대폰 조작 화면(추첨, 동작)</h2>
-  <p class="lead">같은 Wi-Fi의 휴대폰 브라우저로 시청자 참여 추첨(모집, 마감, 뽑기, 순서)과 3D 캐릭터 동작을 조작하고 후원 추첨 결과를 봅니다. 앱 설치는 필요 없습니다. QR 코드로 등록하고 PC에서 승인한 휴대폰만 조작할 수 있습니다.</p>
+  <p class="lead">같은 Wi-Fi의 휴대폰 브라우저로 시청자 참여 추첨(모집, 마감, 뽑기, 순서)과 3D 캐릭터 동작을 조작하고 후원 추첨 결과를 봅니다. 앱 설치는 필요 없습니다. QR 코드로 등록하고 PC에서 승인한 휴대폰만 조작할 수 있습니다. debutkit 휴대폰 앱(안드로이드, 아이폰)도 같은 QR로 등록하면 휴대폰 카메라 얼굴 추적 값을 보냅니다.</p>
   <div class="grid">
     <section>
       <h2>조작 화면 켜기</h2>
@@ -381,7 +381,8 @@
     const push = document.createElement("span");
     push.className = "push";
     if (item.approved) {
-      state.textContent = item.last_seen ? `승인됨, 마지막 접속 ${new Date(item.last_seen * 1000).toLocaleTimeString()}` : "승인됨";
+      state.textContent = item.tracking ? `승인됨, 앱 얼굴 추적 초당 ${item.tracking}회`
+        : item.last_seen ? `승인됨, 마지막 접속 ${new Date(item.last_seen * 1000).toLocaleTimeString()}` : "승인됨";
     } else if (item.claimed) {
       state.innerHTML = "승인 대기, 휴대폰 확인 번호 ";
       const code = document.createElement("span");
