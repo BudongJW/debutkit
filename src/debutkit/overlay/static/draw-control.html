@@ -54,6 +54,8 @@
     .chips span.miss { color: var(--dim); }
     .script { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; }
     .script p { margin: 0; flex: 1; }
+    a.link { display: inline-block; padding: 5px 12px; border: 1px solid #c9c3bd; border-radius: 3px; color: var(--text); font-size: 14px; font-weight: 600; text-decoration: none; }
+    a.link:hover { border-color: var(--text); }
   </style>
 </head>
 <body>
@@ -104,6 +106,23 @@
       <div class="row">
         <select id="style" aria-label="연출"></select>
         <label>결과 표시 시간 <input id="seconds" type="number" min="3" max="60" step="1" style="width:72px">초</label>
+      </div>
+      <div class="row">
+        <label>추첨 이름 <input id="title" maxlength="20" style="width:170px" placeholder="후원 추첨"></label>
+      </div>
+      <div class="row">
+        <select id="position" aria-label="표시 위치"></select>
+        <label>크기 <input id="scale" type="number" min="60" max="140" step="10" style="width:72px">%</label>
+      </div>
+      <div class="row">
+        <label class="check"><input type="checkbox" id="sound"> 효과음</label>
+        <label class="check"><input type="checkbox" id="show-percent"> 방송 화면에 확률 표시</label>
+      </div>
+      <p class="hint">추첨 이름은 하단 띠에 표시합니다(예: 벌칙 룰렛). 크기는 1920x1080 기준 100%입니다. 효과음은 OBS 브라우저 소스 속성의 OBS 오디오 제어를 켠 경우 방송에 나갑니다.</p>
+      <div class="row">
+        <a class="link" href="/draw?sample=card&amp;count=3" target="_blank" rel="noopener">카드 미리보기</a>
+        <a class="link" href="/draw?sample=wheel" target="_blank" rel="noopener">룰렛 미리보기</a>
+        <span class="hint" style="margin:0">저장한 설정으로 이 PC에서만 표시(방송에 나가지 않음)</span>
       </div>
       <div class="row"><button id="save">저장</button><span class="state" id="save-state"></span></div>
     </section>
@@ -226,6 +245,16 @@
     }));
     $("style").value = config.style;
     $("seconds").value = config.seconds;
+    $("title").value = config.title;
+    $("position").replaceChildren(...Object.entries(config.positions).map(([value, label]) => {
+      const option = el("option", "", label);
+      option.value = value;
+      return option;
+    }));
+    $("position").value = config.position;
+    $("scale").value = config.scale;
+    $("sound").checked = config.sound;
+    $("show-percent").checked = config.show_percent;
     percentUpdate();
   }
 
@@ -238,6 +267,11 @@
       members: $("members").checked,
       style: $("style").value,
       seconds: Number($("seconds").value),
+      title: $("title").value.trim(),
+      position: $("position").value,
+      scale: Number($("scale").value),
+      sound: $("sound").checked,
+      show_percent: $("show-percent").checked,
     };
   }
 

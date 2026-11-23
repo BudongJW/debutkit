@@ -454,7 +454,8 @@ def _draw_show(config: Any, port: int) -> None:
     for rule in reversed(config.rules):
         print(f"    {rule.min_won:>10,}원  {rule.draws}회")
     print(f"  구독, 멤버십: {'1회 추첨' if config.members else '추첨 안 함'}")
-    print(f"  연출: {draw.STYLES[config.style]}, 결과 표시 {config.seconds}초")
+    print(f"  연출: {draw.STYLES[config.style]}, 결과 표시 {config.seconds}초, 추첨 이름 {config.title}")
+    print(f"  표시: {draw.POSITIONS[config.position]}, 크기 {config.scale}%, 효과음 {'켬' if config.sound else '끔'}, 확률 {'표시' if config.show_percent else '표시 안 함'}")
     print(f"  방송 화면 http://127.0.0.1:{port}/draw  조작 화면 http://127.0.0.1:{port}/draw/control")
 
 
@@ -479,13 +480,14 @@ def _draw(args: argparse.Namespace) -> int:
     if command == "test":
         return _post_overlay(args.port, "/draw/test", {"amount": args.amount}, lambda answer: f"시험 추첨 {answer.get('count')}회: {answer.get('script', '')}")
     current = draw.load_config().to_dict()
-    data: dict[str, Any] = {key: current[key] for key in ("enabled", "prizes", "rules", "exact", "members", "style", "seconds")}
+    data: dict[str, Any] = {key: current[key] for key in ("enabled", "prizes", "rules", "exact", "members", "style", "seconds", "title", "position",
+                                                           "scale", "sound", "show_percent")}
     try:
         if args.prize:
             data["prizes"] = [{"name": name, "weight": weight} for weight, name in _draw_pairs(args.prize, "상품(가중치:이름)")]
         if args.rule:
             data["rules"] = [{"min_won": amount, "draws": count} for amount, count in _draw_pairs(args.rule, "규칙(금액:횟수)")]
-        for key in ("enabled", "exact", "members", "style", "seconds"):
+        for key in ("enabled", "exact", "members", "style", "seconds", "title", "position", "scale", "sound", "show_percent"):
             if getattr(args, key) is not None:
                 data[key] = getattr(args, key)
         config = draw.save_config(draw.from_request(data))
@@ -666,6 +668,11 @@ def build_parser() -> argparse.ArgumentParser:
     draw_set.add_argument("--members", action=argparse.BooleanOptionalAction, default=None, help="구독, 멤버십도 1회 추첨")
     draw_set.add_argument("--style", choices=["card", "wheel"], help="연출: card(카드 뒤집기), wheel(룰렛)")
     draw_set.add_argument("--seconds", type=int, metavar="초", help="결과 표시 시간(3에서 60초)")
+    draw_set.add_argument("--title", metavar="이름", help="추첨 이름(20자 이내, 하단 띠에 표시). 예: 벌칙 룰렛")
+    draw_set.add_argument("--position", choices=["center", "left", "right"], help="표시 위치: center(아래 가운데), left(왼쪽 아래), right(오른쪽 아래)")
+    draw_set.add_argument("--scale", type=int, metavar="%", help="표시 크기(60에서 140%%, 1920x1080 기준 100)")
+    draw_set.add_argument("--sound", action=argparse.BooleanOptionalAction, default=None, help="효과음(OBS 오디오 제어를 켠 경우 방송에 나감)")
+    draw_set.add_argument("--show-percent", action=argparse.BooleanOptionalAction, default=None, help="방송 화면에 확률 표시")
     draw_set.add_argument("--port", type=int, default=OVERLAY_PORT, help=argparse.SUPPRESS)
     draw_test = draws_sub.add_parser("test", help="실행 중인 오버레이에서 시험 추첨(저장한 설정 사용)")
     draw_test.add_argument("--amount", type=int, default=1000, metavar="원", help="시험 금액 (기본 %(default)s원)")

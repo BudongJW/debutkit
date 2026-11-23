@@ -1,4 +1,4 @@
-함께 배포하는 외부 라이브러리(캐릭터 화면의 VRM 표시, 동작 재생, 얼굴 추적). 원본 파일을 수정하지 않고 포함.
+함께 배포하는 외부 라이브러리와 글꼴(캐릭터 화면의 VRM 표시, 동작 재생, 얼굴 추적, 후원 추첨 연출의 글꼴). 원본 파일을 수정하지 않고 포함.
 
 three 0.187.0 (MIT) https://github.com/mrdoob/three.js
   출처 https://cdn.jsdelivr.net/npm/three@0.187.0/ (build, examples/jsm 일부)
@@ -10,10 +10,19 @@ three 0.187.0 (MIT) https://github.com/mrdoob/three.js
 @mediapipe/tasks-vision 1.2.3 (Apache-2.0) https://github.com/google-ai-edge/mediapipe
   출처 https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.2.3/ (vision_bundle.mjs, wasm/vision_wasm_internal.*)
   사용 기록 전송 코드(odml.pa.googleapis.com)가 들어 있어 얼굴 추적 화면은 콘텐츠 보안 정책으로 외부 접속을 차단
+Black Han Sans (SIL OFL 1.1, 예약 글꼴 이름 없음) https://github.com/zesstype/Black-Han-Sans
+  출처 https://github.com/google/fonts/tree/main/ofl/blackhansans (BlackHanSans-Regular.ttf를 글리프 변경 없이 woff2로 변환), 라이선스 fonts/OFL-BlackHanSans.txt
+Pretendard 1.3.9 (SIL OFL 1.1, 예약 글꼴 이름 Pretendard) https://github.com/orioncactus/pretendard
+  출처 https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/static/woff2-subset/ (제작자 배포 파일 그대로, SemiBold, Bold), 라이선스 fonts/OFL-Pretendard.txt
 MediaPipe Face Landmarker 모델 face_landmarker.task (float16, 버전 1, Apache-2.0)
   출처 https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task
 
 SHA-256
+  999152fa183e30112f2506d3c371e8edb2216163d6950a94f593d03a07fbd7b9  fonts/BlackHanSans-Regular.woff2
+  c324192c8b3a988bae45a9a7e4ac1258b684739003bda114e0523423440457c9  fonts/OFL-BlackHanSans.txt
+  b04538c9abec39a3db75108cf0af0fd9c77032fe8aa2cf38345b4d250e98e38e  fonts/OFL-Pretendard.txt
+  78eb71c33101ee7d4f8d1b777d193a12d00f8a296e712a8c417cf27abe946397  fonts/Pretendard-Bold.subset.woff2
+  4247dc5e260b92640c2cbd0e75091154647b71e1d5884116655e2903468c54cc  fonts/Pretendard-SemiBold.subset.woff2
   cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30  mediapipe/LICENSE
   64184e229b263107bc2b804c6625db1341ff2bb731874b0bcc2fe6544e0bc9ff  mediapipe/face_landmarker.task
   fb0c02c296f44ce0cc324ba16bd646d8773eb4a7847db4019cc4d0430db7a9b5  mediapipe/vision_bundle.mjs

@@ -48,6 +48,11 @@ FIELDS: dict[str, type] = {
     "draw_members": bool,
     "draw_style": str,
     "draw_seconds": int,
+    "draw_title": str,
+    "draw_position": str,
+    "draw_scale": int,
+    "draw_sound": bool,
+    "draw_show_percent": bool,
 }
 
 #: 이 단어가 들어간 항목은 저장하지 않는다(실수로 FIELDS에 추가해도 막음)

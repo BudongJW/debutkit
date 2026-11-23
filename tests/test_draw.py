@@ -136,7 +136,7 @@ def request(srv, method, path, body=None, raw=None):
 
 
 def test_pages_and_config_endpoints(server):
-    for path, marker in (("/draw", b"/draw.js"), ("/draw/control", "후원 추첨".encode()), ("/draw.js", b"playWheel"), ("/draw.css", b".draw-card")):
+    for path, marker in (("/draw", b"/draw.js"), ("/draw/control", "후원 추첨".encode()), ("/draw.js", b"playWheel"), ("/draw.css", b".dk-card")):
         status, _, body = request(server, "GET", path)
         assert status == 200 and marker in body, path
     status, _, body = request(server, "GET", "/draw/config")
@@ -236,3 +236,39 @@ def test_cli_show_set_and_test(capsys):
     finally:
         srv.stop()
     assert cli.main(["draw", "test", "--port", str(port)]) == 1 and "오버레이에 연결하지 못함" in capsys.readouterr().err
+
+
+def test_display_settings_validate_save_and_reach_results():
+    draw.save_config(config(title="  벌칙 룰렛 ", position="right", scale=80, sound=True, show_percent=True))
+    saved = settings.load()
+    assert (saved["draw_title"], saved["draw_position"], saved["draw_scale"], saved["draw_sound"], saved["draw_show_percent"]) == ("벌칙 룰렛", "right", 80, True, True)
+    loaded = draw.load_config()
+    assert loaded.to_dict()["positions"]["right"] == "오른쪽 아래" and loaded.title == "벌칙 룰렛"
+    result = draw.DrawState(rng=random.Random(2)).run(loaded, name="a", platform="chzzk", kind="donation", amount=1000, unit="원", count=1)
+    assert (result["title"], result["position"], result["scale"], result["sound"], result["show_percent"]) == ("벌칙 룰렛", "right", 80, True, True)
+    assert config(title="").title == draw.DEFAULT_TITLE
+    for changes, message in (({"title": "가" * 21}, "20자 이내"), ({"position": "top"}, "center"), ({"scale": 150}, "60%에서 140%"), ({"scale": 85.5}, "60%에서 140%")):
+        with pytest.raises(draw.DrawError, match=message):
+            config(**changes)
+    broken = draw.load_config({"draw_title": " ", "draw_position": "middle", "draw_scale": 999, "draw_sound": True})
+    assert (broken.title, broken.position, broken.scale, broken.sound) == (draw.DEFAULT_TITLE, "center", 100, True)
+
+
+def test_cli_display_flags(capsys):
+    assert cli.main(["draw", "set", "--title", "벌칙 룰렛", "--position", "left", "--scale", "120", "--sound", "--show-percent"]) == 0
+    out = capsys.readouterr().out
+    assert "추첨 이름 벌칙 룰렛" in out and "왼쪽 아래, 크기 120%, 효과음 켬, 확률 표시" in out
+    assert cli.main(["draw", "set", "--no-sound", "--no-show-percent"]) == 0
+    loaded = draw.load_config()
+    assert loaded.title == "벌칙 룰렛" and loaded.scale == 120 and not loaded.sound and not loaded.show_percent
+    assert cli.main(["draw", "set", "--scale", "10"]) == 1 and "60%에서 140%" in capsys.readouterr().err
+
+
+def test_fonts_are_bundled_and_served(server):
+    css = request(server, "GET", "/draw.css")[2].decode()
+    for name in ("BlackHanSans-Regular.woff2", "Pretendard-SemiBold.subset.woff2", "Pretendard-Bold.subset.woff2"):
+        assert f"/vendor/fonts/{name}" in css
+        status, kind, body = request(server, "GET", f"/vendor/fonts/{name}")
+        assert status == 200 and kind == "font/woff2" and body[:4] == b"wOF2", name
+    for license_ in ("OFL-BlackHanSans.txt", "OFL-Pretendard.txt"):
+        assert b"SIL Open Font License" in request(server, "GET", f"/vendor/fonts/{license_}")[2]

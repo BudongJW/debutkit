@@ -23,6 +23,10 @@ from . import settings
 from .vts import WON_PER_UNIT
 
 STYLES = {"card": "카드 뒤집기", "wheel": "룰렛"}
+POSITIONS = {"center": "아래 가운데", "left": "왼쪽 아래", "right": "오른쪽 아래"}
+DEFAULT_TITLE = "후원 추첨"
+MAX_TITLE = 20
+SCALE = (60, 140)  # 표시 크기(%), 1920x1080 기준 100
 MAX_PRIZES = 30
 MAX_RULES = 10
 MAX_DRAWS = 30
@@ -61,6 +65,11 @@ class Config:
     members: bool = False
     style: str = "card"
     seconds: int = 8
+    title: str = DEFAULT_TITLE  # 추첨 이름(하단 띠에 표시). 예: 벌칙 룰렛
+    position: str = "center"
+    scale: int = 100
+    sound: bool = False  # 효과음(브라우저에서 합성, OBS 오디오 제어를 켠 경우 방송에 나감)
+    show_percent: bool = False  # 방송 화면에 확률 표시
 
     def percent(self, prize: Prize) -> float:
         total = sum(item.weight for item in self.prizes)
@@ -74,12 +83,14 @@ class Config:
     def to_dict(self) -> dict[str, Any]:
         return {"enabled": self.enabled, "prizes": [self.entry(prize) for prize in self.prizes],
                 "rules": [{"min_won": rule.min_won, "draws": rule.draws} for rule in self.rules], "exact": self.exact,
-                "members": self.members, "style": self.style, "seconds": self.seconds, "styles": STYLES}
+                "members": self.members, "style": self.style, "seconds": self.seconds, "title": self.title, "position": self.position,
+                "scale": self.scale, "sound": self.sound, "show_percent": self.show_percent, "styles": STYLES, "positions": POSITIONS}
 
     def to_settings(self) -> dict[str, Any]:
         return {"draw_enabled": self.enabled, "draw_prizes": [f"{prize.weight:g}:{prize.name}" for prize in self.prizes],
                 "draw_rules": [f"{rule.min_won}:{rule.draws}" for rule in self.rules], "draw_exact": self.exact,
-                "draw_members": self.members, "draw_style": self.style, "draw_seconds": self.seconds}
+                "draw_members": self.members, "draw_style": self.style, "draw_seconds": self.seconds, "draw_title": self.title,
+                "draw_position": self.position, "draw_scale": self.scale, "draw_sound": self.sound, "draw_show_percent": self.show_percent}
 
 
 # --------------------------------------------------------------------------- 설정 읽기, 확인
@@ -122,9 +133,14 @@ def load_config(saved: dict[str, Any] | None = None) -> Config:
     prizes = parse_prizes(saved.get("draw_prizes")) or parse_prizes(DEFAULT_PRIZES)
     rules = parse_rules(saved.get("draw_rules")) or parse_rules(DEFAULT_RULES)
     seconds = saved.get("draw_seconds", 8)
+    scale = saved.get("draw_scale", 100)
+    title = str(saved.get("draw_title") or "").strip()[:MAX_TITLE] or DEFAULT_TITLE
     return Config(enabled=bool(saved.get("draw_enabled", False)), prizes=prizes, rules=rules, exact=bool(saved.get("draw_exact", False)),
                   members=bool(saved.get("draw_members", False)), style=saved.get("draw_style") if saved.get("draw_style") in STYLES else "card",
-                  seconds=seconds if isinstance(seconds, int) and SECONDS[0] <= seconds <= SECONDS[1] else 8)
+                  seconds=seconds if isinstance(seconds, int) and SECONDS[0] <= seconds <= SECONDS[1] else 8, title=title,
+                  position=saved.get("draw_position") if saved.get("draw_position") in POSITIONS else "center",
+                  scale=scale if isinstance(scale, int) and SCALE[0] <= scale <= SCALE[1] else 100,
+                  sound=bool(saved.get("draw_sound", False)), show_percent=bool(saved.get("draw_show_percent", False)))
 
 
 def _number(value: Any) -> float | None:
@@ -180,8 +196,19 @@ def from_request(data: Any) -> Config:
     seconds = _number(data.get("seconds", 8))
     if seconds is None or seconds != int(seconds) or not SECONDS[0] <= seconds <= SECONDS[1]:
         raise DrawError(f"표시 시간은 {SECONDS[0]}초에서 {SECONDS[1]}초 사이")
+    title = str(data.get("title") or "").strip() or DEFAULT_TITLE
+    if len(title) > MAX_TITLE:
+        raise DrawError(f"추첨 이름은 {MAX_TITLE}자 이내")
+    position = data.get("position", "center")
+    if position not in POSITIONS:
+        raise DrawError("표시 위치는 center(아래 가운데), left(왼쪽 아래), right(오른쪽 아래)")
+    scale = _number(data.get("scale", 100))
+    if scale is None or scale != int(scale) or not SCALE[0] <= scale <= SCALE[1]:
+        raise DrawError(f"표시 크기는 {SCALE[0]}%에서 {SCALE[1]}% 사이")
     return Config(enabled=bool(data.get("enabled", False)), prizes=prizes, rules=sorted(rules, key=lambda rule: rule.min_won, reverse=True),
-                  exact=bool(data.get("exact", False)), members=bool(data.get("members", False)), style=style, seconds=int(seconds))
+                  exact=bool(data.get("exact", False)), members=bool(data.get("members", False)), style=style, seconds=int(seconds),
+                  title=title, position=position, scale=int(scale), sound=bool(data.get("sound", False)),
+                  show_percent=bool(data.get("show_percent", False)))
 
 
 def save_config(config: Config) -> Config:
@@ -250,6 +277,7 @@ class DrawState:
                 "seq": self.current["seq"] + 1, "time": round(time.time(), 3), "test": test, "name": name or "시청자", "platform": platform,
                 "kind": kind, "amount": amount, "unit": unit, "count": count, "draws": pick(config, count, self._rng),
                 "prizes": [config.entry(prize) for prize in config.prizes], "style": config.style, "seconds": config.seconds,
+                "title": config.title, "position": config.position, "scale": config.scale, "sound": config.sound, "show_percent": config.show_percent,
             }
             result["script"] = script(result)
             self.current = result

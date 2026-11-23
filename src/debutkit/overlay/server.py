@@ -54,7 +54,7 @@ TRACKER_POLICY = ("default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; con
 TYPES = {".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".svg": "image/svg+xml",
          ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".json": "application/json",
          ".vrm": "model/gltf-binary", ".glb": "model/gltf-binary", ".vrma": "model/gltf-binary", ".fbx": "application/octet-stream", ".txt": "text/plain; charset=utf-8",
-         ".mjs": "text/javascript; charset=utf-8", ".wasm": "application/wasm", ".task": "application/octet-stream"}
+         ".mjs": "text/javascript; charset=utf-8", ".wasm": "application/wasm", ".task": "application/octet-stream", ".woff2": "font/woff2"}
 _SAFE_PATH = re.compile(r"^[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)*$")
 
 

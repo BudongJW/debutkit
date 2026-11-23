@@ -1,58 +1,143 @@
-/* debutkit 후원 추첨 연출. 평소 투명, 추첨 결과가 오면 화면 가운데에 표시.
-   색은 브랜드 컬러(Slate, Cream, Pink)와 희귀 상품 Gold. OBS 브라우저 소스의 사용자 지정 CSS로 덮어쓸 수 있음 */
+/* debutkit 후원 추첨 연출: "방송 소품" 콘셉트. 고양이 귀 마이크 문양을 찍은 실물 카드와 무대용 상품 룰렛.
+   색 4가지(슬레이트 잉크, 크림 종이, 핑크 인쇄, 금박은 희귀 전용), 흐림 없는 딱딱한 그림자와 외곽선.
+   화면 가운데 패널 없이 소품과 하단 띠만 화면 아래쪽에 놓는다(위치, 크기는 설정). OBS 사용자 지정 CSS로 덮어쓸 수 있음 */
+
+@font-face { font-family: "Black Han Sans"; src: url("/vendor/fonts/BlackHanSans-Regular.woff2") format("woff2"); font-display: block; }
+@font-face { font-family: "Pretendard"; src: url("/vendor/fonts/Pretendard-SemiBold.subset.woff2") format("woff2"); font-weight: 600; font-display: block; }
+@font-face { font-family: "Pretendard"; src: url("/vendor/fonts/Pretendard-Bold.subset.woff2") format("woff2"); font-weight: 700; font-display: block; }
+
+:root {
+  --ink: #1e2327;
+  --ink-soft: #3a4249;
+  --paper: #faf7f5;
+  --paper-dim: #e6e1dc;
+  --pink: #ff4f8b;
+  --pink-light: #ffb3cb;
+  --gold: #ffd84d;
+  --gold-deep: #c9971c;
+  --muted: #5b6670;
+  --hard: rgba(30, 35, 39, 0.88);
+  --display: "Black Han Sans", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+  --text: "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+  --stripes: repeating-linear-gradient(135deg, var(--ink) 0 7px, var(--ink-soft) 7px 14px);
+  /* 종이 질감: 아주 옅은 잡음 */
+  --grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.12 0 0 0 0 0.14 0 0 0 0 0.15 0 0 0 0.09 0'/></filter><rect width='120' height='120' filter='url(%23n)'/></svg>");
+}
 
 body.sample { background: #59626a; }  /* 미리보기(?sample) 배경 */
-#draw { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.45s; pointer-events: none; }
-#draw.show { opacity: 1; }
+body.sample.light { background: #e9e4dd; }  /* 밝은 게임 화면 위 확인용(?sample=card&bg=light) */
 
-.draw-panel {
-  min-width: 560px; max-width: 1500px; padding: 28px 40px 30px; border-radius: 20px; text-align: center;
-  background: rgba(30, 35, 39, 0.9); color: var(--cream); box-shadow: 0 18px 60px rgba(0, 0, 0, 0.45);
-  transform: scale(0.92); transition: transform 0.45s cubic-bezier(0.2, 1.2, 0.4, 1);
+#draw {
+  position: fixed; inset: 0; display: flex; flex-direction: column; justify-content: flex-end; align-items: center;
+  padding: 0 72px 56px; box-sizing: border-box; pointer-events: none; font-family: var(--text); color: var(--ink);
 }
-#draw.show .draw-panel { transform: scale(1); }
-.draw-head .platform { font-size: 0.8em; }
-.draw-name { margin-top: 8px; font-size: 44px; font-weight: 800; line-height: 1.2; }
-.draw-sub { margin-top: 4px; font-size: 24px; color: var(--name); }
-.draw-stage { margin-top: 24px; }
-.draw-summary { margin-top: 22px; font-size: 26px; font-weight: 700; animation: rise 0.3s ease-out; }
+#draw[data-position="left"] { align-items: flex-start; }
+#draw[data-position="right"] { align-items: flex-end; }
 
-/* ---------------------------------------------------------------- 카드 뒤집기 */
-.draw-cards { display: grid; grid-template-columns: repeat(var(--columns), auto); justify-content: center; gap: 18px; perspective: 1200px; }
-.draw-card { --w: 200px; --h: 280px; width: var(--w); height: var(--h); position: relative; animation: deal 0.45s ease-out both; animation-delay: calc(var(--i) * 70ms); }
-.draw-cards.some .draw-card { --w: 170px; --h: 238px; }
-.draw-cards.many .draw-card { --w: 136px; --h: 190px; }
-.draw-card .inner { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform 0.6s cubic-bezier(0.3, 1.3, 0.5, 1); }
-.draw-card.open .inner { transform: rotateY(180deg); }
-.face { position: absolute; inset: 0; border-radius: 14px; backface-visibility: hidden; -webkit-backface-visibility: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 12px; box-sizing: border-box; }
-.face.back {
-  border: 4px solid var(--accent);
-  background: repeating-linear-gradient(45deg, #2e353b 0 12px, #262c31 12px 24px);
+.dk-scene { position: relative; display: flex; flex-direction: column; align-items: center; gap: 22px; transform: scale(var(--scale, 1)); transform-origin: 50% 100%; }
+#draw[data-position="left"] .dk-scene { align-items: flex-start; transform-origin: 0 100%; }
+#draw[data-position="right"] .dk-scene { align-items: flex-end; transform-origin: 100% 100%; }
+.dk-scene.shake { animation: shake 0.32s linear; }
+.dk-scene.leave .dk-props, .dk-scene.leave .dk-plate { transition: transform 0.4s ease-in, opacity 0.4s ease-in; transform: translateY(40px); opacity: 0; }
+.dk-scene.leave .dk-strip { transition: clip-path 0.35s ease-in 0.1s; clip-path: inset(0 100% 0 0); }
+
+/* ---------------------------------------------------------------- 하단 띠 */
+.dk-strip {
+  display: flex; align-items: stretch; background: var(--ink); color: var(--paper); border: 3px solid var(--ink);
+  box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.35); clip-path: inset(0 100% 0 0); animation: wipe 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
 }
-.face.back::after { content: "?"; font-size: 72px; font-weight: 800; color: var(--accent); }
-.draw-cards.many .face.back::after { font-size: 52px; }
-.face.front { transform: rotateY(180deg); background: var(--cream); color: var(--slate); border: 4px solid #e3dfdb; }
-.face .prize { font-size: 28px; font-weight: 800; line-height: 1.25; word-break: keep-all; }
-.draw-cards.many .face .prize { font-size: 21px; }
-.face .percent { margin-top: 8px; font-size: 16px; color: #5b6670; }
-.face .tag { margin-top: 10px; padding: 2px 12px; border-radius: 999px; background: var(--slate); color: var(--gold); font-size: 15px; font-weight: 700; }
-.draw-card.rare .face.front { border-color: var(--gold); background: #fff6cc; box-shadow: 0 0 28px rgba(255, 216, 77, 0.85); animation: glow 1.2s ease-in-out infinite alternate; }
-.draw-card.miss .face.front { background: #d9dde0; color: #5b6670; border-color: #c9ced2; }
+.dk-strip .tag { display: flex; align-items: center; padding: 0 18px; background: var(--pink); color: var(--ink); font: 24px/1 var(--display); }
+.dk-strip .who { display: flex; align-items: baseline; gap: 6px; padding: 12px 18px 10px; font: 38px/1 var(--display); white-space: nowrap; }
+.dk-strip .who small { font: 700 20px/1 var(--text); color: var(--pink-light); }
+.dk-strip .meta { display: flex; align-items: center; padding: 0 18px 0 0; font: 600 22px/1 var(--text); white-space: nowrap; }
+.dk-strip .meta span { padding: 0 14px; border-left: 2px solid var(--ink-soft); }
+.dk-strip .meta span:first-child { border-left: 0; padding-left: 0; }
+.dk-strip .dk-platform { display: inline-flex; align-items: center; gap: 8px; }
+.dk-strip .dk-platform::before { content: ""; width: 12px; height: 12px; background: var(--platform, var(--pink)); }
+.dk-strip .test { color: var(--gold); }
+
+/* ---------------------------------------------------------------- 결과 판 */
+.dk-plate {
+  display: flex; align-items: center; gap: 16px; padding: 14px 22px 12px; min-width: 260px; max-width: 980px;
+  background: var(--paper) var(--grain); border: 3px solid var(--ink); box-shadow: 6px 6px 0 var(--hard); animation: drop 0.35s cubic-bezier(0.2, 1.3, 0.4, 1);
+}
+.dk-plate .label { font: 700 16px/1.2 var(--text); color: var(--muted); writing-mode: horizontal-tb; white-space: nowrap; }
+.dk-plate .items { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: baseline; font: 34px/1.15 var(--display); }
+.dk-plate .items span.rare { background: var(--gold); padding: 0 8px; box-shadow: 3px 3px 0 var(--ink); }
+.dk-plate .items span.miss { color: var(--muted); }
+.dk-plate .items small { font: 700 20px/1 var(--text); color: var(--muted); margin-left: 4px; }
+.dk-plate.rare { background: var(--gold) var(--grain); position: relative; overflow: hidden; }
+.dk-plate.rare::after { content: ""; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 35%, rgba(255, 255, 255, 0.7) 48%, transparent 60%); background-size: 260% 100%; animation: sheen 1.8s ease-in-out 0.2s 2; }
+.dk-plate.rare .label { color: var(--ink); }
+
+/* ---------------------------------------------------------------- 카드 */
+.dk-deck { position: relative; }
+.dk-card { position: absolute; left: 0; top: 0; width: var(--w); height: var(--h); transform: translate(var(--deck-x), 160px) rotate(0deg); opacity: 0;
+  transition: transform 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.15), opacity 0.2s; transition-delay: calc(var(--i) * 45ms); z-index: var(--z); perspective: 900px; }
+.dk-card.dealt { transform: translate(var(--x), var(--y)) rotate(var(--r)); opacity: 1; }
+.dk-card.lift { transform: translate(var(--x), calc(var(--y) - 22px)) rotate(0deg) scale(1.12); transition-delay: 0s; z-index: 99; }
+.dk-card .inner { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform 0.36s cubic-bezier(0.3, 0.7, 0.4, 1); }
+.dk-card.slow .inner { transition-duration: 0.7s; transition-timing-function: cubic-bezier(0.2, 1.4, 0.4, 1); }
+.dk-card.open .inner { transform: rotateY(180deg); }
+.dk-card.lift .inner { animation: rattle 0.45s linear; }
+.face { position: absolute; inset: 0; border: 3px solid var(--ink); border-radius: 10px; box-shadow: 5px 6px 0 var(--hard); box-sizing: border-box;
+  backface-visibility: hidden; -webkit-backface-visibility: hidden; overflow: hidden; }
+
+/* 뒷면: 슬레이트 바탕, 핑크 망점, 안쪽 인쇄 테두리, 가운데 문양 */
+.face.back { background: radial-gradient(circle, rgba(255, 79, 139, 0.24) 1.3px, transparent 1.8px) 0 0 / 11px 11px, var(--ink);
+  display: flex; align-items: center; justify-content: center; }
+.face.back::before { content: ""; position: absolute; inset: 9%; border: 2px solid var(--pink); border-radius: 6px; }
+.face.back .emblem { width: 44%; height: auto; position: relative; }
+.dk-card.hint .face.back { box-shadow: 5px 6px 0 var(--hard), 0 0 0 4px var(--gold), 0 0 32px 10px rgba(255, 216, 77, 0.75); animation: pulse 0.8s ease-in-out 2; }
+
+/* 앞면: 종이, 위쪽 등급 띠, 상품 이름, 아래 일련번호 */
+.face.front { transform: rotateY(180deg); background: var(--paper) var(--grain); display: flex; flex-direction: column; }
+.face.front .band { height: 18%; display: flex; align-items: center; justify-content: center; background: var(--pink); border-bottom: 3px solid var(--ink);
+  font: calc(var(--h) * 0.075) / 1 var(--display); letter-spacing: 0.08em; }
+.face.front .dk-name { flex: 1; display: flex; align-items: center; justify-content: center; padding: 6% 8%; text-align: center; word-break: keep-all;
+  font: var(--name-size, calc(var(--h) * 0.12)) / 1.15 var(--display); }
+.face.front .foot { display: flex; justify-content: space-between; padding: 0 9% 8%; font: 700 calc(var(--h) * 0.055) / 1 var(--text); color: var(--muted);
+  font-variant-numeric: tabular-nums; }
+.dk-card.miss .face.front { background: var(--paper-dim) var(--grain); }
+.dk-card.miss .face.front .band { background: var(--stripes); color: var(--paper); }
+.dk-card.miss .face.front .dk-name { color: var(--muted); }
+.dk-card.rare .face.front { border-color: var(--gold-deep); box-shadow: 5px 6px 0 var(--hard), inset 0 0 0 4px var(--gold); }
+.dk-card.rare .face.front .band { background: var(--gold); }
+.dk-card.rare .face.front::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(115deg, transparent 32%, rgba(255, 255, 255, 0.75) 46%, rgba(255, 236, 160, 0.4) 52%, transparent 64%); background-size: 280% 100%;
+  animation: sheen 2.2s ease-in-out 0.5s infinite; }
 
 /* ---------------------------------------------------------------- 룰렛 */
-.wheel-box { position: relative; width: 520px; height: 520px; margin: 0 auto; }
-.wheel { width: 100%; height: 100%; display: block; filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.4)); }
-.wheel text { font-family: var(--font); font-weight: 700; }
-.pointer { position: absolute; left: 50%; top: -14px; width: 0; height: 0; margin-left: -20px; border: 20px solid transparent; border-top: 40px solid var(--accent); border-bottom: 0; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5)); }
-.wheel-results { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 20px; min-height: 44px; max-width: 900px; margin-inline: auto; }
-.chip { padding: 6px 16px; border-radius: 999px; background: var(--cream); color: var(--slate); font-size: 22px; font-weight: 700; animation: rise 0.25s ease-out; }
-.chip.rare { background: var(--gold); box-shadow: 0 0 18px rgba(255, 216, 77, 0.8); }
-.chip.miss { background: #d9dde0; color: #5b6670; }
+.dk-wheel { position: relative; width: 440px; height: 440px; }
+.dk-wheel .wheel-svg { width: 100%; height: 100%; display: block; filter: drop-shadow(7px 8px 0 var(--hard)); }
+.dk-wheel text { font-family: var(--display); }
+.dk-wheel .bulb { fill: #59626a; }
+.dk-wheel .bulb.on { fill: var(--gold); }
+.dk-wheel .flapper { position: absolute; left: 50%; top: -16px; width: 40px; height: 73px; margin-left: -20px; transform-origin: 50% 13px; }
+.dk-legend { display: flex; flex-direction: column; gap: 4px; padding: 10px 14px; background: var(--paper) var(--grain); border: 3px solid var(--ink);
+  box-shadow: 5px 5px 0 var(--hard); font: 700 18px/1.3 var(--text); }
+.dk-legend.many { display: block; column-count: 2; column-gap: 22px; }
+.dk-legend b { display: inline-block; min-width: 1.6em; font-family: var(--display); font-weight: 400; }
+.dk-wheel-row { display: flex; align-items: center; gap: 26px; }
+.dk-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; max-width: 760px; }
+.dk-chips span { padding: 6px 12px 4px; background: var(--paper) var(--grain); border: 2px solid var(--ink); box-shadow: 3px 3px 0 var(--hard);
+  font: 22px/1.1 var(--display); animation: drop 0.3s cubic-bezier(0.2, 1.3, 0.4, 1); }
+.dk-chips span.rare { background: var(--gold); }
+.dk-chips span.miss { background: var(--paper-dim); color: var(--muted); }
 
-/* ---------------------------------------------------------------- 반짝임 */
-.burst { position: absolute; left: 50%; top: 50%; width: 0; height: 0; pointer-events: none; z-index: 2; }
-.spark { position: absolute; width: 12px; height: 12px; margin: -6px; border-radius: 50%; background: hsl(var(--hue) 100% 66%); animation: fly 1.3s ease-out var(--delay) both; }
+/* ---------------------------------------------------------------- 종이 조각(희귀 공개) */
+.dk-confetti { position: fixed; left: var(--cx); top: var(--cy); width: 0; height: 0; pointer-events: none; z-index: 200; }
+.dk-confetti i { position: absolute; width: 9px; height: 15px; margin: -7px -4px; background: var(--c); border: 1.5px solid var(--ink);
+  animation: toss 1.5s cubic-bezier(0.25, 0.7, 0.5, 1) var(--d) both; }
 
-@keyframes deal { from { opacity: 0; transform: translateY(46px) scale(0.9); } to { opacity: 1; transform: none; } }
-@keyframes glow { from { box-shadow: 0 0 14px rgba(255, 216, 77, 0.6); } to { box-shadow: 0 0 36px rgba(255, 216, 77, 1); } }
-@keyframes fly { from { opacity: 1; transform: translate(0, 0) scale(1); } to { opacity: 0; transform: translate(var(--x), var(--y)) scale(0.25); } }
+@keyframes wipe { to { clip-path: inset(0 0 0 0); } }
+@keyframes drop { from { transform: translateY(-14px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes sheen { from { background-position: 120% 0; } to { background-position: -40% 0; } }
+@keyframes pulse { 50% { box-shadow: 5px 6px 0 var(--hard), 0 0 0 6px var(--gold), 0 0 44px 16px rgba(255, 216, 77, 0.9); } }
+@keyframes rattle { 0%, 100% { transform: none; } 20% { transform: rotate(-3deg); } 40% { transform: rotate(3deg); } 60% { transform: rotate(-2deg); } 80% { transform: rotate(2deg); } }
+@keyframes shake { 25% { left: 2px; top: -1px; } 50% { left: -2px; top: 1px; } 75% { left: 1px; top: 2px; } }  /* OBS 28(Chromium 103) 호환: translate 속성 대신 위치 */
+@keyframes toss {
+  0% { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+  35% { transform: translate(calc(var(--x) * 0.7), var(--peak)) rotate(calc(var(--r) * 0.4)); opacity: 1; }
+  100% { transform: translate(var(--x), var(--fall)) rotate(var(--r)); opacity: 0; }
+}

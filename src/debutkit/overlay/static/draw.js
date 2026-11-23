@@ -1,15 +1,19 @@
 // debutkit 후원 추첨 연출(OBS 브라우저 소스, 권장 1920x1080). /live?feeds=draw 로 추첨 결과를 받아 차례로 연출한다.
-// 평소에는 투명하고, 결과가 오면 나타나 연출한 뒤 표시 시간이 지나면 사라진다. 연출: card(카드 뒤집기), wheel(룰렛).
+// 콘셉트 "방송 소품": 고양이 귀 마이크 문양을 찍은 실물 카드와 무대용 상품 룰렛. 소품과 하단 띠만 화면 아래쪽에 놓는다.
+// 연출 순서: 시작(띠, 소품 등장), 예고(희귀 카드만 금색 빛, 실제 결과와 같음), 공개(일반 카드 빠르게, 희귀 카드 마지막 천천히), 정리(결과 판), 퇴장.
 // 뽑기는 서버가 하고 이 화면은 받은 결과를 보여 주기만 한다(모든 화면이 같은 결과). 글은 textContent로만 넣는다.
-// 주소의 ?style=card, ?style=wheel 로 연출을 고정할 수 있다.
+// 주소: ?style=card, ?style=wheel 연출 고정. ?sample=card(또는 wheel)&count=11&bg=light 미리보기(이 화면에서만). ?sound 효과음 강제
 "use strict";
 
 (() => {
   const root = document.getElementById("draw");
-  const forced = new URLSearchParams(location.search).get("style");
+  const params = new URLSearchParams(location.search);
+  const forced = params.get("style");
   const STYLES = ["card", "wheel"];
-  const COLORS = ["#ff4f8b", "#faf7f5", "#ffb3cb", "#8fd3ff", "#ff8fb1", "#e3dfdb"];  // 브랜드 Pink, Cream 계열. 희귀 Gold, 꽝 회색
-  const DARK_TEXT = ["#faf7f5", "#ffb3cb", "#8fd3ff", "#ff8fb1", "#e3dfdb", "#ffd84d", "#aab2b8"];
+  const PLATFORMS = (window.debutkit && window.debutkit.PLATFORMS) || {};
+  const NS = "http://www.w3.org/2000/svg";
+  const INK = "#1e2327";
+  const PAPER = "#faf7f5";
   const queue = [];
   let busy = false;
 
@@ -20,166 +24,466 @@
     if (text !== undefined) node.textContent = text;
     return node;
   };
+  const svgEl = (tag, attributes) => {
+    const node = document.createElementNS(NS, tag);
+    for (const [name, value] of Object.entries(attributes || {})) node.setAttribute(name, String(value));
+    return node;
+  };
+  // 글꼴을 다 불러온 뒤 연출(공개 도중 글꼴이 바뀌어 보이지 않게)
+  const fontsReady = document.fonts
+    ? Promise.all(['40px "Black Han Sans"', '600 20px "Pretendard"', '700 20px "Pretendard"'].map((font) => document.fonts.load(font))).catch(() => null)
+    : Promise.resolve();
 
+  // 고양이 귀 마이크 문양(assets/brand의 기호와 같은 도형). 그룹으로 만들어 카드 뒷면과 룰렛 가운데에 사용
+  function emblemShapes(body, eyes) {
+    const group = svgEl("g");
+    group.appendChild(svgEl("path", { d: "M38 32 L42 9 L56 21 Z M82 32 L78 9 L64 21 Z", fill: body, stroke: body, "stroke-width": 6, "stroke-linejoin": "round" }));
+    group.appendChild(svgEl("rect", { x: 36, y: 18, width: 48, height: 64, rx: 24, fill: body }));
+    group.appendChild(svgEl("rect", { x: 45.5, y: 40, width: 8, height: 13, rx: 4, fill: eyes }));
+    group.appendChild(svgEl("rect", { x: 66.5, y: 40, width: 8, height: 13, rx: 4, fill: eyes }));
+    return group;
+  }
+
+  function emblem(body, eyes) {
+    const svg = svgEl("svg", { viewBox: "30 4 60 82", class: "emblem", "aria-hidden": "true" });
+    svg.appendChild(emblemShapes(body, eyes));
+    return svg;
+  }
+
+  // ---------------------------------------------------------------- 효과음(브라우저에서 합성. 음원 파일 없음)
+  let audio = null;
+  let soundOn = false;
+  function tone(kind) {
+    if (!soundOn) return;
+    try {
+      audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+      const now = audio.currentTime;
+      const note = (type, frequency, start, length, peak) => {
+        const oscillator = audio.createOscillator();
+        const gain = audio.createGain();
+        oscillator.type = type;
+        oscillator.frequency.setValueAtTime(frequency, now + start);
+        gain.gain.setValueAtTime(0.0001, now + start);
+        gain.gain.exponentialRampToValueAtTime(peak, now + start + 0.006);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + start + length);
+        oscillator.connect(gain).connect(audio.destination);
+        oscillator.start(now + start);
+        oscillator.stop(now + start + length + 0.03);
+      };
+      if (kind === "tick") note("square", 2300, 0, 0.025, 0.04);
+      else if (kind === "start") note("triangle", 520, 0, 0.12, 0.07);
+      else if (kind === "flip") { note("triangle", 880, 0, 0.07, 0.06); note("triangle", 1320, 0.035, 0.06, 0.04); }
+      else if (kind === "rare") [1318.5, 1975.5, 2637].forEach((frequency, index) => note("sine", frequency, index * 0.09, 1.5, 0.1));
+      else if (kind === "done") { note("sine", 784, 0, 0.25, 0.07); note("sine", 1046.5, 0.12, 0.4, 0.07); }
+    } catch (error) {
+      // 소리를 낼 수 없는 환경
+    }
+  }
+
+  // ---------------------------------------------------------------- 공통: 하단 띠, 결과 판, 종이 조각
   function amountText(result) {
     if (result.kind === "member") return "구독";
     const count = Number(result.amount).toLocaleString("ko-KR");
-    if (result.unit === "원") return `${count}원 후원`;
+    if (result.unit === "원") return `${count}원`;
     if (result.unit === "별풍선" || result.unit === "애드벌룬") return `${result.unit} ${count}개`;
     return `${count} ${result.unit}`.trim();
   }
 
-  function summary(result) {  // 같은 상품은 횟수로 묶음
-    const counts = new Map();
-    for (const item of result.draws) counts.set(item.name, (counts.get(item.name) || 0) + 1);
-    return "결과 " + [...counts].map(([name, count]) => (count > 1 ? `${name} ${count}회` : name)).join(", ");
-  }
-
-  function header(result) {
-    const box = el("div", "draw-head");
-    if (window.debutkit && window.debutkit.badge) box.appendChild(window.debutkit.badge(result));
-    box.appendChild(el("div", "draw-name", `${result.name} 님`));
-    box.appendChild(el("div", "draw-sub", `${amountText(result)}, 추첨 ${result.count}회${result.test ? " (시험)" : ""}`));
+  function strip(result) {
+    const box = el("div", "dk-strip");
+    box.appendChild(el("span", "tag", result.title || "후원 추첨"));
+    const who = el("span", "who", result.name);
+    who.appendChild(el("small", "", "님"));
+    box.appendChild(who);
+    const meta = el("span", "meta");
+    const platform = PLATFORMS[result.platform];
+    if (platform && result.platform !== "demo") {
+      const label = el("span", "dk-platform", platform.label);
+      label.style.setProperty("--platform", platform.color);
+      meta.appendChild(label);
+    }
+    meta.appendChild(el("span", "", amountText(result)));
+    meta.appendChild(el("span", "", `추첨 ${result.count}회`));
+    if (result.test) meta.appendChild(el("span", "test", "시험"));
+    box.appendChild(meta);
     return box;
   }
 
-  function burst(target) {  // 희귀 상품 반짝임
-    const layer = el("div", "burst");
-    for (let i = 0; i < 36; i++) {
-      const spark = el("span", "spark");
-      const angle = Math.random() * Math.PI * 2;
-      const distance = 90 + Math.random() * 170;
-      spark.style.setProperty("--x", `${Math.cos(angle) * distance}px`);
-      spark.style.setProperty("--y", `${Math.sin(angle) * distance}px`);
-      spark.style.setProperty("--delay", `${Math.round(Math.random() * 140)}ms`);
-      spark.style.setProperty("--hue", [45, 330, 190][i % 3]);
-      layer.appendChild(spark);
+  function grouped(draws) {  // 같은 상품은 횟수로 묶고 희귀, 일반, 꽝 순서로
+    const found = new Map();
+    for (const item of draws) {
+      const entry = found.get(item.name) || { ...item, count: 0 };
+      entry.count += 1;
+      found.set(item.name, entry);
     }
-    target.appendChild(layer);
-    setTimeout(() => layer.remove(), 1800);
+    const rank = (item) => (item.rare ? 0 : item.miss ? 2 : 1);
+    return [...found.values()].sort((a, b) => rank(a) - rank(b));
   }
 
-  // ---------------------------------------------------------------- 카드 뒤집기
-  async function playCards(result, stage) {
-    const size = result.count > 6 ? "many" : result.count > 3 ? "some" : "few";
-    const grid = el("div", `draw-cards ${size}`);
-    grid.style.setProperty("--columns", Math.min(result.count, 6));
-    const cards = result.draws.map((item, index) => {
-      const card = el("div", `draw-card${item.rare ? " rare" : ""}${item.miss ? " miss" : ""}`);
-      card.style.setProperty("--i", index);
-      const inner = el("div", "inner");
-      inner.appendChild(el("div", "face back"));
-      const front = el("div", "face front");
-      front.appendChild(el("div", "prize", item.name));
-      front.appendChild(el("div", "percent", `${item.percent}%`));
-      if (item.rare) front.appendChild(el("div", "tag", "희귀"));
-      inner.appendChild(front);
-      card.appendChild(inner);
-      grid.appendChild(card);
-      return card;
-    });
-    stage.appendChild(grid);
-    await wait(500 + result.count * 70);  // 카드가 모두 놓인 뒤 뒤집기
-    const step = result.count > 6 ? 280 : 560;
-    for (const card of cards) {
-      card.classList.add("open");
-      if (card.classList.contains("rare")) burst(card);
-      await wait(step);
+  function summary(result) {
+    return "결과 " + grouped(result.draws).map((item) => (item.count > 1 ? `${item.name} ${item.count}회` : item.name)).join(", ");
+  }
+
+  function plate(result) {
+    const items = grouped(result.draws);
+    // 판 전체 금색은 결과가 모두 희귀일 때만(룰렛 1회 희귀 등). 여러 결과에서는 희귀 상품만 금색 표시
+    const box = el("div", `dk-plate${items.every((item) => item.rare) ? " rare" : ""}`);
+    box.appendChild(el("span", "label", "결과"));
+    const list = el("span", "items");
+    for (const item of items) {
+      const span = el("span", item.rare ? "rare" : item.miss ? "miss" : "", item.name);
+      if (item.count > 1) span.appendChild(el("small", "", `${item.count}회`));
+      list.appendChild(span);
     }
+    box.appendChild(list);
+    return box;
+  }
+
+  function confetti(target) {  // 희귀 공개: 금, 핑크, 크림 종이 조각
+    const box = target.getBoundingClientRect();
+    const layer = el("div", "dk-confetti");
+    layer.style.setProperty("--cx", `${box.left + box.width / 2}px`);
+    layer.style.setProperty("--cy", `${box.top + box.height / 3}px`);
+    const colors = ["#ffd84d", "#ff4f8b", PAPER, "#ffd84d"];
+    for (let i = 0; i < 30; i++) {
+      const bit = el("i");
+      const angle = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 0.95;
+      const speed = 150 + Math.random() * 200;
+      bit.style.setProperty("--x", `${Math.cos(angle) * speed}px`);
+      bit.style.setProperty("--peak", `${Math.sin(angle) * speed}px`);
+      bit.style.setProperty("--fall", `${260 + Math.random() * 180}px`);
+      bit.style.setProperty("--r", `${Math.round((Math.random() - 0.5) * 1080)}deg`);
+      bit.style.setProperty("--d", `${Math.round(Math.random() * 120)}ms`);
+      bit.style.setProperty("--c", colors[i % colors.length]);
+      layer.appendChild(bit);
+    }
+    document.body.appendChild(layer);
+    setTimeout(() => layer.remove(), 1900);
+  }
+
+  function shake(scene) {
+    scene.classList.remove("shake");
+    void scene.offsetWidth;  // 같은 애니메이션 다시 시작
+    scene.classList.add("shake");
+  }
+
+  // ---------------------------------------------------------------- 카드
+  const CARD = { l: [172, 240], m: [136, 190], s: [96, 134] };  // 실물 트레이딩 카드 비율 63:88
+
+  function layout(count) {  // 1에서 5장은 부채꼴, 6에서 12장은 두 줄 겹침, 그 이상은 한 줄 10장
+    const size = count <= 5 ? "l" : count <= 12 ? "m" : "s";
+    const [w, h] = CARD[size];
+    const spots = [];
+    if (count <= 5) {
+      const step = w * 0.86;
+      for (let i = 0; i < count; i++) {
+        const d = i - (count - 1) / 2;
+        spots.push({ x: d * step, y: d * d * 8, r: d * 5 });
+      }
+    } else {
+      const perRow = count <= 12 ? Math.ceil(count / 2) : 10;
+      const stepX = w * (count <= 12 ? 0.9 : 1.04);
+      const stepY = h * (count <= 12 ? 0.66 : 0.78);
+      for (let i = 0; i < count; i++) {
+        const row = Math.floor(i / perRow);
+        const inRow = Math.min(perRow, count - row * perRow);
+        spots.push({ x: ((i % perRow) - (inRow - 1) / 2) * stepX, y: row * stepY, r: (((i * 37) % 7) - 3) * 0.7 });
+      }
+    }
+    const minX = Math.min(...spots.map((spot) => spot.x));
+    const maxX = Math.max(...spots.map((spot) => spot.x));
+    const maxY = Math.max(...spots.map((spot) => spot.y));
+    for (const spot of spots) {
+      spot.x += 24 - minX;
+      spot.y += 12;
+    }
+    return { size, w, h, spots, width: maxX - minX + w + 48, height: maxY + h + 34 };
+  }
+
+  function nameSize(name, h) {
+    const length = [...name].length;
+    return `${Math.round(h * (length <= 4 ? 0.13 : length <= 7 ? 0.105 : length <= 11 ? 0.085 : 0.07))}px`;
+  }
+
+  function card(item, slot, total, plan, showPercent) {
+    const spot = plan.spots[slot];
+    const node = el("div", `dk-card${item.rare ? " rare" : ""}${item.miss ? " miss" : ""}`);
+    const vars = { "--w": `${plan.w}px`, "--h": `${plan.h}px`, "--x": `${spot.x}px`, "--y": `${spot.y}px`, "--r": `${spot.r}deg`, "--i": slot,
+      "--z": slot + 1, "--deck-x": `${plan.width / 2 - plan.w / 2}px` };
+    for (const [name, value] of Object.entries(vars)) node.style.setProperty(name, value);
+    const inner = el("div", "inner");
+    const back = el("div", "face back");
+    back.appendChild(emblem("#ff4f8b", INK));
+    const front = el("div", "face front");
+    front.appendChild(el("div", "band", item.rare ? "희귀" : item.miss ? "꽝" : "일반"));
+    const name = el("div", "dk-name", item.name);
+    name.style.setProperty("--name-size", nameSize(item.name, plan.h));
+    front.appendChild(name);
+    const foot = el("div", "foot");
+    const pad = (number) => String(number).padStart(2, "0");
+    foot.appendChild(el("span", "", `${pad(slot + 1)}/${pad(total)}`));
+    foot.appendChild(el("span", "", showPercent ? `${item.percent}%` : ""));
+    front.appendChild(foot);
+    inner.append(back, front);
+    node.appendChild(inner);
+    return node;
+  }
+
+  async function playCards(result, props, scene) {
+    const total = result.draws.length;
+    const plan = layout(total);
+    const deck = el("div", "dk-deck");
+    deck.style.width = `${plan.width}px`;
+    deck.style.height = `${plan.height}px`;
+    // 공개 순서: 희귀가 아닌 카드 먼저, 희귀 카드 마지막(결과는 그대로, 보여 주는 순서만 바꿈)
+    const order = [...result.draws.keys()].sort((a, b) => Number(result.draws[a].rare) - Number(result.draws[b].rare) || a - b);
+    const cards = order.map((index, slot) => card(result.draws[index], slot, total, plan, result.show_percent));
+    deck.append(...cards);
+    props.appendChild(deck);
+    await wait(60);
+    for (const node of cards) node.classList.add("dealt");  // 시작: 더미에서 펼쳐짐
+    await wait(560 + total * 45);
+    const rares = cards.filter((node) => node.classList.contains("rare"));
+    if (rares.length) {  // 예고: 희귀 카드만 금색 빛
+      for (const node of rares) node.classList.add("hint");
+      await wait(1000);
+    } else {
+      await wait(250);
+    }
+    for (const node of cards) {  // 공개: 일반, 꽝은 빠르게
+      if (node.classList.contains("rare")) break;
+      node.classList.add("open");
+      tone("flip");
+      await wait(total > 12 ? 110 : 220);
+    }
+    for (const node of rares) {  // 희귀는 하나씩 들어 올려 흔든 뒤 천천히
+      node.classList.remove("hint");
+      node.classList.add("lift");
+      await wait(500);
+      node.classList.add("slow", "open");
+      tone("rare");
+      await wait(280);
+      confetti(node);
+      shake(scene);
+      await wait(900);
+      node.classList.remove("lift");
+    }
+    await wait(300);
   }
 
   // ---------------------------------------------------------------- 룰렛
-  function wheel(prizes) {
-    const ns = "http://www.w3.org/2000/svg";
-    const svg = document.createElementNS(ns, "svg");
-    svg.setAttribute("viewBox", "-110 -110 220 220");
-    svg.setAttribute("class", "wheel");
+  const FILLS = ["#ff4f8b", PAPER, "#ffb3cb"];
+
+  function wheelParts(prizes, showPercent) {
+    const svg = svgEl("svg", { viewBox: "-120 -120 240 240", class: "wheel-svg", "aria-hidden": "true" });
+    const defs = svgEl("defs");
+    const stripes = svgEl("pattern", { id: "dk-stripes", width: 10, height: 10, patternUnits: "userSpaceOnUse", patternTransform: "rotate(45)" });
+    stripes.append(svgEl("rect", { width: 10, height: 10, fill: "#3a4249" }), svgEl("rect", { width: 5, height: 10, fill: INK }));
+    defs.appendChild(stripes);
+    svg.append(defs, svgEl("circle", { r: 116, fill: INK }));
+    const bulbs = [];
+    for (let i = 0; i < 24; i++) {  // 테두리 전구(고정)
+      const angle = (i / 24) * Math.PI * 2;
+      const bulb = svgEl("circle", { cx: (Math.sin(angle) * 108.5).toFixed(2), cy: (-Math.cos(angle) * 108.5).toFixed(2), r: 3.6, class: "bulb" });
+      bulbs.push(bulb);
+      svg.appendChild(bulb);
+    }
+    const spin = svgEl("g");
+    spin.appendChild(svgEl("circle", { r: 101, fill: INK }));
     const total = prizes.reduce((sum, prize) => sum + prize.percent, 0) || 1;
-    const point = (degrees) => [Math.sin((degrees * Math.PI) / 180) * 100, -Math.cos((degrees * Math.PI) / 180) * 100];
+    const point = (degrees, radius) => [Math.sin((degrees * Math.PI) / 180) * radius, -Math.cos((degrees * Math.PI) / 180) * radius];
     const segments = [];
+    const legend = [];
     let start = 0;
+    let previous = null;
+    let normal = 0;
     prizes.forEach((prize, index) => {
       const sweep = (prize.percent / total) * 360;
-      const [x1, y1] = point(start);
-      const [x2, y2] = point(start + sweep);
-      const path = document.createElementNS(ns, "path");
-      path.setAttribute("d", sweep >= 359.99 ? "M0,-100 A100,100 0 1,1 -0.01,-100 Z"
-        : `M0,0 L${x1.toFixed(3)},${y1.toFixed(3)} A100,100 0 ${sweep > 180 ? 1 : 0},1 ${x2.toFixed(3)},${y2.toFixed(3)} Z`);
-      // 마지막 칸이 첫 칸과 같은 색이 되지 않게
-      let fill = prize.rare ? "#ffd84d" : prize.miss ? "#aab2b8" : COLORS[index % COLORS.length];
-      if (index === prizes.length - 1 && index % COLORS.length === 0 && index > 0 && !prize.rare && !prize.miss) fill = COLORS[2];
-      path.setAttribute("fill", fill);
-      path.setAttribute("stroke", "#1e2327");
-      path.setAttribute("stroke-width", "0.8");
-      svg.appendChild(path);
-      const mid = start + sweep / 2;
-      if (sweep >= 6) {  // 좁은 칸은 이름 생략(결과 목록에 표시). 이름은 반지름 방향으로 써서 좁은 칸에도 들어가게
-        const label = document.createElementNS(ns, "text");
-        label.textContent = prize.name.length > 8 ? `${prize.name.slice(0, 7)}..` : prize.name;
-        label.setAttribute("transform", `rotate(${(mid - 90).toFixed(2)}) translate(60,0)`);
-        label.setAttribute("text-anchor", "middle");
-        label.setAttribute("dominant-baseline", "central");
-        label.setAttribute("font-size", String(Math.max(6, Math.min(11, sweep * 0.4)).toFixed(1)));
-        label.setAttribute("fill", DARK_TEXT.includes(fill) ? "#1e2327" : "#faf7f5");
-        svg.appendChild(label);
+      let fill = prize.rare ? "#ffd84d" : prize.miss ? "url(#dk-stripes)" : FILLS[normal++ % FILLS.length];
+      if (!prize.rare && !prize.miss) {  // 이웃 칸, 마지막과 첫 칸이 같은 색이 되지 않게
+        const first = segments.length ? segments[0].fill : null;
+        if (fill === previous || (index === prizes.length - 1 && fill === first)) fill = FILLS.find((color) => color !== previous && color !== first) || fill;
       }
-      segments.push({ name: prize.name, mid, sweep });
+      const [x1, y1] = point(start, 100);
+      const [x2, y2] = point(start + sweep, 100);
+      spin.appendChild(svgEl("path", {
+        d: sweep >= 359.99 ? "M0,-100 A100,100 0 1,1 -0.01,-100 Z"
+          : `M0,0 L${x1.toFixed(3)},${y1.toFixed(3)} A100,100 0 ${sweep > 180 ? 1 : 0},1 ${x2.toFixed(3)},${y2.toFixed(3)} Z`,
+        fill, stroke: INK, "stroke-width": 1.4,
+      }));
+      const mid = start + sweep / 2;
+      // 이름은 원 둘레 방향: 당첨 칸이 위에 왔을 때 바로 읽힘. 칸이 좁으면 번호와 범례
+      const arc = (2 * Math.PI * 72 * Math.min(sweep, 150)) / 360;
+      const label = [...prize.name].length > 10 ? `${[...prize.name].slice(0, 9).join("")}..` : prize.name;
+      let size = Math.min(15, arc / ([...label].length * 1.02));
+      let text = label;
+      if (size < 7) {
+        text = String(index + 1);
+        size = Math.min(13, arc * 0.75);
+        legend.push({ number: index + 1, name: prize.name, percent: prize.percent });
+      }
+      const dark = fill === "url(#dk-stripes)";
+      const group = svgEl("g", { transform: `rotate(${mid.toFixed(2)}) translate(0,-72)` });
+      const write = (content, y, fontSize) => {
+        const node = svgEl("text", { y, "text-anchor": "middle", "dominant-baseline": "central", "font-size": fontSize.toFixed(1), fill: dark ? PAPER : INK });
+        if (dark) Object.entries({ stroke: INK, "stroke-width": 2.4, "paint-order": "stroke" }).forEach(([name, value]) => node.setAttribute(name, value));
+        node.textContent = content;
+        group.appendChild(node);
+      };
+      if (size >= 4) write(text, showPercent && size >= 9 ? -5 : 0, size);
+      if (showPercent && size >= 9 && text === label) write(`${prize.percent}%`, 9, 7.5);
+      spin.appendChild(group);
+      segments.push({ name: prize.name, mid, sweep, start, fill });
+      previous = fill;
       start += sweep;
     });
-    const rim = document.createElementNS(ns, "circle");  // 어두운 배경에서 바퀴 경계가 보이도록
-    rim.setAttribute("r", "101");
-    rim.setAttribute("fill", "none");
-    rim.setAttribute("stroke", "#faf7f5");
-    rim.setAttribute("stroke-width", "3");
-    svg.appendChild(rim);
-    const hub = document.createElementNS(ns, "circle");
-    hub.setAttribute("r", "13");
-    hub.setAttribute("fill", "#faf7f5");
-    hub.setAttribute("stroke", "#1e2327");
-    hub.setAttribute("stroke-width", "2");
-    svg.appendChild(hub);
-    return { svg, segments };
+    for (const segment of segments) {  // 칸 경계 못
+      const [x, y] = point(segment.start, 95);
+      spin.appendChild(svgEl("circle", { cx: x.toFixed(2), cy: y.toFixed(2), r: 2.6, fill: PAPER, stroke: INK, "stroke-width": 1.2 }));
+    }
+    spin.appendChild(svgEl("circle", { r: 100, fill: "none", stroke: INK, "stroke-width": 3 }));
+    spin.appendChild(svgEl("circle", { r: 21, fill: PAPER, stroke: INK, "stroke-width": 3 }));
+    const cap = emblemShapes("#ff4f8b", INK);
+    cap.setAttribute("transform", "scale(0.3) translate(-60,-45)");
+    spin.appendChild(cap);
+    svg.appendChild(spin);
+    return { svg, spin, bulbs, segments, legend };
   }
 
-  async function playWheel(result, stage) {
-    const box = el("div", "wheel-box");
-    const { svg, segments } = wheel(result.prizes);
-    box.appendChild(svg);
-    box.appendChild(el("div", "pointer"));
-    const chips = el("div", "wheel-results");
-    stage.append(box, chips);
-    const duration = result.count === 1 ? 4500 : Math.round(Math.max(1200, Math.min(3000, 9000 / result.count)));
-    let rotation = 0;
-    await wait(300);
+  function flapper() {
+    const svg = svgEl("svg", { viewBox: "0 0 34 62", class: "flapper", "aria-hidden": "true" });
+    svg.appendChild(svgEl("path", { d: "M17 3 C28 3 31 13 27 23 L19 57 Q17 61 15 57 L7 23 C3 13 6 3 17 3 Z", fill: "#ff4f8b", stroke: INK, "stroke-width": 3,
+      "stroke-linejoin": "round" }));
+    svg.appendChild(svgEl("circle", { cx: 17, cy: 11, r: 4, fill: PAPER, stroke: INK, "stroke-width": 2 }));
+    return svg;
+  }
+
+  // 다음 장면: 화면 갱신(requestAnimationFrame)과 40ms 타이머 중 먼저 오는 쪽. 갱신이 멈추는 환경(가려진 창, 일부 촬영 방식)에서도 회전이 이어짐
+  function nextFrame(callback) {
+    let called = false;
+    const run = () => {
+      if (!called) {
+        called = true;
+        callback();
+      }
+    };
+    requestAnimationFrame(run);
+    setTimeout(run, 40);
+  }
+
+  function spinTo(state, target, duration) {
+    return new Promise((resolve) => {
+      const from = state.angle;
+      const began = performance.now();
+      let finished = false;
+      const draw = (angle, now) => {
+        state.angle = angle;
+        state.spin.setAttribute("transform", `rotate(${angle.toFixed(3)})`);
+        const under = (((-angle) % 360) + 360) % 360;  // 위쪽 플래퍼 아래에 있는 원판 각도
+        let nearest = 180;
+        let zone = 0;
+        state.segments.forEach((segment, index) => {
+          const distance = Math.abs((((under - segment.start) % 360) + 540) % 360 - 180);
+          nearest = Math.min(nearest, distance);
+          if (under >= segment.start && under < segment.start + segment.sweep) zone = index;
+        });
+        const push = nearest < 7 ? 1 - nearest / 7 : 0;  // 못이 지나갈 때 플래퍼가 밀림(원판은 시계 방향)
+        state.flapper.style.transform = `rotate(${(-push * 26).toFixed(2)}deg)`;
+        if (zone !== state.zone) {
+          state.zone = zone;
+          tone("tick");
+        }
+        const step = Math.floor(now / 70);
+        state.bulbs.forEach((bulb, index) => bulb.classList.toggle("on", (index + step) % 3 === 0));
+      };
+      const end = () => {
+        if (finished) return;
+        finished = true;
+        draw(target, performance.now());
+        state.flapper.style.transform = "";
+        resolve();
+      };
+      const frame = () => {
+        if (finished) return;
+        const now = performance.now();
+        const t = Math.min(1, (now - began) / duration);
+        if (t >= 1) return end();
+        draw(from + (target - from) * (1 - Math.pow(1 - t, 4)), now);
+        nextFrame(frame);
+      };
+      nextFrame(frame);
+      setTimeout(end, duration + 600);  // 어떤 경우에도 결과로 진행
+    });
+  }
+
+  async function blink(bulbs, times) {
+    for (let i = 0; i < times * 2; i++) {
+      bulbs.forEach((bulb) => bulb.classList.toggle("on", i % 2 === 0));
+      await wait(110);
+    }
+    bulbs.forEach((bulb) => bulb.classList.add("on"));
+  }
+
+  async function playWheel(result, props, scene) {
+    const parts = wheelParts(result.prizes, result.show_percent);
+    const box = el("div", "dk-wheel");
+    const pointer = flapper();
+    box.append(parts.svg, pointer);
+    const row = el("div", "dk-wheel-row");
+    row.appendChild(box);
+    if (parts.legend.length) {
+      const legend = el("div", `dk-legend${parts.legend.length > 8 ? " many" : ""}`);
+      for (const entry of parts.legend) {
+        const line = el("div");
+        line.append(el("b", "", String(entry.number)), document.createTextNode(result.show_percent ? `${entry.name} ${entry.percent}%` : entry.name));
+        legend.appendChild(line);
+      }
+      row.appendChild(legend);
+    }
+    const chips = el("div", "dk-chips");
+    props.append(row, chips);
+    const state = { angle: 0, spin: parts.spin, flapper: pointer, bulbs: parts.bulbs, segments: parts.segments, zone: -1 };
+    await wait(450);
+    const duration = result.count === 1 ? 5200 : Math.round(Math.max(1500, Math.min(3200, 9500 / result.count)));
     for (const item of result.draws) {
-      const segment = segments.find((found) => found.name === item.name) || segments[0];
-      const target = -(segment.mid + (Math.random() - 0.5) * segment.sweep * 0.6);  // 칸 가운데 근처(칸 경계는 피함)
-      const turn = (((target - rotation) % 360) + 360) % 360;
-      rotation += (result.count === 1 ? 5 : 3) * 360 + turn;
-      svg.style.transition = `transform ${duration}ms cubic-bezier(0.12, 0.8, 0.2, 1)`;
-      svg.style.transform = `rotate(${rotation.toFixed(2)}deg)`;
-      box.dataset.rotation = rotation.toFixed(2);
-      await wait(duration + 250);
-      chips.appendChild(el("span", `chip${item.rare ? " rare" : ""}${item.miss ? " miss" : ""}`, item.name));
-      if (item.rare) burst(box);
+      const segment = parts.segments.find((found) => found.name === item.name) || parts.segments[0];
+      const target = -(segment.mid + (Math.random() - 0.5) * segment.sweep * 0.6);  // 칸 가운데 근처(경계는 피함)
+      const turn = (((target - state.angle) % 360) + 360) % 360;
+      await spinTo(state, state.angle + (result.count === 1 ? 5 : 3) * 360 + turn, duration);
+      box.dataset.rotation = state.angle.toFixed(2);
+      if (item.rare) {
+        tone("rare");
+        confetti(box);
+        shake(scene);
+      }
+      await blink(parts.bulbs, item.rare ? 4 : 2);
+      if (result.count > 1) chips.appendChild(el("span", item.rare ? "rare" : item.miss ? "miss" : "", item.name));
+      await wait(item.rare ? 700 : 250);
     }
   }
 
   // ---------------------------------------------------------------- 차례로 연출
   async function play(result) {
-    const panel = el("div", "draw-panel");
-    panel.appendChild(header(result));
-    const stage = el("div", "draw-stage");
-    panel.appendChild(stage);
-    root.replaceChildren(panel);
-    root.classList.add("show");
+    await fontsReady;
+    soundOn = Boolean(result.sound) || params.has("sound");
+    root.dataset.position = ["left", "right"].includes(result.position) ? result.position : "center";
+    const scene = el("div", "dk-scene");
+    scene.style.setProperty("--scale", String(Math.max(0.6, Math.min(1.4, (Number(result.scale) || 100) / 100))));
+    const props = el("div", "dk-props");
+    const band = strip(result);
+    scene.append(props, band);
+    root.replaceChildren(scene);
+    tone("start");
+    await wait(320);
     const style = STYLES.includes(forced) ? forced : result.style;
-    if (style === "wheel") await playWheel(result, stage);
-    else await playCards(result, stage);
-    panel.appendChild(el("div", "draw-summary", summary(result)));
+    if (style === "wheel") await playWheel(result, props, scene);
+    else await playCards(result, props, scene);
+    scene.insertBefore(plate(result), band);  // 정리: 결과 판
+    root.setAttribute("aria-label", summary(result));
+    if (!result.draws.some((item) => item.rare)) tone("done");
     await wait(Math.max(2, Number(result.seconds) || 8) * 1000);
-    root.classList.remove("show");
-    await wait(500);
+    scene.classList.add("leave");  // 퇴장
+    await wait(560);
     root.replaceChildren();
   }
 
@@ -191,6 +495,7 @@
         await play(queue.shift());
       } catch (error) {
         console.warn("debutkit 추첨 연출", error);
+        root.replaceChildren();
       }
     }
     busy = false;
@@ -214,17 +519,22 @@
     }
     accept(result);
   });
-  // 미리보기(?sample=card 또는 ?sample=wheel): 저장한 상품표로 예시 추첨을 이 화면에서만 표시. OBS와 다른 화면에는 나가지 않음
-  const sample = new URLSearchParams(location.search).get("sample");
+
+  // 미리보기(?sample=card 또는 ?sample=wheel): 저장한 설정으로 예시 추첨을 이 화면에서만 표시. OBS와 다른 화면에는 나가지 않음
+  const sample = params.get("sample");
   if (STYLES.includes(sample)) {
     document.body.classList.add("sample");
+    if (params.get("bg") === "light") document.body.classList.add("light");
     fetch("/draw/config").then((response) => response.json()).then((config) => {
       const prizes = config.prizes;
       const rare = prizes.find((prize) => prize.rare) || prizes[prizes.length - 1];
-      const draws = sample === "wheel" ? [rare] : [prizes[1] || prizes[0], rare, prizes[0]];
-      accept({ seq: 1, time: Date.now() / 1000, test: false, name: "고양이집사", platform: "chzzk", kind: "donation", amount: sample === "wheel" ? 1000 : 5000,
-               unit: "원", count: draws.length, draws, prizes, style: sample, seconds: 600 });
+      const others = prizes.filter((prize) => prize !== rare);
+      const count = Math.max(1, Math.min(30, Number(params.get("count")) || (sample === "wheel" ? 1 : 3)));
+      const draws = count === 1 ? [rare] : Array.from({ length: count }, (_, index) => (index === 1 ? rare : others[index % others.length] || rare));
+      accept({ seq: 1, time: Date.now() / 1000, test: false, name: "고양이집사", platform: "chzzk", kind: "donation", amount: count === 1 ? 1000 : 5000,
+               unit: "원", count, draws, prizes, style: sample, seconds: 600, title: config.title, position: config.position, scale: config.scale,
+               sound: config.sound, show_percent: config.show_percent });
     });
   }
-  window.debutkitDraw = { accept, queue, summary };  // 시험용
+  window.debutkitDraw = { accept, queue, summary, layout };  // 시험용
 })();

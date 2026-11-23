@@ -247,8 +247,8 @@ def draw_shot(browser: list[str], base: str) -> Path:
 
     out = OUT / "overlay-draw.png"
     with tempfile.TemporaryDirectory() as folder:
-        parts = [capture(browser, f"{base}/draw?sample={style}", Path(folder) / f"{style}.png", (960, 880), wait=wait)
-                 for style, wait in (("card", 5.0), ("wheel", 7.5))]
+        parts = [capture(browser, f"{base}/draw?{query}", Path(folder) / f"{name}.png", (960, 800), wait=wait)
+                 for name, query, wait in (("card", "sample=card&count=3", 8.0), ("wheel", "sample=wheel", 11.0))]
         images = [Image.open(path).convert("RGB") for path in parts]
         joined = Image.new("RGB", (sum(image.width for image in images), max(image.height for image in images)), "#59626a")
         joined.paste(images[0], (0, 0))

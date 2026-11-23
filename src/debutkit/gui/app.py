@@ -1278,7 +1278,7 @@ class Wizard(QMainWindow):
 
     #: 입력란이 없어 collect_settings가 모르는 저장값. 저장할 때 기존 값을 유지한다(캐릭터 단계의 사용 버튼이 따로 저장)
     KEPT_SETTINGS = ("character", "idle_motion", "draw_enabled", "draw_prizes", "draw_rules", "draw_exact", "draw_members", "draw_style",
-                     "draw_seconds")
+                     "draw_seconds", "draw_title", "draw_position", "draw_scale", "draw_sound", "draw_show_percent")
 
     def remember(self) -> None:
         try:
