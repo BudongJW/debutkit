@@ -1,6 +1,9 @@
 # debutkit 휴대폰 앱
 
-휴대폰 앞면 카메라로 얼굴을 추적해 머리 움직임과 ARKit 이름 표정 52개를 같은 Wi-Fi의 debutkit PC로 보내는 앱. PC의 캐릭터 화면(VRM, GLB, FBX, PNGTuber)이 그 값으로 움직이고, ARKit 이름 표정을 가진 모델(퍼펙트 싱크)은 얼굴 전체가 움직인다.
+같은 Wi-Fi의 debutkit PC로 두 가지를 보내는 앱(카메라는 하나만 쓸 수 있어 둘 중 선택).
+
+- 얼굴 추적: 앞면 카메라로 머리 움직임과 ARKit 이름 표정 52개. PC의 캐릭터 화면(VRM, GLB, FBX, PNGTuber)이 그 값으로 움직이고, ARKit 이름 표정을 가진 모델(퍼펙트 싱크)은 얼굴 전체가 움직인다
+- 카메라 영상: 앞면이나 뒷면 카메라 영상을 WebRTC로 OBS 브라우저 소스(`/camera/view`, `[DK] 휴대폰 카메라(앱)`)에 직접. 연결 정보만 PC 서버를 거치고 영상은 휴대폰과 OBS 사이에서 직접 오간다(외부 서버 없음). 소리는 보내지 않는다
 
 | 폴더 | 내용 | 얼굴 추적 |
 |---|---|---|
@@ -15,6 +18,7 @@
 - 보안: 기기 비밀값은 QR 코드로만 전달. 등록 확인 요청과 추적 패킷 모두 HMAC-SHA256 서명, PC는 승인된 기기의 서명과 시각(이전 패킷보다 새로운 값)만 사용
 - 형식: `src/debutkit/overlay/remote.py` 머리말. 앱과 PC의 서명이 같은지는 양쪽 단위 테스트가 같은 기대값으로 확인
 - 거울처럼 움직이기, 위아래 반전, 정면 맞추기는 PC 휴대폰 얼굴 추적 설정을 따른다
+- 카메라 영상 연결: 앱이 연결 제안(SDP)을 서명 요청으로 보내고(`/remote/api/camera/offer`) OBS 수신 화면이 응답. PC는 브라우저가 감춘 주소(`.local`)를 내부 주소로 바꿔 전달(`src/debutkit/overlay/camcall.py`)
 
 ## 안드로이드
 
@@ -43,5 +47,5 @@ cd mobile/android
 ## 라이선스
 
 - 앱: Apache-2.0(debutkit과 같음)
-- 안드로이드: MediaPipe Tasks Vision(Apache-2.0), CameraX, Jetpack Compose, AndroidX(Apache-2.0), ZXing core(Apache-2.0, QR 코드 읽기)
-- iOS: 운영체제 기본 기능(ARKit, AVFoundation, CryptoKit, Network)만 사용. 프로젝트 생성 도구 XcodeGen(MIT, 빌드에만 사용)
+- 안드로이드: MediaPipe Tasks Vision(Apache-2.0), CameraX, Jetpack Compose, AndroidX(Apache-2.0), ZXing core(Apache-2.0, QR 코드 읽기), WebRTC(io.github.webrtc-sdk, BSD-3과 WebRTC 제3자 라이선스)
+- iOS: 운영체제 기본 기능(ARKit, AVFoundation, CryptoKit, Network)과 WebRTC(stasel/WebRTC 배포 바이너리, WebRTC 라이선스 https://webrtc.org/support/license). 프로젝트 생성 도구 XcodeGen(MIT, 빌드에만 사용)

@@ -1,5 +1,22 @@
 # 변경 내역
 
+## 1.0.0rc15 (2026-11-23)
+
+1.0 후보 15차(사전 릴리스). 휴대폰 앱 카메라 영상(WebRTC).
+
+### 추가
+- 휴대폰 앱 카메라 영상 모드: 휴대폰 카메라 영상(실사, 손 캠)을 WebRTC로 OBS 브라우저 소스에 직접 보냄. 같은 Wi-Fi에서 직접 주고받고 외부 서버(STUN, TURN) 없음, 소리는 보내지 않음(PC 마이크)
+  - 앱: 얼굴 추적과 카메라 영상 중 선택(카메라는 하나만 사용), 앞면과 뒷면 카메라, 미리보기, 1280x720 30fps(발열 시 960x540 24fps), 최대 4 Mbps, 하드웨어 인코더 우선
+  - 등록과 승인은 휴대폰 조작 화면과 같음. 연결 정보(SDP)만 서명 요청으로 PC를 거치고, 끊기면(OBS 소스를 다시 불러온 경우 등) 3초 뒤 다시 연결
+  - 안드로이드: io.github.webrtc-sdk 150.7871.08(BSD-3). iOS: stasel/WebRTC 158.0.0(WebRTC 라이선스, Swift Package Manager)
+- PC 연결 중계(`overlay/camcall.py`): 앱의 연결 제안을 수신 화면으로, 수신 화면의 응답을 앱으로. 브라우저가 감춘 주소(`.local`)를 이 PC의 내부 주소로 바꿈. 통화는 하나, 처음 응답한 수신 화면만 연결. 20초 안에 응답이 없으면 수신 화면 없음 안내, 수신 화면이 5초 넘게 끊기면 통화 끝
+- 수신 화면(`/camera/view`): OBS 브라우저 소스용, 평소 투명. 주소 뒤 `?fit=cover`, `?mirror`, `?debug`. 서버 `/camera/call`, `POST /camera/answer`, `POST /camera/ended`, `/live?feeds=camera`, 앱 요청 `/remote/api/camera/offer`, `answer`, `stop`
+- OBS 소스 `[DK] 휴대폰 카메라(앱)`: 휴대폰 연결 화면의 앱 영상용 OBS 소스 만들기, `debutkit camera setup --app`
+
+### 변경
+- 휴대폰 조작 화면 요청 본문 최대 32 KB(영상 연결 정보)
+- 안드로이드 배포 빌드 R8 규칙에 WebRTC(`org.webrtc`, `org.jni_zero`) 이름 유지 추가
+
 ## 1.0.0rc14 (2026-11-23)
 
 1.0 후보 14차(사전 릴리스). debutkit 휴대폰 앱(얼굴 추적).

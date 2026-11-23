@@ -32,7 +32,7 @@ PC 점검, OBS 장면 구성, 통합 채팅창과 후원 알림, 방송 중 자�
 | 캐릭터 | `debutkit character`, `debutkit motion` | PNGTuber, 3D(VRM, GLB, FBX), Live2D 등록과 사용 조건 확인. PNGTuber와 3D는 debutkit 캐릭터 화면으로 방송(OBS 마이크 음량으로 입 움직임, 웹캠 얼굴 추적, 아이폰 얼굴 추적 `debutkit phone`, 퍼펙트 싱크). 3D 캐릭터 동작(VRMA, Mixamo 등의 FBX, GLB)으로 기본 동작과 후원 반응. Live2D는 VTube Studio로 보내기, 모델 불러오기, 후원 시 단축키 실행(`debutkit vts`) |
 | OBS 장면 구성 | `debutkit scenes`, `debutkit camera` | 대기 화면, 본방송, 토크, 자리 비움, 엔딩 장면 생성. 아바타 투명 배경 캡처, 채팅창과 후원 알림 연결. 휴대폰 카메라 영상(SRT, 암호)을 받는 OBS 소스와 휴대폰 앱 연결 QR |
 | 채팅창과 후원 알림 | `debutkit overlay`, `debutkit draw`, `debutkit raffle` | OBS 브라우저 소스용 통합 채팅창과 후원 알림. 표시 형태 5종. 후원 추첨 연출(상품과 확률표, 금액별 추첨 횟수, 카드 뒤집기와 룰렛). 시청자 참여 추첨(채팅 !참가로 모집, 당첨자 뽑기, 순서 정하기). 스트리머, 매니저 채팅 명령. 휴대폰 조작 화면(`debutkit remote`, QR 등록과 PC 승인, 요청 서명) |
-| 휴대폰 앱 | `mobile/` | 안드로이드(APK, MediaPipe), 아이폰(ARKit, 소스 빌드) 얼굴 추적 앱. 같은 QR로 등록하고 PC에서 승인, 서명된 추적 값을 같은 Wi-Fi로 전송. [mobile/README.md](mobile/README.md) |
+| 휴대폰 앱 | `mobile/` | 안드로이드(APK, MediaPipe), 아이폰(ARKit, 소스 빌드) 얼굴 추적과 카메라 영상(WebRTC, OBS 브라우저 소스로 직접 전송) 앱. 같은 QR로 등록하고 PC에서 승인, 서명된 요청과 값만 사용. [mobile/README.md](mobile/README.md) |
 | 방송 중 자동 클립 | `debutkit overlay --clip` | 채팅 급증 또는 스트리머와 매니저의 `!clip` 입력 시 OBS 리플레이 버퍼를 클립으로 저장 |
 | 준비 도구 | `debutkit setup`, `debutkit chzzk` | ffmpeg 다운로드, 새 버전 확인, 치지직 공식 API 로그인 |
 

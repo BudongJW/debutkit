@@ -43,6 +43,7 @@
       <nav class="toc" aria-label="버전 목록">
         <h2>버전</h2>
         <ul>
+          <li><a href="#v1-0-0rc15">1.0.0rc15</a></li>
           <li><a href="#v1-0-0rc14">1.0.0rc14</a></li>
           <li><a href="#v1-0-0rc13">1.0.0rc13</a></li>
           <li><a href="#v1-0-0rc12">1.0.0rc12</a></li>
@@ -71,6 +72,22 @@
       </nav>
 
       <div>
+        <article class="release" id="v1-0-0rc15">
+          <h2>1.0.0rc15</h2>
+          <p class="date">2026-11-23, 사전 릴리스(1.0 후보 15차)</p>
+          <h3>추가</h3>
+          <ul>
+            <li>휴대폰 앱 카메라 영상 모드: 휴대폰 카메라 영상(앞면, 뒷면)을 WebRTC로 OBS 브라우저 소스에 직접 전송. 외부 서버 없음, 소리는 PC 마이크</li>
+            <li>OBS 소스 [DK] 휴대폰 카메라(앱)와 수신 화면(<code>/camera/view</code>), 휴대폰 연결 화면의 앱 영상용 OBS 소스 만들기, <code>debutkit camera setup --app</code></li>
+            <li>연결이 끊기면 자동으로 다시 연결, 처음 연결한 수신 화면만 영상을 받음</li>
+          </ul>
+          <h3>검증 범위</h3>
+          <ul>
+            <li>확인: 연결 중계 단위 테스트, 브라우저 두 탭 연결과 영상 디코딩, 안드로이드 에뮬레이터 디버그와 배포 빌드에서 수신 화면 영상 디코딩, 수신 화면 새로 고침 후 자동 다시 연결. iOS는 CI 빌드와 시뮬레이터 테스트</li>
+            <li>미확인: 실제 휴대폰과 OBS에서의 지연과 화질, 공유기 환경별 연결, 장시간 발열</li>
+          </ul>
+        </article>
+
         <article class="release" id="v1-0-0rc14">
           <h2>1.0.0rc14</h2>
           <p class="date">2026-11-23, 사전 릴리스(1.0 후보 14차)</p>
