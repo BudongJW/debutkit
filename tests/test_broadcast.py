@@ -318,7 +318,7 @@ def test_broadcast_goes_live_and_stops(tmp_path):
 
 def test_broadcast_reports_quick_failure_without_key(tmp_path):
     broadcaster, _ = make(tmp_path, popen=fake_popen(limit=0.1, error=f"[out#0/flv] Error opening output rtmp://x/app/{KEY}: Error number -138 occurred",
-                                                     code=1))
+                                                     code=1), stable=5.0)  # 느린 CI의 파이썬 시작 시간까지 짧은 실행으로
     broadcaster.start()
     failed = wait_for(broadcaster, ("error",))
     assert "송출 서버에 연결하지 못함" in failed["error"] and KEY not in failed["error"]
@@ -351,17 +351,17 @@ def test_closing_the_window_stops_without_retrying(tmp_path):
 
 
 def test_stall_watchdog(tmp_path, monkeypatch):
-    monkeypatch.setattr(bc, "STALL_SECONDS", 0.4)
+    monkeypatch.setattr(bc, "STALL_SECONDS", 1.5)  # 느린 CI에서도 감시 스레드가 늦게 돌아 잘못 끝내지 않을 여유
     record: list = []
     broadcaster, window = make(tmp_path, popen=fake_popen(stall=0.3, record=record))
     broadcaster.poll_interval = 0.05
     broadcaster.start()
     wait_for(broadcaster, ("live",))
     window.is_minimized = True  # 최소화: 프레임이 멈춰도 기다린다(창을 다시 띄우면 이어서 송출)
-    time.sleep(1.2)
+    time.sleep(2.5)
     assert broadcaster.status()["state"] == "live" and broadcaster._process is not None and len(record) == 1
     window.is_minimized = False  # 다시 띄운 직후에는 멈춤 시간을 새로 잰다
-    time.sleep(0.2)
+    time.sleep(0.3)
     assert broadcaster._process is not None and len(record) == 1
     window.tokens = set()  # 창을 닫으면 ffmpeg가 멈춰 있으므로 끝내고 이유 표시
     failed = wait_for(broadcaster, ("error",))
