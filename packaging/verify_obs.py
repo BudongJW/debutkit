@@ -293,7 +293,8 @@ def voice(timeout: float = 30.0) -> None:
 
 def camera(timeout: float = 60.0) -> None:
     """휴대폰 카메라 영상: debutkit camera setup으로 OBS에 SRT 수신 미디어 소스를 만들고, ffmpeg를 휴대폰 앱처럼 SRT(Caller, 암호)로 보내
-    OBS 미디어 상태가 재생 중이 되는지, 화면이 실제로 그려지는지, 틀린 암호는 연결되지 않는지 확인."""
+    화면이 실제로 그려지는지, debutkit 상태(휴대폰 연결 대기, 수신 중)가 맞는지, 틀린 암호는 연결되지 않는지 확인.
+    OBS 미디어 상태는 SRT 수신 대기 중에도 재생 중(PLAYING)으로 표시되므로 단계마다 상태, 소스 크기, 화면 캡처를 함께 기록한다."""
     import base64
 
     from stream2clip.ffmpeg import find_ffmpeg
@@ -311,9 +312,22 @@ def camera(timeout: float = 60.0) -> None:
         raise SystemExit(f"debutkit camera setup 실패: {setup.stderr.strip()}")
     config = cameras.load_config()
 
-    def state() -> str:
+    def probe(label: str) -> dict:
+        """OBS 미디어 상태, 소스 크기, 화면 캡처 크기, debutkit이 표시하는 상태."""
         with client() as obs:
-            return str(obs.request("GetMediaInputStatus", {"inputName": cameras.SOURCE_NAME}).get("mediaState"))
+            raw = str(obs.request("GetMediaInputStatus", {"inputName": cameras.SOURCE_NAME}).get("mediaState"))
+            scene = obs.request("GetCurrentProgramScene").get("currentProgramSceneName")
+            item = obs.request("GetSceneItemId", {"sceneName": scene, "sourceName": cameras.SOURCE_NAME}).get("sceneItemId")
+            transform = obs.request("GetSceneItemTransform", {"sceneName": scene, "sceneItemId": item}).get("sceneItemTransform", {})
+            try:
+                shot = obs.request("GetSourceScreenshot", {"sourceName": cameras.SOURCE_NAME, "imageFormat": "png", "imageWidth": 320})
+                size = len(base64.b64decode(str(shot.get("imageData", "")).split(",", 1)[-1]))
+            except Exception as error:  # noqa: BLE001
+                size = f"오류 {error}"
+            shown = cameras.media_state(obs)
+        found = {"state": raw, "source": (transform.get("sourceWidth"), transform.get("sourceHeight")), "shot": size, "debutkit": shown}
+        print(f"[{label}] {found}")
+        return found
 
     def send(passphrase: str, seconds: int) -> subprocess.Popen:
         target = f"srt://127.0.0.1:{config.port}?mode=caller&latency={config.latency * 1000}&passphrase={passphrase}&pbkeylen=16"
@@ -321,46 +335,47 @@ def camera(timeout: float = 60.0) -> None:
                                  "-t", str(seconds), "-c:v", "libx264", "-preset", "ultrafast", "-tune", "zerolatency", "-g", "30", "-pix_fmt", "yuv420p",
                                  "-f", "mpegts", target], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors="replace")
 
-    waiting = state()
-    print(f"소스 상태(송신 전): {waiting}")
+    def receiving(found: dict) -> bool:
+        return isinstance(found["shot"], int) and found["shot"] >= 2000
+
+    time.sleep(3)
+    before = probe("송신 전")
+    if before["state"] == "OBS_MEDIA_STATE_ERROR":
+        raise SystemExit("휴대폰 카메라 소스 오류(포트 사용 중 등)")
+    if receiving(before):
+        raise SystemExit("휴대폰이 보내기 전인데 화면이 있음")
+    if before["debutkit"]["receiving"]:
+        raise SystemExit(f"휴대폰이 보내기 전인데 debutkit이 수신 중으로 표시: {before['debutkit']['text']}")
     if not can_send:
-        end = time.monotonic() + 20
-        while time.monotonic() < end and waiting not in ("OBS_MEDIA_STATE_OPENING", "OBS_MEDIA_STATE_BUFFERING"):
-            time.sleep(1)
-            waiting = state()
         with client() as obs:
             obs.request("RemoveInput", {"inputName": cameras.SOURCE_NAME})
-        if waiting not in ("OBS_MEDIA_STATE_OPENING", "OBS_MEDIA_STATE_BUFFERING"):
-            raise SystemExit(f"휴대폰 카메라 소스가 수신 대기 상태가 아님: {waiting}")
-        print(f"::warning::이 ffmpeg에는 SRT 송신 기능이 없어 소스 생성과 수신 대기({waiting})만 확인: {ffmpeg}")
+        print(f"::warning::이 ffmpeg에는 SRT 송신 기능이 없어 소스 생성과 수신 대기만 확인: {ffmpeg}")
         return
     sender = send(config.passphrase, int(timeout))
     try:
-        end, last = time.monotonic() + timeout - 5, ""
-        while time.monotonic() < end:
-            last = state()
-            if last == "OBS_MEDIA_STATE_PLAYING":
+        end = time.monotonic() + timeout - 5
+        while True:
+            during = probe("송신 중")
+            if receiving(during):
                 break
             if sender.poll() is not None:
                 raise SystemExit(f"송신 ffmpeg 종료: {sender.stdout.read() if sender.stdout else ''}")
-            time.sleep(1)
-        else:
-            raise SystemExit(f"OBS 미디어 소스가 재생 상태가 되지 않음(마지막 상태 {last})")
+            if time.monotonic() > end:
+                raise SystemExit("휴대폰 카메라 소스 화면이 그려지지 않음")
+            time.sleep(2)
         time.sleep(2)
-        with client() as obs:
-            shot = obs.request("GetSourceScreenshot", {"sourceName": cameras.SOURCE_NAME, "imageFormat": "png", "imageWidth": 320})
-        image = base64.b64decode(str(shot.get("imageData", "")).split(",", 1)[-1])
-        print(f"재생 상태 확인: {last}, 화면 캡처 {len(image)} bytes")
-        if len(image) < 2000:
-            raise SystemExit("휴대폰 카메라 소스 화면이 비어 있음")
+        during = probe("송신 중(2초 뒤)")
+        if not during["debutkit"]["receiving"]:
+            raise SystemExit(f"영상이 오는데 debutkit이 수신 중으로 표시하지 않음: {during['debutkit']['text']}")
         sender.kill()
         sender.wait(timeout=10)
         # 휴대폰이 끊긴 뒤 다시 기다리는지(1초 뒤 재연결 대기), 그 상태에서 틀린 암호는 거부되는지
-        end = time.monotonic() + 20
-        while time.monotonic() < end and state() == "OBS_MEDIA_STATE_PLAYING":
-            time.sleep(1)
-        time.sleep(3)
-        print(f"휴대폰 끊김 후 상태: {state()}")
+        time.sleep(4)
+        after = probe("끊김 4초 뒤")
+        time.sleep(8)
+        after = probe("끊김 12초 뒤")
+        if after["debutkit"]["receiving"]:
+            print(f"::warning::휴대폰이 끊긴 뒤에도 debutkit이 수신 중으로 표시: {after['debutkit']['text']}")
         wrong = send("wrongpassword1", 5)
         try:
             output, _ = wrong.communicate(timeout=30)
@@ -370,6 +385,13 @@ def camera(timeout: float = 60.0) -> None:
         if wrong.returncode == 0 or "BADSECRET" not in output:
             raise SystemExit(f"틀린 암호 거부를 확인하지 못함(종료 코드 {wrong.returncode}): {output.strip()[-400:]}")
         print("틀린 암호 거부 확인(BADSECRET)")
+        # 다시 연결하면 다시 그려지는지(휴대폰 앱을 다시 켠 경우)
+        sender = send(config.passphrase, 20)
+        end = time.monotonic() + 20
+        while not receiving(probe("다시 송신")) and time.monotonic() < end:
+            time.sleep(2)
+        if not receiving(probe("다시 송신 확인")):
+            raise SystemExit("휴대폰이 다시 연결했는데 화면이 그려지지 않음")
     finally:
         sender.kill()
         sender.wait(timeout=10)

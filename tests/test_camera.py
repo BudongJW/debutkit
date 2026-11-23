@@ -18,8 +18,8 @@ class FakeObs:
     """obs-websocket 요청을 기록하고 장면, 입력 목록을 흉내 낸다."""
 
     def __init__(self, *, kinds=("ffmpeg_source", "browser_source"), scenes=("본방송", "토크"), current="본방송", inputs=(), items=None,
-                 state="OBS_MEDIA_STATE_OPENING"):
-        self.kinds, self.scenes, self.current, self.state = list(kinds), list(scenes), current, state
+                 state="OBS_MEDIA_STATE_PLAYING", size=(0, 0)):
+        self.kinds, self.scenes, self.current, self.state, self.size = list(kinds), list(scenes), current, state, size
         self.inputs = set(inputs)
         self.items = {name: list((items or {}).get(name, [])) for name in self.scenes}
         self.calls: list[tuple[str, dict]] = []
@@ -55,6 +55,8 @@ class FakeObs:
             return {"sceneItemId": len(self.items[data["sceneName"]])}
         if kind == "GetMediaInputStatus":
             return {"mediaState": self.state}
+        if kind == "GetSceneItemTransform":
+            return {"sceneItemTransform": {"sourceWidth": self.size[0], "sourceHeight": self.size[1]}}
         return {}
 
     def named(self, kind):
@@ -124,7 +126,14 @@ def test_add_to_obs_creates_places_and_reuses():
     assert obs.named("SetInputSettings")[0]["inputSettings"]["input"].startswith("srt://0.0.0.0:9800?")
     assert obs.named("CreateSceneItem")[0] == {"sceneName": "토크", "sourceName": camera.SOURCE_NAME}
     assert len(obs.named("CreateInput")) == 1
-    assert camera.media_state(obs) == {"exists": True, "state": "OBS_MEDIA_STATE_OPENING", "text": "휴대폰 연결 대기"}
+    # SRT 수신 대기 중에도 OBS는 PLAYING: 영상 크기로 수신 여부 판단
+    assert camera.media_state(obs) == {"exists": True, "state": "OBS_MEDIA_STATE_PLAYING", "receiving": False, "size": [0, 0], "text": "휴대폰 연결 대기"}
+    obs.size = (1280, 720)
+    assert camera.media_state(obs)["receiving"] is True and camera.media_state(obs)["text"] == "휴대폰 영상 수신 중(1280x720)"
+    obs.state = "OBS_MEDIA_STATE_ERROR"
+    assert camera.media_state(obs)["receiving"] is False and "오류" in camera.media_state(obs)["text"]
+    lonely = FakeObs(inputs=[camera.SOURCE_NAME])
+    assert camera.media_state(lonely)["size"] is None and "어느 장면에도 없음" in camera.media_state(lonely)["text"]
     with pytest.raises(camera.CameraError, match="없는 장면"):
         camera.add_to_obs(obs, CONFIG, ["엔딩"])
     with pytest.raises(camera.CameraError, match="미디어 소스"):
@@ -175,9 +184,9 @@ def test_server_camera_routes(server, monkeypatch):
     answer = json.loads(body)
     assert status == 200 and answer["created"] and answer["added"] == ["본방송"] and answer["text"] == "휴대폰 연결 대기"
     assert opened[-1] == ("127.0.0.1", 4455, "pw")
-    obs.state = "OBS_MEDIA_STATE_PLAYING"
+    obs.size = (1080, 1920)  # 세로 영상
     status, body, _ = request(server, "GET", "/camera/status")
-    assert status == 200 and json.loads(body)["text"] == "휴대폰 영상 수신 중"
+    assert status == 200 and json.loads(body)["receiving"] is True and json.loads(body)["text"] == "휴대폰 영상 수신 중(1080x1920)"
     old = info["passphrase"]
     status, body, _ = request(server, "POST", "/camera/config", {"new_passphrase": True, "latency": 400})
     answer = json.loads(body)

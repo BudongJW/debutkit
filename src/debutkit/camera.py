@@ -26,9 +26,9 @@ DEFAULT_LATENCY = 200  # 밀리초. SRT 재전송 여유(Wi-Fi가 불안정하�
 LATENCY_RANGE = (80, 2000)
 PASS_CHARS = "abcdefghjkmnpqrstuvwxyz23456789"  # 휴대폰에 직접 입력할 때 헷갈리는 글자(0, o, 1, l, i) 제외
 PASS_LENGTH = 12  # SRT 암호는 10에서 79자
-MEDIA_STATES = {"OBS_MEDIA_STATE_PLAYING": "휴대폰 영상 수신 중", "OBS_MEDIA_STATE_OPENING": "휴대폰 연결 대기",
-                "OBS_MEDIA_STATE_BUFFERING": "영상 불러오는 중", "OBS_MEDIA_STATE_PAUSED": "일시 정지", "OBS_MEDIA_STATE_STOPPED": "멈춤",
-                "OBS_MEDIA_STATE_ENDED": "연결 끊김, 다시 대기", "OBS_MEDIA_STATE_ERROR": "오류(포트 사용 중 등)", "OBS_MEDIA_STATE_NONE": "꺼짐"}
+#: 수신 대기가 아닌 OBS 미디어 상태의 안내. SRT 수신 대기 중에도 OBS는 재생 중(PLAYING)으로 표시하므로 수신 여부는 소스 크기로 판단
+MEDIA_STATES = {"OBS_MEDIA_STATE_PAUSED": "일시 정지(OBS에서 재생)", "OBS_MEDIA_STATE_STOPPED": "멈춤(OBS에서 재생)",
+                "OBS_MEDIA_STATE_ERROR": "오류(포트 사용 중 등)", "OBS_MEDIA_STATE_NONE": "꺼짐"}
 
 
 class CameraError(ValueError):
@@ -239,12 +239,34 @@ def add_to_obs(client: Any, config: CameraConfig, scenes: Iterable[str] = ()) ->
     return result
 
 
+def _source_size(client: Any) -> tuple[int, int] | None:
+    """소스 영상 크기(장면 항목의 sourceWidth, sourceHeight). 받은 영상이 없거나 끊겨 지워지면 0. 어느 장면에도 없으면 None."""
+    for scene in client.request("GetSceneList").get("scenes", []):
+        name = str(scene.get("sceneName"))
+        for item in _scene_items(client, name):
+            if str(item.get("sourceName")) == SOURCE_NAME:
+                transform = client.request("GetSceneItemTransform", {"sceneName": name, "sceneItemId": item.get("sceneItemId")})
+                values = transform.get("sceneItemTransform", {})
+                return int(values.get("sourceWidth") or 0), int(values.get("sourceHeight") or 0)
+    return None
+
+
 def media_state(client: Any) -> dict[str, Any]:
-    """OBS 미디어 소스 상태: 없음, 휴대폰 연결 대기(OPENING), 수신 중(PLAYING) 등."""
+    """OBS 소스 상태: 없음, 휴대폰 연결 대기, 휴대폰 영상 수신 중(영상 크기 표시), 오류 등. ``receiving`` 은 영상이 오는 중인지."""
     if SOURCE_NAME not in {str(item.get("inputName")) for item in client.request("GetInputList").get("inputs", [])}:
-        return {"exists": False, "state": "", "text": "OBS에 휴대폰 카메라 소스 없음"}
+        return {"exists": False, "state": "", "receiving": False, "size": None, "text": "OBS에 휴대폰 카메라 소스 없음"}
     state = str(client.request("GetMediaInputStatus", {"inputName": SOURCE_NAME}).get("mediaState") or "OBS_MEDIA_STATE_NONE")
-    return {"exists": True, "state": state, "text": MEDIA_STATES.get(state, state)}
+    size = _source_size(client)
+    receiving = bool(size and size[0] > 0 and size[1] > 0) and state != "OBS_MEDIA_STATE_ERROR"
+    if state in MEDIA_STATES:
+        text = MEDIA_STATES[state]
+    elif size is None:
+        text = "어느 장면에도 없음: OBS에 소스 만들기로 장면에 추가"
+    elif receiving:
+        text = f"휴대폰 영상 수신 중({size[0]}x{size[1]})"
+    else:
+        text = "휴대폰 연결 대기"
+    return {"exists": True, "state": state, "receiving": receiving, "size": list(size) if size else None, "text": text}
 
 
 def connect(host: str, port: int, password: str | None) -> Any:

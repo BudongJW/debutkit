@@ -293,7 +293,7 @@
     return data;
   }
   function describe(state) {
-    const kind = state.state === "OBS_MEDIA_STATE_PLAYING" ? "ok" : state.state === "OBS_MEDIA_STATE_ERROR" ? "bad" : "";
+    const kind = state.receiving ? "ok" : state.state === "OBS_MEDIA_STATE_ERROR" ? "bad" : "";
     setCamState(`OBS: ${state.text}`, kind);
   }
   async function checkCamera() {
