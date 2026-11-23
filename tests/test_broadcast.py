@@ -18,17 +18,18 @@ from debutkit import broadcast as bc
 from debutkit import program_window as pw
 from debutkit.overlay.server import OverlayServer
 
-# 진행 상황을 0.05초마다 쓰고 표준 입력에 q가 오면 끝나는 가짜 ffmpeg. 인자: 몇 초 뒤 스스로 끝날지, 오류 문장, 종료 코드
+# 진행 상황을 0.05초마다 쓰고 표준 입력에 q가 오면 끝나는 가짜 ffmpeg. 인자: 몇 초 뒤 스스로 끝날지, 오류 문장, 종료 코드, 몇 초 뒤 멈출지
 FAKE_FFMPEG = r"""
 import sys, threading, time
-limit, error, code = float(sys.argv[1]), sys.argv[2], int(sys.argv[3])
+limit, error, code, stall = float(sys.argv[1]), sys.argv[2], int(sys.argv[3]), float(sys.argv[4])
 stop = threading.Event()
 threading.Thread(target=lambda: (sys.stdin.read(1), stop.set()), daemon=True).start()
 began, frame = time.monotonic(), 0
 if error:
     sys.stderr.write(error + "\n"); sys.stderr.flush()
 while not stop.is_set() and (limit <= 0 or time.monotonic() - began < limit):
-    frame += 3
+    if stall <= 0 or time.monotonic() - began < stall:  # stall초 뒤로는 프레임이 늘지 않음(창을 닫은 경우의 ffmpeg처럼)
+        frame += 3
     sys.stdout.write(f"frame={frame}\nfps=30.0\nbitrate=4500.0kbits/s\nout_time_us={frame * 33333}\ndrop_frames=1\ndup_frames=0\nspeed=1.0x\nprogress=continue\n")
     sys.stdout.flush()
     time.sleep(0.05)
@@ -45,11 +46,11 @@ def _fresh_encoder_cache():
     bc._ENCODER_CACHE.clear()
 
 
-def fake_popen(limit: float = 0, error: str = "", code: int = 0, record: list | None = None):
+def fake_popen(limit: float = 0, error: str = "", code: int = 0, record: list | None = None, stall: float = 0):
     def popen(command, **kwargs):
         if record is not None:
             record.append(command)
-        return subprocess.Popen([sys.executable, "-c", FAKE_FFMPEG, str(limit), error, str(code)], **kwargs)
+        return subprocess.Popen([sys.executable, "-c", FAKE_FFMPEG, str(limit), error, str(code), str(stall)], **kwargs)
     return popen
 
 
@@ -336,6 +337,36 @@ def test_broadcast_reconnects_after_long_run(tmp_path):
     assert len(record) >= 3 and broadcaster.status()["state"] in ("live", "retrying")
     assert "방송 시작" in notes and any("다시 연결" in note for note in notes)
     assert broadcaster.stop()["state"] == "off"
+
+
+def test_closing_the_window_stops_without_retrying(tmp_path):
+    record: list = []
+    broadcaster, window = make(tmp_path, popen=fake_popen(limit=0.6, error="[Parsed_gfxcapture_0] capture item closed", code=1, record=record), stable=0.3)
+    broadcaster.start()
+    wait_for(broadcaster, ("live",))
+    window.tokens = set()  # 사용자가 송출 화면 창을 닫음
+    failed = wait_for(broadcaster, ("error",))
+    assert "창이 닫혀" in failed["error"] and len(record) == 1
+    broadcaster.stop()
+
+
+def test_stall_watchdog(tmp_path, monkeypatch):
+    monkeypatch.setattr(bc, "STALL_SECONDS", 0.4)
+    record: list = []
+    broadcaster, window = make(tmp_path, popen=fake_popen(stall=0.3, record=record))
+    broadcaster.poll_interval = 0.05
+    broadcaster.start()
+    wait_for(broadcaster, ("live",))
+    window.is_minimized = True  # 최소화: 프레임이 멈춰도 기다린다(창을 다시 띄우면 이어서 송출)
+    time.sleep(1.2)
+    assert broadcaster.status()["state"] == "live" and broadcaster._process is not None and len(record) == 1
+    window.is_minimized = False  # 다시 띄운 직후에는 멈춤 시간을 새로 잰다
+    time.sleep(0.2)
+    assert broadcaster._process is not None and len(record) == 1
+    window.tokens = set()  # 창을 닫으면 ffmpeg가 멈춰 있으므로 끝내고 이유 표시
+    failed = wait_for(broadcaster, ("error",))
+    assert "창이 닫혀" in failed["error"] and len(record) == 1
+    broadcaster.stop()
 
 
 def test_broadcast_start_checks(tmp_path):

@@ -75,6 +75,7 @@ ENCODER_NAMES = {"h264_nvenc": "NVIDIA NVENC", "h264_qsv": "Intel Quick Sync", "
 AUDIO_KBPS = 160
 KBPS_RANGE = (500, 20000)
 SPEED_WINDOW = 10.0  # 초. 송출 속도(실시간 대비)를 계산하는 구간
+STALL_SECONDS = 10.0  # 초. 이 시간 동안 프레임이 늘지 않으면 송출이 멈춘 것으로 판단
 TITLE_LIMIT = 40
 DEVICE_LIMIT = 300
 KEY_LIMIT = 256
@@ -566,6 +567,7 @@ class Broadcaster:
         self._clock = clock
         self._platform = platform or sys.platform
         self.wait_window, self.retry_delay, self.retries, self.stable = wait_window, retry_delay, retries, stable
+        self.poll_interval = 1.0  # 멈춤 감시 간격(초)
         self._config_file, self._keys_file = config_file, keys_file
         self._key_reader = key_reader or (lambda name: load_key(name, self._keys_file))
         self._lock = threading.RLock()
@@ -788,12 +790,13 @@ class Broadcaster:
                 self._phase = "송출 서버 연결 중"
                 self._attempt += 1
             self._log.clear()
-            began = self._clock()
-            code = self._spawn_and_wait(command)
+            code, lasted = self._spawn_and_wait(command)
             if self._halt.is_set():
                 return
+            if self.window.find(self._token) is None:  # 창을 닫아 끝난 경우: 다시 연결해도 소용없음
+                return self._fail("송출 화면 창이 닫혀 방송을 멈춤: 송출 화면을 다시 열고 방송 시작")
             reason = describe_failure(list(self._log))
-            if self._clock() - began >= self.stable:  # 한동안 방송한 뒤 끊김: 다시 연결
+            if lasted >= self.stable:  # 한동안 방송한 뒤 끊김: 다시 연결
                 failures = 0
             else:  # 시작하자마자 끝남: 처음이면 설정 문제, 다시 연결 중이면 횟수만큼만
                 failures += 1
@@ -805,21 +808,52 @@ class Broadcaster:
             self.notify(f"방송 연결 끊김: {reason}. 다시 연결")
             self._sleep(self.retry_delay)
 
-    def _spawn_and_wait(self, command: list[str]) -> int:
+    def _spawn_and_wait(self, command: list[str]) -> tuple[int, float]:
+        """ffmpeg 실행, 끝날 때까지 진행 상황과 오류 문장을 읽는다. (종료 코드, 실행 시간)."""
+        began = self._clock()
         process = self._popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, creationflags=_NO_WINDOW)
         with self._lock:
             self._process = process
             self._samples.clear()
         errors = threading.Thread(target=self._read_errors, args=(process.stderr,), name="broadcast-log", daemon=True)
         errors.start()
+        watchdog = threading.Thread(target=self._watch, args=(process,), name="broadcast-watch", daemon=True)
+        watchdog.start()
         try:
             self._read_progress(process.stdout)
             code = process.wait()
+            lasted = self._clock() - began
         finally:
             errors.join(2)
+            watchdog.join(2)
             with self._lock:
                 self._process = None
-        return int(code or 0)
+        return int(code or 0), lasted
+
+    def _watch(self, process: Any) -> None:
+        """프레임이 ``STALL_SECONDS`` 동안 늘지 않으면: 창이 닫혔거나 원인을 알 수 없으면 ffmpeg를 끝내 다시 연결 판단으로,
+        창이 최소화되었으면 기다린다(창을 다시 띄우면 이어서 송출). 창을 닫으면 ffmpeg는 끝나지 않고 멈춰 있기 때문."""
+        last_frames, changed = -1, self._clock()
+        while not self._halt.is_set():
+            try:
+                process.wait(self.poll_interval)
+                return  # 끝남
+            except subprocess.TimeoutExpired:
+                pass
+            frames = int(self._stats.get("frames") or 0)
+            now = self._clock()
+            if frames != last_frames:
+                last_frames, changed = frames, now
+                continue
+            if now - changed < STALL_SECONDS or self._state not in ("live", "retrying"):
+                continue
+            hwnd = self.window.find(self._token)
+            if hwnd is not None and self.window.minimized(hwnd):
+                changed = now  # 최소화 중에는 기다리고, 다시 띄운 뒤부터 다시 잰다
+                continue
+            self._log.append("debutkit: 송출 화면이 멈춰 ffmpeg 종료")
+            self._end_process(process)
+            return
 
     def _read_errors(self, stream: IO[bytes] | None) -> None:
         if stream is None:
@@ -877,7 +911,8 @@ class Broadcaster:
         hwnd = self.window.find(self._token)
         if hwnd is None:  # 준비 중에는 아직 뜨지 않았을 수 있음
             return ["송출 화면 창이 닫힘: 방송을 끝내고 다시 시작"] if self._state in ("live", "retrying") else []
-        if self.window.minimized(hwnd) or (geometry and geometry["hidden"]):
+        hidden = self.window.minimized(hwnd) or bool(geometry and geometry["hidden"])
+        if hidden:
             found.append("송출 화면 창이 최소화됨: 방송 화면이 멈춤. 창을 다시 띄우기(다른 창에 가려져도 됨)")
         started = self._started_geometry
         if geometry and started and (abs(geometry["width"] - started["width"]) > 1 or abs(geometry["height"] - started["height"]) > 1):
@@ -888,7 +923,7 @@ class Broadcaster:
             if crop.width < quality.width * 0.75:
                 found.append(f"송출 화면 창이 작아 화질이 떨어짐(창 안 화면 {crop.width}x{crop.height}, 송출 {quality.width}x{quality.height}): 창을 키우기")
         speed = self._stats.get("speed")
-        if self._state == "live" and speed is not None and speed < 0.9:
+        if self._state == "live" and speed is not None and speed < 0.9 and not hidden:  # 최소화 중에는 프레임이 없어 느려 보임
             found.append("PC가 송출을 따라가지 못함: 화질을 720p 30fps로 낮추거나 다른 프로그램 닫기")
         return found
 
