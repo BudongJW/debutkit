@@ -19,11 +19,12 @@
 - `debutkit broadcast`(status, devices, set, key, window, start, stop). 스트림 키는 화면에 표시하지 않는 입력 또는 `--stdin`
 - 설정 마법사 OBS 화면의 OBS 없이 바로 방송 버튼(Windows)
 - 서버 `/broadcast`, `/broadcast/devices`, `POST /broadcast/config`, `/broadcast/key`, `/broadcast/window`, `/broadcast/start`, `/broadcast/stop`, `/program/size`
-- Verify 작업에 Windows 바로 방송 확인(Edge 창, x264, 이 PC 안의 RTMP 수신. `packaging/verify_broadcast.py`)
+- 바로 방송 확인 스크립트(`packaging/verify_broadcast.py`, 송출 화면 창부터 이 PC 안의 RTMP 수신까지). Verify 작업의 Windows 확인은 실행 환경에 그래픽 장치가 없어 창 열기, 화면 크기 보고, 인코더 확인까지
 
 ### 알려진 제한
 - 컴퓨터 소리(후원 알림 효과음, 음악)는 스테레오 믹스 같은 녹음 장치를 함께 보낼 소리로 골라야 함. 직접 캡처는 다음 버전
 - Windows 10 1903 이상, ffmpeg 8 이상(`debutkit setup --ffmpeg`의 9.0.2 포함) 필요. macOS, Linux는 다음 버전 이후
+- 창 캡처에 그래픽 장치(D3D11)가 필요해 그래픽 드라이버가 없는 가상 머신 등에서는 사용 불가(안내 문장 표시)
 
 ## 1.0.0rc15 (2026-11-23)
 

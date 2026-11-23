@@ -86,7 +86,8 @@ jobs:
         run: python packaging/verify_obs.py logs || true
 
   broadcast-windows:
-    # OBS 없이 바로 방송: Edge 송출 화면 창, ffmpeg 창 캡처(gfxcapture)와 인코딩(그래픽 카드가 없으므로 x264), 이 PC 안의 RTMP 수신까지
+    # OBS 없이 바로 방송: Edge 송출 화면 창, 화면 크기 보고, 인코더 확인(그래픽 카드가 없으므로 x264), 이 PC 안의 RTMP 수신.
+    # 실행 환경에 그래픽 장치(D3D11)가 없어 창 캡처는 그 이유로만 실패할 때 경고로 통과(실제 PC 확인은 docs/ROADMAP.md 검증 기록)
     runs-on: windows-latest
     timeout-minutes: 20
     env:
@@ -102,7 +103,7 @@ jobs:
         run: python -m debutkit setup --ffmpeg
       - name: Broadcast end to end (local RTMP)
         timeout-minutes: 6
-        run: python packaging/verify_broadcast.py --seconds 10
+        run: python packaging/verify_broadcast.py --seconds 10 --no-gpu-ok
 
   devices-linux:
     # 커널 가상 장치(snd-aloop 마이크, v4l2loopback 카메라)로 Linux 마이크, 웹캠 감지 확인. arecord가 있을 때와 없을 때(/proc/asound) 모두

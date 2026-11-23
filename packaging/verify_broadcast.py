@@ -45,6 +45,8 @@ def main() -> int:
     parser.add_argument("--encoder", default="auto", help="인코더(기본 auto)")
     parser.add_argument("--quality", default="720p30", help="화질(기본 720p30)")
     parser.add_argument("--keep", metavar="FILE", help="받은 영상을 이 파일로 남기기")
+    parser.add_argument("--no-gpu-ok", action="store_true",
+                        help="그래픽 장치(D3D11)가 없어 창 캡처만 못 한 경우 경고로 통과(GitHub Actions 등). 창 열기, 화면 크기 보고, 인코더 확인까지는 검사")
     args = parser.parse_args()
     if sys.platform != "win32":
         print("Windows에서만 확인 가능")
@@ -79,7 +81,17 @@ def main() -> int:
             status = caster.status()
         print("시작:", json.dumps({key: status[key] for key in ("state", "phase", "error", "encoder", "stats", "warnings")}, ensure_ascii=False))
         if status["state"] != "live":
-            print("ffmpeg 기록:", *list(caster._log), sep="\n  ")
+            log = list(caster._log)
+            print("ffmpeg 기록:", *log, sep="\n  ")
+            no_gpu = any(broadcast.NO_GPU in line.lower() for line in log)
+            if args.no_gpu_ok and no_gpu:
+                earlier = {"송출 화면 창": status["window"], "화면 크기 보고": caster.program.get(caster._token) is not None,
+                           "인코더 확인": bool(status["encoder"]), "안내 문장": status["error"].startswith("그래픽 장치(D3D11)")}
+                for name, ok in earlier.items():
+                    print(("확인 " if ok else "실패 ") + name)
+                print("::warning::그래픽 장치(D3D11)가 없는 환경이라 창 캡처와 송출은 실제 PC에서만 확인")
+                received.unlink(missing_ok=True)
+                return 0 if all(earlier.values()) else 1
             failed = True
             return 1
         time.sleep(args.seconds)
@@ -92,6 +104,8 @@ def main() -> int:
     finally:
         caster.stop(close_window=True)
         server.stop()
+        if failed or caster.status()["stats"].get("frames", 0) == 0:
+            listener.kill()  # 연결이 없었으면 기다리지 않는다
         try:
             listener.wait(30)
         except subprocess.TimeoutExpired:

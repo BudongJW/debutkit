@@ -476,15 +476,18 @@ def build_command(ffmpeg: str, *, hwnd: int, crop: Crop, quality: Quality, kbps:
             "-rw_timeout", "15000000", "-f", "flv", "-flvflags", "no_duration_filesize", url]
 
 
+NO_GPU = "failed to create d3d11va device"  # 그래픽 장치 없음(가상 머신, 원격 데스크톱, CI)
 _FAILURES = (
-    (("failed to find capture source", "failed to setup graphics capture"), "송출 화면 창을 캡처하지 못함: 창이 열려 있는지, 최소화하지 않았는지 확인"),
+    ((NO_GPU,), "그래픽 장치(D3D11)를 열지 못해 창을 캡처할 수 없음: 그래픽 드라이버 확인. 가상 머신, 원격 데스크톱에서는 OBS 사용"),
+    (("failed to find capture source", "failed to setup graphics capture", "parsed_gfxcapture"),
+     "송출 화면 창을 캡처하지 못함: 창이 열려 있는지, 최소화하지 않았는지 확인"),
     (("could not find audio", "could not run graph", "could not enumerate audio", "error opening input file audio"),
      "소리 장치를 열지 못함: 장치 연결과 Windows 설정의 마이크 접근 허용 확인"),
     (("connection refused", "connection to tcp://", "cannot open connection", "connection timed out", "failed to resolve hostname", "network is unreachable",
       "error number -138", "error number -10060", "error number -10061"), "송출 서버에 연결하지 못함: 서버 주소와 인터넷 연결 확인"),
     (("server error", "badname", "publish", "error number -10053", "error number -10054", "input/output error", "broken pipe", "end of file"),
      "송출 서버가 연결을 거부하거나 끊음: 스트림 키와 서버 주소 확인(방송 플랫폼의 방송 설정 화면)"),
-    (("could not open encoder", "error while opening encoder", "openencodesessionex", "mfx", "amf", "nvenc"),
+    (("error while opening encoder", "openencodesessionex", "mfx", "amf", "nvenc"),
      "인코더 시작 실패: 인코더를 x264로 바꿔 다시 시작"),
 )
 

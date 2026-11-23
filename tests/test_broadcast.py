@@ -253,6 +253,9 @@ def test_command_and_encoder_settings():
 
 def test_failure_messages():
     assert "캡처하지 못함" in bc.describe_failure(["[Parsed_gfxcapture_0] Failed to find capture source"])
+    no_gpu = ["[Parsed_gfxcapture_0 @ 0001] Failed to create D3D11VA device.", "[Parsed_gfxcapture_0 @ 0001] Failed to configure output pad",
+              "[vost#0:0/libx264] [enc:libx264] Could not open encoder before EOF"]
+    assert bc.describe_failure(no_gpu).startswith("그래픽 장치(D3D11)를 열지 못해")  # 인코더 문제로 보이지 않게
     assert "소리 장치를 열지 못함" in bc.describe_failure(["[dshow] Could not find audio only device with name [x] among source devices"])
     assert "연결하지 못함" in bc.describe_failure(["[tcp] Connection to tcp://127.0.0.1:1935 failed: Error number -138 occurred"])
     assert "스트림 키" in bc.describe_failure(["[rtmp] Server error: NetStream.Publish.BadName"])
