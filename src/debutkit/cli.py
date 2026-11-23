@@ -90,8 +90,12 @@ def _camera(args: argparse.Namespace) -> int:
             if args.camera_command == "status":
                 print(f"OBS 휴대폰 카메라 소스: {camera.media_state(client)['text']}")
                 return 0
-            result = camera.add_to_obs(client, config, args.scene or ())
-            state = camera.media_state(client)
+            if args.app:  # debutkit 휴대폰 앱 영상(WebRTC) 수신 화면
+                result = camera.add_app_to_obs(client, args.overlay_port, args.scene or ())
+                state = {"text": f"앱에서 카메라 영상 보내기를 누르면 표시(수신 화면 http://127.0.0.1:{args.overlay_port}/camera/view)"}
+            else:
+                result = camera.add_to_obs(client, config, args.scene or ())
+                state = camera.media_state(client)
     except camera.CameraError as error:
         print(f"휴대폰 카메라 소스 실패: {error}", file=sys.stderr)
         return 1
@@ -101,6 +105,9 @@ def _camera(args: argparse.Namespace) -> int:
     done = "만듦" if result["created"] else "설정 맞춤"
     where = ", ".join(result["added"]) + " 장면에 추가" if result["added"] else ", ".join(result["kept"]) + " 장면에 이미 있음"
     print(f"OBS 소스 {camera.SOURCE_NAME} {done}, {where}. 상태: {state['text']}")
+    if args.app:
+        print("앱 등록: 오버레이 설정 화면의 휴대폰 연결에서 휴대폰 조작 화면을 켜고 QR 등록, PC에서 승인")
+        return 0
     print("OBS가 처음 수신할 때 Windows 보안 경고가 나오면 개인 네트워크 허용")
     print(_camera_info(camera.connection_info(config)))
     return 0
@@ -743,6 +750,8 @@ def build_parser() -> argparse.ArgumentParser:
     camera_setup.add_argument("--port", type=int, help="수신 포트(기본 9710, 저장)")
     camera_setup.add_argument("--latency", type=int, metavar="밀리초", help="지연 여유(80에서 2000, 기본 200, 저장)")
     camera_setup.add_argument("--new-passphrase", action="store_true", help="새 암호 만들기(휴대폰 앱에 다시 등록 필요)")
+    camera_setup.add_argument("--app", action="store_true", help="debutkit 휴대폰 앱 영상(WebRTC)을 받는 브라우저 소스 만들기(SRT 대신)")
+    camera_setup.add_argument("--overlay-port", type=int, default=OVERLAY_PORT, help="debutkit overlay 포트 (기본 %(default)s, --app)")
     camera_status = cameras_sub.add_parser("status", help="OBS 소스 상태(휴대폰 연결 대기, 수신 중 등)")
     for command in (camera_setup, camera_status):
         command.add_argument("--obs-host", default="127.0.0.1")

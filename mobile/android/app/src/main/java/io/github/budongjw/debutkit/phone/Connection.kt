@@ -33,6 +33,9 @@ class Client(private val pairing: Pairing) {
             Answers.string(text, "name") ?: name)
     }
 
+    /** 서명한 POST 요청(카메라 영상 통화 등). 응답 본문. */
+    fun post(path: String, body: String): String = request("POST", path, body)
+
     private fun request(method: String, path: String, body: String): String {
         val bytes = body.toByteArray(Charsets.UTF_8)
         val stamp = System.currentTimeMillis().toString()

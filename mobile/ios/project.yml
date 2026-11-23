@@ -10,12 +10,18 @@ settings:
     SWIFT_VERSION: "5.9"
     MARKETING_VERSION: "1.0.0"
     CURRENT_PROJECT_VERSION: "1"
+packages:
+  WebRTC:
+    url: https://github.com/stasel/WebRTC
+    exactVersion: 158.0.0
 targets:
   DebutkitPhone:
     type: application
     platform: iOS
     sources:
       - DebutkitPhone
+    dependencies:
+      - package: WebRTC
     info:
       path: DebutkitPhone/Info.plist
       properties:

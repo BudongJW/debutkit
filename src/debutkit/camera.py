@@ -23,6 +23,8 @@ from . import settings
 
 SOURCE_NAME = "[DK] 휴대폰 카메라"
 INPUT_KIND = "ffmpeg_source"
+APP_SOURCE_NAME = "[DK] 휴대폰 카메라(앱)"  # debutkit 휴대폰 앱의 WebRTC 영상을 받는 브라우저 소스(/camera/view)
+APP_INPUT_KIND = "browser_source"
 DEFAULT_PORT = 9710
 DEFAULT_LATENCY = 200  # 밀리초. SRT 재전송 여유(Wi-Fi가 불안정하면 크게)
 LATENCY_RANGE = (80, 2000)
@@ -231,9 +233,24 @@ def _place(client: Any, scene: str, item_id: int, width: int, height: int) -> No
 
 def add_to_obs(client: Any, config: CameraConfig, scenes: Iterable[str] = ()) -> dict[str, Any]:
     """OBS에 미디어 소스를 만들거나(처음) 설정을 맞추고(포트, 암호 변경), 장면에 넣는다. 장면을 주지 않으면 현재 방송 장면."""
+    return _ensure_source(client, SOURCE_NAME, INPUT_KIND, source_settings(config), scenes, "이 OBS에는 미디어 소스가 없음(OBS 설치 상태 확인)")
+
+
+def app_settings(overlay_port: int) -> dict[str, Any]:
+    """debutkit 휴대폰 앱 영상 수신 화면(브라우저 소스). 숨겨도 연결을 유지하도록 끄지 않음, 소리는 OBS로 보내지 않음."""
+    return {"url": f"http://127.0.0.1:{overlay_port}/camera/view", "width": 1280, "height": 720, "shutdown": False, "restart_when_active": False,
+            "reroute_audio": False, "fps_custom": True, "fps": 30}
+
+
+def add_app_to_obs(client: Any, overlay_port: int, scenes: Iterable[str] = ()) -> dict[str, Any]:
+    """debutkit 휴대폰 앱의 카메라 영상(WebRTC)을 받는 브라우저 소스를 만들거나 주소를 맞추고 장면에 넣는다."""
+    return _ensure_source(client, APP_SOURCE_NAME, APP_INPUT_KIND, app_settings(overlay_port), scenes, "이 OBS에는 브라우저 소스가 없음(OBS 설치 상태 확인)")
+
+
+def _ensure_source(client: Any, source: str, kind: str, settings_: dict[str, Any], scenes: Iterable[str], missing_kind: str) -> dict[str, Any]:
     kinds = client.request("GetInputKindList", {"unversioned": False}).get("inputKinds", [])
-    if INPUT_KIND not in kinds:
-        raise CameraError("이 OBS에는 미디어 소스가 없음(OBS 설치 상태 확인)")
+    if kind not in kinds:
+        raise CameraError(missing_kind)
     targets = [name for name in scenes if name]
     if not targets:
         current = client.request("GetCurrentProgramScene")
@@ -244,19 +261,19 @@ def add_to_obs(client: Any, config: CameraConfig, scenes: Iterable[str] = ()) ->
         raise CameraError(f"OBS에 없는 장면: {', '.join(missing) or '현재 장면'}")
     video = client.request("GetVideoSettings")
     width, height = int(video.get("baseWidth", 1920)), int(video.get("baseHeight", 1080))
-    exists = SOURCE_NAME in {str(item.get("inputName")) for item in client.request("GetInputList").get("inputs", [])}
-    result: dict[str, Any] = {"source": SOURCE_NAME, "created": not exists, "updated": exists, "added": [], "kept": []}
+    exists = source in {str(item.get("inputName")) for item in client.request("GetInputList").get("inputs", [])}
+    result: dict[str, Any] = {"source": source, "created": not exists, "updated": exists, "added": [], "kept": []}
     if exists:
-        client.request("SetInputSettings", {"inputName": SOURCE_NAME, "inputSettings": source_settings(config), "overlay": True})
+        client.request("SetInputSettings", {"inputName": source, "inputSettings": settings_, "overlay": True})
     for scene in targets:
-        if any(str(item.get("sourceName")) == SOURCE_NAME for item in _scene_items(client, scene)):
+        if any(str(item.get("sourceName")) == source for item in _scene_items(client, scene)):
             result["kept"].append(scene)
             continue
         if exists:
-            item_id = client.request("CreateSceneItem", {"sceneName": scene, "sourceName": SOURCE_NAME})["sceneItemId"]
+            item_id = client.request("CreateSceneItem", {"sceneName": scene, "sourceName": source})["sceneItemId"]
         else:
-            item_id = client.request("CreateInput", {"sceneName": scene, "inputName": SOURCE_NAME, "inputKind": INPUT_KIND,
-                                                     "inputSettings": source_settings(config), "sceneItemEnabled": True})["sceneItemId"]
+            item_id = client.request("CreateInput", {"sceneName": scene, "inputName": source, "inputKind": kind,
+                                                     "inputSettings": settings_, "sceneItemEnabled": True})["sceneItemId"]
             exists = True
         _place(client, scene, int(item_id), width, height)
         result["added"].append(scene)

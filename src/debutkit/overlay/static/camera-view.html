@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <title>debutkit 휴대폰 카메라</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+    video { width: 100%; height: 100%; object-fit: contain; display: block; }
+    video.cover { object-fit: cover; }
+    video.mirror { transform: scaleX(-1); }
+    #state { position: fixed; left: 12px; bottom: 12px; font: 600 16px/1.4 "Pretendard", "Malgun Gothic", sans-serif; color: #fff;
+      background: rgba(30, 35, 39, 0.85); padding: 6px 10px; border-radius: 4px; }
+    #state[hidden] { display: none; }
+  </style>
+</head>
+<body>
+  <video id="video" autoplay playsinline muted></video>
+  <div id="state" hidden></div>
+  <script type="module" src="/camera-view.js"></script>
+</body>
+</html>

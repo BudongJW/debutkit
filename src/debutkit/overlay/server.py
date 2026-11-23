@@ -20,6 +20,8 @@
 - ``/camera`` 휴대폰 카메라 영상 연결 정보(camera.py: PC 주소, 포트, 암호, Larix 가져오기 주소), ``/camera/qr.svg?address=`` QR 코드,
   ``/camera/status`` OBS 소스 상태. ``POST /camera/obs`` OBS 소스 만들기, ``POST /camera/config`` 포트, 지연 여유, 새 암호.
   OBS 작업은 오버레이를 시작한 명령줄이나 설정 마법사가 알려 준 OBS 연결 정보(``obs_target``)를 사용
+- ``/camera/view`` debutkit 휴대폰 앱의 카메라 영상(WebRTC) 수신 화면(OBS 브라우저 소스, camcall.py). ``/live?feeds=camera`` 연결 제안,
+  ``POST /camera/answer`` 응답, ``/camera/call`` 통화 상태. ``POST /camera/obs`` 에 ``{"kind": "app"}`` 이면 이 화면의 브라우저 소스
 - ``/remote/admin`` 휴대폰 조작 화면(remote.py) 관리: 켜기, 끄기, QR(``/remote/admin/qr.svg?id=``), 승인, 삭제.
   휴대폰 조작 화면 자체는 이 서버가 아닌 별도 창구(내부 네트워크 주소, 기본 8792번)에서 연다
 - ``POST /test`` 설정 화면의 테스트 메시지, ``POST /voice/test`` 말하기 시험
@@ -51,6 +53,7 @@ from .. import commands
 from .. import draw as drawing
 from .. import motion as motions
 from .. import raffle as raffles
+from . import camcall
 from . import phone as phones
 from . import remote as remotes
 from .events import OverlayEvent, system_event
@@ -59,12 +62,13 @@ from .voice import VoiceState
 
 STATIC = {"/": "index.html", "/chat": "chat.html", "/alerts": "alerts.html", "/overlay.css": "overlay.css", "/overlay.js": "overlay.js",
           "/favicon.svg": "favicon.svg", "/character": "character.html", "/character.js": "character.js", "/tracker": "tracker.html", "/tracker.js": "tracker.js",
-          "/draw": "draw.html", "/draw.js": "draw.js", "/draw.css": "draw.css", "/draw/control": "draw-control.html", "/phone": "phone.html"}
+          "/draw": "draw.html", "/draw.js": "draw.js", "/draw.css": "draw.css", "/draw/control": "draw-control.html", "/phone": "phone.html",
+          "/camera/view": "camera-view.html", "/camera-view.js": "camera-view.js"}
 #: /live 로 받을 수 있는 항목. feeds를 지정하지 않으면 DEFAULT_FEEDS
-LIVE_FEEDS = ("voice", "tracking", "motion", "draw", "raffle")
+LIVE_FEEDS = ("voice", "tracking", "motion", "draw", "raffle", "camera")
 DEFAULT_FEEDS = ("voice", "tracking", "motion")
 #: 요청 본문 최대 크기(추첨 설정은 상품표가 길 수 있음)
-BODY_LIMIT = {"/draw/config": 32768}
+BODY_LIMIT = {"/draw/config": 32768, "/camera/answer": 32768}
 #: 얼굴 추적 화면은 이 서버 밖으로 접속하지 못하게 한다(함께 배포한 MediaPipe의 사용 기록 전송 차단, 카메라 영상 외부 전송 방지)
 TRACKER_POLICY = ("default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'; img-src 'self' blob: data:; "
                   "media-src 'self' blob: mediastream:; style-src 'self' 'unsafe-inline'; worker-src 'self' blob:; frame-ancestors 'none'")
@@ -141,7 +145,7 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
                  tracking: TrackingState | None = None, motion: motions.MotionState | None = None, draw: drawing.DrawState | None = None,
                  raffle: raffles.Raffle | None = None, phone: phones.PhoneTracker | None = None,
                  obs_target: Callable[[], tuple[str, int, str | None] | None] | None = None, remote: remotes.RemoteControl | None = None,
-                 stopping: threading.Event | None = None) -> type[BaseHTTPRequestHandler]:
+                 call: camcall.CameraCall | None = None, stopping: threading.Event | None = None) -> type[BaseHTTPRequestHandler]:
     """``stopping`` 이 설정되면 열린 사건 흐름을 모두 끝낸다(화면은 새 서버에 다시 연결)."""
     voice = voice or VoiceState()
     tracking = tracking or TrackingState()
@@ -150,8 +154,9 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
     raffle = raffle or raffles.Raffle()
     phone = phone or phones.PhoneTracker(tracking)
     obs_target = obs_target or (lambda: None)
-    remote = remote or remotes.RemoteControl(raffle, motion, draw)
-    states: dict[str, Any] = {"voice": voice, "tracking": tracking, "motion": motion, "draw": draw, "raffle": raffle}
+    call = call or (remote.call if remote is not None else camcall.CameraCall())
+    remote = remote or remotes.RemoteControl(raffle, motion, draw, call=call)
+    states: dict[str, Any] = {"voice": voice, "tracking": tracking, "motion": motion, "draw": draw, "raffle": raffle, "camera": call}
     stopping = stopping or threading.Event()
     step = min(0.5, keepalive)
 
@@ -223,6 +228,8 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
                 return self._camera_obs(lambda client: cameras.media_state(client))
             if path == "/remote/admin":
                 return self._json(remote.status())
+            if path == "/camera/call":
+                return self._json(call.status())
             if path == "/remote/admin/qr.svg":
                 try:
                     url = remote.pair_url(urllib.parse.parse_qs(query).get("id", [""])[0])
@@ -256,7 +263,8 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
             if path not in ("/test", "/voice/test", "/tracking", "/motion", "/draw/config", "/draw/test", "/draw/clear", "/raffle/start", "/raffle/stop",
                             "/raffle/clear", "/raffle/add", "/raffle/remove", "/raffle/draw", "/phone/start", "/phone/stop", "/phone/options",
                             "/phone/calibrate", "/camera/obs", "/camera/config", "/remote/admin/start",
-                            "/remote/admin/stop", "/remote/admin/pair", "/remote/admin/approve", "/remote/admin/remove"):
+                            "/remote/admin/stop", "/remote/admin/pair", "/remote/admin/approve", "/remote/admin/remove", "/camera/answer",
+                            "/camera/ended"):
                 return self._send(HTTPStatus.NOT_FOUND, b"not found")
             try:
                 raw = json.loads(body or b"{}")
@@ -275,7 +283,19 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
             if path == "/camera/obs":
                 chosen = data.get("scenes")
                 names = [str(name) for name in chosen] if isinstance(chosen, list) else []
+                if data.get("kind") == "app":  # debutkit 휴대폰 앱 영상(WebRTC) 수신 화면
+                    return self._camera_obs(lambda client: {**cameras.add_app_to_obs(client, port_of(), names), **call.status()})
                 return self._camera_obs(lambda client: {**cameras.add_to_obs(client, cameras.load_config(), names), **cameras.media_state(client)})
+            if path == "/camera/ended":  # 수신 화면: 연결이 오래 끊김
+                return self._json({"stopped": call.stop(str(data.get("id") or ""))})
+            if path == "/camera/answer":
+                try:
+                    accepted = call.answer(str(data.get("id") or ""), data.get("sdp"), [remote.address, *cameras.lan_addresses()])
+                except camcall.CallError as error:
+                    return self._json({"error": str(error)}, HTTPStatus.BAD_REQUEST)
+                if not accepted:
+                    return self._json({"error": "이미 다른 화면이 연결했거나 끝난 통화"}, HTTPStatus.CONFLICT)
+                return self._json({"accepted": True})
             if path == "/camera/config":
                 return self._camera_config(data)
             if path.startswith("/remote/admin/"):
@@ -601,8 +621,9 @@ class OverlayServer:
         self.hub.taps.append(self.commands)  # 스트리머, 매니저 채팅 명령
         self.phone = phones.PhoneTracker(self.tracking)  # 휴대폰 얼굴 추적(켠 경우만 수신 창구를 연다)
         self.obs_target: tuple[str, int, str | None] | None = None  # OBS 연결 정보(휴대폰 카메라 소스 만들기). 명령줄, 설정 마법사가 지정
+        self.camera_call = camcall.CameraCall()  # 휴대폰 앱의 카메라 영상(WebRTC) 연결 중계
         self.remote = remotes.RemoteControl(self.raffle, self.motion, self.draw, notify=lambda text: self.hub.publish(system_event(text)),
-                                            tracking=self.tracking, phone=self.phone)
+                                            tracking=self.tracking, phone=self.phone, call=self.camera_call)
         self._sources = list(sources)
         self._poll = poll
         self._retry = retry
@@ -611,7 +632,8 @@ class OverlayServer:
         self._attached: list[Any] = []
         self.httpd = _HttpServer(("127.0.0.1", port), make_handler(self.hub, lambda: self.port, voice=self.voice, tracking=self.tracking,
                                                                    motion=self.motion, draw=self.draw, raffle=self.raffle, phone=self.phone,
-                                                                   obs_target=lambda: self.obs_target, remote=self.remote, stopping=self._stop))
+                                                                   obs_target=lambda: self.obs_target, remote=self.remote, call=self.camera_call,
+                                                                   stopping=self._stop))
         self._attached.append(self.commands)  # 단축키 실행 스레드 정리
         self._attached.append(_PhoneStopper(self.phone))
         self._attached.append(_RemoteStopper(self.remote))

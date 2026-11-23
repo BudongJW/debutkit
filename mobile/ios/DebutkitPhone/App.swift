@@ -1,5 +1,7 @@
 import ARKit
+import AVFoundation
 import SwiftUI
+import WebRTC
 
 private let ink = Color(red: 0x1E / 255, green: 0x23 / 255, blue: 0x27 / 255)
 private let paper = Color(red: 0xFA / 255, green: 0xF7 / 255, blue: 0xF5 / 255)
@@ -29,9 +31,14 @@ final class Model: ObservableObject {
     @Published var rate = 0
     @Published var hot = ProcessInfo.processInfo.thermalState.rawValue >= ProcessInfo.ThermalState.serious.rawValue
     @Published var dimmed = false
+    @Published var cameraMode = false
+    @Published var sending = false
+    @Published var front = false
+    @Published var cameraState: CameraSender.State?
 
     private var sender: Sender?
     private var tracker: FaceTracker?
+    private var camera: CameraSender?
     private var poll: Task<Void, Never>?
     private var shown = Date.distantPast
     private var brightness = UIScreen.main.brightness
@@ -62,6 +69,7 @@ final class Model: ObservableObject {
 
     func forget(_ reason: String) {
         stopTracking()
+        stopCamera()
         poll?.cancel()
         Store.clear()
         pairing = nil
@@ -141,6 +149,44 @@ final class Model: ObservableObject {
     }
 
     var session: ARSession? { tracker?.session }
+    var cameraTrack: RTCVideoTrack? { camera?.track }
+
+    /// 얼굴 추적과 카메라 영상 중 하나(카메라는 하나만 쓸 수 있음).
+    func setCameraMode(_ on: Bool) {
+        guard on != cameraMode else { return }
+        stopTracking()
+        stopCamera()
+        cameraMode = on
+    }
+
+    func startCamera() {
+        guard let pairing else { return }
+        AVCaptureDevice.requestAccess(for: .video) { granted in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                guard granted else {
+                    self.message = "카메라 사용이 허용되지 않음: 설정에서 debutkit 휴대폰의 카메라 허용"
+                    return
+                }
+                let sender = CameraSender(pairing) { state in
+                    Task { @MainActor [weak self] in self?.cameraState = state }
+                }
+                self.camera = sender
+                sender.start(front: self.front)
+                sender.lower(self.hot)
+                self.sending = true
+                UIApplication.shared.isIdleTimerDisabled = true
+            }
+        }
+    }
+
+    func stopCamera() {
+        camera?.stop()
+        camera = nil
+        sending = false
+        cameraState = nil
+        UIApplication.shared.isIdleTimerDisabled = tracking
+    }
 
     func toggleDim() {
         dimmed.toggle()
@@ -171,7 +217,7 @@ struct MainView: View {
                     case .unpaired: UnpairedView()
                     case .scanning: ScanningView()
                     case .connecting, .waiting: WaitingView()
-                    case .ready: TrackingView()
+                    case .ready: ReadyView()
                     }
                 }
                 .padding(16)
@@ -272,6 +318,72 @@ private struct FacePreview: UIViewRepresentable {
         return view
     }
     func updateUIView(_ view: ARSCNView, context: Context) {}
+}
+
+/// 승인된 뒤: 얼굴 추적 또는 카메라 영상.
+private struct ReadyView: View {
+    @EnvironmentObject var model: Model
+
+    var body: some View {
+        Picker("방식", selection: Binding(get: { model.cameraMode }, set: { model.setCameraMode($0) })) {
+            Text("얼굴 추적").tag(false)
+            Text("카메라 영상").tag(true)
+        }
+        .pickerStyle(.segmented)
+        if model.cameraMode { CameraView() } else { TrackingView() }
+    }
+}
+
+/// 보내는 카메라 영상 미리보기(Metal).
+private struct CameraPreview: UIViewRepresentable {
+    let track: RTCVideoTrack
+    let mirror: Bool
+
+    func makeUIView(context: Context) -> RTCMTLVideoView {
+        let view = RTCMTLVideoView()
+        view.videoContentMode = .scaleAspectFit
+        view.transform = mirror ? CGAffineTransform(scaleX: -1, y: 1) : .identity
+        track.add(view)
+        return view
+    }
+
+    func updateUIView(_ view: RTCMTLVideoView, context: Context) {}
+}
+
+private struct CameraView: View {
+    @EnvironmentObject var model: Model
+
+    private var label: (String, Color) {
+        switch model.cameraState {
+        case .starting, .waiting: return ("OBS 수신 화면과 연결 중", .secondary)
+        case .connected: return ("보내는 중", ok)
+        case .retrying: return ("연결 끊김: 다시 연결 중", bad)
+        case .noReceiver: return ("수신 화면 응답 없음: PC 휴대폰 연결 화면에서 앱 영상용 OBS 소스 만들기, OBS 실행 확인", bad)
+        case .failed: return ("연결 실패: PC에서 이 휴대폰의 등록과 승인 확인", bad)
+        case .stopped, .none: return (model.sending ? "준비 중" : "멈춤", .secondary)
+        }
+    }
+
+    var body: some View {
+        Card {
+            Text("카메라 영상").font(.title3).bold()
+            Text("휴대폰 카메라 영상을 PC OBS의 [DK] 휴대폰 카메라(앱) 소스로 보냅니다. 같은 Wi-Fi에서 직접 보내며 소리는 보내지 않습니다.").font(.subheadline)
+            if model.sending { Text(label.0).bold().foregroundColor(label.1) }
+            if model.hot { Text("휴대폰이 뜨거움: 해상도를 낮췄습니다. 충전기를 빼거나 케이스를 벗기고 그늘에 두십시오.").font(.footnote).foregroundColor(bad) }
+            if !model.message.isEmpty { Text(model.message).font(.footnote).foregroundColor(bad) }
+        }
+        if model.sending, let track = model.cameraTrack {
+            CameraPreview(track: track, mirror: model.front).frame(height: 360).background(Color.black).cornerRadius(6)
+        }
+        BigButton(title: model.sending ? "보내기 멈춤" : "보내기 시작") { model.sending ? model.stopCamera() : model.startCamera() }
+        HStack(spacing: 8) {
+            BigButton(title: model.front ? "앞면 카메라" : "뒷면 카메라", primary: false) { model.front.toggle() }.disabled(model.sending)
+            BigButton(title: model.dimmed ? "밝게" : "화면 어둡게", primary: false) { model.toggleDim() }
+        }
+        BigButton(title: "연결 해제", primary: false) { model.forget("이 휴대폰의 등록 정보를 지웠습니다.") }
+        Text("카메라를 바꾸려면 보내기를 멈춘 뒤 고르십시오. 앱을 닫거나 다른 앱으로 바꾸면 보내기가 멈춥니다. 영상은 PC로만 보내며 저장하지 않습니다.")
+            .font(.footnote).foregroundColor(.secondary)
+    }
 }
 
 private struct TrackingView: View {

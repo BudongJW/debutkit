@@ -176,7 +176,7 @@ private fun App(activity: MainActivity, store: Store) {
                 Step.Unpaired -> Unpaired(message, onScan = { step = Step.Scanning }, onLink = ::accept)
                 Step.Scanning -> Scanning(onFound = ::accept, onCancel = { step = Step.Unpaired })
                 Step.Connecting, Step.Waiting -> Waiting(step == Step.Waiting, code, message, onForget = { forget("") })
-                Step.Ready -> Tracking(activity, pairing!!, onForget = { forget("이 휴대폰의 등록 정보를 지웠습니다.") }, onLost = { reason ->
+                Step.Ready -> Ready(activity, pairing!!, onForget = { forget("이 휴대폰의 등록 정보를 지웠습니다.") }, onLost = { reason ->
                     message = reason
                     step = Step.Connecting
                 })
@@ -268,6 +268,108 @@ private fun Waiting(waiting: Boolean, code: String, message: String, onForget: (
     BigButton("등록 취소", onForget, primary = false)
 }
 
+/** 승인된 뒤: 얼굴 추적 또는 카메라 영상(카메라는 하나만 쓸 수 있어 둘 중 하나). */
+@Composable
+private fun Ready(activity: MainActivity, pairing: Pairing, onForget: () -> Unit, onLost: (String) -> Unit) {
+    var camera by remember { mutableStateOf(false) }
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        listOf(false to "얼굴 추적", true to "카메라 영상").forEach { (mode, label) ->
+            val selected = camera == mode
+            Button({ camera = mode }, Modifier.weight(1f).height(44.dp),
+                colors = if (selected) ButtonDefaults.buttonColors() else ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Ink)) {
+                Text(label, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal)
+            }
+        }
+    }
+    if (camera) CameraVideo(activity, pairing, onForget, onLost) else Tracking(activity, pairing, onForget, onLost)
+}
+
+@Composable
+private fun CameraVideo(activity: MainActivity, pairing: Pairing, onForget: () -> Unit, onLost: (String) -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var allowed by remember { mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) }
+    val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { allowed = it }
+    var running by remember { mutableStateOf(false) }
+    var front by remember { mutableStateOf(false) }
+    var dimmed by remember { mutableStateOf(false) }
+    var state by remember { mutableStateOf<CameraSender.State?>(null) }
+    val hot = activity.thermal.intValue >= PowerManager.THERMAL_STATUS_SEVERE
+    WatchApproval(pairing, onLost)
+    Card {
+        Text("카메라 영상", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+        Text("휴대폰 카메라 영상을 PC OBS의 [DK] 휴대폰 카메라(앱) 소스로 보냅니다. 같은 Wi-Fi에서 직접 보내며 소리는 보내지 않습니다.", fontSize = 14.sp)
+        val (label, color) = when (state) {
+            CameraSender.State.Starting, CameraSender.State.Waiting -> "OBS 수신 화면과 연결 중" to Color.DarkGray
+            CameraSender.State.Connected -> "보내는 중" to Ok
+            CameraSender.State.Retrying -> "연결 끊김: 다시 연결 중" to Bad
+            CameraSender.State.NoReceiver -> "수신 화면 응답 없음: PC 휴대폰 연결 화면에서 앱 영상용 OBS 소스 만들기, OBS 실행 확인" to Bad
+            CameraSender.State.Failed -> "연결 실패: PC에서 이 휴대폰의 등록과 승인 확인" to Bad
+            CameraSender.State.Stopped, null -> (if (running) "준비 중" else "멈춤") to Color.DarkGray
+        }
+        if (running) Text(label, color = color, fontWeight = FontWeight.Bold)
+        if (hot) Text("휴대폰이 뜨거움: 해상도를 낮췄습니다. 충전기를 빼거나 케이스를 벗기고 그늘에 두십시오.", color = Bad, fontSize = 14.sp)
+        if (!allowed) Text("카메라 영상에는 카메라 사용 허용이 필요합니다.", color = Bad, fontSize = 14.sp)
+    }
+    if (running && allowed) CameraSession(activity, pairing, front, hot) { state = it }
+    BigButton(if (running) "보내기 멈춤" else "보내기 시작", {
+        if (!running && !allowed) ask.launch(Manifest.permission.CAMERA) else { state = null; running = !running }
+    })
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedButton({ front = !front }, Modifier.weight(1f).height(48.dp), enabled = !running) { Text(if (front) "앞면 카메라" else "뒷면 카메라", color = Ink) }
+        OutlinedButton({ dimmed = !dimmed; activity.dim(dimmed) }, Modifier.weight(1f).height(48.dp)) { Text(if (dimmed) "밝게" else "화면 어둡게", color = Ink) }
+    }
+    OutlinedButton({ running = false; onForget() }, Modifier.fillMaxWidth().height(48.dp)) { Text("연결 해제", color = Ink) }
+    Text("카메라를 바꾸려면 보내기를 멈춘 뒤 고르십시오. 앱을 닫거나 다른 앱으로 바꾸면 보내기가 멈춥니다. 영상은 PC로만 보내며 저장하지 않습니다.",
+        color = Color.DarkGray, fontSize = 13.sp)
+    DisposableEffect(Unit) { onDispose { activity.dim(false) } }
+}
+
+/** 보내기 실행: 화면이 사라지면 카메라와 연결을 정리한다. */
+@Composable
+private fun CameraSession(activity: MainActivity, pairing: Pairing, front: Boolean, hot: Boolean, onState: (CameraSender.State) -> Unit) {
+    val onStateNow = rememberUpdatedState(onState)
+    val holder = remember { mutableStateOf<CameraSender?>(null) }
+    val renderer = remember { org.webrtc.SurfaceViewRenderer(activity) }
+    AndroidView({ renderer }, Modifier.fillMaxWidth().aspectRatio(1f).background(Color.Black))
+    DisposableEffect(front) {
+        activity.keepAwake(true)
+        val egl = org.webrtc.EglBase.create()
+        renderer.init(egl.eglBaseContext, null)
+        renderer.setMirror(front)
+        renderer.setScalingType(org.webrtc.RendererCommon.ScalingType.SCALE_ASPECT_FIT)
+        val sender = CameraSender(activity, pairing, egl) { state -> activity.runOnUiThread { onStateNow.value(state) } }
+        holder.value = sender
+        sender.preview(renderer)
+        sender.start(front)
+        onDispose {
+            holder.value = null
+            sender.preview(null)
+            renderer.release()
+            sender.close()
+            activity.keepAwake(false)
+        }
+    }
+    LaunchedEffect(hot) { holder.value?.lower(hot) }
+}
+
+/** 승인이 취소됐는지 10초마다 확인(PC에서 삭제하면 등록 화면으로). */
+@Composable
+private fun WatchApproval(pairing: Pairing, onLost: (String) -> Unit) {
+    LaunchedEffect(pairing) {
+        while (isActive) {
+            delay(10_000)
+            try {
+                val hello = withContext(Dispatchers.IO) { Client(pairing).hello(Build.MODEL.take(30)) }
+                if (!hello.approved) onLost("PC에서 승인이 취소되었습니다.")
+            } catch (failure: PcError) {
+                if (failure.status == 401 && !failure.message.orEmpty().contains("시각")) onLost(failure.message.orEmpty())
+            } catch (_: IOException) {
+                // 잠시 끊김
+            }
+        }
+    }
+}
+
 @Composable
 private fun Tracking(activity: MainActivity, pairing: Pairing, onForget: () -> Unit, onLost: (String) -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -284,20 +386,7 @@ private fun Tracking(activity: MainActivity, pairing: Pairing, onForget: () -> U
     val hot = thermal >= PowerManager.THERMAL_STATUS_SEVERE
     val testFile = remember { activity.testImage() }
 
-    // 승인이 취소됐는지 10초마다 확인(PC에서 삭제하면 등록 화면으로)
-    LaunchedEffect(pairing) {
-        while (isActive) {
-            delay(10_000)
-            try {
-                val hello = withContext(Dispatchers.IO) { Client(pairing).hello(Build.MODEL.take(30)) }
-                if (!hello.approved) onLost("PC에서 승인이 취소되었습니다.")
-            } catch (failure: PcError) {
-                if (failure.status == 401 && !failure.message.orEmpty().contains("시각")) onLost(failure.message.orEmpty())
-            } catch (_: IOException) {
-                // 잠시 끊김: 추적 값은 계속 보낸다
-            }
-        }
-    }
+    WatchApproval(pairing, onLost)
 
     Card {
         Text("얼굴 추적", fontWeight = FontWeight.Bold, fontSize = 18.sp)

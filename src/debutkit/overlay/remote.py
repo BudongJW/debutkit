@@ -37,6 +37,7 @@ from typing import Any, Callable
 from .. import camera, settings
 from .. import motion as motions
 from .. import raffle as raffles
+from . import camcall
 from . import phone as phones
 from .tracking import ARKIT_NAMES, TrackingState
 
@@ -45,7 +46,7 @@ PAIR_SECONDS = 300  # QR 유효 시간
 MAX_DEVICES = 5
 SKEW = 120  # 휴대폰과 PC 시각 차이 허용(초)
 FAIL_LIMIT = 10  # 이 횟수만큼 서명 실패하면(1분 안) 그 주소를 1분간 차단
-BODY_LIMIT = 4096
+BODY_LIMIT = 32768  # 영상 연결 정보(SDP)는 수 KB
 PAGE_POLICY = ("default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; "
                "frame-ancestors 'none'; base-uri 'none'; form-action 'none'")
 FILES = {"/remote": ("remote.html", "text/html; charset=utf-8"), "/remote.js": ("remote.js", "text/javascript; charset=utf-8"),
@@ -259,12 +260,14 @@ class RemoteControl:
     """휴대폰 조작 화면 서버(별도 창구)와 기기 관리. 오버레이 서버의 추첨, 동작 상태를 함께 쓴다."""
 
     def __init__(self, raffle: raffles.Raffle, motion: motions.MotionState, draw: Any, *, notify: Callable[[str], Any] | None = None,
-                 store: DeviceStore | None = None, tracking: TrackingState | None = None, phone: phones.PhoneTracker | None = None) -> None:
+                 store: DeviceStore | None = None, tracking: TrackingState | None = None, phone: phones.PhoneTracker | None = None,
+                 call: camcall.CameraCall | None = None) -> None:
         self.raffle, self.motion, self.draw = raffle, motion, draw
         self.notify = notify or (lambda text: None)
         self.devices = store or DeviceStore()
         self.tracking = tracking or TrackingState()
         self.phone = phone  # 거울처럼, 위아래 반전, 정면 맞추기 설정
+        self.call = call or camcall.CameraCall()  # 앱의 카메라 영상(WebRTC) 연결 중계
         self.httpd: _Server | None = None
         self._thread: threading.Thread | None = None
         self._udp: socket.socket | None = None
@@ -437,7 +440,16 @@ class RemoteControl:
     def remove(self, device_id: str) -> dict[str, Any]:
         if not self.devices.remove(device_id):
             raise RemoteError("없는 기기")
+        self.call.stop(device=device_id)  # 삭제한 기기의 영상 통화도 끝
         return self.status()
+
+    def camera(self, path: str, device: Device, data: dict[str, Any]) -> dict[str, Any]:
+        """앱의 카메라 영상 통화: 제안(offer), 응답 기다리기, 끝."""
+        if path == "/remote/api/camera/offer":
+            return {"id": self.call.offer(device.id, device.name, data.get("sdp"))}
+        if path == "/remote/api/camera/answer":
+            return self.call.poll(str(data.get("id") or ""), device.id)
+        return {"stopped": self.call.stop(str(data.get("id") or ""), device.id)}
 
     # ------------------------------------------------------------------ 휴대폰 요청
     def snapshot(self) -> dict[str, Any]:
@@ -545,6 +557,11 @@ def _handler(control: RemoteControl, address: str, port: int) -> type[BaseHTTPRe
                 return self._json(control.snapshot())
             if method != "POST":
                 return self._json({"error": "모르는 요청"}, HTTPStatus.NOT_FOUND)
+            if path in ("/remote/api/camera/offer", "/remote/api/camera/answer", "/remote/api/camera/stop"):
+                try:
+                    return self._json(control.camera(path, device, data))
+                except camcall.CallError as error:
+                    return self._json({"error": str(error)}, HTTPStatus.BAD_REQUEST)
             try:
                 return self._json(control.act(path, data))
             except (RemoteError, raffles.RaffleError) as error:

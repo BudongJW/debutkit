@@ -34,6 +34,11 @@ struct Client {
                      name: answer["name"] as? String ?? name)
     }
 
+    /// 서명한 POST 요청(카메라 영상 통화 등). 응답 JSON.
+    func post(_ path: String, _ body: [String: Any]) async throws -> [String: Any] {
+        Answers.object(try await request("POST", path, try JSONSerialization.data(withJSONObject: body)))
+    }
+
     private func request(_ method: String, _ path: String, _ body: Data) async throws -> Data {
         guard let url = URL(string: pairing.base + path) else { throw PcError(message: "잘못된 주소", status: 0) }
         let stamp = String(Int64(Date().timeIntervalSince1970 * 1000))
