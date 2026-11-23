@@ -25,11 +25,21 @@ STATIC = Path(__file__).parents[1] / "src" / "debutkit" / "overlay" / "static"
 
 
 def free_port() -> int:
-    probe = socket.socket()
-    probe.bind(("127.0.0.1", 0))
-    port = probe.getsockname()[1]
-    probe.close()
-    return port
+    """TCP와 UDP 모두 열 수 있는 번호(Windows는 UDP만 예약된 번호대가 있음: Hyper-V, WSL)."""
+    for _ in range(50):
+        udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        udp.bind(("127.0.0.1", 0))
+        port = udp.getsockname()[1]
+        tcp = socket.socket()
+        try:
+            tcp.bind(("127.0.0.1", port))
+            return port
+        except OSError:
+            continue
+        finally:
+            tcp.close()
+            udp.close()
+    raise RuntimeError("free port not found")
 
 
 @pytest.fixture(autouse=True)
@@ -295,5 +305,100 @@ def test_cli_remote(capsys):
         assert main(["remote", "--port", str(srv.port), "approve", device_id]) == 1 and "QR을 먼저" in capsys.readouterr().err
         assert main(["remote", "--port", str(srv.port), "remove", device_id]) == 0
         assert main(["remote", "--port", str(srv.port), "stop"]) == 0 and "꺼짐" in capsys.readouterr().out
+    finally:
+        srv.stop()
+
+
+def app_packet(device, stamp=None, *, found=True, rotation=(0.1, -0.2, 0.05), shapes=None, secret=None, raw=None):
+    """debutkit 휴대폰 앱(mobile/android Packets)과 같은 형식의 추적 패킷."""
+    from debutkit.overlay.tracking import ARKIT_NAMES
+
+    stamp = stamp if stamp is not None else int(time.time() * 1000)
+    if raw is None:
+        values = shapes if shapes is not None else [0.0] * len(ARKIT_NAMES)
+        raw = {"v": 1, "d": device.id, "t": stamp, "f": found}
+        if found:
+            raw.update(r=list(rotation), b=values)
+    payload = json.dumps(raw, separators=(",", ":")).encode()
+    return payload + b"\n" + remotes.sign_packet(secret or device.secret, payload).encode()
+
+
+def test_app_packets_are_verified(control):
+    from debutkit.overlay.tracking import ARKIT_NAMES
+
+    device = control.devices.pair()
+    control.devices.claim(device, "Pixel")
+    shapes = [0.0] * len(ARKIT_NAMES)
+    shapes[ARKIT_NAMES.index("eyeBlinkLeft")] = 0.8
+    shapes[ARKIT_NAMES.index("jawOpen")] = 0.5
+    assert control.accept(app_packet(device, shapes=shapes)) is None  # 승인 전
+    control.devices.approve(device.id)
+    stamp = int(time.time() * 1000)
+    values = control.accept(app_packet(device, stamp, shapes=shapes))
+    # 거울처럼(기본): 좌우 회전과 기울기 반대, 왼눈 값이 오른눈으로
+    assert values["found"] is True and values["source"] == "phone" and values["yaw"] == -0.1 and values["pitch"] == -0.2 and values["roll"] == -0.05
+    assert values["blinkRight"] == 0.8 and values["mouth"] == 0.5 and len(values["arkit"]) == 52
+    assert control.accept(app_packet(device, stamp, shapes=shapes)) is None  # 같은 시각(재전송)
+    assert control.accept(app_packet(device, stamp - 5)) is None  # 이전 시각
+    assert control.accept(app_packet(device, stamp + 10, secret="x" * 43)) is None  # 서명 불일치
+    assert control.accept(app_packet(device, int((time.time() - 600) * 1000))) is None  # 시각 차이
+    assert control.accept(app_packet(device, stamp + 20, rotation=(0.1, 0.2))) is None  # 형식
+    assert control.accept(app_packet(device, stamp + 30, raw={"v": 1, "d": device.id, "t": stamp + 30, "f": True, "r": [0, 0, "NaN"], "b": shapes})) is None
+    assert control.accept(app_packet(device, stamp + 40, found=False)) == {"found": False, "source": "phone"}
+    assert control.accept(b"garbage") is None and control.accept(b"{}\nabc") is None
+
+
+class FakeOptions:
+    mirror, flip_pitch, center = False, True, (0.1, 0.0, 0.0)
+
+
+def test_app_tracking_over_udp_and_webcam_yields(control):
+    port = free_port()
+    control.phone = FakeOptions()  # 휴대폰 얼굴 추적 설정(거울 끔, 위아래 반전, 정면 맞추기)을 따른다
+    control.start("127.0.0.1", port)
+    device = control.devices.pair()
+    control.devices.claim(device, "Pixel")
+    control.devices.approve(device.id)
+    subscriber, _ = control.tracking.subscribe()
+    sender = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        for index in range(5):
+            sender.sendto(app_packet(device, int(time.time() * 1000) + index), ("127.0.0.1", port))
+            time.sleep(0.04)
+        values = subscriber.get(timeout=3)
+        assert values["found"] is True and values["yaw"] == 0.0 and values["pitch"] == 0.2 and values["roll"] == 0.05
+        deadline = time.monotonic() + 3
+        while not control.receiving() and time.monotonic() < deadline:
+            time.sleep(0.05)
+        assert control.receiving() and control.status()["receiving"] is True
+        assert control.status()["devices"][0]["tracking"] >= 3
+        sender.sendto(b"not a packet", ("127.0.0.1", port))
+        deadline = time.monotonic() + 2
+        while control.dropped == 0 and time.monotonic() < deadline:
+            time.sleep(0.05)
+        assert control.dropped >= 1
+    finally:
+        sender.close()
+    control.stop(save=False)
+    assert control.tracking.current["found"] is False and not control.receiving()
+
+
+def test_overlay_uses_app_tracking_before_webcam():
+    srv = OverlayServer([], port=0).start()
+    try:
+        port = free_port()
+        srv.remote.start("127.0.0.1", port)
+        device = srv.remote.devices.pair()
+        srv.remote.devices.claim(device, "iPhone")
+        srv.remote.devices.approve(device.id)
+        sender = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sender.sendto(app_packet(device), ("127.0.0.1", port))
+        sender.close()
+        deadline = time.monotonic() + 3
+        while not srv.remote.receiving() and time.monotonic() < deadline:
+            time.sleep(0.05)
+        status, body = local(srv, "POST", "/tracking", {"found": True, "yaw": 0.9})
+        assert status == 200 and body == b"phone"  # 앱 값을 받는 중에는 웹캠 값을 쓰지 않음
+        assert srv.tracking.current["source"] == "phone" and srv.phone is srv.remote.phone
     finally:
         srv.stop()

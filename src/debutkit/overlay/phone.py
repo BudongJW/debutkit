@@ -112,6 +112,8 @@ def head_angles(app: str, rotation: tuple[float, float, float] | None) -> tuple[
     """
     if rotation is None:
         return 0.0, 0.0, 0.0
+    if app == "debutkit":  # debutkit 휴대폰 앱: 이미 debutkit 기준(라디안)
+        return float(rotation[0]), float(rotation[1]), float(rotation[2])
     x, y, z = (math.radians(value) for value in rotation)
     if app == "vts":
         return x, -y, -z

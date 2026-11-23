@@ -8,6 +8,12 @@
 - 처음 연결한 휴대폰은 PC 화면에서 승인해야 사용(휴대폰과 PC에 같은 4자리 확인 번호). QR이 방송 화면에 노출되어도 승인 없이는 조작 불가
 - QR은 5분 안에 쓰지 않으면 만료. 등록 기기는 최대 5대, PC 화면에서 삭제하면 즉시 차단. 기기 비밀값은 설정 폴더의 remote-devices.json에만 보관
 - 내용 암호화는 하지 않는다(HTTP). 같은 Wi-Fi의 다른 기기가 조작 화면 내용(방송에 나오는 추첨 명단 등)을 볼 수는 있으나 조작은 할 수 없다
+
+debutkit 휴대폰 앱(mobile/)의 얼굴 추적
+- 같은 QR로 등록하고 PC에서 승인한 앱이 같은 주소, 같은 번호의 UDP 포트로 추적 값을 보낸다(초당 최대 30회)
+- 패킷: JSON 한 줄, 줄바꿈, 서명(HMAC-SHA256(기기 비밀값, "udp\n" + JSON)). JSON: ``v`` 1, ``d`` 기기, ``t`` 밀리초 시각, ``f`` 얼굴 인식,
+  ``r`` [yaw, pitch, roll](라디안, debutkit 기준, 거울 처리 전), ``b`` ARKit 표정 52개(tracking.ARKIT_NAMES 순서, 0에서 1)
+- 승인된 기기, 서명 일치, 시각 차이 2분 이내, 이전 패킷보다 새로운 시각만 사용. 거울처럼, 위아래 반전, 정면 맞추기는 휴대폰 얼굴 추적 설정을 따른다
 """
 
 from __future__ import annotations
@@ -15,7 +21,9 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import math
 import secrets
+import socket
 import sys
 import threading
 import time
@@ -29,6 +37,8 @@ from typing import Any, Callable
 from .. import camera, settings
 from .. import motion as motions
 from .. import raffle as raffles
+from . import phone as phones
+from .tracking import ARKIT_NAMES, TrackingState
 
 DEFAULT_PORT = 8792
 PAIR_SECONDS = 300  # QR 유효 시간
@@ -53,6 +63,16 @@ def canonical(method: str, path: str, stamp: str, nonce: str, body: bytes) -> by
 
 def sign(secret: str, method: str, path: str, stamp: str, nonce: str, body: bytes = b"") -> str:
     return hmac.new(secret.encode(), canonical(method, path, stamp, nonce, body), hashlib.sha256).hexdigest()
+
+
+def sign_packet(secret: str, payload: bytes) -> str:
+    """앱의 얼굴 추적 UDP 패킷 서명(휴대폰 앱과 같아야 함)."""
+    return hmac.new(secret.encode(), b"udp\n" + payload, hashlib.sha256).hexdigest()
+
+
+def _numbers(items: Any, size: int) -> bool:
+    return isinstance(items, list) and len(items) == size and all(
+        isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value) for value in items)
 
 
 def confirm_code(secret: str) -> str:
@@ -239,12 +259,22 @@ class RemoteControl:
     """휴대폰 조작 화면 서버(별도 창구)와 기기 관리. 오버레이 서버의 추첨, 동작 상태를 함께 쓴다."""
 
     def __init__(self, raffle: raffles.Raffle, motion: motions.MotionState, draw: Any, *, notify: Callable[[str], Any] | None = None,
-                 store: DeviceStore | None = None) -> None:
+                 store: DeviceStore | None = None, tracking: TrackingState | None = None, phone: phones.PhoneTracker | None = None) -> None:
         self.raffle, self.motion, self.draw = raffle, motion, draw
         self.notify = notify or (lambda text: None)
         self.devices = store or DeviceStore()
+        self.tracking = tracking or TrackingState()
+        self.phone = phone  # 거울처럼, 위아래 반전, 정면 맞추기 설정
         self.httpd: _Server | None = None
         self._thread: threading.Thread | None = None
+        self._udp: socket.socket | None = None
+        self._udp_thread: threading.Thread | None = None
+        self._udp_stop = threading.Event()
+        self._last: dict[str, int] = {}  # 기기별 마지막 패킷 시각(밀리초)
+        self._arrivals: dict[str, list[float]] = {}  # 기기별 최근 1초 수신 시각
+        self._last_packet = 0.0
+        self._last_publish = 0.0
+        self.dropped = 0
         saved = settings.load()
         self.address = str(saved.get("remote_address") or "")
         self.port = saved.get("remote_port") if isinstance(saved.get("remote_port"), int) else DEFAULT_PORT
@@ -269,19 +299,41 @@ class RemoteControl:
         except OSError as error:
             self.error = f"{address}:{port} 열기 실패({error}): 다른 포트 지정"
             raise RemoteError(self.error) from None
+        udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:  # 앱의 얼굴 추적: 같은 주소, 같은 번호의 UDP
+            udp.bind((address, int(httpd.server_address[1])))
+            udp.settimeout(0.3)
+        except OSError as error:
+            httpd.server_close()
+            udp.close()
+            self.error = f"{address}:{port} UDP 열기 실패({error}): 다른 포트 지정"
+            raise RemoteError(self.error) from None
         self.httpd, self.address, self.port, self.error = httpd, address, int(httpd.server_address[1]), ""
         self._thread = threading.Thread(target=httpd.serve_forever, name="remote-control", daemon=True)
         self._thread.start()
+        self._udp, self._udp_stop = udp, threading.Event()
+        self._udp_thread = threading.Thread(target=self._receive, args=(udp, self._udp_stop), name="remote-tracking", daemon=True)
+        self._udp_thread.start()
         if save:
             self._save(True)
         return self.status()
 
     def stop(self, *, save: bool = True) -> None:
         """끄기. 상태는 돌려주지 않는다(오버레이 종료 중에 주소 조회로 늦어지지 않도록)."""
+        was_receiving = self.receiving(window=5.0)
         if self.httpd is not None:
             self.httpd.shutdown()
             self.httpd.server_close()
             self.httpd, self._thread = None, None
+        if self._udp is not None:
+            self._udp_stop.set()
+            if self._udp_thread is not None:
+                self._udp_thread.join(timeout=2)
+            self._udp.close()
+            self._udp, self._udp_thread = None, None
+            if was_receiving:  # 캐릭터가 마지막 표정에 멈춰 있지 않도록
+                self.tracking.publish({"found": False, "source": "phone"})
+            self._last_packet = 0.0
         if save:
             self._save(False)
 
@@ -305,11 +357,64 @@ class RemoteControl:
             saved["remote_address"] = self.address
         settings.save(saved)
 
+    # ------------------------------------------------------------------ 앱의 얼굴 추적(UDP)
+    def receiving(self, window: float = phones.STALE) -> bool:
+        """최근 앱의 추적 값을 받는 중인지(받는 중에는 웹캠 추적 값을 쓰지 않는다)."""
+        return self.running and time.monotonic() - self._last_packet < window
+
+    def tracking_rate(self, device_id: str) -> int:
+        now = time.monotonic()
+        return sum(1 for moment in self._arrivals.get(device_id, []) if now - moment < 1.0)
+
+    def accept(self, data: bytes) -> dict[str, Any] | None:
+        """패킷 확인과 변환. 잘못된 패킷은 None(조용히 버림)."""
+        payload, _, given = data.rpartition(b"\n")
+        try:
+            packet = json.loads(payload)
+            device = self.devices.get(str(packet.get("d", ""))) if isinstance(packet, dict) else None
+        except (ValueError, UnicodeDecodeError):
+            return None
+        if device is None or not device.approved or not hmac.compare_digest(sign_packet(device.secret, payload), given.decode("ascii", "replace")):
+            return None
+        stamp, rotation, shapes = packet.get("t"), packet.get("r"), packet.get("b")
+        if isinstance(stamp, bool) or not isinstance(stamp, int) or abs(time.time() * 1000 - stamp) > SKEW * 1000 or stamp <= self._last.get(device.id, 0):
+            return None
+        self._last[device.id] = stamp
+        now = time.monotonic()
+        self._arrivals[device.id] = [moment for moment in self._arrivals.get(device.id, []) if now - moment < 1.0] + [now]
+        device.last_seen = time.time()
+        if packet.get("f") is not True:
+            return {"found": False, "source": "phone"}
+        if not _numbers(rotation, 3) or not _numbers(shapes, len(ARKIT_NAMES)):
+            return None
+        frame = {"found": True, "rotation": tuple(float(value) for value in rotation), "shapes": dict(zip(ARKIT_NAMES, (float(value) for value in shapes), strict=True))}
+        options = self.phone
+        return phones.to_values(frame, "debutkit", mirror=options.mirror if options else True, flip_pitch=options.flip_pitch if options else False,
+                                center=options.center if options else (0.0, 0.0, 0.0))
+
+    def _receive(self, udp: socket.socket, stop: threading.Event) -> None:
+        while not stop.is_set():
+            try:
+                data, _ = udp.recvfrom(8192)
+            except socket.timeout:
+                continue
+            except OSError:
+                break
+            values = self.accept(data)
+            if values is None:
+                self.dropped += 1
+                continue
+            self._last_packet = time.monotonic()
+            if time.monotonic() - self._last_publish >= 1 / phones.RATE or not values.get("found"):
+                self._last_publish = time.monotonic()
+                self.tracking.publish(values)
+
     # ------------------------------------------------------------------ 기기
     def status(self) -> dict[str, Any]:
+        devices = [{**item, "tracking": self.tracking_rate(item["id"])} for item in self.devices.all()]
         return {"running": self.running, "enabled": self.enabled, "address": self.address, "port": self.port, "url": self.url,
-                "addresses": camera.lan_addresses(), "devices": self.devices.all(), "error": self.error, "max_devices": MAX_DEVICES,
-                "pair_seconds": PAIR_SECONDS}
+                "addresses": camera.lan_addresses(), "devices": devices, "error": self.error, "max_devices": MAX_DEVICES,
+                "pair_seconds": PAIR_SECONDS, "receiving": self.receiving()}
 
     def pair(self) -> dict[str, Any]:
         """새 기기 QR 주소(# 뒤에 기기 번호와 비밀값). 조작 화면이 켜져 있어야 한다."""

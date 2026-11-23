@@ -1,0 +1,58 @@
+name: Mobile
+
+# debutkit 휴대폰 앱(mobile/)을 시험한다.
+# - android: 단위 테스트(PC와 같은 서명, 패킷 형식), 배포용 APK 빌드(R8 축소 포함)
+# - ios: XcodeGen으로 프로젝트를 만들고 시뮬레이터에서 단위 테스트(코드 서명 없음). 실제 ARKit 추적은 실기기에서만 동작
+on:
+  push:
+    branches: [main, "release/**"]
+    paths: ["mobile/**", ".github/workflows/mobile.yml", "pyproject.toml"]
+  pull_request:
+    paths: ["mobile/**", ".github/workflows/mobile.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+      - name: Unit tests and APK
+        working-directory: mobile/android
+        run: |
+          export JAVA_HOME="$JAVA_HOME_17_X64"
+          ./gradlew --no-daemon :app:testDebugUnitTest :app:assembleRelease
+          ls -la app/build/outputs/apk/release/
+      - uses: actions/upload-artifact@v7
+        with:
+          name: debutkit-phone-android
+          path: mobile/android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+
+  ios:
+    runs-on: macos-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+      - name: XcodeGen
+        run: brew install xcodegen
+      - name: Project
+        working-directory: mobile/ios
+        run: xcodegen generate
+      - name: Unit tests (simulator)
+        working-directory: mobile/ios
+        run: |
+          device=$(xcrun simctl list devices available | grep -m1 -oE "iPhone [^(]+" | sed 's/ *$//')
+          echo "simulator: $device"
+          xcodebuild test -project DebutkitPhone.xcodeproj -scheme DebutkitPhone -destination "platform=iOS Simulator,name=$device" \
+            CODE_SIGNING_ALLOWED=NO | tail -40
+          exit "${PIPESTATUS[0]}"
+      - name: App build for devices (no signing)
+        working-directory: mobile/ios
+        run: |
+          xcodebuild build -project DebutkitPhone.xcodeproj -scheme DebutkitPhone -sdk iphoneos -configuration Release \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO | tail -20
+          exit "${PIPESTATUS[0]}"

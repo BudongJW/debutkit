@@ -293,7 +293,7 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
                 values = clean(raw)
                 if values is None:
                     return self._send(HTTPStatus.BAD_REQUEST, b"bad tracking data")
-                if phone.receiving():  # 휴대폰 추적이 우선
+                if phone.receiving() or remote.receiving():  # 휴대폰 추적(앱 포함)이 우선
                     return self._send(HTTPStatus.OK, b"phone")
                 tracking.publish({**values, "source": "webcam"})
                 return self._send(HTTPStatus.OK, b"ok")
@@ -601,7 +601,8 @@ class OverlayServer:
         self.hub.taps.append(self.commands)  # 스트리머, 매니저 채팅 명령
         self.phone = phones.PhoneTracker(self.tracking)  # 휴대폰 얼굴 추적(켠 경우만 수신 창구를 연다)
         self.obs_target: tuple[str, int, str | None] | None = None  # OBS 연결 정보(휴대폰 카메라 소스 만들기). 명령줄, 설정 마법사가 지정
-        self.remote = remotes.RemoteControl(self.raffle, self.motion, self.draw, notify=lambda text: self.hub.publish(system_event(text)))
+        self.remote = remotes.RemoteControl(self.raffle, self.motion, self.draw, notify=lambda text: self.hub.publish(system_event(text)),
+                                            tracking=self.tracking, phone=self.phone)
         self._sources = list(sources)
         self._poll = poll
         self._retry = retry

@@ -41,8 +41,11 @@ def signing_line(windows_signed: bool, macos_notarized: bool) -> str:
     return f"- 코드 서명: {', '.join(states)}. [코드 서명 정책]({SIGNING_POLICY})"
 
 
-def notes(tag: str, changelog: str, *, installer: bool = True, unix: bool = True, windows_signed: bool = False, macos_notarized: bool = False) -> str:
+def notes(tag: str, changelog: str, *, installer: bool = True, unix: bool = True, windows_signed: bool = False, macos_notarized: bool = False,
+          android: bool = False, android_signed: bool = False) -> str:
     """``installer``, ``unix`` 가 False면 해당 파일 줄 생략(0.5.0 이전은 Windows zip만, 0.6.0 이전은 Windows만).
+
+    ``android``: 휴대폰 앱 APK 줄(1.0.0rc14부터). ``android_signed`` 가 False면 시험용 디버그 키 안내.
 
     ``windows_signed``, ``macos_notarized``: 릴리스 작업의 실제 서명, 공증 결과. 적용된 운영체제는 경고 안내를 뺀다.
     """
@@ -61,6 +64,10 @@ def notes(tag: str, changelog: str, *, installer: bool = True, unix: bool = True
             f"- macOS(Apple Silicon): `debutkit-{version}-macos-arm64.zip` 압축 해제 후 debutkit.app 실행{first_run}",
             f"- Linux(x64): `debutkit-{version}-linux-x64.tar.gz` 압축 해제 후 `debutkit/debutkit-gui` 실행",
         ]
+    if android:
+        key = "" if android_signed else ". 시험용 서명이라 새 버전은 이전 앱을 지운 뒤 설치"
+        lines += [f"- 휴대폰 앱(안드로이드 8 이상): `debutkit-phone-{version}-android.apk`를 휴대폰에서 설치(출처를 알 수 없는 앱 설치 허용){key}",
+                  "- 휴대폰 앱(아이폰, 아이패드): 앱 스토어 배포 전. Mac과 Xcode로 직접 빌드(mobile/ios/README.md)"]
     lines += [
         "- 파이썬, 관리자 권한 불필요",
         signing_line(windows_signed, macos_notarized and unix),
@@ -79,16 +86,18 @@ def notes(tag: str, changelog: str, *, installer: bool = True, unix: bool = True
 
 def main(argv: list[str] | None = None) -> int:
     args = sys.argv[1:] if argv is None else argv
-    flags = ("--zip-only", "--windows-only", "--windows-signed", "--macos-notarized")
+    flags = ("--zip-only", "--windows-only", "--windows-signed", "--macos-notarized", "--android", "--android-signed")
     zip_only = "--zip-only" in args  # 0.5.0 이전: Windows zip만
     windows_only = "--windows-only" in args  # 0.5.x: Windows 설치 프로그램과 zip
     args_left = [arg for arg in args if arg not in flags]
     if len(args_left) != 1:
-        print("사용: python packaging/release_notes.py v0.8.0 [--windows-only | --zip-only] [--windows-signed] [--macos-notarized]", file=sys.stderr)
+        print("사용: python packaging/release_notes.py v0.8.0 [--windows-only | --zip-only] [--windows-signed] [--macos-notarized] [--android] [--android-signed]",
+              file=sys.stderr)
         return 2
     sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
     text = notes(args_left[0], (ROOT / "CHANGELOG.md").read_text(encoding="utf-8"), installer=not zip_only, unix=not (zip_only or windows_only),
-                 windows_signed="--windows-signed" in args, macos_notarized="--macos-notarized" in args)
+                 windows_signed="--windows-signed" in args, macos_notarized="--macos-notarized" in args, android="--android" in args,
+                 android_signed="--android-signed" in args)
     print(text, end="")
     return 0
 

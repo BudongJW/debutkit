@@ -91,3 +91,16 @@ def test_version_helpers():
 
     assert build_app.numeric_version("1.0.0rc1") == "1.0.0" and build_app.numeric_version("0.9.0") == "0.9.0"
     assert build_app.is_prerelease("1.0.0rc1") and not build_app.is_prerelease("1.0.0")
+
+
+def test_android_app_line(capsys, monkeypatch):
+    monkeypatch.setattr(release_notes, "ROOT", ROOT)
+    from debutkit import __version__
+
+    assert release_notes.main([f"v{__version__}", "--android"]) == 0
+    out = capsys.readouterr().out
+    assert f"debutkit-phone-{__version__}-android.apk" in out and "이전 앱을 지운 뒤 설치" in out and "mobile/ios/README.md" in out
+    assert release_notes.main([f"v{__version__}", "--android", "--android-signed"]) == 0
+    out = capsys.readouterr().out
+    assert "android.apk" in out and "이전 앱을 지운 뒤" not in out
+    assert release_notes.main([f"v{__version__}"]) == 0 and "android.apk" not in capsys.readouterr().out

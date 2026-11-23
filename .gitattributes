@@ -1,3 +1,8 @@
 # 함께 배포하는 외부 라이브러리는 원본 그대로 보관(줄 끝 변환 없음, vendor/README.txt의 SHA-256과 일치)
 src/debutkit/overlay/static/vendor/** -text
 src/debutkit/vendor/qrcodegen.py -text
+
+# 안드로이드 빌드 스크립트: 리눅스, macOS CI에서 실행(줄 끝 LF), 래퍼 jar는 그대로
+mobile/android/gradlew text eol=lf
+mobile/android/gradlew.bat text eol=crlf
+*.jar binary

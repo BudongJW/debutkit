@@ -1,0 +1,60 @@
+# XcodeGen(MIT) 설정: brew install xcodegen 후 이 폴더에서 xcodegen generate -> DebutkitPhone.xcodeproj
+name: DebutkitPhone
+options:
+  bundleIdPrefix: io.github.budongjw.debutkit
+  deploymentTarget:
+    iOS: "15.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+targets:
+  DebutkitPhone:
+    type: application
+    platform: iOS
+    sources:
+      - DebutkitPhone
+    info:
+      path: DebutkitPhone/Info.plist
+      properties:
+        CFBundleDisplayName: debutkit 휴대폰
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSRequiresIPhoneOS: true
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        UISupportedInterfaceOrientations~ipad: [UIInterfaceOrientationPortrait, UIInterfaceOrientationPortraitUpsideDown]
+        NSCameraUsageDescription: 앞면 카메라로 얼굴을 추적해 debutkit PC의 캐릭터를 움직이고, PC 화면의 등록 QR 코드를 읽습니다. 영상은 휴대폰 안에서만 처리합니다.
+        NSLocalNetworkUsageDescription: 같은 Wi-Fi의 debutkit PC에 얼굴 추적 값을 보냅니다.
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+        ITSAppUsesNonExemptEncryption: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.budongjw.debutkit.phone
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: ""
+  DebutkitPhoneTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - DebutkitPhoneTests
+    dependencies:
+      - target: DebutkitPhone
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: true
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.budongjw.debutkit.phone.tests
+schemes:
+  DebutkitPhone:
+    build:
+      targets:
+        DebutkitPhone: all
+        DebutkitPhoneTests: [test]
+    test:
+      targets:
+        - DebutkitPhoneTests
