@@ -100,8 +100,8 @@ def test_test_mode_ends_by_itself_without_obs():
     assert state.current == {"talking": False, "level": 0.0, "db": -120.0, "source": ""}
     state.test(True, seconds=0.1)
     state.publish(True, -25.0, "마이크")  # 시험 중 실제로 말하는 중
-    state.test(True, seconds=0.2)  # 새 시험: 앞 시험의 종료가 끝내지 않음
-    time.sleep(0.15)
+    state.test(True, seconds=1.0)  # 새 시험: 앞 시험의 종료가 끝내지 않음(느린 실행 환경도 여유 있게)
+    time.sleep(0.3)
     assert state.current["source"] == "시험"
     deadline = time.monotonic() + 3
     while state.current["source"] == "시험" and time.monotonic() < deadline:
