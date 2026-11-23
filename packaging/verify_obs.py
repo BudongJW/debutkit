@@ -7,6 +7,7 @@
     python packaging/verify_obs.py stop        # OBS 종료(정상 종료 요청 후 30초가 지나면 강제 종료)
     python packaging/verify_obs.py clip        # debutkit overlay --clip 실행, 스트리머 !clip 입력, 클립 파일 확인
     python packaging/verify_obs.py voice       # 시험음을 재생하는 미디어 소스로 캐릭터 음성 반응(InputVolumeMeters) 확인
+    python packaging/verify_obs.py camera      # debutkit camera setup으로 SRT 수신 소스 생성, ffmpeg가 휴대폰처럼 송신, 재생 상태와 틀린 암호 거부 확인
     python packaging/verify_obs.py logs        # OBS 출력과 로그 파일의 마지막 부분 출력
 
 Windows, macOS, Linux에서 같은 순서로 실행한다. configure는 이 PC의 OBS 설정을 덮어쓰므로
@@ -290,9 +291,84 @@ def voice(timeout: float = 30.0) -> None:
             obs.request("RemoveInput", {"inputName": name})
 
 
+def camera(timeout: float = 60.0) -> None:
+    """휴대폰 카메라 영상: debutkit camera setup으로 OBS에 SRT 수신 미디어 소스를 만들고, ffmpeg를 휴대폰 앱처럼 SRT(Caller, 암호)로 보내
+    OBS 미디어 상태가 재생 중이 되는지, 화면이 실제로 그려지는지, 틀린 암호는 연결되지 않는지 확인."""
+    import base64
+
+    from stream2clip.ffmpeg import find_ffmpeg
+
+    from debutkit import camera as cameras
+
+    ffmpeg = find_ffmpeg()
+    protocols = subprocess.run([ffmpeg, "-hide_banner", "-protocols"], capture_output=True, text=True, errors="replace").stdout
+    if "srt" not in protocols.split():
+        raise SystemExit(f"이 ffmpeg에는 SRT 송신 기능이 없음: {ffmpeg}")
+    env = {**os.environ, "PYTHONIOENCODING": "utf-8"}
+    setup = subprocess.run([sys.executable, "-m", "debutkit", "camera", "setup", "--obs-port", str(PORT)], capture_output=True, text=True,
+                           encoding="utf-8", env=env)
+    print(setup.stdout.strip())
+    if setup.returncode != 0:
+        raise SystemExit(f"debutkit camera setup 실패: {setup.stderr.strip()}")
+    config = cameras.load_config()
+
+    def state() -> str:
+        with client() as obs:
+            return str(obs.request("GetMediaInputStatus", {"inputName": cameras.SOURCE_NAME}).get("mediaState"))
+
+    def send(passphrase: str, seconds: int) -> subprocess.Popen:
+        target = f"srt://127.0.0.1:{config.port}?mode=caller&latency={config.latency * 1000}&passphrase={passphrase}&pbkeylen=16"
+        return subprocess.Popen([ffmpeg, "-hide_banner", "-loglevel", "error", "-re", "-f", "lavfi", "-i", "testsrc2=size=1280x720:rate=30",
+                                 "-t", str(seconds), "-c:v", "libx264", "-preset", "ultrafast", "-tune", "zerolatency", "-g", "30", "-pix_fmt", "yuv420p",
+                                 "-f", "mpegts", target], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors="replace")
+
+    print(f"소스 상태(송신 전): {state()}")
+    sender = send(config.passphrase, int(timeout))
+    try:
+        end, last = time.monotonic() + timeout - 5, ""
+        while time.monotonic() < end:
+            last = state()
+            if last == "OBS_MEDIA_STATE_PLAYING":
+                break
+            if sender.poll() is not None:
+                raise SystemExit(f"송신 ffmpeg 종료: {sender.stdout.read() if sender.stdout else ''}")
+            time.sleep(1)
+        else:
+            raise SystemExit(f"OBS 미디어 소스가 재생 상태가 되지 않음(마지막 상태 {last})")
+        time.sleep(2)
+        with client() as obs:
+            shot = obs.request("GetSourceScreenshot", {"sourceName": cameras.SOURCE_NAME, "imageFormat": "png", "imageWidth": 320})
+        image = base64.b64decode(str(shot.get("imageData", "")).split(",", 1)[-1])
+        print(f"재생 상태 확인: {last}, 화면 캡처 {len(image)} bytes")
+        if len(image) < 2000:
+            raise SystemExit("휴대폰 카메라 소스 화면이 비어 있음")
+        sender.kill()
+        sender.wait(timeout=10)
+        # 휴대폰이 끊긴 뒤 다시 기다리는지(1초 뒤 재연결 대기), 그 상태에서 틀린 암호는 거부되는지
+        end = time.monotonic() + 20
+        while time.monotonic() < end and state() == "OBS_MEDIA_STATE_PLAYING":
+            time.sleep(1)
+        time.sleep(3)
+        print(f"휴대폰 끊김 후 상태: {state()}")
+        wrong = send("wrongpassword1", 5)
+        try:
+            output, _ = wrong.communicate(timeout=30)
+        except subprocess.TimeoutExpired:
+            wrong.kill()
+            raise SystemExit("틀린 암호로 보낸 영상이 거부되지 않음(송신이 끝나지 않음)") from None
+        if wrong.returncode == 0 or "BADSECRET" not in output:
+            raise SystemExit(f"틀린 암호 거부를 확인하지 못함(종료 코드 {wrong.returncode}): {output.strip()[-400:]}")
+        print("틀린 암호 거부 확인(BADSECRET)")
+    finally:
+        sender.kill()
+        sender.wait(timeout=10)
+        with client() as obs:
+            obs.request("RemoveInput", {"inputName": cameras.SOURCE_NAME})
+
+
 def main(argv: list[str]) -> int:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # Windows 기본 코드 페이지로는 한국어 출력 불가
-    steps = {"configure": configure, "start": start, "wait": wait, "scenes": scenes, "stop": stop, "clip": clip, "voice": voice, "logs": logs}
+    steps = {"configure": configure, "start": start, "wait": wait, "scenes": scenes, "stop": stop, "clip": clip, "voice": voice, "camera": camera, "logs": logs}
     if not argv or argv[0] not in steps or len(argv) != (2 if argv[0] == "start" else 1):
         print(__doc__)
         return 2

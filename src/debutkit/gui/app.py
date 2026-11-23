@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from PySide6.QtCore import QCoreApplication, QEvent, QObject, Qt, QTimer, QUrl, Signal
-from PySide6.QtGui import QDesktopServices, QGuiApplication, QIcon
+from PySide6.QtGui import QColor, QDesktopServices, QGuiApplication, QIcon, QImage, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -43,7 +43,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from .. import __version__, character, chzzk, clip, doctor, logs, motion, scenes, settings, speed, tools, vts
+from .. import __version__, camera, character, chzzk, clip, doctor, logs, motion, scenes, settings, speed, tools, vts
 from ..doctor import FAIL, INFO, JOIN_URL, LABELS, OK, OVERLAY_PORT, SOFTWARE_URL, WARN
 
 STEPS = ["1  PC 점검", "2  캐릭터", "3  OBS 장면", "4  채팅과 알림", "5  마무리"]
@@ -185,6 +185,28 @@ def _pick_folder(title: str) -> str | None:
     return QFileDialog.getExistingDirectory(None, title) or None
 
 
+def _add_phone_camera(host: str, port: int, password: str | None) -> dict[str, Any]:
+    """OBS에 휴대폰 카메라 소스(SRT 수신 미디어 소스)를 만들고 휴대폰 앱 연결 정보를 돌려준다."""
+    config = camera.load_config()
+    with camera.connect(host, port, password) as client:
+        result = camera.add_to_obs(client, config)
+        state = camera.media_state(client)
+    return {**result, "state": state, "info": camera.connection_info(config)}
+
+
+def qr_pixmap(content: str, size: int = 200) -> QPixmap:
+    """QR 코드 그림(흰 여백 4칸)."""
+    cells = camera.qr_matrix(content)
+    count = len(cells) + 8
+    image = QImage(count, count, QImage.Format.Format_RGB32)
+    image.fill(QColor("white"))
+    for y, line in enumerate(cells):
+        for x, dark in enumerate(line):
+            if dark:
+                image.setPixel(x + 4, y + 4, QColor("black").rgb())
+    return QPixmap.fromImage(image.scaled(size, size, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.FastTransformation))
+
+
 def _make_voice_meter(server: Any, port: int, password: str | None, threshold: float, input_name: str | None = None) -> Any:
     """캐릭터 화면의 입 움직임: OBS 마이크 음량(채팅 연결 모듈 필요). 없으면 None."""
     try:
@@ -222,6 +244,7 @@ class Backend:
     run_checks: Callable[..., list[doctor.Check]] = doctor.run_checks
     check_avatar: Callable[..., list[doctor.Check]] = doctor.check_avatar
     apply_scenes: Callable[..., Any] = scenes.connect_and_apply
+    add_phone_camera: Callable[..., dict[str, Any]] = _add_phone_camera
     make_overlay: Callable[..., Any] = _make_overlay
     make_autoclipper: Callable[..., Any] = _make_autoclipper
     can_download_ffmpeg: Callable[[], bool] = tools.can_download_ffmpeg
@@ -269,6 +292,7 @@ class Bridge(QObject):
     checks = Signal(object)
     avatar = Signal(object)
     scenes = Signal(str)
+    camera = Signal(object)  # 결과(dict) 또는 실패 안내(str)
     log = Signal(str)
     ffmpeg = Signal(str, bool)  # 안내 문장, 끝났는지
     chzzk = Signal(str)
@@ -324,6 +348,7 @@ class Wizard(QMainWindow):
         self.bridge.checks.connect(self._show_checks)
         self.bridge.avatar.connect(self._show_avatar)
         self.bridge.scenes.connect(self._show_scenes)
+        self.bridge.camera.connect(self._show_camera)
         self.bridge.log.connect(self._append_log)
         self.bridge.ffmpeg.connect(self._show_ffmpeg)
         self.bridge.chzzk.connect(self._show_chzzk)
@@ -960,8 +985,53 @@ class Wizard(QMainWindow):
         self.scenes_button.clicked.connect(self.make_scenes)
         self.scenes_result = text("", muted=True)
         layout.addWidget(card(fields, self.scenes_button, self.scenes_result))
+        self.camera_button = QPushButton("휴대폰 카메라 소스 추가")
+        self.camera_button.setToolTip("휴대폰 카메라 영상(실사, 손 캠)을 같은 Wi-Fi로 받는 OBS 미디어 소스(SRT)를 현재 방송 장면에 추가")
+        self.camera_button.clicked.connect(self.add_phone_camera)
+        self.camera_result = text("휴대폰 앱(Larix Broadcaster 등)이 보내는 카메라 영상을 OBS 소스로 받습니다. 암호가 맞는 휴대폰만 연결되며 소리는 보내지 않습니다.",
+                                  muted=True)
+        self.camera_qr = QLabel()
+        self.camera_qr.setVisible(False)
+        layout.addWidget(card(row(self.camera_button), self.camera_result, self.camera_qr, title="휴대폰 카메라 영상"))
         layout.addStretch(1)
         return page
+
+    def add_phone_camera(self) -> None:
+        self.camera_button.setEnabled(False)
+        self.camera_result.setText("OBS 연결 중")
+        port, password = self.obs_port.value(), self.obs_password.text() or None
+
+        def job() -> None:
+            try:
+                self._emit(self.bridge.camera, self.backend.add_phone_camera("127.0.0.1", port, password))
+            except camera.CameraError as error:
+                self._emit(self.bridge.camera, f"휴대폰 카메라 소스 추가 실패: {error}")
+            except Exception as error:
+                self._emit(self.bridge.camera, f"휴대폰 카메라 소스 추가 실패: {camera.obs_failure(error)}")
+
+        self._run(job)
+
+    def _show_camera(self, result: Any) -> None:
+        self.camera_button.setEnabled(True)
+        if isinstance(result, str):
+            self.camera_qr.setVisible(False)
+            self.camera_result.setText(result)
+            return
+        info = result["info"]
+        where = ", ".join(result["added"]) + " 장면에 추가" if result["added"] else ", ".join(result["kept"]) + " 장면에 이미 있음"
+        lines = [f"OBS 소스 {result['source']} {'만듦' if result['created'] else '설정 맞춤'}, {where}. 상태: {result['state']['text']}"]
+        if info["address"]:
+            lines += [f"휴대폰 앱 주소 {info['url']}, 암호 {info['passphrase']}(암호 길이 16), 모드 Caller, 지연 여유 {info['latency']}밀리초",
+                      "Larix Broadcaster: 휴대폰 카메라로 아래 QR 코드를 찍어 가져온 뒤 방송 버튼(빨간 원)",
+                      "OBS가 처음 수신할 때 Windows 보안 경고가 나오면 개인 네트워크를 허용하십시오."]
+            if len(info["addresses"]) > 1:
+                lines.append(f"같은 Wi-Fi가 아니면 다른 주소 사용: {', '.join(info['addresses'][1:])}")
+            self.camera_qr.setPixmap(qr_pixmap(info["larix"]))
+            self.camera_qr.setVisible(True)
+        else:
+            lines.append("이 PC의 내부 네트워크 주소를 찾지 못함: Wi-Fi나 유선 연결 확인")
+            self.camera_qr.setVisible(False)
+        self.camera_result.setText("\n".join(lines))
 
     def make_scenes(self) -> None:
         self._keep_settings = True
@@ -1143,6 +1213,7 @@ class Wizard(QMainWindow):
         server.hub.taps.append(logs.status)  # 상태 안내만 이 PC의 기록 파일에
         server.start()
         self.server = server
+        server.obs_target = ("127.0.0.1", self.obs_port.value(), self.obs_password.text() or None)  # 휴대폰 화면에서 카메라 소스 만들기
         self._overlay_state(True)
         self._keep_settings = True
         self.remember()

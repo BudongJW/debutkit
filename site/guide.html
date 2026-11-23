@@ -37,7 +37,7 @@
     <header class="dochead">
       <h1>사용 설명서</h1>
       <dl>
-        <dt>대상 버전</dt><dd>debutkit 1.0.0rc11</dd>
+        <dt>대상 버전</dt><dd>debutkit 1.0.0rc12</dd>
         <dt>방송 플랫폼</dt><dd>치지직, SOOP, Twitch, YouTube</dd>
         <dt>지원 환경</dt><dd>Windows 64비트(설치 프로그램, zip), macOS(Apple Silicon), Linux(x64), 파이썬 패키지</dd>
       </dl>
@@ -347,6 +347,22 @@ debutkit scenes --dry-run</code></pre>
           <li>macOS, Linux에서는 아바타 소스 속성에서 창을 직접 선택해야 합니다.</li>
           <li>리플레이 버퍼를 처음 설정한 경우 OBS를 재시작해야 사용할 수 있습니다.</li>
         </ul>
+        <h3 id="scenes-camera">휴대폰 카메라 영상</h3>
+        <p>휴대폰 카메라 영상(실사, 손 캠, 방 안 촬영)을 같은 Wi-Fi로 받아 OBS 소스로 표시합니다. OBS 기본 미디어 소스의 SRT 수신 기능을 사용하며 플러그인이 필요 없습니다. 송신 앱은 Larix Broadcaster(아이폰, 안드로이드 무료) 등 SRT 송신 앱을 사용합니다.</p>
+        <ol class="procedure">
+          <li>OBS를 실행하고 설정 마법사 OBS 장면 단계의 휴대폰 카메라 소스 추가를 누르거나 <code>debutkit camera setup</code>을 실행합니다. 현재 방송 장면 왼쪽 위에 <code>[DK] 휴대폰 카메라</code> 소스가 생깁니다.</li>
+          <li>휴대폰과 PC를 같은 Wi-Fi에 연결하고, 표시된 QR 코드를 휴대폰 카메라로 찍어 Larix Broadcaster에 연결 정보를 가져옵니다. 오버레이 실행 중에는 <code>http://127.0.0.1:8790/phone#camera</code>에서도 QR 코드를 볼 수 있습니다.</li>
+          <li>Larix의 방송 버튼(빨간 원)을 누르면 OBS에 영상이 표시됩니다. OBS가 처음 수신할 때 Windows 보안 경고가 나오면 개인 네트워크를 허용합니다.</li>
+        </ol>
+        <ul>
+          <li>암호가 맞는 휴대폰만 연결됩니다(SRT 암호화, AES-128). 암호는 이 PC의 설정 폴더에만 보관하며 새 암호를 만들면 휴대폰 앱에 다시 등록합니다.</li>
+          <li>소리는 보내지 않고 PC 마이크를 사용합니다. 다른 SRT 송신 앱은 주소(srt://PC주소:9710), 모드 Caller, 암호, 암호 길이 16을 직접 입력합니다.</li>
+          <li>영상이 늦으면 5GHz Wi-Fi를 사용하고, 끊김이 잦으면 지연 여유를 늘립니다(기본 200밀리초).</li>
+        </ul>
+        <pre class="wrap"><code>debutkit camera setup                 # OBS 소스 만들기(있으면 포트, 암호 맞춤), 연결 정보 출력
+debutkit camera setup --scene 토크     # 다른 장면에도 추가
+debutkit camera info                  # 주소, 암호, Larix 가져오기 주소
+debutkit camera status                # 휴대폰 연결 대기, 수신 중</code></pre>
 
         <h2 id="overlay">채팅창과 후원 알림</h2>
         <pre class="wrap"><code>debutkit overlay --chzzk https://chzzk.naver.com/live/채널ID --soop https://play.sooplive.co.kr/아이디 --twitch 채널이름</code></pre>
@@ -592,6 +608,7 @@ debutkit overlay --youtube 영상ID --youtube-interval 15</code></pre>
               <tr><th scope="row"><code>debutkit gui</code></th><td>설정 마법사 실행</td></tr>
               <tr><th scope="row"><code>debutkit doctor</code></th><td>PC 점검. <code>--speed</code>로 업로드 속도 측정과 비트레이트 추천</td></tr>
               <tr><th scope="row"><code>debutkit scenes</code></th><td>OBS 장면 세트 생성</td></tr>
+              <tr><th scope="row"><code>debutkit camera</code></th><td>휴대폰 카메라 영상을 받는 OBS 소스 만들기, 휴대폰 앱 연결 정보, 상태</td></tr>
               <tr><th scope="row"><code>debutkit overlay</code></th><td>채팅창, 후원 알림 서버 실행. <code>--clip</code>으로 자동 클립</td></tr>
               <tr><th scope="row"><code>debutkit draw</code></th><td>후원 추첨 설정 보기, 바꾸기, 시험 추첨</td></tr>
               <tr><th scope="row"><code>debutkit raffle</code></th><td>시청자 참여 추첨 모집, 마감, 당첨자 뽑기, 순서 정하기(실행 중인 오버레이)</td></tr>
@@ -641,6 +658,7 @@ debutkit overlay --youtube 영상ID --youtube-interval 15</code></pre>
           <li>캐릭터 음성 반응은 OBS가 계산한 마이크 음량 수치만 사용하며 음성을 저장하거나 전송하지 않습니다. 등록한 캐릭터 파일은 이 PC의 캐릭터 보관함에만 둡니다.</li>
           <li>VTube Studio 연동은 이 PC의 VTube Studio(127.0.0.1)에만 연결하며 토큰은 설정 폴더에만 보관합니다.</li>
           <li>웹캠 얼굴 추적은 브라우저 창 안에서 영상을 처리하고 숫자 값만 이 PC의 debutkit 서버로 보냅니다. 추적 화면은 보안 정책으로 이 PC 밖으로의 접속을 차단합니다.</li>
+          <li>휴대폰 카메라 영상은 OBS가 직접 받으며 debutkit을 거치지 않습니다. 암호가 맞는 휴대폰만 연결되고, 영상은 녹화하거나 외부로 보내지 않습니다(방송 송출은 OBS 설정에 따름).</li>
           <li>휴대폰 얼굴 추적은 사용자가 연결을 시작한 경우에만 휴대폰과 연결된 네트워크 주소 하나에서 값을 받고, 지정한 휴대폰 IP의 값만 사용합니다. 휴대폰 앱이 보내는 것은 표정과 머리 각도 숫자 값이며 카메라 영상은 오지 않습니다. 값은 저장하지 않습니다.</li>
           <li>오류 기록은 설정 폴더의 <code>logs</code> 폴더에 저장합니다(파일당 1 MB, 최근 3개). 처리되지 않은 오류와 상태 안내만 기록하며 채팅 내용은 기록하지 않습니다.</li>
           <li>비공식 수신(<code>--chzzk</code>, <code>--soop</code>)은 플랫폼이 승인한 방식이 아닙니다. 본인 치지직 채널은 공식 API 사용을 권장합니다.</li>

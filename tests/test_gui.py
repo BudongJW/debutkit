@@ -460,6 +460,7 @@ def test_overlay_start_attaches_voice_meter(app):
         window.open_phone()
         assert calls.urls[-1] == "http://127.0.0.1:8790/phone" and "Wi-Fi" in window.character_detail.text()
         assert "/phone" in window.overlay_log.toPlainText()
+        assert server.obs_target == ("127.0.0.1", 4455, None)  # 휴대폰 화면에서 OBS 카메라 소스 만들기
         assert calls.saves[-1]["voice_threshold"] == -35.0
     finally:
         window.close()
@@ -631,5 +632,34 @@ def test_chat_commands_checkbox_saves_and_restores(app):
         window.remember()
         assert calls.saves[-1]["raffle_command"] == "!들어감" and calls.saves[-1]["raffle_title"] == "노래 신청"
         assert calls.saves[-1]["phone_enabled"] is True and calls.saves[-1]["phone_ip"] == "192.168.0.12" and calls.saves[-1]["phone_center_yaw"] == 0.1
+    finally:
+        window.close()
+
+
+def test_phone_camera_button_shows_connection_and_qr(app):
+    added = []
+
+    def add_phone_camera(host, port, password):
+        added.append((host, port, password))
+        if len(added) > 1:
+            raise RuntimeError("Cannot reach OBS at ws://127.0.0.1:4455")
+        return {"source": "[DK] 휴대폰 카메라", "created": True, "updated": False, "added": ["본방송"], "kept": [],
+                "state": {"exists": True, "state": "OBS_MEDIA_STATE_OPENING", "text": "휴대폰 연결 대기"},
+                "info": {"addresses": ["192.168.0.5", "10.0.0.2"], "address": "192.168.0.5", "port": 9710, "latency": 200, "passphrase": "abcdefghjkmn",
+                         "url": "srt://192.168.0.5:9710", "larix": "larix://set/v1?conn[][url]=srt://192.168.0.5:9710", "source": "[DK] 휴대폰 카메라"}}
+
+    calls = Calls()
+    window = Wizard(calls.backend(add_phone_camera=add_phone_camera))
+    try:
+        window.obs_password.setText("pw")
+        window.add_phone_camera()
+        assert wait_for(app, lambda: window.camera_button.isEnabled() and "본방송" in window.camera_result.text())
+        assert added == [("127.0.0.1", 4455, "pw")]
+        assert "srt://192.168.0.5:9710" in window.camera_result.text() and "abcdefghjkmn" in window.camera_result.text()
+        assert "10.0.0.2" in window.camera_result.text() and window.camera_qr.isVisibleTo(window) is not None
+        assert not window.camera_qr.pixmap().isNull() and window.camera_qr.pixmap().width() == 200
+        window.add_phone_camera()
+        assert wait_for(app, lambda: "실패" in window.camera_result.text())
+        assert "연결하지 못함" in window.camera_result.text()
     finally:
         window.close()

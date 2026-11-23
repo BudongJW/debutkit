@@ -1,4 +1,4 @@
-"""명령줄: debutkit gui | doctor | scenes | overlay | draw | raffle | phone | character | motion | vts | settings | setup | chzzk"""
+"""명령줄: debutkit gui | doctor | scenes | camera | overlay | draw | raffle | phone | character | motion | vts | settings | setup | chzzk"""
 
 from __future__ import annotations
 
@@ -54,6 +54,55 @@ def _scenes(args: argparse.Namespace) -> int:
         print(f"OBS 장면 생성 실패: {error}", file=sys.stderr)
         return 1
     print(format_report(report))
+    return 0
+
+
+def _camera_info(info: dict[str, Any]) -> str:
+    if not info["address"]:
+        return "이 PC의 내부 네트워크 주소를 찾지 못함: Wi-Fi나 유선 연결 확인"
+    lines = ["휴대폰 앱 연결 정보(SRT, 모드 Caller)", f"  주소      {info['url']}", f"  암호      {info['passphrase']} (암호 길이 16)",
+             f"  지연 여유 {info['latency']}밀리초"]
+    if len(info["addresses"]) > 1:
+        lines.append(f"  다른 주소 {', '.join(info['addresses'][1:])} (같은 Wi-Fi가 아니면 다른 주소 사용)")
+    lines += ["  Larix Broadcaster 가져오기 주소(휴대폰에서 열기):", f"  {info['larix']}",
+              "  QR 코드: 오버레이 실행 중 http://127.0.0.1:8790/phone#camera"]
+    return "\n".join(lines)
+
+
+def _camera(args: argparse.Namespace) -> int:
+    """휴대폰 카메라 영상(SRT)을 받는 OBS 미디어 소스와 휴대폰 앱 연결 정보."""
+    from . import camera
+
+    try:
+        if args.camera_command == "setup" and (args.port is not None or args.latency is not None or args.new_passphrase):
+            config = camera.update_config(args.port, args.latency, args.new_passphrase)
+        else:
+            config = camera.load_config()
+    except camera.CameraError as error:
+        print(f"설정 오류: {error}", file=sys.stderr)
+        return 1
+    if args.camera_command == "info":
+        print(_camera_info(camera.connection_info(config)))
+        return 0
+    password = args.obs_password or os.environ.get("OBS_WEBSOCKET_PASSWORD")
+    try:
+        with camera.connect(args.obs_host, args.obs_port, password) as client:
+            if args.camera_command == "status":
+                print(f"OBS 휴대폰 카메라 소스: {camera.media_state(client)['text']}")
+                return 0
+            result = camera.add_to_obs(client, config, args.scene or ())
+            state = camera.media_state(client)
+    except camera.CameraError as error:
+        print(f"휴대폰 카메라 소스 실패: {error}", file=sys.stderr)
+        return 1
+    except Exception as error:  # OBS 꺼짐, 비밀번호 오류
+        print(camera.obs_failure(error), file=sys.stderr)
+        return 1
+    done = "만듦" if result["created"] else "설정 맞춤"
+    where = ", ".join(result["added"]) + " 장면에 추가" if result["added"] else ", ".join(result["kept"]) + " 장면에 이미 있음"
+    print(f"OBS 소스 {camera.SOURCE_NAME} {done}, {where}. 상태: {state['text']}")
+    print("OBS가 처음 수신할 때 Windows 보안 경고가 나오면 개인 네트워크 허용")
+    print(_camera_info(camera.connection_info(config)))
     return 0
 
 
@@ -122,6 +171,7 @@ def _overlay(args: argparse.Namespace) -> int:
     print(f"  채팅창  {server.url}/chat")
     print(f"  알림    {server.url}/alerts")
     print("  연결: " + ", ".join(label for label, _ in sources))
+    server.obs_target = (args.obs_host, args.obs_port, args.obs_password or os.environ.get("OBS_WEBSOCKET_PASSWORD"))  # 휴대폰 카메라 소스 만들기
     if not (args.chzzk_api or args.chzzk or args.soop or args.twitch or args.youtube):
         print("  채널 미지정, 데모 채팅 표시. 예: debutkit overlay --chzzk 채널주소 --soop 방송국주소")
     _start_voice(server, args)
@@ -658,6 +708,20 @@ def build_parser() -> argparse.ArgumentParser:
                         help="자동 클립용 리플레이 버퍼 켜기 (길이 기본 60초)")
     scenes.add_argument("--dry-run", action="store_true", help="OBS에 연결하지 않고 설계도만 출력")
     scenes.set_defaults(func=_scenes)
+
+    cameras = sub.add_parser("camera", help="휴대폰 카메라 영상: SRT로 받는 OBS 미디어 소스와 휴대폰 앱(Larix Broadcaster 등) 연결 정보")
+    cameras_sub = cameras.add_subparsers(dest="camera_command", required=True)
+    cameras_sub.add_parser("info", help="휴대폰 앱에 입력할 주소, 암호, Larix 가져오기 주소")
+    camera_setup = cameras_sub.add_parser("setup", help="OBS에 휴대폰 카메라 소스 만들기(있으면 포트, 암호 맞춤)")
+    camera_setup.add_argument("--scene", action="append", metavar="장면", help="넣을 장면(여러 번 지정 가능, 기본 현재 방송 장면)")
+    camera_setup.add_argument("--port", type=int, help="수신 포트(기본 9710, 저장)")
+    camera_setup.add_argument("--latency", type=int, metavar="밀리초", help="지연 여유(80에서 2000, 기본 200, 저장)")
+    camera_setup.add_argument("--new-passphrase", action="store_true", help="새 암호 만들기(휴대폰 앱에 다시 등록 필요)")
+    cameras_sub.add_parser("status", help="OBS 소스 상태(휴대폰 연결 대기, 수신 중 등)")
+    cameras.add_argument("--obs-host", default="127.0.0.1")
+    cameras.add_argument("--obs-port", type=int, default=4455, help="OBS WebSocket 포트 (기본 %(default)s)")
+    cameras.add_argument("--obs-password", help="OBS WebSocket 비밀번호 (또는 OBS_WEBSOCKET_PASSWORD)")
+    cameras.set_defaults(func=_camera)
 
     youtube = sub.add_parser("youtube", help="YouTube 연결 확인")
     youtube_sub = youtube.add_subparsers(dest="youtube_command", required=True)

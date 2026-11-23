@@ -17,6 +17,9 @@
 - ``/phone`` 휴대폰 얼굴 추적 설정 화면(phone.py, iFacialMocap과 VTube Studio 아이폰 앱). ``/phone/status`` 상태,
   ``POST /phone/start`` (``{"app": "ifacialmocap", "ip": "192.168.0.12"}``), ``/phone/stop``, ``/phone/options``, ``/phone/calibrate``.
   휴대폰 값을 받는 중에는 웹캠 추적 화면의 값을 쓰지 않는다
+- ``/camera`` 휴대폰 카메라 영상 연결 정보(camera.py: PC 주소, 포트, 암호, Larix 가져오기 주소), ``/camera/qr.svg?address=`` QR 코드,
+  ``/camera/status`` OBS 소스 상태. ``POST /camera/obs`` OBS 소스 만들기, ``POST /camera/config`` 포트, 지연 여유, 새 암호.
+  OBS 작업은 오버레이를 시작한 명령줄이나 설정 마법사가 알려 준 OBS 연결 정보(``obs_target``)를 사용
 - ``POST /test`` 설정 화면의 테스트 메시지, ``POST /voice/test`` 말하기 시험
 
 127.0.0.1에만 열리고, 다른 웹사이트가 이 서버에 요청을 끼워 넣지 못하도록 Host와
@@ -41,6 +44,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
 from typing import Any, Callable, Iterable
 
+from .. import camera as cameras
 from .. import commands
 from .. import draw as drawing
 from .. import motion as motions
@@ -133,6 +137,7 @@ def _static(name: str) -> bytes:
 def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.0, voice: VoiceState | None = None,
                  tracking: TrackingState | None = None, motion: motions.MotionState | None = None, draw: drawing.DrawState | None = None,
                  raffle: raffles.Raffle | None = None, phone: phones.PhoneTracker | None = None,
+                 obs_target: Callable[[], tuple[str, int, str | None] | None] | None = None,
                  stopping: threading.Event | None = None) -> type[BaseHTTPRequestHandler]:
     """``stopping`` 이 설정되면 열린 사건 흐름을 모두 끝낸다(화면은 새 서버에 다시 연결)."""
     voice = voice or VoiceState()
@@ -141,6 +146,7 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
     draw = draw or drawing.DrawState()
     raffle = raffle or raffles.Raffle()
     phone = phone or phones.PhoneTracker(tracking)
+    obs_target = obs_target or (lambda: None)
     states: dict[str, Any] = {"voice": voice, "tracking": tracking, "motion": motion, "draw": draw, "raffle": raffle}
     stopping = stopping or threading.Event()
     step = min(0.5, keepalive)
@@ -201,6 +207,16 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
                 return self._json(raffle.status())
             if path == "/phone/status":
                 return self._json(phone.status())
+            if path == "/camera":
+                return self._json({**cameras.connection_info(), "obs": obs_target() is not None})
+            if path == "/camera/qr.svg":
+                address = urllib.parse.parse_qs(query).get("address", [""])[0]
+                if address not in cameras.lan_addresses():  # 이 PC의 주소로 만든 연결 정보만 QR로
+                    return self._send(HTTPStatus.NOT_FOUND, b"unknown address")
+                body = cameras.qr_svg(cameras.larix_link(address, cameras.load_config())).encode()
+                return self._send(HTTPStatus.OK, body, TYPES[".svg"])
+            if path == "/camera/status":
+                return self._camera_obs(lambda client: cameras.media_state(client))
             if path == "/motion/list":
                 return self._send(HTTPStatus.OK, json.dumps(motions.overview(), ensure_ascii=False).encode(), "application/json")
             if path.startswith("/motion/files/"):
@@ -227,7 +243,7 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
                 return self._send(HTTPStatus.FORBIDDEN, b"forbidden")
             if path not in ("/test", "/voice/test", "/tracking", "/motion", "/draw/config", "/draw/test", "/draw/clear", "/raffle/start", "/raffle/stop",
                             "/raffle/clear", "/raffle/add", "/raffle/remove", "/raffle/draw", "/phone/start", "/phone/stop", "/phone/options",
-                            "/phone/calibrate"):
+                            "/phone/calibrate", "/camera/obs", "/camera/config"):
                 return self._send(HTTPStatus.NOT_FOUND, b"not found")
             try:
                 raw = json.loads(body or b"{}")
@@ -243,6 +259,12 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
                 return self._raffle_post(path, data)
             if path.startswith("/phone/"):
                 return self._phone_post(path, data)
+            if path == "/camera/obs":
+                chosen = data.get("scenes")
+                names = [str(name) for name in chosen] if isinstance(chosen, list) else []
+                return self._camera_obs(lambda client: {**cameras.add_to_obs(client, cameras.load_config(), names), **cameras.media_state(client)})
+            if path == "/camera/config":
+                return self._camera_config(data)
             if path == "/motion":
                 if data.get("stop"):
                     motion.play(stop=True)
@@ -336,6 +358,41 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
                 return self._json({"error": str(error)}, HTTPStatus.BAD_REQUEST)
             except OSError as error:
                 return self._json({"error": f"설정 저장 실패: {error}"}, HTTPStatus.INTERNAL_SERVER_ERROR)
+
+        def _camera_obs(self, work: Callable[[Any], dict[str, Any]]) -> None:
+            """OBS에 연결해 휴대폰 카메라 소스 작업. OBS 연결 정보가 없거나 실패하면 400, 502와 한국어 안내."""
+            target = obs_target()
+            if target is None:
+                return self._json({"error": "OBS 연결 정보 없음: 설정 마법사나 debutkit overlay로 오버레이를 시작하거나 debutkit camera setup 사용"},
+                                  HTTPStatus.BAD_REQUEST)
+            try:
+                with cameras.connect(*target) as client:
+                    return self._json(work(client))
+            except cameras.CameraError as error:
+                return self._json({"error": str(error)}, HTTPStatus.BAD_REQUEST)
+            except Exception as error:  # OBS 꺼짐, 비밀번호 오류 등
+                return self._json({"error": cameras.obs_failure(error)}, HTTPStatus.BAD_GATEWAY)
+
+        def _camera_config(self, data: dict[str, Any]) -> None:
+            """포트, 지연 여유, 새 암호 저장. OBS에 소스가 있으면 그 설정도 바꾼다(연결 정보가 있을 때)."""
+            try:
+                config = cameras.update_config(data.get("port"), data.get("latency"), data.get("new_passphrase") is True)
+            except cameras.CameraError as error:
+                return self._json({"error": str(error)}, HTTPStatus.BAD_REQUEST)
+            except OSError as error:
+                return self._json({"error": f"설정 저장 실패: {error}"}, HTTPStatus.INTERNAL_SERVER_ERROR)
+            answer: dict[str, Any] = {**cameras.connection_info(config), "obs": obs_target() is not None}
+            target = obs_target()
+            if target is not None:
+                try:
+                    with cameras.connect(*target) as client:
+                        if cameras.media_state(client)["exists"]:
+                            client.request("SetInputSettings", {"inputName": cameras.SOURCE_NAME, "inputSettings": cameras.source_settings(config),
+                                                                "overlay": True})
+                            answer["obs_updated"] = True
+                except Exception as error:
+                    answer["obs_error"] = cameras.obs_failure(error)
+            return self._json(answer)
 
         def _open_stream(self) -> None:
             self.send_response(HTTPStatus.OK)
@@ -500,6 +557,7 @@ class OverlayServer:
                                               notify=lambda text: self.hub.publish(system_event(text)))
         self.hub.taps.append(self.commands)  # 스트리머, 매니저 채팅 명령
         self.phone = phones.PhoneTracker(self.tracking)  # 휴대폰 얼굴 추적(켠 경우만 수신 창구를 연다)
+        self.obs_target: tuple[str, int, str | None] | None = None  # OBS 연결 정보(휴대폰 카메라 소스 만들기). 명령줄, 설정 마법사가 지정
         self._sources = list(sources)
         self._poll = poll
         self._retry = retry
@@ -508,7 +566,7 @@ class OverlayServer:
         self._attached: list[Any] = []
         self.httpd = _HttpServer(("127.0.0.1", port), make_handler(self.hub, lambda: self.port, voice=self.voice, tracking=self.tracking,
                                                                    motion=self.motion, draw=self.draw, raffle=self.raffle, phone=self.phone,
-                                                                   stopping=self._stop))
+                                                                   obs_target=lambda: self.obs_target, stopping=self._stop))
         self._attached.append(self.commands)  # 단축키 실행 스레드 정리
         self._attached.append(_PhoneStopper(self.phone))
 

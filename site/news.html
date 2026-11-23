@@ -43,6 +43,7 @@
       <nav class="toc" aria-label="버전 목록">
         <h2>버전</h2>
         <ul>
+          <li><a href="#v1-0-0rc12">1.0.0rc12</a></li>
           <li><a href="#v1-0-0rc11">1.0.0rc11</a></li>
           <li><a href="#v1-0-0rc10">1.0.0rc10</a></li>
           <li><a href="#v1-0-0rc9">1.0.0rc9</a></li>
@@ -68,6 +69,22 @@
       </nav>
 
       <div>
+        <article class="release" id="v1-0-0rc12">
+          <h2>1.0.0rc12</h2>
+          <p class="date">2026-11-23, 사전 릴리스(1.0 후보 12차)</p>
+          <h3>추가</h3>
+          <ul>
+            <li>휴대폰 카메라 영상: 휴대폰 앱이 SRT로 보내는 카메라 영상(실사, 손 캠)을 OBS 기본 미디어 소스로 수신. 암호가 맞는 휴대폰만 연결, 소리는 PC 마이크 사용</li>
+            <li>휴대폰 연결 화면의 카메라 영역: OBS에 소스 만들기, 연결 확인, 포트와 지연 여유, 새 암호, Larix Broadcaster 가져오기 QR 코드</li>
+            <li><code>debutkit camera</code> 명령(info, setup, status), 설정 마법사 OBS 장면 단계의 휴대폰 카메라 소스 추가</li>
+          </ul>
+          <h3>검증 범위</h3>
+          <ul>
+            <li>확인: 단위 테스트(암호 보관, OBS 소스 생성과 위치, 설정 맞춤, 연결 정보, QR, 서버 주소, 명령줄, 설정 마법사). ffmpeg로 같은 주소 형식의 SRT 암호 연결과 틀린 암호 거부. QR 해독 결과 일치. 실제 OBS(Windows, macOS, Linux)에서 ffmpeg 송신으로 재생 상태와 화면 캡처 확인</li>
+            <li>미확인: 실제 휴대폰의 Larix QR 가져오기, Wi-Fi 지연과 장시간 발열</li>
+          </ul>
+        </article>
+
         <article class="release" id="v1-0-0rc11">
           <h2>1.0.0rc11</h2>
           <p class="date">2026-11-23, 사전 릴리스(1.0 후보 11차)</p>

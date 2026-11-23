@@ -1,5 +1,24 @@
 # 변경 내역
 
+## 1.0.0rc12 (2026-11-23)
+
+1.0 후보 12차(사전 릴리스). 휴대폰 카메라 영상(OBS 소스).
+
+### 추가
+- 휴대폰 카메라 영상(`camera.py`): 휴대폰 앱이 SRT로 보내는 카메라 영상(실사, 손 캠, 방 안 촬영)을 OBS 기본 미디어 소스로 수신. OBS 플러그인, 추가 프로그램 불필요
+  - OBS 소스 `[DK] 휴대폰 카메라`: SRT 수신(listener) 모드, 포트 9710, 지연 여유 200밀리초, 네트워크 버퍼 0, 끊기면 1초 뒤 다시 대기, 장면 전환 시 연결 유지. 현재 방송 장면 왼쪽 위(채팅, 알림, 추첨 아래 층)
+  - 암호(SRT passphrase, AES-128) 자동 생성. 암호가 맞는 휴대폰만 연결. 암호는 설정 폴더의 `phone-camera.json`에만 보관
+  - 휴대폰 앱 연결 정보: 이 PC 내부 주소(여러 개면 선택), 포트, 암호, Larix Broadcaster 가져오기 주소(`larix://set/v1`)와 QR 코드. 소리는 보내지 않음(PC 마이크 사용)
+- 휴대폰 연결 화면(`/phone`)의 휴대폰 카메라 영역: OBS에 소스 만들기, 연결 확인(휴대폰 연결 대기, 수신 중), 포트와 지연 여유, 새 암호, QR, 앱별 안내
+- 서버 `/camera`, `/camera/qr.svg`, `/camera/status`, `POST /camera/obs`, `POST /camera/config`. 오버레이를 시작한 명령줄, 설정 마법사의 OBS 연결 정보 사용
+- 명령 `debutkit camera info`, `setup`(`--scene`, `--port`, `--latency`, `--new-passphrase`), `status`. 설정 마법사 OBS 장면 단계의 휴대폰 카메라 소스 추가(QR 표시)
+- 오버레이 설정 화면의 휴대폰 카메라 영상 안내
+- 함께 배포: QR Code generator library 1.8.0(Project Nayuki, MIT, `debutkit/vendor/qrcodegen.py`, 수정 없음)
+
+### 변경
+- 휴대폰 얼굴 추적 화면 이름: 휴대폰 연결(얼굴 추적, 카메라 영상)
+- 실제 OBS 검증(Windows, macOS, Linux)에 휴대폰 카메라 소스 추가: ffmpeg가 휴대폰 역할로 SRT 송신, 재생 상태, 화면 캡처, 틀린 암호 거부 확인
+
 ## 1.0.0rc11 (2026-11-23)
 
 1.0 후보 11차(사전 릴리스). 휴대폰 얼굴 추적, 퍼펙트 싱크.

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "debutkit"
-version = "1.0.0rc11"
+version = "1.0.0rc12"
 description = "버튜버 방송 준비용 오픈소스 소프트웨어. PC 점검, OBS 장면 구성, 치지직 SOOP Twitch YouTube 통합 채팅창과 후원 알림, 방송 중 자동 클립"
 readme = "README.md"
 license = "Apache-2.0"
@@ -38,7 +38,7 @@ debutkit-gui = "debutkit.gui.app:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-debutkit = ["overlay/static/*", "overlay/static/**/*", "gui/icon.png"]
+debutkit = ["overlay/static/*", "overlay/static/**/*", "gui/icon.png", "vendor/README.txt"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -46,6 +46,7 @@ testpaths = ["tests"]
 [tool.ruff]
 line-length = 160
 target-version = "py310"
+extend-exclude = ["src/debutkit/vendor"]  # 함께 배포하는 외부 코드(수정하지 않음)
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B"]
