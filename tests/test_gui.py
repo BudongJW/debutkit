@@ -603,3 +603,25 @@ def test_draw_button_opens_control_page_and_settings_survive(app):
         assert saved["draw_enabled"] is True and saved["draw_prizes"] == ["9:꽝", "1:사진"] and saved["draw_style"] == "wheel"
     finally:
         window.close()
+
+
+def test_chat_commands_checkbox_saves_and_restores(app):
+    calls = Calls()
+    window = Wizard(calls.backend())
+    try:
+        assert window.chat_commands.isChecked() and window.collect_settings()["chat_commands"] is True
+        window.chat_commands.setChecked(False)
+        assert window.collect_settings()["chat_commands"] is False
+        window.apply_settings({"chat_commands": True})
+        assert window.chat_commands.isChecked() and window.draw_button.text() == "추첨 조작 화면"
+    finally:
+        window.close()
+    calls = Calls()
+    calls.stored = {"chat_commands": False, "raffle_command": "!들어감", "raffle_title": "노래 신청"}
+    window = Wizard(calls.backend())
+    try:
+        assert not window.chat_commands.isChecked()
+        window.remember()
+        assert calls.saves[-1]["raffle_command"] == "!들어감" and calls.saves[-1]["raffle_title"] == "노래 신청"
+    finally:
+        window.close()

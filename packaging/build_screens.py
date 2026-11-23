@@ -241,14 +241,16 @@ iframe {{ position: absolute; inset: 38px 0 0 0; width: 100%; height: calc(100% 
 </style></head><body><div class="cols">{"".join(columns)}</div><div class="alerts">{alert}</div></body></html>"""
 
 
-def draw_shot(browser: list[str], base: str) -> Path:
-    """후원 추첨 연출: 미리보기 주소(?sample)로 카드 뒤집기와 룰렛을 각각 촬영해 나란히 붙인다(기본 상품표)."""
+def draw_shot(browser: list[str], base: str, out: Path = OUT / "overlay-draw.png",
+              shots: tuple = (("card", "sample=card&count=3", 8.0), ("wheel", "sample=wheel", 11.0))) -> Path:
+    """추첨 연출: 미리보기 주소(?sample)로 두 장면을 각각 촬영해 나란히 붙인다(기본 상품표, 예시 이름).
+
+    후원 추첨은 카드 뒤집기와 룰렛, 시청자 참여 추첨은 당첨 카드와 순서표.
+    """
     from PIL import Image
 
-    out = OUT / "overlay-draw.png"
     with tempfile.TemporaryDirectory() as folder:
-        parts = [capture(browser, f"{base}/draw?{query}", Path(folder) / f"{name}.png", (960, 800), wait=wait)
-                 for name, query, wait in (("card", "sample=card&count=3", 8.0), ("wheel", "sample=wheel", 11.0))]
+        parts = [capture(browser, f"{base}/draw?{query}", Path(folder) / f"{name}.png", (960, 800), wait=wait) for name, query, wait in shots]
         images = [Image.open(path).convert("RGB") for path in parts]
         joined = Image.new("RGB", (sum(image.width for image in images), max(image.height for image in images)), "#59626a")
         joined.paste(images[0], (0, 0))
@@ -264,13 +266,14 @@ def overlay_shots(browser: list[str]) -> list[Path]:
     try:
         settings = capture(browser, server.url + "/", OUT / "overlay-settings.png", (1180, 1340))
         draws = draw_shot(browser, server.url)
+        raffles = draw_shot(browser, server.url, OUT / "overlay-raffle.png", (("pick", "sample=raffle", 7.0), ("order", "sample=order", 5.0)))
     finally:
         server.stop()
     with tempfile.TemporaryDirectory() as folder:
         page = Path(folder) / "themes.html"
         page.write_text(themes_page(), encoding="utf-8")
         themes = capture(browser, page.as_uri(), OUT / "overlay-themes.png", (1200, 600))
-    return [settings, draws, themes]
+    return [settings, draws, raffles, themes]
 
 
 def shrink(path: Path, width: int = 1200) -> None:

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>debutkit 후원 추첨</title>
+  <title>debutkit 추첨</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <style>
     :root { color-scheme: light; --bg: #ffffff; --panel: #faf7f5; --line: #e3dfdb; --text: #1e2327; --dim: #5b6670; --link: #bf3b68; --gold: #b58500; }
@@ -56,16 +56,20 @@
     .script p { margin: 0; flex: 1; }
     a.link { display: inline-block; padding: 5px 12px; border: 1px solid #c9c3bd; border-radius: 3px; color: var(--text); font-size: 14px; font-weight: 600; text-decoration: none; }
     a.link:hover { border-color: var(--text); }
+    ol.entries { list-style: none; margin: 10px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px; max-height: 280px; overflow: auto; }
+    ol.entries li { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 3px 4px 3px 9px; border: 1px solid var(--line); border-radius: 3px; font-size: 13px; }
+    ol.entries li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    ol.entries li small { color: var(--dim); }
   </style>
 </head>
 <body>
 <header>
   <img src="/favicon.svg" alt="">
-  <h1>debutkit 후원 추첨</h1>
+  <h1>debutkit 추첨(후원 추첨, 시청자 참여 추첨)</h1>
   <a href="/">오버레이 설정 화면</a>
 </header>
 <main>
-  <p class="lead">후원이 오면 상품표에서 확률대로 뽑아 방송 화면에 카드 뒤집기 또는 룰렛으로 표시합니다. 추첨은 이 PC의 debutkit이 하며, 결과는 파일로 저장하지 않고 최근 100개만 아래 목록에 표시합니다.</p>
+  <p class="lead">후원 추첨은 후원이 오면 상품표에서 확률대로 뽑아 방송 화면에 카드 뒤집기 또는 룰렛으로 표시합니다. 시청자 참여 추첨은 채팅으로 참가자를 모아 당첨자를 뽑거나 순서를 정합니다. 두 추첨 모두 이 PC의 debutkit이 하며 결과와 명단은 파일로 저장하지 않습니다.</p>
   <div class="grid">
     <section>
       <h2>방송 화면</h2>
@@ -135,6 +139,31 @@
       </div>
       <p class="state" id="test-state"></p>
       <p class="hint">저장한 설정으로 추첨해 방송 화면에 시험 표시와 함께 나타납니다. 사용을 끈 상태에서도 시험할 수 있습니다. 오버레이 설정 화면의 테스트 후원(1,000원)은 사용을 켠 경우에만 추첨합니다.</p>
+    </section>
+
+    <section class="wide" id="raffle-section">
+      <h2>시청자 참여 추첨</h2>
+      <p class="hint">모집을 시작하면 채팅에 참가 명령을 입력한 시청자가 명단에 들어갑니다(플랫폼과 닉네임 기준 1번). 스트리머와 매니저는 채팅으로 !모집, !마감, !추첨 3, !순서를 입력해 조작할 수 있습니다. 명단은 파일로 저장하지 않습니다.</p>
+      <div class="row">
+        <label>참가 명령 <input id="raffle-keyword" maxlength="20" style="width:110px"></label>
+        <label>추첨 이름 <input id="raffle-title" maxlength="20" style="width:150px"></label>
+        <label>후원 참가 <input id="raffle-min" type="number" min="0" step="1000" style="width:110px" placeholder="사용 안 함">원 이상</label>
+      </div>
+      <div class="row">
+        <button id="raffle-start">모집 시작(명단 새로)</button>
+        <button class="secondary" id="raffle-stop">모집 마감</button>
+        <button class="secondary" id="raffle-clear">명단 비우기</button>
+        <span class="state" id="raffle-state"></span>
+      </div>
+      <div class="row">
+        <label>당첨 인원 <input id="raffle-count" type="number" min="1" max="30" value="1" style="width:70px">명</label>
+        <button id="raffle-pick">당첨자 뽑기</button>
+        <button class="secondary" id="raffle-order">순서 정하기</button>
+        <input id="raffle-name" maxlength="40" placeholder="이름 직접 추가" style="width:160px" aria-label="직접 추가할 이름">
+        <button class="secondary small" id="raffle-add">추가</button>
+      </div>
+      <p class="state" id="raffle-result"></p>
+      <ol class="entries" id="raffle-entries"></ol>
     </section>
 
     <section class="wide">
@@ -344,6 +373,62 @@
   }
 
   fetch("/draw/config").then((r) => r.json()).then(fill).catch(() => note("save-state", "설정을 불러오지 못함", true));
+  // ---------------------------------------------------------------- 시청자 참여 추첨(1.5초마다 확인)
+  const SOURCES = { chat: "채팅", donation: "후원", manual: "직접" };
+  let raffleShown = "";
+  function raffleRender(status) {
+    note("raffle-state", `${status.open ? "모집 중" : "모집 마감"}, 참가 ${status.count}명`);
+    for (const [id, value] of [["raffle-keyword", status.keyword], ["raffle-title", status.title], ["raffle-min", status.donation_min ?? ""]]) {
+      if (document.activeElement !== $(id) && !$(id).dataset.edited) $(id).value = value;
+    }
+    const mark = `${status.count}:${status.entries.length ? status.entries[status.entries.length - 1].key : ""}`;
+    if (mark !== raffleShown) {
+      raffleShown = mark;
+      $("raffle-entries").replaceChildren(...status.entries.map((entry) => {
+        const item = el("li");
+        const label = el("span", "", entry.name);
+        label.appendChild(el("small", "", ` ${PLATFORMS[entry.platform] || (entry.platform === "manual" ? "" : entry.platform)} ${SOURCES[entry.source] || ""}`));
+        const remove = el("button", "secondary small", "빼기");
+        remove.addEventListener("click", () => post("/raffle/remove", { key: entry.key }).then(raffleRefresh));
+        item.append(label, remove);
+        return item;
+      }));
+    }
+    const last = status.last_result;
+    if (last) {
+      const names = last.winners.map((winner, index) => (last.mode === "order" ? `${index + 1} ${winner.name}` : winner.name)).join(", ");
+      note("raffle-result", `${last.mode === "order" ? "순서" : "당첨"}(참가 ${last.total}명): ${names}${last.more ? ` 외 ${last.more}명` : ""}`);
+    }
+  }
+  async function raffleRefresh() {
+    try {
+      raffleRender(await (await fetch("/raffle", { cache: "no-store" })).json());
+    } catch (error) {
+      note("raffle-state", "오버레이에 연결하지 못함", true);
+    }
+  }
+  async function raffleAction(path, body) {
+    const { ok, data } = await post(path, body);
+    if (!ok) note("raffle-result", data.error || "요청 실패", true);
+    for (const id of ["raffle-keyword", "raffle-title", "raffle-min"]) delete $(id).dataset.edited;
+    raffleRefresh();
+    return ok;
+  }
+  for (const id of ["raffle-keyword", "raffle-title", "raffle-min"]) $(id).addEventListener("input", () => ($(id).dataset.edited = "1"));
+  $("raffle-start").addEventListener("click", () => raffleAction("/raffle/start", {
+    keyword: $("raffle-keyword").value.trim(), title: $("raffle-title").value.trim(),
+    donation_min: $("raffle-min").value === "" ? null : Number($("raffle-min").value),
+  }));
+  $("raffle-stop").addEventListener("click", () => raffleAction("/raffle/stop"));
+  $("raffle-clear").addEventListener("click", () => raffleAction("/raffle/clear"));
+  $("raffle-pick").addEventListener("click", () => raffleAction("/raffle/draw", { mode: "pick", count: Number($("raffle-count").value) }));
+  $("raffle-order").addEventListener("click", () => raffleAction("/raffle/draw", { mode: "order" }));
+  $("raffle-add").addEventListener("click", async () => {
+    if (await raffleAction("/raffle/add", { name: $("raffle-name").value.trim() })) $("raffle-name").value = "";
+  });
+  raffleRefresh();
+  setInterval(raffleRefresh, 1500);
+
   // 최근 결과: 2초마다 확인(연결을 계속 열어 두지 않음). 바뀐 경우에만 다시 그림
   let shown = "";
   async function refresh() {

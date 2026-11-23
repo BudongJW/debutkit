@@ -1,4 +1,4 @@
-"""명령줄: debutkit gui | doctor | scenes | overlay | draw | character | motion | vts | settings | setup | chzzk"""
+"""명령줄: debutkit gui | doctor | scenes | overlay | draw | raffle | character | motion | vts | settings | setup | chzzk"""
 
 from __future__ import annotations
 
@@ -110,7 +110,7 @@ def _overlay(args: argparse.Namespace) -> int:
     if args.demo or not sources:
         sources.append(("데모", lambda: events.DemoChat()))
     try:
-        server = OverlayServer(sources, port=args.port)
+        server = OverlayServer(sources, port=args.port, chat_commands=False if args.no_chat_commands else None)
     except OSError as error:
         print(f"{args.port}번 포트 열기 실패 ({error}). --port 로 다른 번호 지정", file=sys.stderr)
         return 1
@@ -499,6 +499,45 @@ def _draw(args: argparse.Namespace) -> int:
     return 0
 
 
+def _raffle(args: argparse.Namespace) -> int:
+    """실행 중인 오버레이의 시청자 참여 추첨 조작."""
+    command = args.raffle_command
+
+    def describe(status: dict[str, Any]) -> str:
+        if status.get("type") == "result":
+            names = ", ".join(f"{index + 1} {winner['name']}" if status["mode"] == "order" else winner["name"] for index, winner in enumerate(status["winners"]))
+            return f"{'순서' if status['mode'] == 'order' else '당첨'}(참가 {status['total']}명): {names}" + (f" 외 {status['more']}명" if status.get("more") else "")
+        lines = [f"{'모집 중' if status['open'] else '모집 마감'}: {status['title']}, 참가 명령 {status['keyword']}, 참가 {status['count']}명"
+                 + (f", {status['donation_min']:,}원 이상 후원 참가" if status.get("donation_min") is not None else "")]
+        lines += [f"  {entry['name']}  ({entry['platform']}, {entry['source']})" for entry in status.get("entries", [])[:30]]
+        return "\n".join(lines)
+
+    if command == "status":
+        return _get_overlay(args.port, "/raffle", describe)
+    if command == "start":
+        body: dict[str, Any] = {"keyword": args.keyword, "title": args.title}
+        if args.donation_min is not None:
+            body["donation_min"] = None if args.donation_min < 0 else args.donation_min
+        return _post_overlay(args.port, "/raffle/start", body, describe)
+    if command == "draw":
+        return _post_overlay(args.port, "/raffle/draw", {"mode": "order" if args.order else "pick", "count": args.count}, describe)
+    return _post_overlay(args.port, f"/raffle/{command}", {}, describe)
+
+
+def _get_overlay(port: int, path: str, describe: Callable[[dict[str, Any]], str]) -> int:
+    import urllib.error
+    import urllib.request
+
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}{path}", timeout=5) as response:
+            answer = json.loads(response.read() or b"{}")
+    except (urllib.error.URLError, OSError, ValueError) as error:
+        print(f"오버레이에 연결하지 못함({port}번 포트): debutkit overlay 또는 설정 마법사의 오버레이 시작 필요 ({error})", file=sys.stderr)
+        return 1
+    print(describe(answer))
+    return 0
+
+
 def _post_overlay(port: int, path: str, body: dict[str, Any], describe: Callable[[dict[str, Any]], str]) -> int:
     """실행 중인 오버레이에 요청. 오류 응답의 error 안내를 그대로 보여 준다."""
     import urllib.error
@@ -622,6 +661,8 @@ def build_parser() -> argparse.ArgumentParser:
     voice.add_argument("--no-voice", action="store_true", help="OBS 마이크 음량으로 캐릭터 입 움직이기 끄기")
     voice.add_argument("--voice-input", metavar="소스", help="음량을 읽을 OBS 오디오 소스 이름 (기본: OBS 설정의 마이크)")
     voice.add_argument("--voice-threshold", type=float, default=-40.0, metavar="dB", help="말하는 것으로 판단할 음량 (기본 %(default)s dBFS)")
+    overlay.add_argument("--no-chat-commands", action="store_true",
+                         help="스트리머, 매니저 채팅 명령(!동작, !단축키, !모집, !마감, !추첨, !순서) 끄기. 저장 설정 chat_commands로도 끌 수 있음")
     reaction = overlay.add_argument_group("후원 반응(VTube Studio 단축키, 3D 캐릭터 동작)")
     reaction.add_argument("--vts-reaction", action="append", metavar="금액:단축키",
                           help="후원이 금액(원) 이상이면 VTube Studio 단축키 실행. 예: 1000:Heart. 0은 모든 후원. 여러 번 지정 가능 (debutkit vts login 필요)")
@@ -678,6 +719,21 @@ def build_parser() -> argparse.ArgumentParser:
     draw_test.add_argument("--amount", type=int, default=1000, metavar="원", help="시험 금액 (기본 %(default)s원)")
     draw_test.add_argument("--port", type=int, default=OVERLAY_PORT, help="오버레이 포트 (기본 %(default)s)")
     draws.set_defaults(func=_draw)
+
+    raffles = sub.add_parser("raffle", help="시청자 참여 추첨: 채팅 명령으로 참가자 모집, 당첨자 뽑기, 순서 정하기(실행 중인 오버레이)")
+    raffles.add_argument("--port", type=int, default=OVERLAY_PORT, help="오버레이 포트 (기본 %(default)s)")
+    raffles_sub = raffles.add_subparsers(dest="raffle_command", required=True)
+    raffles_sub.add_parser("status", help="모집 상태와 참가자 명단")
+    raffle_start = raffles_sub.add_parser("start", help="모집 시작(지난 명단 삭제)")
+    raffle_start.add_argument("--keyword", metavar="명령", help="참가 명령(기본 !참가, 지난 설정 유지)")
+    raffle_start.add_argument("--title", metavar="이름", help="추첨 이름(20자 이내)")
+    raffle_start.add_argument("--donation-min", type=int, metavar="원", help="이 금액 이상 후원한 시청자 자동 참가. -1은 후원 참가 끄기")
+    raffles_sub.add_parser("stop", help="모집 마감")
+    raffles_sub.add_parser("clear", help="명단 비우기")
+    raffle_draw = raffles_sub.add_parser("draw", help="당첨자 뽑기(기본 1명) 또는 --order 로 순서 정하기")
+    raffle_draw.add_argument("count", nargs="?", type=int, default=1, metavar="인원", help="당첨 인원(1에서 30)")
+    raffle_draw.add_argument("--order", action="store_true", help="참가자 전체 순서 정하기")
+    raffles.set_defaults(func=_raffle)
 
     motions = sub.add_parser("motion", help="3D 캐릭터 동작 등록, 기본 동작, 실행(VRMA, Mixamo 등의 FBX, GLB)")
     motions_sub = motions.add_subparsers(dest="motion_command", required=True)

@@ -2,11 +2,13 @@
 // 콘셉트 "방송 소품": 고양이 귀 마이크 문양을 찍은 실물 카드와 무대용 상품 룰렛. 소품과 하단 띠만 화면 아래쪽에 놓는다.
 // 연출 순서: 시작(띠, 소품 등장), 예고(희귀 카드만 금색 빛, 실제 결과와 같음), 공개(일반 카드 빠르게, 희귀 카드 마지막 천천히), 정리(결과 판), 퇴장.
 // 뽑기는 서버가 하고 이 화면은 받은 결과를 보여 주기만 한다(모든 화면이 같은 결과). 글은 textContent로만 넣는다.
+// 시청자 참여 추첨(/live의 raffle): 모집 중에는 하단 모집 띠와 참가자 이름, 결과는 당첨 카드나 순서표로 같은 차례 안에서 연출.
 // 주소: ?style=card, ?style=wheel 연출 고정. ?sample=card(또는 wheel)&count=11&bg=light 미리보기(이 화면에서만). ?sound 효과음 강제
 "use strict";
 
 (() => {
   const root = document.getElementById("draw");
+  const raffleRoot = document.getElementById("raffle");
   const params = new URLSearchParams(location.search);
   const forced = params.get("style");
   const STYLES = ["card", "wheel"];
@@ -124,11 +126,11 @@
     return "결과 " + grouped(result.draws).map((item) => (item.count > 1 ? `${item.name} ${item.count}회` : item.name)).join(", ");
   }
 
-  function plate(result) {
+  function plate(result, label = "결과") {
     const items = grouped(result.draws);
     // 판 전체 금색은 결과가 모두 희귀일 때만(룰렛 1회 희귀 등). 여러 결과에서는 희귀 상품만 금색 표시
     const box = el("div", `dk-plate${items.every((item) => item.rare) ? " rare" : ""}`);
-    box.appendChild(el("span", "label", "결과"));
+    box.appendChild(el("span", "label", label));
     const list = el("span", "items");
     for (const item of items) {
       const span = el("span", item.rare ? "rare" : item.miss ? "miss" : "", item.name);
@@ -170,12 +172,12 @@
   // ---------------------------------------------------------------- 카드
   const CARD = { l: [172, 240], m: [136, 190], s: [96, 134] };  // 실물 트레이딩 카드 비율 63:88
 
-  function layout(count) {  // 1에서 5장은 부채꼴, 6에서 12장은 두 줄 겹침, 그 이상은 한 줄 10장
+  function layout(count, spread = 0.86) {  // 1에서 5장은 부채꼴(spread: 카드 간격, 1보다 크면 겹치지 않음), 6에서 12장은 두 줄 겹침, 그 이상은 한 줄 10장
     const size = count <= 5 ? "l" : count <= 12 ? "m" : "s";
     const [w, h] = CARD[size];
     const spots = [];
     if (count <= 5) {
-      const step = w * 0.86;
+      const step = w * spread;
       for (let i = 0; i < count; i++) {
         const d = i - (count - 1) / 2;
         spots.push({ x: d * step, y: d * d * 8, r: d * 5 });
@@ -215,14 +217,14 @@
     const back = el("div", "face back");
     back.appendChild(emblem("#ff4f8b", INK));
     const front = el("div", "face front");
-    front.appendChild(el("div", "band", item.rare ? "희귀" : item.miss ? "꽝" : "일반"));
+    front.appendChild(el("div", "band", item.band || (item.rare ? "희귀" : item.miss ? "꽝" : "일반")));
     const name = el("div", "dk-name", item.name);
     name.style.setProperty("--name-size", nameSize(item.name, plan.h));
     front.appendChild(name);
     const foot = el("div", "foot");
     const pad = (number) => String(number).padStart(2, "0");
     foot.appendChild(el("span", "", `${pad(slot + 1)}/${pad(total)}`));
-    foot.appendChild(el("span", "", showPercent ? `${item.percent}%` : ""));
+    foot.appendChild(el("span", "", item.note !== undefined ? item.note : showPercent ? `${item.percent}%` : ""));
     front.appendChild(foot);
     inner.append(back, front);
     node.appendChild(inner);
@@ -462,8 +464,134 @@
     }
   }
 
+  // ---------------------------------------------------------------- 시청자 참여 추첨
+  const platformName = (platform) => (platform === "manual" ? "직접 추가" : (PLATFORMS[platform] || {}).label || platform);
+
+  function raffleStrip(result) {
+    const box = el("div", "dk-strip");
+    box.appendChild(el("span", "tag", result.title || "시청자 추첨"));
+    box.appendChild(el("span", "who", result.mode === "order" ? "순서 정하기" : "당첨자 발표"));
+    const meta = el("span", "meta");
+    meta.appendChild(el("span", "", `참가 ${Number(result.total).toLocaleString("ko-KR")}명`));
+    if (result.mode !== "order") meta.appendChild(el("span", "", `당첨 ${result.winners.length}명`));
+    box.appendChild(meta);
+    return box;
+  }
+
+  async function playRaffle(result, props, scene) {
+    const winners = result.winners;
+    if (result.mode === "order") {  // 순서표: 번호와 이름이 차례로 나타남
+      const board = el("div", "dk-order");
+      board.style.setProperty("--cols", winners.length > 20 ? 3 : winners.length > 8 ? 2 : 1);
+      winners.forEach((winner, index) => {
+        const row = el("div", "row");
+        row.style.setProperty("--i", index);
+        row.append(el("b", "", String(index + 1)), el("span", "", winner.name), el("small", "", platformName(winner.platform)));
+        board.appendChild(row);
+      });
+      if (result.more) board.appendChild(el("div", "more", `외 ${result.more}명`));
+      props.appendChild(board);
+      await wait(500 + winners.length * 110);
+      tone("done");
+      return;
+    }
+    const plan = layout(winners.length, 1.08);  // 당첨 카드: 모두 금색 띠, 아래에 플랫폼(이름이 가려지지 않게 겹치지 않음)
+    const deck = el("div", "dk-deck");
+    deck.style.width = `${plan.width}px`;
+    deck.style.height = `${plan.height}px`;
+    const cards = winners.map((winner, slot) => card({ name: winner.name, rare: true, band: "당첨", note: platformName(winner.platform) }, slot, winners.length, plan, false));
+    for (const node of cards) node.classList.add("winner");
+    deck.append(...cards);
+    props.appendChild(deck);
+    await wait(60);
+    for (const node of cards) node.classList.add("dealt");
+    await wait(560 + winners.length * 45);
+    for (const node of cards) node.classList.add("hint");
+    await wait(900);
+    for (const node of cards) {
+      node.classList.remove("hint");
+      node.classList.add("slow", "open");
+      tone("flip");
+      await wait(winners.length > 12 ? 160 : 420);
+    }
+    tone("rare");
+    confetti(deck);
+    shake(scene);
+    await wait(900);
+  }
+
+  // 모집 띠: 모집 중에만 표시. 참가하면 이름이 잠깐 위에 나타남. 추첨 연출 중에는 잠시 숨김
+  let display = { position: "center", scale: 100 };
+  const refreshDisplay = () => fetch("/draw/config").then((response) => response.json()).then((config) => (display = config)).catch(() => null);
+  refreshDisplay();
+  let raffleBar = null;
+
+  function raffleStatus(status, quiet) {
+    if (!status.open) {
+      raffleRoot.replaceChildren();
+      raffleBar = null;
+      return;
+    }
+    if (!raffleBar) {
+      raffleRoot.dataset.position = ["left", "right"].includes(display.position) ? display.position : "center";
+      const wrap = el("div", "dk-raffle");
+      wrap.style.setProperty("--scale", String(Math.max(0.6, Math.min(1.4, (Number(display.scale) || 100) / 100))));
+      const joined = el("div", "dk-joined");
+      const band = el("div", "dk-strip");
+      const tag = el("span", "tag");
+      const who = el("span", "who", "참가자 모집");
+      const meta = el("span", "meta");
+      band.append(tag, who, meta);
+      wrap.append(joined, band);
+      raffleRoot.replaceChildren(wrap);
+      raffleBar = { wrap, joined, tag, meta };
+    }
+    raffleBar.tag.textContent = status.title || "시청자 추첨";
+    const parts = [`채팅에 ${status.keyword}`];
+    if (status.donation_min !== null && status.donation_min !== undefined) parts.push(`${Number(status.donation_min).toLocaleString("ko-KR")}원 이상 후원`);
+    raffleBar.meta.replaceChildren(...parts.map((text) => el("span", "", text)), el("span", "count", `${Number(status.count).toLocaleString("ko-KR")}명`));
+    if (status.joined && !quiet) {
+      const chip = el("span", "", "");
+      chip.append(el("b", "", status.joined.name), document.createTextNode(status.joined.source === "donation" ? " 후원 참가" : " 참가"));
+      raffleBar.joined.appendChild(chip);
+      while (raffleBar.joined.children.length > 4) raffleBar.joined.firstElementChild.remove();
+      setTimeout(() => chip.remove(), 3200);
+    }
+  }
+
   // ---------------------------------------------------------------- 차례로 연출
-  async function play(result) {
+  async function play(entry) {
+    document.body.classList.add("playing");
+    try {
+      if (entry.kind === "raffle") await playRaffleScene(entry.data);
+      else await playDraw(entry.data);
+    } finally {
+      document.body.classList.remove("playing");
+    }
+  }
+
+  async function playRaffleScene(result) {
+    await fontsReady;
+    await refreshDisplay();
+    soundOn = Boolean(display.sound) || params.has("sound");
+    root.dataset.position = ["left", "right"].includes(display.position) ? display.position : "center";
+    const scene = el("div", "dk-scene");
+    scene.style.setProperty("--scale", String(Math.max(0.6, Math.min(1.4, (Number(display.scale) || 100) / 100))));
+    const props = el("div", "dk-props");
+    const band = raffleStrip(result);
+    scene.append(props, band);
+    root.replaceChildren(scene);
+    tone("start");
+    await wait(320);
+    await playRaffle(result, props, scene);
+    if (result.mode !== "order") scene.insertBefore(plate({ draws: result.winners.map((winner) => ({ name: winner.name, rare: true })) }, "당첨"), band);
+    await wait(Math.max(4, Number(display.seconds) || 8) * 1000 + (result.mode === "order" ? 4000 : 0));
+    scene.classList.add("leave");
+    await wait(560);
+    root.replaceChildren();
+  }
+
+  async function playDraw(result) {
     await fontsReady;
     soundOn = Boolean(result.sound) || params.has("sound");
     root.dataset.position = ["left", "right"].includes(result.position) ? result.position : "center";
@@ -503,14 +631,24 @@
 
   function accept(result) {
     if (!result || !result.seq || !Array.isArray(result.draws) || !result.draws.length) return;
-    queue.push(result);
+    queue.push({ kind: "draw", data: result });
     drain();
   }
 
-  // 연결할 때(다시 연결 포함) 받는 첫 값은 지난 결과이므로 재생하지 않는다
+  function acceptRaffle(result) {
+    if (!result || result.type !== "result" || !Array.isArray(result.winners) || !result.winners.length) return;
+    queue.push({ kind: "raffle", data: result });
+    drain();
+  }
+
+  // 연결할 때(다시 연결 포함) 받는 첫 값: 추첨은 지난 결과라 재생하지 않고, 참여 추첨은 현재 모집 상태라 그대로 표시(참가 알림만 생략)
   let first = true;
-  const source = new EventSource("/live?feeds=draw");
-  source.addEventListener("open", () => (first = true));
+  let raffleFirst = true;
+  const source = new EventSource("/live?feeds=draw,raffle");
+  source.addEventListener("open", () => {
+    first = true;
+    raffleFirst = true;
+  });
   source.addEventListener("draw", (message) => {
     const result = JSON.parse(message.data);
     if (first) {
@@ -518,6 +656,16 @@
       return;
     }
     accept(result);
+  });
+  source.addEventListener("raffle", (message) => {
+    const data = JSON.parse(message.data);
+    if (data.type === "status") {
+      if (data.open && !raffleBar) refreshDisplay().then(() => raffleStatus(data, raffleFirst));
+      else raffleStatus(data, raffleFirst);
+    } else if (!raffleFirst) {
+      acceptRaffle(data);
+    }
+    raffleFirst = false;
   });
 
   // 미리보기(?sample=card 또는 ?sample=wheel): 저장한 설정으로 예시 추첨을 이 화면에서만 표시. OBS와 다른 화면에는 나가지 않음
@@ -536,5 +684,25 @@
                sound: config.sound, show_percent: config.show_percent });
     });
   }
-  window.debutkitDraw = { accept, queue, summary, layout };  // 시험용
+  // 참여 추첨 미리보기(?sample=raffle 당첨 카드, order 순서표, recruit 모집 띠): 예시 이름으로 이 화면에서만 표시
+  const VIEWERS = ["고양이집사", "새벽감성", "별빛구름", "debut_streamer", "노래하는토끼", "밤하늘산책", "초코우유", "푸른고래", "라면한그릇", "햇살가득",
+                   "모닝커피", "달빛소나타"];
+  const platforms = ["chzzk", "soop", "youtube", "twitch"];
+  if (["raffle", "order", "recruit"].includes(sample)) {
+    document.body.classList.add("sample");
+    if (params.get("bg") === "light") document.body.classList.add("light");
+    const count = Math.max(1, Math.min(30, Number(params.get("count")) || (sample === "order" ? 12 : 3)));
+    const winners = Array.from({ length: count }, (_, index) => ({ name: VIEWERS[index % VIEWERS.length] + (index >= VIEWERS.length ? String(index) : ""),
+                                                                 platform: platforms[index % platforms.length], source: "chat" }));
+    if (sample === "recruit") {
+      refreshDisplay().then(() => {
+        raffleStatus({ open: true, keyword: "!참가", title: "시청자 추첨", donation_min: 1000, count: 23 }, true);
+        winners.slice(0, 3).forEach((winner, index) => setTimeout(() => raffleStatus({ open: true, keyword: "!참가", title: "시청자 추첨", donation_min: 1000,
+                                                                                         count: 24 + index, joined: { ...winner } }, false), 400 + index * 500));
+      });
+    } else {
+      acceptRaffle({ type: "result", seq: 1, mode: sample === "order" ? "order" : "pick", title: "시청자 추첨", total: 37, winners, more: 0 });
+    }
+  }
+  window.debutkitDraw = { accept, acceptRaffle, queue, summary, layout };  // 시험용
 })();

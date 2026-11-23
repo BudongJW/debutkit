@@ -53,6 +53,10 @@ FIELDS: dict[str, type] = {
     "draw_scale": int,
     "draw_sound": bool,
     "draw_show_percent": bool,
+    "chat_commands": bool,  # 스트리머, 매니저 채팅 명령(commands.py)
+    "raffle_command": str,  # 시청자 참여 추첨 참가 명령
+    "raffle_title": str,
+    "raffle_donation_min": int,
 }
 
 #: 이 단어가 들어간 항목은 저장하지 않는다(실수로 FIELDS에 추가해도 막음)

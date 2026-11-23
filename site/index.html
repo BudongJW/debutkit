@@ -121,7 +121,7 @@
         <p class="price">무료</p>
         <p class="price-note">모든 기능 무상 공개, Apache-2.0</p>
         <dl class="meta">
-          <dt>버전</dt><dd>0.9.0. 1.0 후보 1.0.0rc9 사전 릴리스</dd>
+          <dt>버전</dt><dd>0.9.0. 1.0 후보 1.0.0rc10 사전 릴리스</dd>
           <dt>최근 릴리스</dt><dd>2026-11-23</dd>
           <dt>지원 환경</dt><dd>Windows 64비트, macOS(Apple Silicon), Linux(x64)</dd>
           <dt>방송 플랫폼</dt><dd>치지직, SOOP, Twitch, YouTube</dd>
@@ -172,6 +172,8 @@
           <li><b>PC 점검</b> 메모리, CPU, 그래픽카드, 저장 공간, 마이크, 웹캠, OBS, 트래킹 프로그램, ffmpeg 점검과 조치 안내. 업로드 속도 측정과 비트레이트 추천 <code>doctor</code></li>
           <li><b>OBS 장면 구성</b> 대기 화면, 본방송, 토크, 자리 비움, 엔딩 장면 생성. 아바타 투명 배경 캡처, 채팅창과 후원 알림 연결, 기존 장면 유지 <code>scenes</code></li>
           <li><b>채팅창과 후원 알림</b> 치지직, SOOP, Twitch, YouTube 채팅을 OBS 브라우저 소스 하나에 표시. 후원, 구독, 슈퍼챗, 멤버십 알림. 표시 형태 5종 <code>overlay</code></li>
+          <li><b>시청자 참여 추첨</b> 채팅에 <code>!참가</code>를 입력한 시청자(선택 시 후원자 포함)를 모아 당첨자를 뽑거나 순서를 정하고 방송 화면에 당첨 카드, 순서표로 표시 <code>raffle</code></li>
+          <li><b>채팅 명령</b> 스트리머와 매니저가 채팅으로 캐릭터 동작, VTube Studio 단축키, 참여 추첨을 조작(<code>!동작</code>, <code>!단축키</code>, <code>!모집</code>, <code>!추첨</code>)</li>
           <li><b>후원 추첨 연출</b> 후원이 오면 상품표에서 확률대로 뽑아 카드 뒤집기나 룰렛으로 표시. 금액별 추첨 횟수, 희귀 상품 강조, 최근 결과와 읽을 문장, OBS 독용 조작 화면 <code>draw</code></li>
           <li><b>캐릭터</b> PNGTuber, 3D(VRM, GLB, FBX), Live2D 등록과 사용 조건 확인. debutkit 캐릭터 화면으로 방송(마이크 음량으로 입 움직임, 눈 깜빡임, 웹캠 얼굴 추적). 기본 캐릭터 포함 <code>character</code></li>
           <li><b>3D 캐릭터 동작</b> VRMA, Mixamo 등의 FBX, GLB 동작 등록. 대기 중 반복하는 기본 동작과 후원 반응 <code>motion</code></li>
@@ -242,11 +244,11 @@ debutkit-gui</code></pre>
           <table>
             <thead><tr><th>버전</th><th>날짜</th><th>주요 내용</th></tr></thead>
             <tbody>
+              <tr><th scope="row"><a href="news.html#v1-0-0rc10">1.0.0rc10</a></th><td>2026-11-23</td><td>1.0 후보 10차. 시청자 참여 추첨, 스트리머와 매니저 채팅 명령</td></tr>
               <tr><th scope="row"><a href="news.html#v1-0-0rc9">1.0.0rc9</a></th><td>2026-11-23</td><td>1.0 후보 9차. 후원 추첨 연출 디자인 개편(문양 카드, 상품 룰렛, 하단 띠, 연출 순서)</td></tr>
               <tr><th scope="row"><a href="news.html#v1-0-0rc8">1.0.0rc8</a></th><td>2026-11-23</td><td>1.0 후보 8차. 후원 추첨 연출(상품과 확률표, 금액별 횟수, 카드 뒤집기와 룰렛)</td></tr>
               <tr><th scope="row"><a href="news.html#v1-0-0rc7">1.0.0rc7</a></th><td>2026-11-23</td><td>1.0 후보 7차. 3D 캐릭터 동작(VRMA, Mixamo FBX, GLB) 기본 동작과 후원 반응</td></tr>
               <tr><th scope="row"><a href="news.html#v1-0-0rc6">1.0.0rc6</a></th><td>2026-11-23</td><td>1.0 후보 6차. 일반 3D 모델(GLB, FBX) 불러오기, 캐릭터 제작 약관 안내</td></tr>
-              <tr><th scope="row"><a href="news.html#v1-0-0rc5">1.0.0rc5</a></th><td>2026-11-22</td><td>1.0 후보 5차. 오버레이 설정 화면의 캐릭터 카드, 캐릭터와 연결 관련 오류 수정</td></tr>
               <tr><th scope="row"><a href="news.html#v0-9">0.9.0</a></th><td>2026-11-22</td><td>정식 릴리스. 설정 저장, 저장한 설정으로 바로 시작, macOS 종료 오류 수정</td></tr>
             </tbody>
           </table>
@@ -297,7 +299,7 @@ debutkit-gui</code></pre>
       <h2 class="keywords-title">키워드</h2>
       <ul class="tags">
         <li>#버튜버</li><li>#방송준비</li><li>#OBS</li><li>#치지직</li><li>#SOOP</li><li>#Twitch</li><li>#YouTube</li>
-        <li>#통합채팅</li><li>#후원알림</li><li>#후원추첨</li><li>#자동클립</li><li>#PNGTuber</li><li>#VRM</li><li>#Live2D</li><li>#오픈소스</li>
+        <li>#통합채팅</li><li>#후원알림</li><li>#후원추첨</li><li>#참여추첨</li><li>#자동클립</li><li>#PNGTuber</li><li>#VRM</li><li>#Live2D</li><li>#오픈소스</li>
       </ul>
     </div>
   </section>

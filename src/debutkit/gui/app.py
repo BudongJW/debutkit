@@ -1010,6 +1010,9 @@ class Wizard(QMainWindow):
         self.chzzk_state = text("로그인됨" if signed_in else "로그인 전", muted=True)
         self.demo = QCheckBox("데모 채팅 함께 표시(표시 형태 확인용)")
         self.autoclip = QCheckBox("자동 클립: 채팅 급증 또는 !clip 입력 시 저장(OBS 리플레이 버퍼, ffmpeg 필요)")
+        self.chat_commands = QCheckBox("스트리머, 매니저 채팅 명령: !동작, !단축키, !모집, !마감, !추첨, !순서")
+        self.chat_commands.setChecked(True)
+        self.chat_commands.setToolTip("스트리머와 매니저의 채팅만 처리. 캐릭터 동작, VTube Studio 단축키, 시청자 참여 추첨 조작")
         self.port = QSpinBox()
         self.port.setRange(1024, 65535)
         self.port.setValue(OVERLAY_PORT)
@@ -1022,6 +1025,7 @@ class Wizard(QMainWindow):
         form.addRow("", self.chzzk_state)
         form.addRow("", self.demo)
         form.addRow("", self.autoclip)
+        form.addRow("", self.chat_commands)
         self.voice_threshold = QSpinBox()
         self.voice_threshold.setRange(-70, -10)
         self.voice_threshold.setValue(-40)
@@ -1037,8 +1041,8 @@ class Wizard(QMainWindow):
         self.open_button = QPushButton("설정 화면 열기(주소 복사, 테스트 메시지)")
         self.open_button.setEnabled(False)
         self.open_button.clicked.connect(lambda: self.server and self.backend.open_url(self.server.url))
-        self.draw_button = QPushButton("후원 추첨 설정")
-        self.draw_button.setToolTip("후원이 오면 상품표에서 확률대로 뽑아 방송 화면에 카드 뒤집기, 룰렛으로 표시. 상품, 확률, 금액별 횟수 설정과 시험 추첨")
+        self.draw_button = QPushButton("추첨 조작 화면")
+        self.draw_button.setToolTip("후원 추첨(상품, 확률, 금액별 횟수, 연출, 시험 추첨)과 시청자 참여 추첨(모집, 당첨자 뽑기, 순서 정하기)")
         self.draw_button.setEnabled(False)
         self.draw_button.clicked.connect(lambda: self.server and self.backend.open_url(f"{self.server.url}/draw/control"))
         self.overlay_log = QPlainTextEdit()
@@ -1238,7 +1242,7 @@ class Wizard(QMainWindow):
         values: dict[str, Any] = {name: [field_.text().strip()] for name, field_ in
                                   (("chzzk", self.chzzk), ("soop", self.soop), ("twitch", self.twitch), ("youtube", self.youtube))}
         values.update(chzzk_api=self.chzzk_api.isChecked(), chzzk_client_id=self.chzzk_id.text().strip(), demo=self.demo.isChecked(),
-                      clip=self.autoclip.isChecked(), overlay_port=self.port.value(), obs_port=self.obs_port.value(),
+                      clip=self.autoclip.isChecked(), chat_commands=self.chat_commands.isChecked(), overlay_port=self.port.value(), obs_port=self.obs_port.value(),
                       avatar_app=str(self.avatar_app.currentData()), replay_buffer=60 if self.replay.isChecked() else 0,
                       avatar_path=self.avatar_path.text().strip(), agency=self.avatar_agency.isChecked(),
                       voice_threshold=float(self.voice_threshold.value()), voice_input=self._voice_input, vts_reactions=self.vts_reaction_rules(),
@@ -1251,7 +1255,8 @@ class Wizard(QMainWindow):
                 field_.setText(values[name][0])
         if values.get("chzzk_client_id") and not self.chzzk_id.text():  # 환경 변수가 우선
             self.chzzk_id.setText(values["chzzk_client_id"])
-        for name, box in (("chzzk_api", self.chzzk_api), ("demo", self.demo), ("clip", self.autoclip), ("agency", self.avatar_agency)):
+        for name, box in (("chzzk_api", self.chzzk_api), ("demo", self.demo), ("clip", self.autoclip), ("agency", self.avatar_agency),
+                          ("chat_commands", self.chat_commands)):
             if name in values:
                 box.setChecked(values[name])
         if "replay_buffer" in values:
@@ -1278,7 +1283,8 @@ class Wizard(QMainWindow):
 
     #: 입력란이 없어 collect_settings가 모르는 저장값. 저장할 때 기존 값을 유지한다(캐릭터 단계의 사용 버튼이 따로 저장)
     KEPT_SETTINGS = ("character", "idle_motion", "draw_enabled", "draw_prizes", "draw_rules", "draw_exact", "draw_members", "draw_style",
-                     "draw_seconds", "draw_title", "draw_position", "draw_scale", "draw_sound", "draw_show_percent")
+                     "draw_seconds", "draw_title", "draw_position", "draw_scale", "draw_sound", "draw_show_percent", "raffle_command", "raffle_title",
+                     "raffle_donation_min")
 
     def remember(self) -> None:
         try:

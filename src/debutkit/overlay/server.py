@@ -9,7 +9,10 @@
 - ``/motion/list`` 등록한 동작(VRMA, FBX, GLB)과 기본 동작. ``POST /motion`` 으로 동작 실행(``{"id": 동작}``, 멈춤은 ``{"stop": true}``)
 - ``/draw``     후원 추첨 연출(평소 투명). ``/draw/control`` 조작 화면(설정, 시험 추첨, 최근 결과. OBS 독으로도 사용)
   ``/draw/config``, ``/draw/history`` 조회, ``POST /draw/config`` 저장, ``POST /draw/test`` 시험 추첨, ``POST /draw/clear`` 최근 결과 비우기
-- ``/live?feeds=voice,tracking,motion,draw`` 처럼 받을 항목을 고를 수 있다(기본은 draw 제외)
+- ``/raffle``   시청자 참여 추첨 상태와 명단. ``POST /raffle/start``, ``/raffle/stop``, ``/raffle/clear``, ``/raffle/add``, ``/raffle/remove``,
+  ``/raffle/draw`` (``{"count": 3, "mode": "pick"}`` 또는 ``{"mode": "order"}``)
+- ``/live?feeds=voice,tracking,motion,draw,raffle`` 처럼 받을 항목을 고를 수 있다(기본은 draw, raffle 제외)
+- 스트리머, 매니저 채팅 명령(commands.py): ``!동작``, ``!단축키``, ``!모집``, ``!마감``, ``!추첨``, ``!순서``
 - ``/tracker`` 얼굴 추적 화면(일반 브라우저에서 열고 카메라 허용). ``POST /tracking`` 으로 값을 보낸다
 - ``POST /test`` 설정 화면의 테스트 메시지, ``POST /voice/test`` 말하기 시험
 
@@ -34,8 +37,10 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
 from typing import Any, Callable, Iterable
 
+from .. import commands
 from .. import draw as drawing
 from .. import motion as motions
+from .. import raffle as raffles
 from .events import OverlayEvent, system_event
 from .tracking import TrackingState, clean
 from .voice import VoiceState
@@ -44,7 +49,7 @@ STATIC = {"/": "index.html", "/chat": "chat.html", "/alerts": "alerts.html", "/o
           "/favicon.svg": "favicon.svg", "/character": "character.html", "/character.js": "character.js", "/tracker": "tracker.html", "/tracker.js": "tracker.js",
           "/draw": "draw.html", "/draw.js": "draw.js", "/draw.css": "draw.css", "/draw/control": "draw-control.html"}
 #: /live 로 받을 수 있는 항목. feeds를 지정하지 않으면 DEFAULT_FEEDS
-LIVE_FEEDS = ("voice", "tracking", "motion", "draw")
+LIVE_FEEDS = ("voice", "tracking", "motion", "draw", "raffle")
 DEFAULT_FEEDS = ("voice", "tracking", "motion")
 #: 요청 본문 최대 크기(추첨 설정은 상품표가 길 수 있음)
 BODY_LIMIT = {"/draw/config": 32768}
@@ -122,13 +127,14 @@ def _static(name: str) -> bytes:
 
 def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.0, voice: VoiceState | None = None,
                  tracking: TrackingState | None = None, motion: motions.MotionState | None = None, draw: drawing.DrawState | None = None,
-                 stopping: threading.Event | None = None) -> type[BaseHTTPRequestHandler]:
+                 raffle: raffles.Raffle | None = None, stopping: threading.Event | None = None) -> type[BaseHTTPRequestHandler]:
     """``stopping`` 이 설정되면 열린 사건 흐름을 모두 끝낸다(화면은 새 서버에 다시 연결)."""
     voice = voice or VoiceState()
     tracking = tracking or TrackingState()
     motion = motion or motions.MotionState()
     draw = draw or drawing.DrawState()
-    states: dict[str, Any] = {"voice": voice, "tracking": tracking, "motion": motion, "draw": draw}
+    raffle = raffle or raffles.Raffle()
+    states: dict[str, Any] = {"voice": voice, "tracking": tracking, "motion": motion, "draw": draw, "raffle": raffle}
     stopping = stopping or threading.Event()
     step = min(0.5, keepalive)
 
@@ -184,6 +190,8 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
                 return self._json(drawing.load_config().to_dict())
             if path == "/draw/history":
                 return self._json({"results": draw.recent()})
+            if path == "/raffle":
+                return self._json(raffle.status())
             if path == "/motion/list":
                 return self._send(HTTPStatus.OK, json.dumps(motions.overview(), ensure_ascii=False).encode(), "application/json")
             if path.startswith("/motion/files/"):
@@ -208,7 +216,8 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
             body = self.rfile.read(length) if length > 0 else b""
             if not self._local():
                 return self._send(HTTPStatus.FORBIDDEN, b"forbidden")
-            if path not in ("/test", "/voice/test", "/tracking", "/motion", "/draw/config", "/draw/test", "/draw/clear"):
+            if path not in ("/test", "/voice/test", "/tracking", "/motion", "/draw/config", "/draw/test", "/draw/clear", "/raffle/start", "/raffle/stop",
+                            "/raffle/clear", "/raffle/add", "/raffle/remove", "/raffle/draw"):
                 return self._send(HTTPStatus.NOT_FOUND, b"not found")
             try:
                 raw = json.loads(body or b"{}")
@@ -220,6 +229,8 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
                 return self._send(HTTPStatus.OK, b"ok")
             if path.startswith("/draw/"):
                 return self._draw_post(path, raw, data)
+            if path.startswith("/raffle/"):
+                return self._raffle_post(path, data)
             if path == "/motion":
                 if data.get("stop"):
                     motion.play(stop=True)
@@ -270,6 +281,28 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
                     hint = f"{config.rules[-1].min_won:,}원 이상으로 시험"
                 return self._json({"error": f"추첨 규칙에 맞지 않는 금액: {hint}"}, HTTPStatus.BAD_REQUEST)
             return self._json(draw.run(config, name="시험", platform="demo", kind="donation", amount=float(amount), unit="원", count=count, test=True))
+
+        def _raffle_post(self, path: str, data: dict[str, Any]) -> None:
+            """참여 추첨 조작. 잘못된 요청은 400과 한국어 안내."""
+            try:
+                if path == "/raffle/start":
+                    return self._json(raffle.start(data.get("keyword"), data.get("title"), data.get("donation_min", "keep")))
+                if path == "/raffle/stop":
+                    return self._json(raffle.stop())
+                if path == "/raffle/clear":
+                    return self._json(raffle.clear())
+                if path == "/raffle/add":
+                    if not raffle.add(str(data.get("name") or ""), "manual", "manual"):
+                        raise raffles.RaffleError("추가하지 못함: 이름이 비었거나 이미 참가했거나 명단이 가득 참")
+                    return self._json(raffle.status())
+                if path == "/raffle/remove":
+                    raffle.remove(str(data.get("key") or ""))
+                    return self._json(raffle.status())
+                return self._json(raffle.draw(data.get("count", 1), str(data.get("mode") or "pick")))
+            except raffles.RaffleError as error:
+                return self._json({"error": str(error)}, HTTPStatus.BAD_REQUEST)
+            except OSError as error:
+                return self._json({"error": f"설정 저장 실패: {error}"}, HTTPStatus.INTERNAL_SERVER_ERROR)
 
         def _open_stream(self) -> None:
             self.send_response(HTTPStatus.OK)
@@ -409,13 +442,20 @@ class _HttpServer(ThreadingHTTPServer):
 class OverlayServer:
     """서버와 채팅 수신 스레드들. ``start`` 후 ``url`` 로 접속, ``stop`` 으로 정리."""
 
-    def __init__(self, sources: Iterable[tuple[str, Callable[[], Any]]] = (), *, port: int = 8790, poll: float = 0.2, retry: float = 10.0) -> None:
+    def __init__(self, sources: Iterable[tuple[str, Callable[[], Any]]] = (), *, port: int = 8790, poll: float = 0.2, retry: float = 10.0,
+                 chat_commands: bool | None = None) -> None:
+        """``chat_commands`` 가 None이면 저장 설정(기본 켬)을 사건마다 확인."""
         self.hub = Hub()
         self.voice = VoiceState()
         self.tracking = TrackingState()
         self.motion = motions.MotionState()
         self.draw = drawing.DrawState()
         self.hub.taps.append(drawing.DrawReactor(self.draw))  # 후원 추첨(저장 설정에서 사용을 켠 경우만)
+        self.raffle = raffles.Raffle()
+        self.hub.taps.append(raffles.RaffleReactor(self.raffle))  # 참여 추첨 모집 중 참가 명령, 후원 참가
+        self.commands = commands.ChatCommands(motion_state=self.motion, raffle_state=self.raffle, enabled=chat_commands,
+                                              notify=lambda text: self.hub.publish(system_event(text)))
+        self.hub.taps.append(self.commands)  # 스트리머, 매니저 채팅 명령
         self._sources = list(sources)
         self._poll = poll
         self._retry = retry
@@ -423,7 +463,8 @@ class OverlayServer:
         self._threads: list[threading.Thread] = []
         self._attached: list[Any] = []
         self.httpd = _HttpServer(("127.0.0.1", port), make_handler(self.hub, lambda: self.port, voice=self.voice, tracking=self.tracking,
-                                                                   motion=self.motion, draw=self.draw, stopping=self._stop))
+                                                                   motion=self.motion, draw=self.draw, raffle=self.raffle, stopping=self._stop))
+        self._attached.append(self.commands)  # 단축키 실행 스레드 정리
 
     @property
     def port(self) -> int:
