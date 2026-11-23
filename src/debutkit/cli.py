@@ -717,10 +717,11 @@ def build_parser() -> argparse.ArgumentParser:
     camera_setup.add_argument("--port", type=int, help="수신 포트(기본 9710, 저장)")
     camera_setup.add_argument("--latency", type=int, metavar="밀리초", help="지연 여유(80에서 2000, 기본 200, 저장)")
     camera_setup.add_argument("--new-passphrase", action="store_true", help="새 암호 만들기(휴대폰 앱에 다시 등록 필요)")
-    cameras_sub.add_parser("status", help="OBS 소스 상태(휴대폰 연결 대기, 수신 중 등)")
-    cameras.add_argument("--obs-host", default="127.0.0.1")
-    cameras.add_argument("--obs-port", type=int, default=4455, help="OBS WebSocket 포트 (기본 %(default)s)")
-    cameras.add_argument("--obs-password", help="OBS WebSocket 비밀번호 (또는 OBS_WEBSOCKET_PASSWORD)")
+    camera_status = cameras_sub.add_parser("status", help="OBS 소스 상태(휴대폰 연결 대기, 수신 중 등)")
+    for command in (camera_setup, camera_status):
+        command.add_argument("--obs-host", default="127.0.0.1")
+        command.add_argument("--obs-port", type=int, default=4455, help="OBS WebSocket 포트 (기본 %(default)s)")
+        command.add_argument("--obs-password", help="OBS WebSocket 비밀번호 (또는 OBS_WEBSOCKET_PASSWORD)")
     cameras.set_defaults(func=_camera)
 
     youtube = sub.add_parser("youtube", help="YouTube 연결 확인")

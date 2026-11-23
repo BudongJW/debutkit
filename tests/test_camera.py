@@ -210,7 +210,7 @@ def test_cli_camera(monkeypatch, capsys):
     assert main(["camera", "setup", "--latency", "300", "--scene", "토크"]) == 0
     out = capsys.readouterr().out
     assert "만듦" in out and "토크 장면에 추가" in out and "휴대폰 연결 대기" in out and camera.load_config().latency == 300
-    assert main(["camera", "status"]) == 0 and "휴대폰 연결 대기" in capsys.readouterr().out
+    assert main(["camera", "status", "--obs-port", "4456"]) == 0 and "휴대폰 연결 대기" in capsys.readouterr().out
     assert main(["camera", "setup", "--port", "80"]) == 1 and "포트" in capsys.readouterr().err
     monkeypatch.setattr(camera, "connect", lambda *target: (_ for _ in ()).throw(RuntimeError("Cannot reach OBS")))
     assert main(["camera", "status"]) == 1 and "연결하지 못함" in capsys.readouterr().err

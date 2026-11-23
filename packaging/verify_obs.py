@@ -302,8 +302,7 @@ def camera(timeout: float = 60.0) -> None:
 
     ffmpeg = find_ffmpeg()
     protocols = subprocess.run([ffmpeg, "-hide_banner", "-protocols"], capture_output=True, text=True, errors="replace").stdout
-    if "srt" not in protocols.split():
-        raise SystemExit(f"이 ffmpeg에는 SRT 송신 기능이 없음: {ffmpeg}")
+    can_send = "srt" in protocols.split()  # Homebrew ffmpeg(macOS)에는 SRT가 없음: 소스 생성과 수신 대기만 확인
     env = {**os.environ, "PYTHONIOENCODING": "utf-8"}
     setup = subprocess.run([sys.executable, "-m", "debutkit", "camera", "setup", "--obs-port", str(PORT)], capture_output=True, text=True,
                            encoding="utf-8", env=env)
@@ -322,7 +321,19 @@ def camera(timeout: float = 60.0) -> None:
                                  "-t", str(seconds), "-c:v", "libx264", "-preset", "ultrafast", "-tune", "zerolatency", "-g", "30", "-pix_fmt", "yuv420p",
                                  "-f", "mpegts", target], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors="replace")
 
-    print(f"소스 상태(송신 전): {state()}")
+    waiting = state()
+    print(f"소스 상태(송신 전): {waiting}")
+    if not can_send:
+        end = time.monotonic() + 20
+        while time.monotonic() < end and waiting not in ("OBS_MEDIA_STATE_OPENING", "OBS_MEDIA_STATE_BUFFERING"):
+            time.sleep(1)
+            waiting = state()
+        with client() as obs:
+            obs.request("RemoveInput", {"inputName": cameras.SOURCE_NAME})
+        if waiting not in ("OBS_MEDIA_STATE_OPENING", "OBS_MEDIA_STATE_BUFFERING"):
+            raise SystemExit(f"휴대폰 카메라 소스가 수신 대기 상태가 아님: {waiting}")
+        print(f"::warning::이 ffmpeg에는 SRT 송신 기능이 없어 소스 생성과 수신 대기({waiting})만 확인: {ffmpeg}")
+        return
     sender = send(config.passphrase, int(timeout))
     try:
         end, last = time.monotonic() + timeout - 5, ""
