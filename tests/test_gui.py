@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 import urllib.request
 from pathlib import Path
@@ -464,6 +465,9 @@ def test_overlay_start_attaches_voice_meter(app):
         assert window.remote_button.isEnabled()
         window.remote_button.click()
         assert calls.urls[-1] == "http://127.0.0.1:8790/phone#remote"
+        assert window.broadcast_button.isEnabled() and window.broadcast_button.isHidden() == (sys.platform != "win32")
+        window.broadcast_button.click()
+        assert calls.urls[-1] == "http://127.0.0.1:8790/broadcast/control"
         assert calls.saves[-1]["voice_threshold"] == -35.0
     finally:
         window.close()

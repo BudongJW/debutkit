@@ -24,6 +24,9 @@
   ``POST /camera/answer`` 응답, ``/camera/call`` 통화 상태. ``POST /camera/obs`` 에 ``{"kind": "app"}`` 이면 이 화면의 브라우저 소스
 - ``/remote/admin`` 휴대폰 조작 화면(remote.py) 관리: 켜기, 끄기, QR(``/remote/admin/qr.svg?id=``), 승인, 삭제.
   휴대폰 조작 화면 자체는 이 서버가 아닌 별도 창구(내부 네트워크 주소, 기본 8792번)에서 연다
+- ``/program`` 송출 화면(OBS 없이 바로 방송, broadcast.py): 캐릭터, 채팅, 알림, 추첨, 휴대폰 카메라(앱)를 한 화면에. ``POST /program/size`` 창 안 화면 크기
+- ``/broadcast`` 방송 상태, ``/broadcast/control`` 방송 조작 화면, ``/broadcast/devices`` 소리 장치와 인코더.
+  ``POST /broadcast/config``, ``/broadcast/key`` (``{"key": 키}`` 또는 ``{"clear": true}``), ``/broadcast/window``, ``/broadcast/start``, ``/broadcast/stop``
 - ``POST /test`` 설정 화면의 테스트 메시지, ``POST /voice/test`` 말하기 시험
 
 127.0.0.1에만 열리고, 다른 웹사이트가 이 서버에 요청을 끼워 넣지 못하도록 Host와
@@ -48,6 +51,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
 from typing import Any, Callable, Iterable
 
+from .. import broadcast as broadcasts
 from .. import camera as cameras
 from .. import commands
 from .. import draw as drawing
@@ -63,7 +67,7 @@ from .voice import VoiceState
 STATIC = {"/": "index.html", "/chat": "chat.html", "/alerts": "alerts.html", "/overlay.css": "overlay.css", "/overlay.js": "overlay.js",
           "/favicon.svg": "favicon.svg", "/character": "character.html", "/character.js": "character.js", "/tracker": "tracker.html", "/tracker.js": "tracker.js",
           "/draw": "draw.html", "/draw.js": "draw.js", "/draw.css": "draw.css", "/draw/control": "draw-control.html", "/phone": "phone.html",
-          "/camera/view": "camera-view.html", "/camera-view.js": "camera-view.js"}
+          "/camera/view": "camera-view.html", "/camera-view.js": "camera-view.js", "/program": "program.html", "/broadcast/control": "broadcast.html"}
 #: /live 로 받을 수 있는 항목. feeds를 지정하지 않으면 DEFAULT_FEEDS
 LIVE_FEEDS = ("voice", "tracking", "motion", "draw", "raffle", "camera")
 DEFAULT_FEEDS = ("voice", "tracking", "motion")
@@ -145,7 +149,8 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
                  tracking: TrackingState | None = None, motion: motions.MotionState | None = None, draw: drawing.DrawState | None = None,
                  raffle: raffles.Raffle | None = None, phone: phones.PhoneTracker | None = None,
                  obs_target: Callable[[], tuple[str, int, str | None] | None] | None = None, remote: remotes.RemoteControl | None = None,
-                 call: camcall.CameraCall | None = None, stopping: threading.Event | None = None) -> type[BaseHTTPRequestHandler]:
+                 call: camcall.CameraCall | None = None, program: broadcasts.ProgramState | None = None,
+                 broadcaster: broadcasts.Broadcaster | None = None, stopping: threading.Event | None = None) -> type[BaseHTTPRequestHandler]:
     """``stopping`` 이 설정되면 열린 사건 흐름을 모두 끝낸다(화면은 새 서버에 다시 연결)."""
     voice = voice or VoiceState()
     tracking = tracking or TrackingState()
@@ -156,6 +161,8 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
     obs_target = obs_target or (lambda: None)
     call = call or (remote.call if remote is not None else camcall.CameraCall())
     remote = remote or remotes.RemoteControl(raffle, motion, draw, call=call)
+    program = program or (broadcaster.program if broadcaster is not None else broadcasts.ProgramState())
+    broadcaster = broadcaster or broadcasts.Broadcaster(program, port_of)
     states: dict[str, Any] = {"voice": voice, "tracking": tracking, "motion": motion, "draw": draw, "raffle": raffle, "camera": call}
     stopping = stopping or threading.Event()
     step = min(0.5, keepalive)
@@ -230,6 +237,10 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
                 return self._json(remote.status())
             if path == "/camera/call":
                 return self._json(call.status())
+            if path == "/broadcast":
+                return self._json(broadcaster.status())
+            if path == "/broadcast/devices":  # 처음에는 시험 인코딩으로 몇 초 걸림
+                return self._json(broadcaster.devices())
             if path == "/remote/admin/qr.svg":
                 try:
                     url = remote.pair_url(urllib.parse.parse_qs(query).get("id", [""])[0])
@@ -264,7 +275,8 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
                             "/raffle/clear", "/raffle/add", "/raffle/remove", "/raffle/draw", "/phone/start", "/phone/stop", "/phone/options",
                             "/phone/calibrate", "/camera/obs", "/camera/config", "/remote/admin/start",
                             "/remote/admin/stop", "/remote/admin/pair", "/remote/admin/approve", "/remote/admin/remove", "/camera/answer",
-                            "/camera/ended"):
+                            "/camera/ended", "/program/size", "/broadcast/config", "/broadcast/key", "/broadcast/window", "/broadcast/start",
+                            "/broadcast/stop"):
                 return self._send(HTTPStatus.NOT_FOUND, b"not found")
             try:
                 raw = json.loads(body or b"{}")
@@ -298,6 +310,10 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
                 return self._json({"accepted": True})
             if path == "/camera/config":
                 return self._camera_config(data)
+            if path == "/program/size":
+                return self._json({"ok": program.update(data)})
+            if path.startswith("/broadcast/"):
+                return self._broadcast_post(path, data)
             if path.startswith("/remote/admin/"):
                 return self._remote_admin(path, data)
             if path == "/motion":
@@ -425,6 +441,23 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
                 return self._json({"error": str(error)}, HTTPStatus.BAD_REQUEST)
             except OSError as error:
                 return self._json({"error": f"설정 저장 실패: {error}"}, HTTPStatus.INTERNAL_SERVER_ERROR)
+
+        def _broadcast_post(self, path: str, data: dict[str, Any]) -> None:
+            """OBS 없이 방송: 설정, 스트림 키, 송출 화면 창, 시작, 멈춤. 잘못된 요청은 400과 한국어 안내."""
+            try:
+                if path == "/broadcast/config":
+                    return self._json(broadcaster.update_config(data))
+                if path == "/broadcast/key":
+                    return self._json(broadcaster.set_key(None if data.get("clear") is True else data.get("key"), data.get("platform")))
+                if path == "/broadcast/window":
+                    return self._json(broadcaster.open_window())
+                if path == "/broadcast/start":
+                    return self._json(broadcaster.start())
+                return self._json(broadcaster.stop(close_window=data.get("close") is True))
+            except broadcasts.BroadcastError as error:
+                return self._json({"error": str(error)}, HTTPStatus.BAD_REQUEST)
+            except OSError as error:
+                return self._json({"error": f"저장 실패: {error}"}, HTTPStatus.INTERNAL_SERVER_ERROR)
 
         def _camera_config(self, data: dict[str, Any]) -> None:
             """포트, 지연 여유, 새 암호 저장. OBS에 소스가 있으면 그 설정도 바꾼다(연결 정보가 있을 때)."""
@@ -587,6 +620,16 @@ class _RemoteStopper:
         self.remote.stop(save=False)
 
 
+class _BroadcastStopper:
+    """서버를 멈출 때 송출도 끝내고 송출 화면 창을 닫는다(창의 페이지가 이 서버를 쓰므로)."""
+
+    def __init__(self, broadcaster: broadcasts.Broadcaster) -> None:
+        self.broadcaster = broadcaster
+
+    def stop(self) -> None:
+        self.broadcaster.stop(close_window=True)
+
+
 class _HttpServer(ThreadingHTTPServer):
     """Windows에서는 같은 포트를 다른 프로그램(다른 debutkit 포함)이 함께 열지 못하게 한다.
 
@@ -624,6 +667,8 @@ class OverlayServer:
         self.camera_call = camcall.CameraCall()  # 휴대폰 앱의 카메라 영상(WebRTC) 연결 중계
         self.remote = remotes.RemoteControl(self.raffle, self.motion, self.draw, notify=lambda text: self.hub.publish(system_event(text)),
                                             tracking=self.tracking, phone=self.phone, call=self.camera_call)
+        self.program = broadcasts.ProgramState()  # 송출 화면 창 크기(OBS 없이 바로 방송)
+        self.broadcast = broadcasts.Broadcaster(self.program, lambda: self.port, notify=lambda text: self.hub.publish(system_event(text)))
         self._sources = list(sources)
         self._poll = poll
         self._retry = retry
@@ -633,10 +678,11 @@ class OverlayServer:
         self.httpd = _HttpServer(("127.0.0.1", port), make_handler(self.hub, lambda: self.port, voice=self.voice, tracking=self.tracking,
                                                                    motion=self.motion, draw=self.draw, raffle=self.raffle, phone=self.phone,
                                                                    obs_target=lambda: self.obs_target, remote=self.remote, call=self.camera_call,
-                                                                   stopping=self._stop))
+                                                                   program=self.program, broadcaster=self.broadcast, stopping=self._stop))
         self._attached.append(self.commands)  # 단축키 실행 스레드 정리
         self._attached.append(_PhoneStopper(self.phone))
         self._attached.append(_RemoteStopper(self.remote))
+        self._attached.append(_BroadcastStopper(self.broadcast))
 
     @property
     def port(self) -> int:

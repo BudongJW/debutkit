@@ -637,12 +637,95 @@ def _remote(args: argparse.Namespace) -> int:
     return _post_overlay(args.port, f"/remote/admin/{command}", {}, describe)
 
 
-def _get_overlay(port: int, path: str, describe: Callable[[dict[str, Any]], str]) -> int:
+def _describe_broadcast(status: dict[str, Any]) -> str:
+    config = status["config"]
+    platform = status["platforms"][config["platform"]]["name"]
+    head = status["message"] + (f"({status['phase']})" if status.get("phase") else "")
+    lines = [head]
+    if status.get("error"):
+        lines.append(f"  최근 오류: {status['error']}")
+    lines.append(f"  {platform}, 서버 {status.get('server') or '없음'}, 스트림 키 {'저장됨' if status.get('key_saved') else '없음'}")
+    encoder = status.get("encoder_name") or ("자동" if config["encoder"] == "auto" else config["encoder"])
+    lines.append(f"  화질 {status['qualities'][config['quality']]}, 영상 {status['video_kbps']} kbps, 인코더 {encoder}")
+    lines.append(f"  마이크 {config['mic'] or '없음(무음)'}" + (f", 함께 보낼 소리 {config['extra_audio']}" if config["extra_audio"] else ""))
+    stats = status.get("stats") or {}
+    if status["state"] == "live":
+        lines.append(f"  방송 {status['seconds']}초, 초당 {stats.get('fps')} 프레임, {stats.get('kbps')} kbps, 버린 프레임 {stats.get('dropped', 0)}")
+    lines += [f"  주의: {text}" for text in status.get("warnings", [])]
+    if not status.get("supported", True):
+        lines.append("  OBS 없이 방송은 현재 Windows에서만 지원")
+    return "\n".join(lines)
+
+
+def _broadcast(args: argparse.Namespace) -> int:
+    """실행 중인 오버레이의 OBS 없이 바로 방송."""
+    command, port = args.broadcast_command, args.port
+    if command == "status":
+        return _get_overlay(port, "/broadcast", _describe_broadcast)
+    if command == "devices":
+        def devices(found: dict[str, Any]) -> str:
+            if not found.get("ffmpeg"):
+                from .tools import install_hint
+
+                return f"ffmpeg 없음: {install_hint()}"
+            lines = [f"인코더: {found.get('encoder_name') or '사용할 수 있는 H.264 인코더 없음'}", "녹음 장치(--mic, --extra-audio 에 이름 또는 대체 이름):"]
+            lines += [f"  {item['name']}\n    {item['id']}" for item in found.get("audio", [])] or ["  없음"]
+            return "\n".join(lines)
+
+        return _get_overlay(port, "/broadcast/devices", devices, timeout=90)
+    if command == "set":
+        body = {name: getattr(args, name) for name in ("platform", "server", "quality", "kbps", "encoder", "mic", "extra_audio", "camera", "title",
+                                                       "background") if getattr(args, name) is not None}
+        return _post_overlay(port, "/broadcast/config", body, _describe_broadcast)
+    if command == "key":
+        if args.clear:
+            body: dict[str, Any] = {"clear": True}
+        else:
+            import getpass
+
+            key = sys.stdin.readline().strip() if args.stdin else getpass.getpass("스트림 키(입력한 글자는 표시하지 않음): ")
+            body = {"key": key}
+        if args.platform:
+            body["platform"] = args.platform
+        return _post_overlay(port, "/broadcast/key", body, _describe_broadcast)
+    if command == "window":
+        return _post_overlay(port, "/broadcast/window", {}, _describe_broadcast)
+    if command == "stop":
+        return _post_overlay(port, "/broadcast/stop", {"close": args.close}, _describe_broadcast)
+    code = _post_overlay(port, "/broadcast/start", {}, lambda status: f"{status['message']}: 송출 화면 창을 열고 연결합니다")
+    if code:
+        return code
+    import time
+
+    status = _fetch_overlay(port, "/broadcast")
+    deadline = time.monotonic() + 90
+    while status is not None and status["state"] == "starting" and time.monotonic() < deadline:
+        time.sleep(1)
+        status = _fetch_overlay(port, "/broadcast")
+    if status is None:
+        return 1
+    print(_describe_broadcast(status))
+    return 0 if status["state"] == "live" else 1
+
+
+def _fetch_overlay(port: int, path: str, timeout: float = 5) -> dict[str, Any] | None:
     import urllib.error
     import urllib.request
 
     try:
-        with urllib.request.urlopen(f"http://127.0.0.1:{port}{path}", timeout=5) as response:
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}{path}", timeout=timeout) as response:
+            return json.loads(response.read() or b"{}")
+    except (urllib.error.URLError, OSError, ValueError) as error:
+        print(f"오버레이에 연결하지 못함({port}번 포트): debutkit overlay 또는 설정 마법사의 오버레이 시작 필요 ({error})", file=sys.stderr)
+        return None
+
+
+def _get_overlay(port: int, path: str, describe: Callable[[dict[str, Any]], str], timeout: float = 5) -> int:
+    import urllib.error
+    import urllib.request
+
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}{path}", timeout=timeout) as response:
             answer = json.loads(response.read() or b"{}")
     except (urllib.error.URLError, OSError, ValueError) as error:
         print(f"오버레이에 연결하지 못함({port}번 포트): debutkit overlay 또는 설정 마법사의 오버레이 시작 필요 ({error})", file=sys.stderr)
@@ -892,6 +975,34 @@ def build_parser() -> argparse.ArgumentParser:
         command_ = remote_sub.add_parser(name, help=text)
         command_.add_argument("id", metavar="기기")
     remote.set_defaults(func=_remote)
+
+    from .broadcast import ENCODERS, PLATFORMS, QUALITIES
+
+    live = sub.add_parser("broadcast", help="OBS 없이 바로 방송(Windows): 캐릭터, 채팅, 알림을 모은 송출 화면을 치지직, SOOP, YouTube, Twitch로 송출(실행 중인 오버레이)")
+    live.add_argument("--port", type=int, default=OVERLAY_PORT, help="오버레이 포트 (기본 %(default)s)")
+    live_sub = live.add_subparsers(dest="broadcast_command", required=True)
+    live_sub.add_parser("status", help="방송 상태와 설정")
+    live_sub.add_parser("devices", help="녹음 장치와 이 PC에서 되는 인코더(처음에는 몇 초 걸림)")
+    live_set = live_sub.add_parser("set", help="설정 변경(지정한 항목만)")
+    live_set.add_argument("--platform", choices=list(PLATFORMS), help="방송 플랫폼")
+    live_set.add_argument("--server", help="송출 서버 주소(rtmp://, rtmps://). 치지직, SOOP은 방송 설정 화면에서 복사. 빈 값은 플랫폼 기본")
+    live_set.add_argument("--quality", choices=list(QUALITIES), help="화질(기본 720p30)")
+    live_set.add_argument("--kbps", type=int, help="영상 비트레이트(0은 자동)")
+    live_set.add_argument("--encoder", choices=["auto", *ENCODERS], help="인코더(기본 auto)")
+    live_set.add_argument("--mic", help="마이크(debutkit broadcast devices의 이름). 빈 값은 무음")
+    live_set.add_argument("--extra-audio", help="함께 보낼 소리 장치(스테레오 믹스 등). 빈 값은 없음")
+    live_set.add_argument("--camera", action=argparse.BooleanOptionalAction, default=None, help="휴대폰 앱 카메라 영상을 크게 표시")
+    live_set.add_argument("--title", help="송출 화면 왼쪽 위 글자(40자 이하)")
+    live_set.add_argument("--background", metavar="RRGGBB", help="송출 화면 배경색(16진수 6자리)")
+    live_key = live_sub.add_parser("key", help="스트림 키 저장(입력한 글자는 표시하지 않음, 이 Windows 사용자만 풀 수 있게 암호화)")
+    live_key.add_argument("--platform", choices=list(PLATFORMS), help="방송 플랫폼(기본 지금 설정)")
+    live_key.add_argument("--stdin", action="store_true", help="표준 입력 첫 줄에서 읽기")
+    live_key.add_argument("--clear", action="store_true", help="저장한 키 삭제")
+    live_sub.add_parser("window", help="송출 화면 창 열기(방송 화면 미리보기)")
+    live_sub.add_parser("start", help="방송 시작(연결될 때까지 기다림)")
+    live_stop = live_sub.add_parser("stop", help="방송 끝내기")
+    live_stop.add_argument("--close", action="store_true", help="송출 화면 창도 닫기")
+    live.set_defaults(func=_broadcast)
 
     motions = sub.add_parser("motion", help="3D 캐릭터 동작 등록, 기본 동작, 실행(VRMA, Mixamo 등의 FBX, GLB)")
     motions_sub = motions.add_subparsers(dest="motion_command", required=True)

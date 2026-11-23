@@ -85,6 +85,25 @@ jobs:
         if: always()
         run: python packaging/verify_obs.py logs || true
 
+  broadcast-windows:
+    # OBS 없이 바로 방송: Edge 송출 화면 창, ffmpeg 창 캡처(gfxcapture)와 인코딩(그래픽 카드가 없으므로 x264), 이 PC 안의 RTMP 수신까지
+    runs-on: windows-latest
+    timeout-minutes: 20
+    env:
+      PYTHONIOENCODING: utf-8
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: python -m pip install -e ".[live]"
+      - name: ffmpeg download (debutkit setup)
+        run: python -m debutkit setup --ffmpeg
+      - name: Broadcast end to end (local RTMP)
+        timeout-minutes: 6
+        run: python packaging/verify_broadcast.py --seconds 10
+
   devices-linux:
     # 커널 가상 장치(snd-aloop 마이크, v4l2loopback 카메라)로 Linux 마이크, 웹캠 감지 확인. arecord가 있을 때와 없을 때(/proc/asound) 모두
     runs-on: ubuntu-24.04

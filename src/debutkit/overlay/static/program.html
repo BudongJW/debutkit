@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <title>debutkit program</title>
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #000; }
+    /* 1920x1080 무대를 창 크기에 맞춰 비율 유지로 축소, 확대(남는 곳은 검은색) */
+    #stage { position: absolute; left: 50%; top: 50%; width: 1920px; height: 1080px; transform-origin: 50% 50%; overflow: hidden; background: var(--bg, #2a1f3d); }
+    #stage iframe { position: absolute; border: 0; background: transparent; color-scheme: normal; }
+    .full { left: 0; top: 0; width: 1920px; height: 1080px; }
+    #character { left: 60px; top: 90px; width: 900px; height: 990px; }
+    #chat { left: 1440px; top: 32px; width: 450px; height: 1016px; }
+    #camera { left: 40px; top: 40px; width: 1040px; height: 585px; border-radius: 8px; }
+    .with-camera #character { left: 980px; top: 360px; width: 520px; height: 720px; }
+    #title { position: absolute; left: 60px; top: 40px; font: 700 44px/1.2 "Pretendard", "Malgun Gothic", sans-serif; color: #fff; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6); }
+    .with-camera #title { display: none; }
+    #beat { position: fixed; right: 0; bottom: 0; width: 2px; height: 2px; background: #000; opacity: 0.01; pointer-events: none; }
+  </style>
+</head>
+<body>
+  <div id="stage">
+    <div id="title"></div>
+  </div>
+  <script>
+    // debutkit 송출 화면(OBS 없이 바로 방송, broadcast.py): 캐릭터, 채팅, 알림, 추첨, 휴대폰 카메라(앱)를 한 화면에 모은다.
+    // 주소 뒤 ?camera=1 휴대폰 카메라(앱) 영상을 크게, ?bg=2a1f3d 배경색(16진수), ?title=문구 왼쪽 위 글자
+    // ?window=표식 은 debutkit이 연 송출 창의 제목 표식(program_window.py가 창을 찾을 때 사용)
+    const params = new URLSearchParams(location.search);
+    const token = (params.get("window") || "").replace(/[^0-9a-z]/g, "").slice(0, 16);
+    if (token) document.title = `debutkit program ${token}`;
+    const stage = document.getElementById("stage");
+    const camera = params.get("camera") === "1";
+    const color = (params.get("bg") || "").replace(/[^0-9a-fA-F]/g, "").slice(0, 6);
+    if (color.length === 6) stage.style.setProperty("--bg", `#${color}`);
+    document.getElementById("title").textContent = (params.get("title") || "").slice(0, 40);
+    if (camera) stage.classList.add("with-camera");
+    const layers = [
+      ...(camera ? [["camera", "/camera/view?fit=cover"]] : []),
+      ["character", "/character"],
+      ["chat", "/chat"],
+      ["alerts", "/alerts", true],
+      ["draw", "/draw", true],
+    ];
+    for (const [id, src, full] of layers) {
+      const frame = document.createElement("iframe");
+      frame.id = id;
+      frame.src = src;
+      frame.title = id;
+      frame.allow = "autoplay";
+      if (full) frame.className = "full";
+      stage.appendChild(frame);
+    }
+    function fit() {
+      const scale = Math.min(innerWidth / 1920, innerHeight / 1080);
+      stage.style.transform = `translate(-50%, -50%) scale(${scale})`;
+    }
+    // 창 안 화면 크기를 서버에 알린다(송출 프로그램이 창 제목 표시줄을 잘라 내고 화면 부분만 보냄)
+    function report() {
+      if (!token) return;
+      const body = JSON.stringify({ window: token, width: innerWidth, height: innerHeight, ratio: devicePixelRatio, hidden: document.hidden });
+      fetch("/program/size", { method: "POST", headers: { "Content-Type": "application/json" }, body }).catch(() => {});
+    }
+    addEventListener("resize", () => { fit(); report(); });
+    document.addEventListener("visibilitychange", report);
+    setInterval(report, 5000);
+    fit();
+    report();
+    // 화면에 움직임이 없어도 창 캡처가 멈추지 않도록 구석의 거의 투명한 점을 매 프레임 바꾼다
+    const beat = document.createElement("i");
+    beat.id = "beat";
+    document.body.appendChild(beat);
+    let flip = false;
+    (function tick() {
+      flip = !flip;
+      beat.style.opacity = flip ? "0.02" : "0.01";
+      requestAnimationFrame(tick);
+    })();
+  </script>
+</body>
+</html>

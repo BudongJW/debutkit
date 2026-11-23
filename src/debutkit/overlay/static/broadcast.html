@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>debutkit 바로 방송</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <style>
+    :root { color-scheme: light; --bg: #ffffff; --panel: #faf7f5; --line: #e3dfdb; --text: #1e2327; --dim: #5b6670; --ok: #1f7a4d; --bad: #b3261e; --live: #c4194f; }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.6 "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; }
+    header { display: flex; align-items: center; gap: 12px; padding: 14px 24px; border-bottom: 1px solid var(--line); }
+    header img { width: 28px; height: 28px; }
+    header h1 { font-size: 17px; margin: 0; }
+    header a { margin-left: auto; color: var(--dim); font-size: 13px; }
+    main { max-width: 1100px; margin: 0 auto; padding: 20px 24px 56px; }
+    .lead { color: var(--dim); margin: 0 0 18px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 20px; align-items: start; }
+    section { border: 1px solid var(--line); border-radius: 6px; padding: 16px 18px; }
+    section.live { border-color: var(--live); }
+    h2 { font-size: 16px; margin: 0 0 10px; }
+    .hint { color: var(--dim); font-size: 13px; margin: 6px 0 0; }
+    label.field { display: grid; gap: 4px; font-weight: 600; font-size: 14px; margin-top: 10px; }
+    label.check { display: flex; gap: 8px; align-items: center; font-size: 14px; margin-top: 10px; }
+    select, input[type=text], input[type=password], input[type=number] { padding: 6px 9px; border: 1px solid #c9c3bd; border-radius: 3px; font: inherit; background: #fff; }
+    input[type=text].mono, input[type=password] { font-family: ui-monospace, Consolas, monospace; }
+    input[type=color] { width: 56px; height: 34px; padding: 2px; border: 1px solid #c9c3bd; border-radius: 3px; background: #fff; }
+    button { background: var(--text); color: #fff; border: 1px solid var(--text); border-radius: 3px; padding: 6px 13px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+    button.secondary { background: #fff; color: var(--text); border-color: #c9c3bd; }
+    button.go { background: var(--live); border-color: var(--live); padding: 9px 20px; font-size: 15px; }
+    button:disabled { opacity: 0.5; cursor: default; }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+    .state { font-size: 16px; font-weight: 700; margin: 12px 0 0; }
+    .state.ok { color: var(--ok); }
+    .state.live { color: var(--live); }
+    .state.bad { color: var(--bad); }
+    .saved { font-size: 13px; font-weight: 600; color: var(--ok); }
+    .saved.none { color: var(--bad); }
+    dl { display: grid; grid-template-columns: max-content 1fr; gap: 3px 14px; margin: 10px 0 0; font-size: 14px; }
+    dt { color: var(--dim); }
+    dd { margin: 0; font-variant-numeric: tabular-nums; }
+    ul.warn { margin: 10px 0 0; padding-left: 18px; color: #8a5a00; font-size: 13px; }
+    .error { color: var(--bad); font-size: 14px; margin: 8px 0 0; }
+    ol.steps { margin: 4px 0 0; padding-left: 20px; font-size: 14px; }
+  </style>
+</head>
+<body>
+<header>
+  <img src="/favicon.svg" alt="">
+  <h1>debutkit 바로 방송</h1>
+  <a href="/">오버레이 설정 화면</a>
+</header>
+<main>
+  <p class="lead">OBS 없이 이 PC에서 치지직, SOOP, YouTube, Twitch로 바로 송출합니다. 캐릭터, 채팅, 후원 알림, 추첨 연출을 모은 송출 화면 창을 열고, 그 창을 영상으로 보냅니다. 게임 화면 캡처와 장면 전환은 없으므로 게임 방송은 OBS를 사용하십시오.</p>
+  <p class="error" id="unsupported" hidden>OBS 없이 방송은 현재 Windows에서만 지원합니다.</p>
+  <div class="grid">
+    <section id="live-box">
+      <h2>방송</h2>
+      <ol class="steps">
+        <li>방송 플랫폼과 스트림 키 저장</li>
+        <li>송출 화면 열기로 화면 확인</li>
+        <li>방송 시작</li>
+      </ol>
+      <div class="row">
+        <button id="start" class="go">방송 시작</button>
+        <button id="stop" class="secondary">방송 끝내기</button>
+      </div>
+      <p class="state" id="state">상태 확인 중</p>
+      <p class="hint" id="phase"></p>
+      <p class="error" id="error" hidden></p>
+      <dl id="stats" hidden>
+        <dt>방송 시간</dt><dd id="time"></dd>
+        <dt>초당 프레임</dt><dd id="fps"></dd>
+        <dt>보내는 속도</dt><dd id="rate"></dd>
+        <dt>버린 프레임</dt><dd id="dropped"></dd>
+        <dt>인코더</dt><dd id="encoder"></dd>
+      </dl>
+      <ul class="warn" id="warnings" hidden></ul>
+    </section>
+    <section>
+      <h2>방송 플랫폼과 스트림 키</h2>
+      <label class="field">방송 플랫폼
+        <select id="platform"></select>
+      </label>
+      <label class="field">송출 서버 주소
+        <input type="text" class="mono" id="server" autocomplete="off" spellcheck="false">
+      </label>
+      <label class="field">스트림 키
+        <input type="password" id="key" autocomplete="off" spellcheck="false" placeholder="방송 플랫폼 화면에서 복사해 붙여 넣기">
+      </label>
+      <div class="row">
+        <button id="save-key">키 저장</button>
+        <button id="clear-key" class="secondary">저장한 키 삭제</button>
+        <span class="saved" id="key-state"></span>
+      </div>
+      <p class="hint" id="key-hint"></p>
+      <p class="hint">스트림 키는 이 Windows 사용자만 풀 수 있게 암호화해 이 PC에만 저장하고, 화면과 기록에는 표시하지 않습니다. 키가 알려지면 다른 사람이 내 채널로 방송할 수 있으므로 방송 화면에 키를 띄우지 마십시오.</p>
+    </section>
+    <section>
+      <h2>화질과 소리</h2>
+      <label class="field">화질
+        <select id="quality"></select>
+      </label>
+      <label class="field">영상 비트레이트(kbps, 0은 자동)
+        <input type="number" id="kbps" min="0" max="20000" step="500">
+      </label>
+      <label class="field">인코더
+        <select id="encoder-choice"></select>
+      </label>
+      <label class="field">마이크
+        <select id="mic"></select>
+      </label>
+      <label class="field">함께 보낼 소리 장치
+        <select id="extra-audio"></select>
+      </label>
+      <div class="row">
+        <button id="find-devices" class="secondary">장치 다시 찾기</button>
+        <span class="hint" id="device-state"></span>
+      </div>
+      <p class="hint">후원 알림, 추첨 효과음과 음악도 함께 보낼 때는 Windows 소리 설정에서 스테레오 믹스를 켜고 함께 보낼 소리 장치로 선택하십시오. 컴퓨터 소리 직접 캡처는 다음 버전에서 지원 예정입니다.</p>
+    </section>
+    <section>
+      <h2>송출 화면</h2>
+      <label class="field">왼쪽 위 글자(방송 제목 등)
+        <input type="text" id="title" maxlength="40" autocomplete="off">
+      </label>
+      <label class="field">배경색
+        <input type="color" id="background">
+      </label>
+      <label class="check"><input type="checkbox" id="camera"> 휴대폰 앱 카메라 영상을 크게 표시</label>
+      <div class="row">
+        <button id="open-window" class="secondary">송출 화면 열기</button>
+      </div>
+      <p class="hint">송출 화면 창이 곧 방송 화면입니다. 다른 창 뒤에 두어도 되지만 최소화하면 방송 화면이 멈춥니다. 창이 작으면 화질이 떨어지므로 크기를 줄이지 마십시오.</p>
+    </section>
+  </div>
+</main>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const post = async (path, body) => {
+    const response = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || `요청 실패(${response.status})`);
+    return data;
+  };
+  const ENCODERS = { auto: "자동(이 PC에서 되는 것)", h264_nvenc: "NVIDIA NVENC", h264_qsv: "Intel Quick Sync", h264_amf: "AMD AMF", libx264: "x264(CPU)", h264_mf: "Media Foundation" };
+  let filled = false;
+  let lastError = "";
+  let devices = null;
+  let current = null;
+
+  function deviceOptions(select, chosen, none) {
+    const list = devices ? devices.audio : [];
+    const options = [new Option(none, ""), ...list.map((item) => new Option(item.name, item.id))];
+    if (chosen && !list.some((item) => item.id === chosen)) options.push(new Option(`저장한 장치(지금 없음)`, chosen));
+    select.replaceChildren(...options);
+    select.value = chosen || "";
+  }
+
+  function fill(status) {
+    const config = status.config;
+    $("platform").replaceChildren(...Object.entries(status.platforms).map(([value, item]) => new Option(item.name, value)));
+    $("quality").replaceChildren(...Object.entries(status.qualities).map(([value, label]) => new Option(label, value)));
+    $("encoder-choice").replaceChildren(...Object.entries(ENCODERS).map(([value, label]) => new Option(label, value)));
+    $("platform").value = config.platform;
+    $("server").value = config.server;
+    $("quality").value = config.quality;
+    $("kbps").value = config.kbps;
+    $("encoder-choice").value = config.encoder;
+    $("title").value = config.title;
+    $("background").value = `#${config.background}`;
+    $("camera").checked = config.camera;
+    deviceOptions($("mic"), config.mic, "없음(무음)");
+    deviceOptions($("extra-audio"), config.extra_audio, "없음");
+  }
+
+  function clock(seconds) {
+    const h = Math.floor(seconds / 3600), m = Math.floor(seconds / 60) % 60, s = seconds % 60;
+    return [h, m, s].map((value) => String(value).padStart(2, "0")).join(":");
+  }
+
+  function render(status) {
+    current = status;
+    if (!filled) {
+      fill(status);
+      filled = true;
+    }
+    $("unsupported").hidden = status.supported;
+    const platform = status.platforms[status.config.platform];
+    $("server").placeholder = platform.server || "방송 플랫폼 화면의 서버 주소(rtmp://)";
+    $("key-hint").textContent = `키 위치: ${platform.hint}`;
+    $("key-state").textContent = status.key_saved ? `${platform.name} 키 저장됨` : `${platform.name} 키 없음`;
+    $("key-state").className = status.key_saved ? "saved" : "saved none";
+    const live = status.state === "live" || status.state === "retrying";
+    const busy = live || status.state === "starting";
+    $("start").disabled = busy || !status.supported;
+    $("stop").disabled = !busy;
+    $("live-box").className = live ? "live" : "";
+    $("state").textContent = status.message;
+    $("state").className = `state ${status.state === "live" ? "live" : status.state === "error" ? "bad" : status.state === "retrying" ? "bad" : ""}`;
+    $("phase").textContent = status.phase;
+    const error = lastError || status.error;
+    $("error").hidden = !error;
+    $("error").textContent = error;
+    $("stats").hidden = !live;
+    if (live) {
+      $("time").textContent = clock(status.seconds);
+      $("fps").textContent = status.stats.fps ?? "";
+      $("rate").textContent = status.stats.kbps ? `${status.stats.kbps.toLocaleString()} kbps(목표 ${status.video_kbps.toLocaleString()} kbps)` : "";
+      $("dropped").textContent = status.stats.dropped ?? 0;
+      $("encoder").textContent = status.encoder_name;
+    }
+    $("warnings").hidden = !status.warnings.length;
+    $("warnings").replaceChildren(...status.warnings.map((text) => Object.assign(document.createElement("li"), { textContent: text })));
+  }
+
+  async function refresh() {
+    try {
+      render(await (await fetch("/broadcast", { cache: "no-store" })).json());
+    } catch (error) {
+      $("state").textContent = "debutkit 서버에 연결하지 못함: 오버레이 실행 여부 확인";
+      $("state").className = "state bad";
+    }
+  }
+
+  async function act(path, body) {
+    try {
+      lastError = "";
+      render(await post(path, body));
+    } catch (error) {
+      lastError = error.message;
+      refresh();
+    }
+  }
+
+  async function findDevices() {
+    $("device-state").textContent = "장치와 인코더 확인 중(처음에는 몇 초 걸림)";
+    try {
+      devices = await (await fetch("/broadcast/devices", { cache: "no-store" })).json();
+      $("device-state").textContent = !devices.ffmpeg ? "ffmpeg 필요: 설정 마법사 PC 점검 화면의 ffmpeg 다운로드"
+        : devices.encoder ? `녹음 장치 ${devices.audio.length}개, 인코더 ${devices.encoder_name}` : `녹음 장치 ${devices.audio.length}개, 사용할 수 있는 인코더 없음`;
+    } catch (error) {
+      $("device-state").textContent = "장치 확인 실패";
+    }
+    if (current) {
+      deviceOptions($("mic"), current.config.mic, "없음(무음)");
+      deviceOptions($("extra-audio"), current.config.extra_audio, "없음");
+    }
+  }
+
+  const save = (body) => act("/broadcast/config", body);
+  $("platform").addEventListener("change", () => save({ platform: $("platform").value }).then(() => { $("server").value = current.config.server; }));
+  $("server").addEventListener("change", () => save({ server: $("server").value }));
+  $("quality").addEventListener("change", () => save({ quality: $("quality").value }));
+  $("kbps").addEventListener("change", () => save({ kbps: Number($("kbps").value) || 0 }));
+  $("encoder-choice").addEventListener("change", () => save({ encoder: $("encoder-choice").value }));
+  $("mic").addEventListener("change", () => save({ mic: $("mic").value }));
+  $("extra-audio").addEventListener("change", () => save({ extra_audio: $("extra-audio").value }));
+  $("title").addEventListener("change", () => save({ title: $("title").value }));
+  $("background").addEventListener("change", () => save({ background: $("background").value.slice(1) }));
+  $("camera").addEventListener("change", () => save({ camera: $("camera").checked }));
+  $("save-key").addEventListener("click", async () => {
+    await act("/broadcast/key", { key: $("key").value });
+    if (!lastError) $("key").value = "";
+  });
+  $("clear-key").addEventListener("click", () => act("/broadcast/key", { clear: true }));
+  $("open-window").addEventListener("click", () => act("/broadcast/window"));
+  $("start").addEventListener("click", () => act("/broadcast/start"));
+  $("stop").addEventListener("click", () => act("/broadcast/stop"));
+  $("find-devices").addEventListener("click", findDevices);
+  refresh().then(findDevices);
+  setInterval(refresh, 1000);
+</script>
+</body>
+</html>
