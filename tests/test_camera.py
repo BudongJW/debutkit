@@ -5,6 +5,7 @@ from __future__ import annotations
 import http.client
 import json
 import re
+import time
 from pathlib import Path
 
 import pytest
@@ -99,7 +100,22 @@ def test_obs_input_and_sender_links():
     assert camera.connection_info(CONFIG, [])["url"] == ""
 
 
-def test_lan_addresses_and_qr():
+def test_lan_addresses_and_qr(monkeypatch):
+    slow = []
+
+    def hang(*args):
+        slow.append(1)
+        time.sleep(5)
+        return []
+
+    monkeypatch.setattr(camera, "_ADDRESSES", (0.0, []))
+    monkeypatch.setattr(camera.socket, "getaddrinfo", hang)
+    started = time.monotonic()
+    camera.lan_addresses()
+    assert slow and time.monotonic() - started < 2  # 컴퓨터 이름 조회가 늦어도 1초 뒤 포기
+    camera.lan_addresses()
+    assert len(slow) == 1  # 10초 동안 기억
+    monkeypatch.undo()
     found = camera.lan_addresses(extra=["192.168.0.77", "8.8.8.8", "127.0.0.1", "169.254.1.1", "bad", "192.168.0.77"])
     assert "192.168.0.77" in found and found.count("192.168.0.77") == 1
     assert not any(address in found for address in ("8.8.8.8", "127.0.0.1", "169.254.1.1", "bad"))

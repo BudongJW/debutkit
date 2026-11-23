@@ -394,7 +394,8 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
                 if path == "/remote/admin/start":
                     return self._json(remote.start(data.get("address"), data.get("port")))
                 if path == "/remote/admin/stop":
-                    return self._json(remote.stop())
+                    remote.stop()
+                    return self._json(remote.status())
                 if path == "/remote/admin/pair":
                     return self._json(remote.pair())
                 if path == "/remote/admin/approve":

@@ -276,14 +276,14 @@ class RemoteControl:
             self._save(True)
         return self.status()
 
-    def stop(self, *, save: bool = True) -> dict[str, Any]:
+    def stop(self, *, save: bool = True) -> None:
+        """끄기. 상태는 돌려주지 않는다(오버레이 종료 중에 주소 조회로 늦어지지 않도록)."""
         if self.httpd is not None:
             self.httpd.shutdown()
             self.httpd.server_close()
             self.httpd, self._thread = None, None
         if save:
             self._save(False)
-        return self.status()
 
     def start_saved(self) -> bool:
         """오버레이 시작 때: 저장 설정에서 켠 경우만. 주소가 바뀌었으면(공유기 재연결 등) 안내만."""

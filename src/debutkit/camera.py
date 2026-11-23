@@ -12,6 +12,8 @@ import ipaddress
 import json
 import secrets
 import socket
+import threading
+import time
 import urllib.parse
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -107,22 +109,44 @@ def update_config(port: Any = None, latency: Any = None, new_pass: bool = False)
     return config
 
 
-def lan_addresses(extra: Iterable[str] = ()) -> list[str]:
-    """이 PC의 내부 네트워크 IPv4 주소(휴대폰이 보낼 곳). 기본 경로의 주소를 앞에. 외부로 패킷을 보내지 않는다(UDP connect)."""
+_ADDRESSES: tuple[float, list[str]] = (0.0, [])
+ADDRESS_CACHE = 10.0  # 초. 설정 화면이 자주 묻는 값
+HOST_LOOKUP_TIMEOUT = 1.0  # 컴퓨터 이름 조회는 환경에 따라(macOS의 .local 등) 수십 초 걸릴 수 있음
+
+
+def _host_addresses() -> list[str]:
+    """컴퓨터 이름에 붙은 주소(유선, Wi-Fi가 함께 있는 경우 등). 1초 안에 끝나지 않으면 포기."""
     found: list[str] = []
-    probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    try:
-        probe.connect(("192.0.2.1", 9))  # 문서용 주소(RFC 5737): 경로만 계산
-        found.append(str(probe.getsockname()[0]))
-    except OSError:
-        pass
-    finally:
-        probe.close()
-    try:
-        found += [str(info[4][0]) for info in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET)]
-    except OSError:
-        pass
-    found += list(extra)
+
+    def lookup() -> None:
+        try:
+            found.extend(str(info[4][0]) for info in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET))
+        except OSError:
+            pass
+
+    worker = threading.Thread(target=lookup, name="host-addresses", daemon=True)
+    worker.start()
+    worker.join(HOST_LOOKUP_TIMEOUT)
+    return list(found) if not worker.is_alive() else []
+
+
+def lan_addresses(extra: Iterable[str] = ()) -> list[str]:
+    """이 PC의 내부 네트워크 IPv4 주소(휴대폰이 보낼 곳). 기본 경로의 주소를 앞에. 외부로 패킷을 보내지 않는다(UDP connect). 10초 동안 기억."""
+    global _ADDRESSES
+    moment, cached = _ADDRESSES
+    if time.monotonic() - moment > ADDRESS_CACHE:
+        cached = []
+        probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            probe.connect(("192.0.2.1", 9))  # 문서용 주소(RFC 5737): 경로만 계산
+            cached.append(str(probe.getsockname()[0]))
+        except OSError:
+            pass
+        finally:
+            probe.close()
+        cached += _host_addresses()
+        _ADDRESSES = (time.monotonic(), cached)
+    found = list(cached) + list(extra)
     result: list[str] = []
     for text in found:
         try:
