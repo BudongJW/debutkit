@@ -7,6 +7,9 @@
 - ``/character`` 캐릭터 화면(PNGTuber, VRM, GLB, FBX). ``?id=캐릭터`` 로 지정, 없으면 방송에 사용할 캐릭터
 - ``/live``    캐릭터 화면, 설정 화면이 받는 말하기 상태, 얼굴 추적 값, 동작 실행 요청 (Server-Sent Events 하나, ``/voice`` 와 ``/tracking`` 은 각각)
 - ``/motion/list`` 등록한 동작(VRMA, FBX, GLB)과 기본 동작. ``POST /motion`` 으로 동작 실행(``{"id": 동작}``, 멈춤은 ``{"stop": true}``)
+- ``/draw``     후원 추첨 연출(평소 투명). ``/draw/control`` 조작 화면(설정, 시험 추첨, 최근 결과. OBS 독으로도 사용)
+  ``/draw/config``, ``/draw/history`` 조회, ``POST /draw/config`` 저장, ``POST /draw/test`` 시험 추첨, ``POST /draw/clear`` 최근 결과 비우기
+- ``/live?feeds=voice,tracking,motion,draw`` 처럼 받을 항목을 고를 수 있다(기본은 draw 제외)
 - ``/tracker`` 얼굴 추적 화면(일반 브라우저에서 열고 카메라 허용). ``POST /tracking`` 으로 값을 보낸다
 - ``POST /test`` 설정 화면의 테스트 메시지, ``POST /voice/test`` 말하기 시험
 
@@ -31,13 +34,20 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
 from typing import Any, Callable, Iterable
 
+from .. import draw as drawing
 from .. import motion as motions
 from .events import OverlayEvent, system_event
 from .tracking import TrackingState, clean
 from .voice import VoiceState
 
 STATIC = {"/": "index.html", "/chat": "chat.html", "/alerts": "alerts.html", "/overlay.css": "overlay.css", "/overlay.js": "overlay.js",
-          "/favicon.svg": "favicon.svg", "/character": "character.html", "/character.js": "character.js", "/tracker": "tracker.html", "/tracker.js": "tracker.js"}
+          "/favicon.svg": "favicon.svg", "/character": "character.html", "/character.js": "character.js", "/tracker": "tracker.html", "/tracker.js": "tracker.js",
+          "/draw": "draw.html", "/draw.js": "draw.js", "/draw.css": "draw.css", "/draw/control": "draw-control.html"}
+#: /live 로 받을 수 있는 항목. feeds를 지정하지 않으면 DEFAULT_FEEDS
+LIVE_FEEDS = ("voice", "tracking", "motion", "draw")
+DEFAULT_FEEDS = ("voice", "tracking", "motion")
+#: 요청 본문 최대 크기(추첨 설정은 상품표가 길 수 있음)
+BODY_LIMIT = {"/draw/config": 32768}
 #: 얼굴 추적 화면은 이 서버 밖으로 접속하지 못하게 한다(함께 배포한 MediaPipe의 사용 기록 전송 차단, 카메라 영상 외부 전송 방지)
 TRACKER_POLICY = ("default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'; img-src 'self' blob: data:; "
                   "media-src 'self' blob: mediastream:; style-src 'self' 'unsafe-inline'; worker-src 'self' blob:; frame-ancestors 'none'")
@@ -111,12 +121,14 @@ def _static(name: str) -> bytes:
 
 
 def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.0, voice: VoiceState | None = None,
-                 tracking: TrackingState | None = None, motion: motions.MotionState | None = None,
+                 tracking: TrackingState | None = None, motion: motions.MotionState | None = None, draw: drawing.DrawState | None = None,
                  stopping: threading.Event | None = None) -> type[BaseHTTPRequestHandler]:
     """``stopping`` 이 설정되면 열린 사건 흐름을 모두 끝낸다(화면은 새 서버에 다시 연결)."""
     voice = voice or VoiceState()
     tracking = tracking or TrackingState()
     motion = motion or motions.MotionState()
+    draw = draw or drawing.DrawState()
+    states: dict[str, Any] = {"voice": voice, "tracking": tracking, "motion": motion, "draw": draw}
     stopping = stopping or threading.Event()
     step = min(0.5, keepalive)
 
@@ -156,7 +168,8 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
             if path == "/tracking":
                 return self._stream(tracking)
             if path == "/live":
-                return self._live()
+                wanted = urllib.parse.parse_qs(query).get("feeds", [""])[0].split(",")
+                return self._feeds({name: states[name] for name in LIVE_FEEDS if name in wanted} or {name: states[name] for name in DEFAULT_FEEDS})
             if path == "/status":
                 return self._send(HTTPStatus.OK, json.dumps({"listeners": hub.listeners}).encode(), "application/json")
             if path == "/character/humanoid.json":  # GLB, FBX의 뼈와 표정 이름 표(humanoid.py)
@@ -167,6 +180,10 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
                 return self._character_info(urllib.parse.parse_qs(query).get("id", [""])[0])
             if path.startswith("/character/files/"):
                 return self._character_file(path.removeprefix("/character/files/"))
+            if path == "/draw/config":
+                return self._json(drawing.load_config().to_dict())
+            if path == "/draw/history":
+                return self._json({"results": draw.recent()})
             if path == "/motion/list":
                 return self._send(HTTPStatus.OK, json.dumps(motions.overview(), ensure_ascii=False).encode(), "application/json")
             if path.startswith("/motion/files/"):
@@ -183,15 +200,15 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
 
         def do_POST(self) -> None:  # noqa: N802
             # 응답 전에 요청 본문을 먼저 읽는다(읽지 않고 닫으면 Windows에서 연결이 끊겨 거부 응답이 전달되지 않음)
+            path = self.path.split("?", 1)[0]
             try:
-                length = min(int(self.headers.get("Content-Length") or 0), 4096)
+                length = min(int(self.headers.get("Content-Length") or 0), BODY_LIMIT.get(path, 4096))
             except ValueError:
                 return self._send(HTTPStatus.BAD_REQUEST, b"bad length")
             body = self.rfile.read(length) if length > 0 else b""
             if not self._local():
                 return self._send(HTTPStatus.FORBIDDEN, b"forbidden")
-            path = self.path.split("?", 1)[0]
-            if path not in ("/test", "/voice/test", "/tracking", "/motion"):
+            if path not in ("/test", "/voice/test", "/tracking", "/motion", "/draw/config", "/draw/test", "/draw/clear"):
                 return self._send(HTTPStatus.NOT_FOUND, b"not found")
             try:
                 raw = json.loads(body or b"{}")
@@ -201,6 +218,8 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
             if path == "/voice/test":
                 voice.test(bool(data.get("talking", True)))
                 return self._send(HTTPStatus.OK, b"ok")
+            if path.startswith("/draw/"):
+                return self._draw_post(path, raw, data)
             if path == "/motion":
                 if data.get("stop"):
                     motion.play(stop=True)
@@ -222,6 +241,35 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
                                  amount=1000.0 if kind == "donation" else 0.0, unit="원" if kind == "donation" else "", role=role)
             hub.publish(event)
             self._send(HTTPStatus.OK, b"ok")
+
+        def _json(self, value: Any, status: int = HTTPStatus.OK) -> None:
+            self._send(status, json.dumps(value, ensure_ascii=False).encode(), "application/json")
+
+        def _draw_post(self, path: str, raw: Any, data: dict[str, Any]) -> None:
+            """추첨 설정 저장, 시험 추첨(저장한 설정, 사용 꺼짐이어도 실행), 최근 결과 비우기."""
+            if path == "/draw/clear":
+                draw.clear()
+                return self._json({"ok": True})
+            if path == "/draw/config":
+                try:
+                    config = drawing.save_config(drawing.from_request(raw))
+                except drawing.DrawError as error:
+                    return self._json({"error": str(error)}, HTTPStatus.BAD_REQUEST)
+                except OSError as error:
+                    return self._json({"error": f"설정 저장 실패: {error}"}, HTTPStatus.INTERNAL_SERVER_ERROR)
+                return self._json(config.to_dict())
+            config = drawing.load_config()
+            amount = data.get("amount", 1000)
+            if isinstance(amount, bool) or not isinstance(amount, (int, float)) or not 0 <= amount <= drawing.MAX_WON:
+                return self._json({"error": "시험 금액은 0 이상의 숫자(원)"}, HTTPStatus.BAD_REQUEST)
+            count = drawing.draws_for(config, "donation", float(amount), "원")
+            if not count:
+                if config.exact:
+                    hint = "규칙 금액(" + ", ".join(f"{rule.min_won:,}원" for rule in reversed(config.rules)) + ") 중 하나로 시험"
+                else:
+                    hint = f"{config.rules[-1].min_won:,}원 이상으로 시험"
+                return self._json({"error": f"추첨 규칙에 맞지 않는 금액: {hint}"}, HTTPStatus.BAD_REQUEST)
+            return self._json(draw.run(config, name="시험", platform="demo", kind="donation", amount=float(amount), unit="원", count=count, test=True))
 
         def _open_stream(self) -> None:
             self.send_response(HTTPStatus.OK)
@@ -297,15 +345,12 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
             """말하기 상태 또는 추적 값 하나의 Server-Sent Events. 연결하면 현재 값부터 보낸다."""
             self._feeds({"": state})
 
-        def _live(self) -> None:
-            """캐릭터 화면, 설정 화면용: 말하기 상태(event: voice), 추적 값(event: tracking), 동작 실행 요청(event: motion)을 연결 하나로 보낸다.
+        def _feeds(self, feeds: dict[str, Any]) -> None:
+            """상태들의 새 값을 연결 하나로. 이름이 있으면 ``event:`` 줄을 붙인다.
 
+            ``/live`` 는 말하기 상태(voice), 추적 값(tracking), 동작 실행 요청(motion), 추첨 결과(draw) 중 고른 항목을 보낸다.
             브라우저는 같은 주소에 동시 연결을 6개까지만 열기 때문에(OBS 브라우저 소스끼리도 공유) 화면 하나가 연결을 여러 개 쓰지 않도록 한다.
             """
-            self._feeds({"voice": voice, "tracking": tracking, "motion": motion})
-
-        def _feeds(self, feeds: dict[str, Any]) -> None:
-            """상태들의 새 값을 연결 하나로. 이름이 있으면 ``event:`` 줄을 붙인다."""
             self._open_stream()
             merged: queue.Queue[tuple[str, dict[str, Any]]] = queue.Queue(maxsize=320)
             joined: dict[str, Any] = {}
@@ -369,6 +414,8 @@ class OverlayServer:
         self.voice = VoiceState()
         self.tracking = TrackingState()
         self.motion = motions.MotionState()
+        self.draw = drawing.DrawState()
+        self.hub.taps.append(drawing.DrawReactor(self.draw))  # 후원 추첨(저장 설정에서 사용을 켠 경우만)
         self._sources = list(sources)
         self._poll = poll
         self._retry = retry
@@ -376,7 +423,7 @@ class OverlayServer:
         self._threads: list[threading.Thread] = []
         self._attached: list[Any] = []
         self.httpd = _HttpServer(("127.0.0.1", port), make_handler(self.hub, lambda: self.port, voice=self.voice, tracking=self.tracking,
-                                                                   motion=self.motion, stopping=self._stop))
+                                                                   motion=self.motion, draw=self.draw, stopping=self._stop))
 
     @property
     def port(self) -> int:

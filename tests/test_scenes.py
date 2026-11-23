@@ -23,7 +23,7 @@ def test_five_scenes_with_overlay_everywhere():
         assert f"{PREFIX}채팅" in names
         assert all(name.startswith(PREFIX) for name in names)
     main = scenes[1]
-    assert [item.role for item in main.items] == ["color", "game", "window", "browser", "browser"]
+    assert [item.role for item in main.items] == ["color", "game", "window", "browser", "browser", "browser"]
 
 
 def test_items_stay_on_canvas():

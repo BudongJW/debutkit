@@ -958,7 +958,7 @@ class Wizard(QMainWindow):
         self.scenes_result.setText("OBS 연결 중")
         base = f"http://127.0.0.1:{self.port.value()}"
         options = scenes.SceneOptions(overlay_url=f"{base}/chat", alerts_url=f"{base}/alerts", character_url=f"{base}/character",
-                                       avatar=str(self.avatar_app.currentData()))
+                                       draw_url=f"{base}/draw", avatar=str(self.avatar_app.currentData()))
         port, password, replay = self.obs_port.value(), self.obs_password.text() or None, 60 if self.replay.isChecked() else None
 
         def job() -> None:
@@ -1037,11 +1037,15 @@ class Wizard(QMainWindow):
         self.open_button = QPushButton("설정 화면 열기(주소 복사, 테스트 메시지)")
         self.open_button.setEnabled(False)
         self.open_button.clicked.connect(lambda: self.server and self.backend.open_url(self.server.url))
+        self.draw_button = QPushButton("후원 추첨 설정")
+        self.draw_button.setToolTip("후원이 오면 상품표에서 확률대로 뽑아 방송 화면에 카드 뒤집기, 룰렛으로 표시. 상품, 확률, 금액별 횟수 설정과 시험 추첨")
+        self.draw_button.setEnabled(False)
+        self.draw_button.clicked.connect(lambda: self.server and self.backend.open_url(f"{self.server.url}/draw/control"))
         self.overlay_log = QPlainTextEdit()
         self.overlay_log.setReadOnly(True)
         self.overlay_log.setMaximumBlockCount(200)
         self.overlay_log.setPlaceholderText("연결 상태와 저장한 클립이 이곳에 표시됩니다.")
-        layout.addWidget(card(fields, row(self.overlay_button, self.open_button)))
+        layout.addWidget(card(fields, row(self.overlay_button, self.open_button, self.draw_button)))
         layout.addWidget(self.overlay_log, 1)
         return page
 
@@ -1159,6 +1163,7 @@ class Wizard(QMainWindow):
     def _overlay_state(self, running: bool) -> None:
         self.overlay_button.setText("오버레이 중지" if running else "오버레이 시작")
         self.open_button.setEnabled(running)
+        self.draw_button.setEnabled(running)
         for widget in (self.chzzk, self.soop, self.twitch, self.youtube, self.youtube_key, self.youtube_check_button, self.chzzk_api, self.chzzk_id, self.chzzk_secret, self.chzzk_login_button,
                        self.demo, self.autoclip, self.voice_threshold, self.port):
             widget.setEnabled(not running)
@@ -1272,7 +1277,8 @@ class Wizard(QMainWindow):
             self.motion_min.setValue(motion_rules[-1].min_won)
 
     #: 입력란이 없어 collect_settings가 모르는 저장값. 저장할 때 기존 값을 유지한다(캐릭터 단계의 사용 버튼이 따로 저장)
-    KEPT_SETTINGS = ("character", "idle_motion")
+    KEPT_SETTINGS = ("character", "idle_motion", "draw_enabled", "draw_prizes", "draw_rules", "draw_exact", "draw_members", "draw_style",
+                     "draw_seconds")
 
     def remember(self) -> None:
         try:

@@ -90,6 +90,13 @@
       <div class="row" id="motion-buttons"></div>
       <div class="preview"><iframe id="character-preview" title="캐릭터 미리보기"></iframe></div>
     </section>
+    <section>
+      <h2>후원 추첨</h2>
+      <div class="url"><input id="draw-url" readonly aria-label="후원 추첨 주소"><button data-copy="draw-url">복사</button></div>
+      <p class="hint">권장 크기 1920x1080. 후원이 오면 상품표에서 확률대로 뽑아 카드 뒤집기나 룰렛으로 표시하고, 평소에는 투명합니다.</p>
+      <p class="state" id="draw-state">설정 확인 중</p>
+      <div class="row"><a class="button" href="/draw/control" target="_blank" rel="noopener">추첨 설정과 시험 추첨</a></div>
+    </section>
   </div>
 
   <section class="test">
@@ -132,6 +139,11 @@
   updateChat();
   $("alerts-url").value = `${base}/alerts`;
   $("alerts-preview").src = "/alerts?seconds=4";
+  $("draw-url").value = `${base}/draw`;
+  fetch("/draw/config").then((r) => r.json()).then((config) => {
+    const style = config.styles[config.style] || config.style;
+    $("draw-state").textContent = `${config.enabled ? "사용 중" : "사용 꺼짐"}. 상품 ${config.prizes.length}개, 규칙 ${config.rules.length}개, 연출 ${style}`;
+  }).catch(() => ($("draw-state").textContent = "설정을 확인하지 못함"));
   $("character-url").value = `${base}/character`;
   $("character-preview").src = "/character";
   fetch("/character/info").then((r) => r.json()).then((info) => {

@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>debutkit 후원 추첨</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <style>
+    :root { color-scheme: light; --bg: #ffffff; --panel: #faf7f5; --line: #e3dfdb; --text: #1e2327; --dim: #5b6670; --link: #bf3b68; --gold: #b58500; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.6 "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; }
+    header { display: flex; align-items: center; gap: 12px; padding: 14px 24px; border-bottom: 1px solid var(--line); }
+    header img { width: 28px; height: 28px; }
+    header h1 { font-size: 17px; margin: 0; }
+    header a { margin-left: auto; color: var(--dim); font-size: 13px; }
+    main { max-width: 1100px; margin: 0 auto; padding: 20px 24px 56px; }
+    .lead { color: var(--dim); margin: 0 0 18px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 20px; align-items: start; }
+    section { border: 1px solid var(--line); border-radius: 6px; padding: 16px 18px; }
+    section.wide { grid-column: 1 / -1; }
+    h2 { font-size: 16px; margin: 0 0 10px; }
+    h3 { font-size: 14px; margin: 16px 0 6px; }
+    .hint { color: var(--dim); font-size: 13px; margin: 6px 0 0; }
+    .url { display: flex; gap: 6px; margin: 6px 0; }
+    .url input { flex: 1; min-width: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 3px; padding: 6px 9px; font: 13px ui-monospace, Consolas, monospace; color: var(--text); }
+    button { background: var(--text); color: #fff; border: 1px solid var(--text); border-radius: 3px; padding: 6px 13px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+    button.secondary { background: #fff; color: var(--text); border-color: #c9c3bd; }
+    button.small { padding: 3px 9px; font-size: 13px; }
+    button:hover { opacity: 0.88; }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { text-align: left; padding: 5px 4px; border-bottom: 1px solid var(--line); }
+    th { color: var(--dim); font-weight: 600; font-size: 13px; }
+    td input { width: 100%; padding: 5px 7px; border: 1px solid #c9c3bd; border-radius: 3px; font: inherit; }
+    td.num { width: 80px; }
+    td.pct { width: 64px; color: var(--dim); white-space: nowrap; font-size: 13px; }
+    td.pct.rare { color: var(--gold); font-weight: 700; }
+    td.act { width: 64px; text-align: right; }
+    td.act button { white-space: nowrap; }
+    label.check { display: flex; gap: 8px; align-items: center; font-weight: 600; }
+    select, input[type=number] { padding: 5px 7px; border: 1px solid #c9c3bd; border-radius: 3px; font: inherit; background: #fff; }
+    .state { font-size: 13px; color: var(--dim); }
+    .state.error { color: #b3261e; }
+    .preview { position: relative; height: 0; padding-top: 56.25%; margin-top: 10px; border-radius: 3px; overflow: hidden;
+      background: repeating-conic-gradient(#30373c 0% 25%, #2a3035 0% 50%) 0 0 / 20px 20px; }
+    .preview iframe { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; border: 0; transform-origin: 0 0; color-scheme: normal; }
+    ol.results { list-style: none; margin: 10px 0 0; padding: 0; }
+    ol.results li { border-top: 1px solid var(--line); padding: 10px 0; }
+    .meta { font-size: 13px; color: var(--dim); }
+    .who { font-weight: 700; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+    .chips span { background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 0 10px; font-size: 13px; }
+    .chips span.rare { border-color: #e8c34a; background: #fff6cc; font-weight: 700; }
+    .chips span.miss { color: var(--dim); }
+    .script { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; }
+    .script p { margin: 0; flex: 1; }
+  </style>
+</head>
+<body>
+<header>
+  <img src="/favicon.svg" alt="">
+  <h1>debutkit 후원 추첨</h1>
+  <a href="/">오버레이 설정 화면</a>
+</header>
+<main>
+  <p class="lead">후원이 오면 상품표에서 확률대로 뽑아 방송 화면에 카드 뒤집기 또는 룰렛으로 표시합니다. 추첨은 이 PC의 debutkit이 하며, 결과는 파일로 저장하지 않고 최근 100개만 아래 목록에 표시합니다.</p>
+  <div class="grid">
+    <section>
+      <h2>방송 화면</h2>
+      <div class="url"><input id="draw-url" readonly aria-label="방송 화면 주소"><button data-copy="draw-url">복사</button></div>
+      <p class="hint">OBS 브라우저 소스로 추가합니다. 권장 크기 1920x1080. 평소에는 투명하고 추첨할 때만 나타납니다. <code>debutkit scenes</code>로 만든 장면에는 포함되어 있습니다.</p>
+      <div class="row"><button class="secondary small" id="preview-toggle">미리보기 켜기</button></div>
+      <div class="preview" id="preview" hidden><iframe id="preview-frame" title="후원 추첨 미리보기"></iframe></div>
+      <h3>OBS 안에서 조작</h3>
+      <div class="url"><input id="control-url" readonly aria-label="조작 화면 주소"><button data-copy="control-url">복사</button></div>
+      <p class="hint">OBS 독 메뉴의 사용자 지정 브라우저 독에 이 주소를 넣으면 OBS 안에서 이 화면을 사용할 수 있습니다.</p>
+    </section>
+
+    <section>
+      <h2>설정</h2>
+      <label class="check"><input type="checkbox" id="enabled"> 후원이 오면 추첨(사용)</label>
+      <h3>상품표</h3>
+      <table>
+        <thead><tr><th>상품</th><th>가중치</th><th>확률</th><th></th></tr></thead>
+        <tbody id="prizes"></tbody>
+      </table>
+      <div class="row"><button class="secondary small" id="add-prize">상품 추가</button></div>
+      <p class="hint">가중치는 비율입니다. 합이 100이 아니어도 되며, 확률 5% 이하는 희귀 상품으로 강조합니다. 이름에 꽝이 들어가면 꽝으로 표시합니다.</p>
+      <h3>추첨 규칙</h3>
+      <table>
+        <thead><tr><th>최소 금액(원)</th><th>추첨 횟수</th><th></th></tr></thead>
+        <tbody id="rules"></tbody>
+      </table>
+      <div class="row"><button class="secondary small" id="add-rule">규칙 추가</button></div>
+      <div class="row">
+        <select id="exact" aria-label="규칙 적용 방식">
+          <option value="">금액 이상이면 가장 큰 규칙 적용</option>
+          <option value="1">금액이 정확히 같을 때만</option>
+        </select>
+        <label class="check"><input type="checkbox" id="members"> 구독, 멤버십도 1회 추첨</label>
+      </div>
+      <p class="hint">금액은 원 기준이며 SOOP 별풍선은 1개 100원으로 계산합니다. Twitch 비트와 외화 후원은 최소 금액 0 규칙에만 반응합니다.</p>
+      <h3>연출</h3>
+      <div class="row">
+        <select id="style" aria-label="연출"></select>
+        <label>결과 표시 시간 <input id="seconds" type="number" min="3" max="60" step="1" style="width:72px">초</label>
+      </div>
+      <div class="row"><button id="save">저장</button><span class="state" id="save-state"></span></div>
+    </section>
+
+    <section>
+      <h2>시험 추첨</h2>
+      <div class="row">
+        <label>금액 <input id="test-amount" type="number" min="0" step="1000" value="1000" style="width:120px">원</label>
+        <button class="secondary" id="test">시험 추첨</button>
+      </div>
+      <p class="state" id="test-state"></p>
+      <p class="hint">저장한 설정으로 추첨해 방송 화면에 시험 표시와 함께 나타납니다. 사용을 끈 상태에서도 시험할 수 있습니다. 오버레이 설정 화면의 테스트 후원(1,000원)은 사용을 켠 경우에만 추첨합니다.</p>
+    </section>
+
+    <section class="wide">
+      <h2>최근 결과</h2>
+      <div class="row"><button class="secondary small" id="clear">목록 비우기</button><span class="state" id="results-state"></span></div>
+      <ol class="results" id="results"></ol>
+    </section>
+  </div>
+</main>
+<script>
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const el = (tag, className, text) => {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  };
+  const post = (path, body) => fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) })
+    .then(async (response) => ({ ok: response.ok, data: await response.json().catch(() => ({})) }));
+  const PLATFORMS = { chzzk: "치지직", soop: "SOOP", twitch: "Twitch", youtube: "YouTube", demo: "시험" };
+
+  $("draw-url").value = `${location.origin}/draw`;
+  $("control-url").value = `${location.origin}/draw/control`;
+  // 미리보기는 필요할 때만 연다(방송 화면처럼 연결을 하나 쓰므로. 브라우저의 같은 주소 동시 연결 수 제한은 OBS 소스와 공유)
+  const fit = () => ($("preview-frame").style.transform = `scale(${$("preview").clientWidth / 1920})`);
+  window.addEventListener("resize", fit);
+  $("preview-toggle").addEventListener("click", () => {
+    const opening = $("preview").hidden;
+    $("preview").hidden = !opening;
+    $("preview-frame").src = opening ? "/draw" : "about:blank";
+    $("preview-toggle").textContent = opening ? "미리보기 끄기" : "미리보기 켜기";
+    fit();
+  });
+
+  // ---------------------------------------------------------------- 설정
+  function percentUpdate() {
+    const rows = [...$("prizes").children];
+    const weights = rows.map((row) => Math.max(0, Number(row.querySelector(".weight").value) || 0));
+    const total = weights.reduce((sum, weight) => sum + weight, 0);
+    rows.forEach((row, index) => {
+      const percent = total ? Math.round((weights[index] / total) * 10000) / 100 : 0;
+      const cell = row.querySelector(".pct");
+      const miss = row.querySelector(".name").value.includes("꽝");
+      cell.textContent = `${percent}%`;
+      cell.classList.toggle("rare", percent > 0 && percent <= 5 && !miss);
+    });
+  }
+
+  function prizeRow(prize) {
+    const row = el("tr");
+    const name = el("td");
+    const nameInput = el("input", "name");
+    nameInput.maxLength = 40;
+    nameInput.value = prize.name || "";
+    nameInput.setAttribute("aria-label", "상품 이름");
+    name.appendChild(nameInput);
+    const weight = el("td", "num");
+    const weightInput = el("input", "weight");
+    weightInput.type = "number";
+    weightInput.min = "0";
+    weightInput.step = "any";
+    weightInput.value = prize.weight ?? 10;
+    weightInput.setAttribute("aria-label", "가중치");
+    weight.appendChild(weightInput);
+    const remove = el("td", "act");
+    const button = el("button", "secondary small", "삭제");
+    button.addEventListener("click", () => { row.remove(); percentUpdate(); });
+    remove.appendChild(button);
+    row.append(name, weight, el("td", "pct"), remove);
+    nameInput.addEventListener("input", percentUpdate);
+    weightInput.addEventListener("input", percentUpdate);
+    return row;
+  }
+
+  function ruleRow(rule) {
+    const row = el("tr");
+    const cells = [["min", rule.min_won ?? 1000, "1000", "최소 금액"], ["draws", rule.draws ?? 1, "1", "추첨 횟수"]].map(([name, value, step, label]) => {
+      const cell = el("td");
+      const input = el("input", name);
+      input.type = "number";
+      input.min = name === "draws" ? "1" : "0";
+      input.max = name === "draws" ? "30" : "";
+      input.step = step;
+      input.value = value;
+      input.setAttribute("aria-label", label);
+      cell.appendChild(input);
+      return cell;
+    });
+    const remove = el("td", "act");
+    const button = el("button", "secondary small", "삭제");
+    button.addEventListener("click", () => row.remove());
+    remove.appendChild(button);
+    row.append(...cells, remove);
+    return row;
+  }
+
+  function fill(config) {
+    $("enabled").checked = config.enabled;
+    $("prizes").replaceChildren(...config.prizes.map(prizeRow));
+    $("rules").replaceChildren(...[...config.rules].reverse().map(ruleRow));
+    $("exact").value = config.exact ? "1" : "";
+    $("members").checked = config.members;
+    $("style").replaceChildren(...Object.entries(config.styles).map(([value, label]) => {
+      const option = el("option", "", label);
+      option.value = value;
+      return option;
+    }));
+    $("style").value = config.style;
+    $("seconds").value = config.seconds;
+    percentUpdate();
+  }
+
+  function collect() {
+    return {
+      enabled: $("enabled").checked,
+      prizes: [...$("prizes").children].map((row) => ({ name: row.querySelector(".name").value.trim(), weight: Number(row.querySelector(".weight").value) })),
+      rules: [...$("rules").children].map((row) => ({ min_won: Number(row.querySelector(".min").value), draws: Number(row.querySelector(".draws").value) })),
+      exact: $("exact").value === "1",
+      members: $("members").checked,
+      style: $("style").value,
+      seconds: Number($("seconds").value),
+    };
+  }
+
+  function note(id, text, error) {
+    $(id).textContent = text;
+    $(id).classList.toggle("error", Boolean(error));
+  }
+
+  $("add-prize").addEventListener("click", () => { $("prizes").appendChild(prizeRow({ name: "", weight: 10 })); percentUpdate(); });
+  $("add-rule").addEventListener("click", () => $("rules").appendChild(ruleRow({ min_won: 5000, draws: 3 })));
+  $("save").addEventListener("click", async () => {
+    const { ok, data } = await post("/draw/config", collect());
+    if (!ok) return note("save-state", `저장하지 못함: ${data.error || "알 수 없는 오류"}`, true);
+    fill(data);
+    note("save-state", `저장했습니다(${data.enabled ? "사용 중" : "사용 꺼짐"}). 다음 후원부터 적용됩니다.`);
+  });
+  $("test").addEventListener("click", async () => {
+    const { ok, data } = await post("/draw/test", { amount: Number($("test-amount").value) });
+    note("test-state", ok ? `시험 추첨 ${data.count}회: ${data.script}` : data.error || "시험 추첨 실패", !ok);
+  });
+
+  // ---------------------------------------------------------------- 최근 결과
+  function amountText(result) {
+    if (result.kind === "member") return "구독";
+    const count = Number(result.amount).toLocaleString("ko-KR");
+    return result.unit === "원" ? `${count}원` : `${result.unit} ${count}`;
+  }
+
+  function resultItem(result) {
+    const item = el("li");
+    const at = new Date(result.time * 1000);
+    const time = [at.getHours(), at.getMinutes(), at.getSeconds()].map((part) => String(part).padStart(2, "0")).join(":");
+    const head = el("div", "meta", `${time}, ${PLATFORMS[result.platform] || result.platform}, ${amountText(result)}, 추첨 ${result.count}회`);
+    item.append(el("div", "who", result.name), head);
+    const chips = el("div", "chips");
+    for (const draw of result.draws) chips.appendChild(el("span", draw.rare ? "rare" : draw.miss ? "miss" : "", draw.name));
+    item.appendChild(chips);
+    const line = el("div", "script");
+    line.appendChild(el("p", "", result.script));
+    const copy = el("button", "secondary small", "대본 복사");
+    copy.addEventListener("click", async () => {
+      try { await navigator.clipboard.writeText(result.script); copy.textContent = "복사됨"; }
+      catch { copy.textContent = "복사 실패"; }
+      setTimeout(() => (copy.textContent = "대본 복사"), 1500);
+    });
+    line.appendChild(copy);
+    item.appendChild(line);
+    return item;
+  }
+
+  function count() {
+    note("results-state", `${$("results").children.length}개`);
+  }
+
+  $("clear").addEventListener("click", async () => {
+    await post("/draw/clear");
+    shown = "0:";
+    $("results").replaceChildren();
+    count();
+  });
+
+  for (const button of document.querySelectorAll("[data-copy]")) {
+    button.addEventListener("click", async () => {
+      const input = $(button.dataset.copy);
+      input.select();
+      try { await navigator.clipboard.writeText(input.value); } catch { document.execCommand("copy"); }
+      button.textContent = "복사됨";
+      setTimeout(() => (button.textContent = "복사"), 1500);
+    });
+  }
+
+  fetch("/draw/config").then((r) => r.json()).then(fill).catch(() => note("save-state", "설정을 불러오지 못함", true));
+  // 최근 결과: 2초마다 확인(연결을 계속 열어 두지 않음). 바뀐 경우에만 다시 그림
+  let shown = "";
+  async function refresh() {
+    try {
+      const data = await (await fetch("/draw/history", { cache: "no-store" })).json();
+      const top = data.results[0];
+      const mark = `${data.results.length}:${top ? `${top.seq}:${top.time}` : ""}`;
+      if (mark !== shown) {
+        shown = mark;
+        $("results").replaceChildren(...data.results.map(resultItem));
+        count();
+      }
+    } catch (error) {
+      note("results-state", "오버레이에 연결하지 못함(오버레이 실행 확인)", true);
+    }
+  }
+  refresh();
+  setInterval(refresh, 2000);
+</script>
+</body>
+</html>

@@ -41,6 +41,13 @@ FIELDS: dict[str, type] = {
     "vts_reactions": list,  # VTube Studio 후원 반응 "최소 금액:단축키" (토큰은 따로 보관)
     "idle_motion": str,  # 3D 캐릭터의 기본 동작(대기 중 반복)
     "motion_reactions": list,  # 후원 반응 동작 "최소 금액:동작"
+    "draw_enabled": bool,  # 후원 추첨 연출(draw.py)
+    "draw_prizes": list,  # "가중치:상품"
+    "draw_rules": list,  # "최소 금액:횟수"
+    "draw_exact": bool,
+    "draw_members": bool,
+    "draw_style": str,
+    "draw_seconds": int,
 }
 
 #: 이 단어가 들어간 항목은 저장하지 않는다(실수로 FIELDS에 추가해도 막음)

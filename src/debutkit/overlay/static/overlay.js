@@ -137,4 +137,4 @@ const THEMES = {
   light: "밝은 말풍선",
 };
 
-window.debutkit = { startChat, startAlerts, renderParts, amountText, THEMES };
+window.debutkit = { startChat, startAlerts, renderParts, amountText, badge, PLATFORMS, THEMES };

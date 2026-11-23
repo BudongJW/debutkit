@@ -241,17 +241,36 @@ iframe {{ position: absolute; inset: 38px 0 0 0; width: 100%; height: calc(100% 
 </style></head><body><div class="cols">{"".join(columns)}</div><div class="alerts">{alert}</div></body></html>"""
 
 
+def draw_shot(browser: list[str], base: str) -> Path:
+    """후원 추첨 연출: 미리보기 주소(?sample)로 카드 뒤집기와 룰렛을 각각 촬영해 나란히 붙인다(기본 상품표)."""
+    from PIL import Image
+
+    out = OUT / "overlay-draw.png"
+    with tempfile.TemporaryDirectory() as folder:
+        parts = [capture(browser, f"{base}/draw?sample={style}", Path(folder) / f"{style}.png", (960, 880), wait=wait)
+                 for style, wait in (("card", 5.0), ("wheel", 7.5))]
+        images = [Image.open(path).convert("RGB") for path in parts]
+        joined = Image.new("RGB", (sum(image.width for image in images), max(image.height for image in images)), "#59626a")
+        joined.paste(images[0], (0, 0))
+        joined.paste(images[1], (images[0].width, 0))
+        joined.save(out)
+        for image in images:
+            image.close()
+    return out
+
+
 def overlay_shots(browser: list[str]) -> list[Path]:
     server = overlay_server()
     try:
         settings = capture(browser, server.url + "/", OUT / "overlay-settings.png", (1180, 1340))
+        draws = draw_shot(browser, server.url)
     finally:
         server.stop()
     with tempfile.TemporaryDirectory() as folder:
         page = Path(folder) / "themes.html"
         page.write_text(themes_page(), encoding="utf-8")
         themes = capture(browser, page.as_uri(), OUT / "overlay-themes.png", (1200, 600))
-    return [settings, themes]
+    return [settings, draws, themes]
 
 
 def shrink(path: Path, width: int = 1200) -> None:

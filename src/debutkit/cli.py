@@ -1,4 +1,4 @@
-"""명령줄: debutkit gui | doctor | scenes | overlay | character | motion | vts | settings | setup | chzzk"""
+"""명령줄: debutkit gui | doctor | scenes | overlay | draw | character | motion | vts | settings | setup | chzzk"""
 
 from __future__ import annotations
 
@@ -40,7 +40,8 @@ def _scenes(args: argparse.Namespace) -> int:
     from .scenes import SceneOptions, build_scenes, connect_and_apply, default_kinds, format_plan, format_report
 
     base = f"http://127.0.0.1:{args.overlay_port}"
-    options = SceneOptions(overlay_url=f"{base}/chat", alerts_url=f"{base}/alerts", character_url=f"{base}/character", avatar=args.avatar)
+    options = SceneOptions(overlay_url=f"{base}/chat", alerts_url=f"{base}/alerts", character_url=f"{base}/character", draw_url=f"{base}/draw",
+                           avatar=args.avatar)
     if args.dry_run:
         kinds = default_kinds(options.os_name)
         print(format_plan(build_scenes(1920, 1080, kinds, options), kinds))
@@ -439,6 +440,87 @@ def _motion_play(args: argparse.Namespace) -> int:
     return 0
 
 
+def _draw_show(config: Any, port: int) -> None:
+    from . import draw
+
+    print(f"후원 추첨: {'사용 중' if config.enabled else '사용 꺼짐'}")
+    print("  상품표")
+    for prize in config.prizes:
+        entry = config.entry(prize)
+        mark = "  희귀" if entry["rare"] else "  꽝" if entry["miss"] else ""
+        print(f"    {prize.name:20} 가중치 {prize.weight:g}, 확률 {entry['percent']}%{mark}")
+    kind = "금액이 정확히 같을 때만" if config.exact else "금액 이상이면 가장 큰 규칙"
+    print(f"  추첨 규칙({kind})")
+    for rule in reversed(config.rules):
+        print(f"    {rule.min_won:>10,}원  {rule.draws}회")
+    print(f"  구독, 멤버십: {'1회 추첨' if config.members else '추첨 안 함'}")
+    print(f"  연출: {draw.STYLES[config.style]}, 결과 표시 {config.seconds}초")
+    print(f"  방송 화면 http://127.0.0.1:{port}/draw  조작 화면 http://127.0.0.1:{port}/draw/control")
+
+
+def _draw_pairs(values: list[str], label: str) -> list[tuple[str, str]]:
+    pairs = []
+    for value in values:
+        first, sep, rest = value.partition(":")
+        if not sep or not first.strip() or not rest.strip():
+            raise ValueError(f"{label} 형식 오류: {value}")
+        pairs.append((first.strip(), rest.strip()))
+    return pairs
+
+
+def _draw(args: argparse.Namespace) -> int:
+    """후원 추첨 설정 보기, 바꾸기, 시험 추첨."""
+    from . import draw
+
+    command = args.draw_command
+    if command == "show":
+        _draw_show(draw.load_config(), args.port)
+        return 0
+    if command == "test":
+        return _post_overlay(args.port, "/draw/test", {"amount": args.amount}, lambda answer: f"시험 추첨 {answer.get('count')}회: {answer.get('script', '')}")
+    current = draw.load_config().to_dict()
+    data: dict[str, Any] = {key: current[key] for key in ("enabled", "prizes", "rules", "exact", "members", "style", "seconds")}
+    try:
+        if args.prize:
+            data["prizes"] = [{"name": name, "weight": weight} for weight, name in _draw_pairs(args.prize, "상품(가중치:이름)")]
+        if args.rule:
+            data["rules"] = [{"min_won": amount, "draws": count} for amount, count in _draw_pairs(args.rule, "규칙(금액:횟수)")]
+        for key in ("enabled", "exact", "members", "style", "seconds"):
+            if getattr(args, key) is not None:
+                data[key] = getattr(args, key)
+        config = draw.save_config(draw.from_request(data))
+    except (ValueError, OSError) as error:
+        print(f"후원 추첨 설정 실패: {error}", file=sys.stderr)
+        return 1
+    _draw_show(config, args.port)
+    print("저장했습니다. 실행 중인 오버레이에는 다음 후원부터 적용")
+    return 0
+
+
+def _post_overlay(port: int, path: str, body: dict[str, Any], describe: Callable[[dict[str, Any]], str]) -> int:
+    """실행 중인 오버레이에 요청. 오류 응답의 error 안내를 그대로 보여 준다."""
+    import urllib.error
+    import urllib.request
+
+    request = urllib.request.Request(f"http://127.0.0.1:{port}{path}", data=json.dumps(body).encode(), headers={"Content-Type": "application/json"},
+                                     method="POST")
+    try:
+        with urllib.request.urlopen(request, timeout=5) as response:
+            answer = json.loads(response.read() or b"{}")
+    except urllib.error.HTTPError as error:
+        try:
+            message = json.loads(error.read() or b"{}").get("error") or str(error)
+        except ValueError:
+            message = str(error)
+        print(f"요청 실패: {message}", file=sys.stderr)
+        return 1
+    except (urllib.error.URLError, OSError, ValueError) as error:
+        print(f"오버레이에 연결하지 못함({port}번 포트): debutkit overlay 또는 설정 마법사의 오버레이 시작 필요 ({error})", file=sys.stderr)
+        return 1
+    print(describe(answer))
+    return 0
+
+
 def _settings(args: argparse.Namespace) -> int:
     from . import settings
 
@@ -568,6 +650,27 @@ def build_parser() -> argparse.ArgumentParser:
     send.add_argument("--to", required=True, choices=["vts", "warudo"])
     send.add_argument("--folder", help="모델 폴더(자동으로 찾지 못한 경우)")
     chars.set_defaults(func=_character)
+
+    draws = sub.add_parser("draw", help="후원 추첨 연출: 상품표, 금액별 추첨 횟수, 연출 설정과 시험 추첨")
+    draws_sub = draws.add_subparsers(dest="draw_command", required=True)
+    draws_sub.add_parser("show", help="저장한 추첨 설정 보기").add_argument("--port", type=int, default=OVERLAY_PORT, help=argparse.SUPPRESS)
+    draw_set = draws_sub.add_parser("set", help="추첨 설정 바꾸기(지정한 항목만)")
+    switch = draw_set.add_mutually_exclusive_group()
+    switch.add_argument("--on", dest="enabled", action="store_const", const=True, help="후원이 오면 추첨")
+    switch.add_argument("--off", dest="enabled", action="store_const", const=False, help="추첨 사용 안 함")
+    draw_set.add_argument("--prize", action="append", metavar="가중치:이름", help="상품(여러 번 지정, 지정하면 상품표 전체를 바꿈). 예: 50:꽝 --prize 3:소원")
+    draw_set.add_argument("--rule", action="append", metavar="금액:횟수", help="추첨 규칙(원 기준, 별풍선 1개 100원). 예: 1000:1 --rule 10000:11")
+    mode = draw_set.add_mutually_exclusive_group()
+    mode.add_argument("--exact", dest="exact", action="store_const", const=True, help="금액이 정확히 같을 때만 추첨")
+    mode.add_argument("--at-least", dest="exact", action="store_const", const=False, help="금액 이상이면 가장 큰 규칙(기본)")
+    draw_set.add_argument("--members", action=argparse.BooleanOptionalAction, default=None, help="구독, 멤버십도 1회 추첨")
+    draw_set.add_argument("--style", choices=["card", "wheel"], help="연출: card(카드 뒤집기), wheel(룰렛)")
+    draw_set.add_argument("--seconds", type=int, metavar="초", help="결과 표시 시간(3에서 60초)")
+    draw_set.add_argument("--port", type=int, default=OVERLAY_PORT, help=argparse.SUPPRESS)
+    draw_test = draws_sub.add_parser("test", help="실행 중인 오버레이에서 시험 추첨(저장한 설정 사용)")
+    draw_test.add_argument("--amount", type=int, default=1000, metavar="원", help="시험 금액 (기본 %(default)s원)")
+    draw_test.add_argument("--port", type=int, default=OVERLAY_PORT, help="오버레이 포트 (기본 %(default)s)")
+    draws.set_defaults(func=_draw)
 
     motions = sub.add_parser("motion", help="3D 캐릭터 동작 등록, 기본 동작, 실행(VRMA, Mixamo 등의 FBX, GLB)")
     motions_sub = motions.add_subparsers(dest="motion_command", required=True)

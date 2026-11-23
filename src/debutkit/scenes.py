@@ -41,6 +41,7 @@ class SceneOptions:
     overlay_url: str = "http://127.0.0.1:8790/chat"
     alerts_url: str = "http://127.0.0.1:8790/alerts"
     character_url: str = "http://127.0.0.1:8790/character"
+    draw_url: str = "http://127.0.0.1:8790/draw"
     avatar: str = "vts"  # vts | vseeface | warudo | vmagicmirror | debutkit(캐릭터 화면) | none
     background: int = 0xFF3D1F2A  # OBS 색은 ABGR 순서: 짙은 남보라
     os_name: str = field(default_factory=lambda: {"win32": "Windows", "darwin": "Darwin"}.get(sys.platform, "Linux"))
@@ -145,6 +146,12 @@ def build_scenes(width: int, height: int, kinds: dict[str, str], options: SceneO
         settings = {"url": options.alerts_url, "width": W, "height": H, "reroute_audio": True, "shutdown": False}
         return Item(f"{PREFIX}후원 알림", "browser", settings, _bounds(0, 0, W, H))
 
+    def draws() -> Item | None:  # 후원 추첨 연출: 평소 투명, 추첨 결과가 올 때만 표시
+        if "browser" not in kinds:
+            return None
+        settings = {"url": options.draw_url, "width": W, "height": H, "reroute_audio": False, "shutdown": False}
+        return Item(f"{PREFIX}후원 추첨", "browser", settings, _bounds(0, 0, W, H))
+
     def caption(name: str, text: str) -> Item | None:
         if "text" not in kinds:
             return None
@@ -166,10 +173,10 @@ def build_scenes(width: int, height: int, kinds: dict[str, str], options: SceneO
         return Scene(name, purpose, tuple(item for item in items if item is not None))
 
     return [
-        scene("대기 화면", "방송 시작 전 대기. 안내 문구와 채팅", background(), caption("대기 문구", options.starting_text), chat(), alerts()),
-        scene("본방송", "게임 화면, 아바타, 채팅, 후원 알림", background(), game(), main_avatar, chat(), alerts()),
-        scene("토크", "잡담, 노래. 아바타 크게 표시", background(), talk_avatar, chat(), alerts()),
-        scene("자리 비움", "휴식 시간. 마이크는 직접 음소거", background(), caption("자리 비움 문구", options.brb_text), chat(), alerts()),
+        scene("대기 화면", "방송 시작 전 대기. 안내 문구와 채팅", background(), caption("대기 문구", options.starting_text), chat(), alerts(), draws()),
+        scene("본방송", "게임 화면, 아바타, 채팅, 후원 알림과 추첨", background(), game(), main_avatar, chat(), alerts(), draws()),
+        scene("토크", "잡담, 노래. 아바타 크게 표시", background(), talk_avatar, chat(), alerts(), draws()),
+        scene("자리 비움", "휴식 시간. 마이크는 직접 음소거", background(), caption("자리 비움 문구", options.brb_text), chat(), alerts(), draws()),
         scene("엔딩", "방송 마무리", background(), caption("엔딩 문구", options.ending_text), chat()),
     ]
 

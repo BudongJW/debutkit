@@ -572,3 +572,34 @@ def test_motion_card_adds_sets_idle_plays_and_saves_reaction(app, tmp_path):
         assert motion.idle() is None and window.idle_motion.currentData() == "" and window.motions.count() == 2
     finally:
         window.close()
+
+
+def test_draw_button_opens_control_page_and_settings_survive(app):
+    class FakeServer:
+        url = "http://127.0.0.1:8790"
+
+        def __init__(self):
+            self.hub = type("Hub", (), {"taps": []})()
+
+        def start(self):
+            return self
+
+        def stop(self):
+            pass
+
+        def attach(self, part):
+            pass
+
+    calls = Calls()
+    calls.stored = {"draw_enabled": True, "draw_prizes": ["9:꽝", "1:사진"], "draw_style": "wheel"}
+    window = Wizard(calls.backend(make_overlay=lambda sources, port: FakeServer()))
+    try:
+        assert not window.draw_button.isEnabled()
+        window.toggle_overlay()
+        assert window.draw_button.isEnabled()
+        window.draw_button.click()
+        assert calls.urls[-1] == "http://127.0.0.1:8790/draw/control"
+        saved = calls.saves[-1]  # 설정 마법사가 저장할 때 조작 화면에서 저장한 추첨 설정을 지우지 않음
+        assert saved["draw_enabled"] is True and saved["draw_prizes"] == ["9:꽝", "1:사진"] and saved["draw_style"] == "wheel"
+    finally:
+        window.close()

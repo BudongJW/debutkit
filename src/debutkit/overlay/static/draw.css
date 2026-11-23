@@ -1,0 +1,58 @@
+/* debutkit 후원 추첨 연출. 평소 투명, 추첨 결과가 오면 화면 가운데에 표시.
+   색은 브랜드 컬러(Slate, Cream, Pink)와 희귀 상품 Gold. OBS 브라우저 소스의 사용자 지정 CSS로 덮어쓸 수 있음 */
+
+body.sample { background: #59626a; }  /* 미리보기(?sample) 배경 */
+#draw { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.45s; pointer-events: none; }
+#draw.show { opacity: 1; }
+
+.draw-panel {
+  min-width: 560px; max-width: 1500px; padding: 28px 40px 30px; border-radius: 20px; text-align: center;
+  background: rgba(30, 35, 39, 0.9); color: var(--cream); box-shadow: 0 18px 60px rgba(0, 0, 0, 0.45);
+  transform: scale(0.92); transition: transform 0.45s cubic-bezier(0.2, 1.2, 0.4, 1);
+}
+#draw.show .draw-panel { transform: scale(1); }
+.draw-head .platform { font-size: 0.8em; }
+.draw-name { margin-top: 8px; font-size: 44px; font-weight: 800; line-height: 1.2; }
+.draw-sub { margin-top: 4px; font-size: 24px; color: var(--name); }
+.draw-stage { margin-top: 24px; }
+.draw-summary { margin-top: 22px; font-size: 26px; font-weight: 700; animation: rise 0.3s ease-out; }
+
+/* ---------------------------------------------------------------- 카드 뒤집기 */
+.draw-cards { display: grid; grid-template-columns: repeat(var(--columns), auto); justify-content: center; gap: 18px; perspective: 1200px; }
+.draw-card { --w: 200px; --h: 280px; width: var(--w); height: var(--h); position: relative; animation: deal 0.45s ease-out both; animation-delay: calc(var(--i) * 70ms); }
+.draw-cards.some .draw-card { --w: 170px; --h: 238px; }
+.draw-cards.many .draw-card { --w: 136px; --h: 190px; }
+.draw-card .inner { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform 0.6s cubic-bezier(0.3, 1.3, 0.5, 1); }
+.draw-card.open .inner { transform: rotateY(180deg); }
+.face { position: absolute; inset: 0; border-radius: 14px; backface-visibility: hidden; -webkit-backface-visibility: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 12px; box-sizing: border-box; }
+.face.back {
+  border: 4px solid var(--accent);
+  background: repeating-linear-gradient(45deg, #2e353b 0 12px, #262c31 12px 24px);
+}
+.face.back::after { content: "?"; font-size: 72px; font-weight: 800; color: var(--accent); }
+.draw-cards.many .face.back::after { font-size: 52px; }
+.face.front { transform: rotateY(180deg); background: var(--cream); color: var(--slate); border: 4px solid #e3dfdb; }
+.face .prize { font-size: 28px; font-weight: 800; line-height: 1.25; word-break: keep-all; }
+.draw-cards.many .face .prize { font-size: 21px; }
+.face .percent { margin-top: 8px; font-size: 16px; color: #5b6670; }
+.face .tag { margin-top: 10px; padding: 2px 12px; border-radius: 999px; background: var(--slate); color: var(--gold); font-size: 15px; font-weight: 700; }
+.draw-card.rare .face.front { border-color: var(--gold); background: #fff6cc; box-shadow: 0 0 28px rgba(255, 216, 77, 0.85); animation: glow 1.2s ease-in-out infinite alternate; }
+.draw-card.miss .face.front { background: #d9dde0; color: #5b6670; border-color: #c9ced2; }
+
+/* ---------------------------------------------------------------- 룰렛 */
+.wheel-box { position: relative; width: 520px; height: 520px; margin: 0 auto; }
+.wheel { width: 100%; height: 100%; display: block; filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.4)); }
+.wheel text { font-family: var(--font); font-weight: 700; }
+.pointer { position: absolute; left: 50%; top: -14px; width: 0; height: 0; margin-left: -20px; border: 20px solid transparent; border-top: 40px solid var(--accent); border-bottom: 0; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5)); }
+.wheel-results { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 20px; min-height: 44px; max-width: 900px; margin-inline: auto; }
+.chip { padding: 6px 16px; border-radius: 999px; background: var(--cream); color: var(--slate); font-size: 22px; font-weight: 700; animation: rise 0.25s ease-out; }
+.chip.rare { background: var(--gold); box-shadow: 0 0 18px rgba(255, 216, 77, 0.8); }
+.chip.miss { background: #d9dde0; color: #5b6670; }
+
+/* ---------------------------------------------------------------- 반짝임 */
+.burst { position: absolute; left: 50%; top: 50%; width: 0; height: 0; pointer-events: none; z-index: 2; }
+.spark { position: absolute; width: 12px; height: 12px; margin: -6px; border-radius: 50%; background: hsl(var(--hue) 100% 66%); animation: fly 1.3s ease-out var(--delay) both; }
+
+@keyframes deal { from { opacity: 0; transform: translateY(46px) scale(0.9); } to { opacity: 1; transform: none; } }
+@keyframes glow { from { box-shadow: 0 0 14px rgba(255, 216, 77, 0.6); } to { box-shadow: 0 0 36px rgba(255, 216, 77, 1); } }
+@keyframes fly { from { opacity: 1; transform: translate(0, 0) scale(1); } to { opacity: 0; transform: translate(var(--x), var(--y)) scale(0.25); } }
