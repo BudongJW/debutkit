@@ -1,4 +1,5 @@
-"""명령줄: debutkit gui | doctor | scenes | camera | overlay | draw | raffle | phone | remote | character | motion | vts | settings | setup | chzzk"""
+"""명령줄: debutkit gui | doctor | scenes | camera | overlay | draw | raffle | phone | remote | broadcast | logo | character | motion | vts | settings |
+setup | chzzk"""
 
 from __future__ import annotations
 
@@ -6,6 +7,7 @@ import argparse
 import json
 import os
 import sys
+from pathlib import Path
 from typing import Any, Callable
 
 from . import __version__
@@ -708,6 +710,54 @@ def _broadcast(args: argparse.Namespace) -> int:
     return 0 if status["state"] == "live" else 1
 
 
+def _logo(args: argparse.Namespace) -> int:
+    """방송 로고 만들기(오버레이 없이 실행). AI 심볼은 저장한 본인 API 키 사용."""
+    from . import logo
+
+    studio = logo.LogoStudio()
+    command = args.logo_command
+    try:
+        if command == "key":
+            if args.clear:
+                studio.set_key(args.provider, None)
+                print(f"{logo.PROVIDERS[args.provider].name} API 키 삭제")
+                return 0
+            import getpass
+
+            key = sys.stdin.readline().strip() if args.stdin else getpass.getpass(f"{logo.PROVIDERS[args.provider].name} API 키(입력한 글자는 표시하지 않음): ")
+            status = studio.set_key(args.provider, key)
+            mode = {"file": "암호화해 이 PC에 저장", "keyring": "운영체제 키 보관소에 저장", "memory": "이번 실행 동안만 사용(저장 안 함)"}[status["key_storage"]]
+            print(f"{logo.PROVIDERS[args.provider].name} API 키 {mode}")
+            return 0
+        if command == "list":
+            print("기본 도형: " + ", ".join(f"{key}({label})" for key, label in studio.status()["templates"].items()))
+            recent = studio.status()["recent"]
+            print("최근 AI 심볼:" if recent else "최근 AI 심볼 없음")
+            for item in recent:
+                print(f"  {item['id']}  {item['provider']} {item['model']}  {item['description']}")
+            return 0
+        colors = [logo.check_color(value) for value in (args.color or [])][:2]
+        symbol: dict[str, Any]
+        if args.ai:
+            print(f"{logo.PROVIDERS[args.ai].name}로 심볼 만드는 중(요금 발생, 보통 30초에서 몇 분)", flush=True)
+            made = studio.generate(args.ai, args.quality, args.describe, args.style, colors)
+            symbol = {"id": made["id"]}
+        else:
+            symbol = {"template": args.template, "primary": colors[0] if colors else "#FF4F8B", "accent": colors[1] if len(colors) > 1 else "#1E2327"}
+        svg = studio.make({"name": args.name or "", "font": args.font, "layout": args.layout, "symbol": symbol, "text_color": args.text_color,
+                           "background": args.background})
+        out = Path(args.out)
+        out.write_text(svg, encoding="utf-8")
+        print(f"로고 저장: {out}" + (" (AI 생성 표시 포함)" if args.ai else ""))
+        return 0
+    except logo.LogoError as error:
+        print(f"로고 만들기 실패: {error}", file=sys.stderr)
+        return 1
+    except OSError as error:
+        print(f"저장 실패: {error}", file=sys.stderr)
+        return 1
+
+
 def _fetch_overlay(port: int, path: str, timeout: float = 5) -> dict[str, Any] | None:
     import urllib.error
     import urllib.request
@@ -1003,6 +1053,32 @@ def build_parser() -> argparse.ArgumentParser:
     live_stop = live_sub.add_parser("stop", help="방송 끝내기")
     live_stop.add_argument("--close", action="store_true", help="송출 화면 창도 닫기")
     live.set_defaults(func=_broadcast)
+
+    from .logo import FONTS, LAYOUTS, STYLES, TEMPLATES
+    from .logo import PROVIDERS as LOGO_PROVIDERS
+    from .logo import QUALITIES as LOGO_QUALITIES
+
+    logos = sub.add_parser("logo", help="방송 로고 만들기: 기본 도형 또는 본인 API 키의 생성형 AI 심볼과 채널 이름(글꼴 윤곽선)으로 SVG 로고")
+    logos_sub = logos.add_subparsers(dest="logo_command", required=True)
+    logo_make = logos_sub.add_parser("make", help="로고 SVG 만들기(기본 도형은 무료, --ai는 저장한 API 키로 요금 발생)")
+    logo_make.add_argument("--name", help="채널 이름(30자 이하)")
+    logo_make.add_argument("--template", choices=list(TEMPLATES), default="star", help="기본 도형(기본 %(default)s)")
+    logo_make.add_argument("--ai", choices=list(LOGO_PROVIDERS), help="생성형 AI로 심볼 만들기(--describe 필요)")
+    logo_make.add_argument("--describe", help="AI 심볼 설명(글자 없이 그림으로, 300자 이하)")
+    logo_make.add_argument("--style", choices=list(STYLES), default="cute", help="AI 심볼 느낌(기본 %(default)s)")
+    logo_make.add_argument("--quality", choices=list(LOGO_QUALITIES), default="fast", help="AI 품질(기본 %(default)s)")
+    logo_make.add_argument("--color", action="append", metavar="RRGGBB", help="주 색, 보조 색(2번까지 지정)")
+    logo_make.add_argument("--font", choices=list(FONTS), default="pretendard", help="채널 이름 글꼴(기본 %(default)s)")
+    logo_make.add_argument("--layout", choices=list(LAYOUTS), default="horizontal", help="배치(기본 %(default)s)")
+    logo_make.add_argument("--text-color", default="#1E2327", help="글자 색(기본 %(default)s)")
+    logo_make.add_argument("--background", metavar="RRGGBB", help="배경색(기본 투명)")
+    logo_make.add_argument("--out", required=True, metavar="파일", help="저장할 SVG 파일")
+    logo_key = logos_sub.add_parser("key", help="생성형 AI API 키 저장(입력한 글자는 표시하지 않음)")
+    logo_key.add_argument("provider", choices=list(LOGO_PROVIDERS))
+    logo_key.add_argument("--stdin", action="store_true", help="표준 입력 첫 줄에서 읽기")
+    logo_key.add_argument("--clear", action="store_true", help="저장한 키 삭제")
+    logos_sub.add_parser("list", help="기본 도형과 최근 AI 심볼")
+    logos.set_defaults(func=_logo)
 
     motions = sub.add_parser("motion", help="3D 캐릭터 동작 등록, 기본 동작, 실행(VRMA, Mixamo 등의 FBX, GLB)")
     motions_sub = motions.add_subparsers(dest="motion_command", required=True)

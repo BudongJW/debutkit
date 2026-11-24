@@ -468,6 +468,9 @@ def test_overlay_start_attaches_voice_meter(app):
         assert window.broadcast_button.isEnabled() and window.broadcast_button.isHidden() == (sys.platform != "win32")
         window.broadcast_button.click()
         assert calls.urls[-1] == "http://127.0.0.1:8790/broadcast/control"
+        assert window.logo_button.isEnabled()
+        window.logo_button.click()
+        assert calls.urls[-1] == "http://127.0.0.1:8790/logo"
         assert calls.saves[-1]["voice_threshold"] == -35.0
     finally:
         window.close()

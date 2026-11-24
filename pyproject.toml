@@ -24,7 +24,9 @@ Changelog = "https://github.com/BudongJW/debutkit/blob/main/CHANGELOG.md"
 live = ["stream2clip @ git+https://github.com/BudongJW/stream2clip@v0.14.1", "websocket-client>=1.6"]
 # YouTube 채팅 스트리밍(streamList, gRPC). 없으면 요청 방식 사용
 youtube = ["grpcio>=1.60", "protobuf>=4.25"]
-gui = ["debutkit[live,youtube]", "PySide6>=6.6"]
+# 로고 만들기: 채널 이름을 글꼴 윤곽선으로(fontTools, woff2 압축 해제 brotli, 둘 다 MIT), Claude로 심볼 만들기(anthropic, MIT)
+logo = ["fonttools>=4.50", "brotli>=1.1", "anthropic>=2.13"]
+gui = ["debutkit[live,youtube,logo]", "PySide6>=6.6"]
 build = ["pyinstaller>=6.10"]
 dev = ["pytest>=8", "ruff>=0.6"]
 

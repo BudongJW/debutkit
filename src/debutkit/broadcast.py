@@ -27,7 +27,7 @@ from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from typing import IO, Any, Callable
 
-from . import program_window, settings
+from . import program_window, secret, settings
 
 
 class BroadcastError(ValueError):
@@ -263,33 +263,10 @@ _ENTROPY = b"debutkit-broadcast-key"
 
 
 def _dpapi(data: bytes, protect: bool) -> bytes:  # pragma: no cover - Windows 전용(테스트는 Windows에서만 실행)
-    if sys.platform != "win32":
-        raise BroadcastError("스트림 키 저장은 Windows에서만 지원")
-    import ctypes
-    from ctypes import wintypes
-
-    class Blob(ctypes.Structure):
-        _fields_ = [("cbData", wintypes.DWORD), ("pbData", ctypes.POINTER(ctypes.c_char))]
-
-    crypt32 = ctypes.WinDLL("crypt32", use_last_error=True)
-    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-    function = crypt32.CryptProtectData if protect else crypt32.CryptUnprotectData
-    function.argtypes = [ctypes.POINTER(Blob), ctypes.c_void_p, ctypes.POINTER(Blob), ctypes.c_void_p, ctypes.c_void_p, wintypes.DWORD,
-                         ctypes.POINTER(Blob)]
-    function.restype = wintypes.BOOL
-    kernel32.LocalFree.argtypes = [ctypes.c_void_p]
-    kernel32.LocalFree.restype = ctypes.c_void_p
-    source_buffer = ctypes.create_string_buffer(data, len(data))
-    entropy_buffer = ctypes.create_string_buffer(_ENTROPY, len(_ENTROPY))
-    source = Blob(len(data), ctypes.cast(source_buffer, ctypes.POINTER(ctypes.c_char)))
-    entropy = Blob(len(_ENTROPY), ctypes.cast(entropy_buffer, ctypes.POINTER(ctypes.c_char)))
-    result = Blob()
-    if not function(ctypes.byref(source), None, ctypes.byref(entropy), None, None, 0x1, ctypes.byref(result)):  # CRYPTPROTECT_UI_FORBIDDEN
-        raise OSError(ctypes.get_last_error(), "스트림 키 암호화 처리 실패")
     try:
-        return ctypes.string_at(result.pbData, result.cbData)
-    finally:
-        kernel32.LocalFree(ctypes.cast(result.pbData, ctypes.c_void_p))
+        return secret.dpapi(data, protect, _ENTROPY)
+    except secret.SecretUnavailable as error:
+        raise BroadcastError("스트림 키 저장은 Windows에서만 지원") from error
 
 
 def _read_keys(path: Path) -> dict[str, str]:
@@ -343,9 +320,9 @@ def publish_url(config: BroadcastConfig, key: str) -> str:
 
 def mask(text: str, *hidden: str) -> str:
     """오류 문장, 기록에서 스트림 키를 가린다."""
-    for secret in hidden:
-        if secret:
-            text = text.replace(secret, "****")
+    for value in hidden:
+        if value:
+            text = text.replace(value, "****")
     return text
 
 

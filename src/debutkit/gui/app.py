@@ -1136,11 +1136,16 @@ class Wizard(QMainWindow):
         self.broadcast_button.setEnabled(False)
         self.broadcast_button.setVisible(sys.platform == "win32")
         self.broadcast_button.clicked.connect(lambda: self.server and self.backend.open_url(f"{self.server.url}/broadcast/control"))
+        self.logo_button = QPushButton("로고 만들기")
+        self.logo_button.setToolTip("기본 도형 또는 본인 API 키의 생성형 AI 심볼과 채널 이름으로 방송 로고(SVG, PNG) 만들기")
+        self.logo_button.setEnabled(False)
+        self.logo_button.clicked.connect(lambda: self.server and self.backend.open_url(f"{self.server.url}/logo"))
         self.overlay_log = QPlainTextEdit()
         self.overlay_log.setReadOnly(True)
         self.overlay_log.setMaximumBlockCount(200)
         self.overlay_log.setPlaceholderText("연결 상태와 저장한 클립이 이곳에 표시됩니다.")
-        layout.addWidget(card(fields, row(self.overlay_button, self.open_button, self.draw_button, self.remote_button, self.broadcast_button)))
+        layout.addWidget(card(fields, row(self.overlay_button, self.open_button, self.draw_button, self.remote_button, self.broadcast_button,
+                                          self.logo_button)))
         layout.addWidget(self.overlay_log, 1)
         return page
 
@@ -1263,6 +1268,7 @@ class Wizard(QMainWindow):
         self.draw_button.setEnabled(running)
         self.remote_button.setEnabled(running)
         self.broadcast_button.setEnabled(running)
+        self.logo_button.setEnabled(running)
         for widget in (self.chzzk, self.soop, self.twitch, self.youtube, self.youtube_key, self.youtube_check_button, self.chzzk_api, self.chzzk_id, self.chzzk_secret, self.chzzk_login_button,
                        self.demo, self.autoclip, self.voice_threshold, self.port):
             widget.setEnabled(not running)
