@@ -70,6 +70,43 @@ def test_cut_out_removes_the_background_and_its_halo():
     assert white[3] == 255 and min(white[:3]) > 240  # 흰 눈은 배경과 색이 달라 그대로
 
 
+def test_dull_green_is_keyed_everywhere():
+    """모델이 순수 초록 대신 탁한 초록을 칠해도 크로마 키로: 도형이 감싼 고리 안 배경까지 지운다."""
+    big = Image.new("RGB", (2048, 2048), (91, 198, 105))
+    pen = ImageDraw.Draw(big)
+    pen.ellipse((440, 480, 1600, 1640), fill=(250, 232, 189), outline=(34, 38, 66), width=40)
+    pen.ellipse((1500, 1500, 1900, 1900), outline=(64, 38, 76), width=36)  # 케이블 고리: 안쪽은 배경
+    cut = logo_image.cut_out(png(big.resize((512, 512), Image.Resampling.LANCZOS)), logo_image.GREEN)
+    pixels = np.asarray(cut).astype(int)
+    assert pixels[5, 5, 3] == 0 and pixels[425, 425, 3] == 0  # 바깥 배경과 고리 안 배경
+    assert pixels[256, 256, 3] == 255
+    greenish = (pixels[..., 1] > pixels[..., 0] + 40) & (pixels[..., 1] > pixels[..., 2] + 40)
+    assert not (greenish & (pixels[..., 3] > 20)).any()
+
+
+def test_near_identical_colours_merge():
+    image = Image.new("RGBA", (200, 200), (0, 0, 0, 0))
+    pen = ImageDraw.Draw(image)
+    pen.rectangle((20, 20, 99, 179), fill=(250, 232, 189, 255))
+    pen.rectangle((100, 20, 179, 179), fill=(252, 231, 186, 255))  # 눈으로 구분되지 않는 크림색
+    pen.rectangle((60, 80, 140, 120), fill=(34, 38, 66, 255))
+    poster = logo_image.posterize(image)
+    assert len(poster.palette) == 2
+
+
+def test_real_model_sample_vectorizes_cleanly():
+    """AI Horde FLUX.1 schnell(Apache-2.0) 실제 출력: 탁한 초록(약 91,198,105) 배경과 고리 모양 케이블."""
+    from pathlib import Path
+
+    data = (Path(__file__).parent / "data" / "logo_flux_schnell_dull_green.webp").read_bytes()
+    svg = logo.sanitize_svg(logo_image.symbol_svg(data, logo_image.GREEN))
+    fills = [tuple(int(value[i:i + 2], 16) for i in (0, 2, 4)) for value in re.findall(r'fill="#([0-9A-F]{6})"', svg)]
+    assert not any(g > r + 30 and g > b + 30 for r, g, b in fills)  # 초록 잔여 없음
+    creams = [fill for fill in fills if min(fill) > 170]
+    assert len(creams) == 1 and 3 <= len(fills) <= 7  # 넓은 크림색 면이 한 색
+    assert len(svg) < 200_000
+
+
 def test_cut_out_uses_the_drawn_background_when_it_differs():
     data = drawn(background=(40, 40, 200))  # 요청과 다른 파란 단색 배경: 테두리와 이어진 부분만 지움
     cut = logo_image.cut_out(data, logo_image.GREEN)

@@ -57,18 +57,33 @@ def _mask(text: str, secret: str | None) -> str:
 # --- 지시문 -------------------------------------------------------------------------------
 
 
-def _is_greenish(color: str) -> bool:
-    red, green, blue = (int(color[index:index + 2], 16) / 255 for index in (1, 3, 5))
+def _hue(colour: tuple[int, int, int]) -> tuple[float, float]:
+    """색상(도)과 채도 폭(0에서 1)."""
+    red, green, blue = (value / 255 for value in colour)
     high, low = max(red, green, blue), min(red, green, blue)
-    if high - low < 0.25 or high == 0:
-        return False
+    if high - low < 1e-9:
+        return 0.0, 0.0
     if high == red:
         hue = 60 * (((green - blue) / (high - low)) % 6)
     elif high == green:
         hue = 60 * ((blue - red) / (high - low) + 2)
     else:
         hue = 60 * ((red - green) / (high - low) + 4)
-    return 75 <= hue <= 165
+    return hue, high - low
+
+
+def _is_greenish(color: str) -> bool:
+    hue, chroma = _hue(tuple(int(color[index:index + 2], 16) for index in (1, 3, 5)))  # type: ignore[arg-type]
+    return chroma >= 0.25 and 75 <= hue <= 165
+
+
+def _is_backdrop(border: tuple[int, int, int], key: tuple[int, int, int]) -> bool:
+    """테두리 색이 요청한 배경 색 계열인지. 모델은 순수 초록(#00FF00) 대신 탁한 초록(예: 91,198,105)을 칠하기도 하므로
+    색 값이 아니라 색상으로 판정한다."""
+    hue, chroma = _hue(border)
+    if chroma < 0.2:
+        return False
+    return 75 <= hue <= 165 if key == GREEN else 270 <= hue <= 330
 
 
 def key_colour(colors: list[str]) -> tuple[int, int, int]:
@@ -205,6 +220,7 @@ def chroma_key(image: Any, key: tuple[int, int, int], back: tuple[int, int, int]
     rgb = np.asarray(image.convert("RGB")).astype(np.float64)
     backdrop = np.array(back, dtype=np.float64)
     full = float(_dominance(backdrop[None, None, :], key)[0, 0])
+    full -= max(6.0, 0.12 * full)  # 배경의 미세한 잡음(필름 입자)도 완전히 투명하게
     floor = tolerance * 255.0
     alpha = np.clip(1.0 - (_dominance(rgb, key) - floor) / max(full - floor, 1.0), 0.0, 1.0)
     share = np.maximum(alpha, 1e-3)[..., None]
@@ -233,7 +249,7 @@ def cut_out(data: bytes, key: tuple[int, int, int]) -> Any:
         return clean_edge(image)
     border = border_colour(image)
     strength = float(_dominance(np.array(border, dtype=np.float64)[None, None, :], key)[0, 0])
-    if strength > 0.4 * 255:
+    if _is_backdrop(border, key) and strength > 0.1 * 255:
         cut = chroma_key(image, key, border)
     else:  # 모델이 다른 단색 배경을 그린 경우
         cut = key_background(image, border, everywhere=False)
@@ -278,9 +294,10 @@ class Poster:
         return Image.fromarray(np.dstack([rgb, np.where(self.labels >= 0, 255, 0).astype(np.uint8)]), "RGBA")
 
 
-def posterize(image: Any, colors: int = TRACE_COLORS, *, speck: int = 5, minor: float = 0.012) -> Poster:
+def posterize(image: Any, colors: int = TRACE_COLORS, *, speck: int = 5, minor: float = 0.012, merge: float = 7.0) -> Poster:
     """불투명한 픽셀만으로 고른 ``colors`` 색으로 줄이고 투명은 켜짐과 꺼짐 둘로. 작은 점은 둘레 색으로,
-    넓이가 ``minor`` 보다 작은 색은 가장 가까운 색으로 합친다(벡터화 준비)."""
+    넓이가 ``minor`` 보다 작은 색은 가장 가까운 색으로, 색 차이(CIE Lab 거리)가 ``merge`` 보다 작은 색끼리는 넓은 쪽으로 합친다
+    (벡터화 준비)."""
     np = _numpy()
     from PIL import Image, ImageFilter
 
@@ -323,11 +340,33 @@ def posterize(image: Any, colors: int = TRACE_COLORS, *, speck: int = 5, minor: 
     major = [index for index, count in counts.items() if count / total >= minor] or [max(counts, key=lambda index: counts[index])]
     major += [index for index, count in counts.items() if index not in major and count / total >= 0.0015 and not blend(index, major)]
 
+    # 눈으로 구분되지 않는 주요 색(넓은 한 색 면이 여러 색으로 갈린 것)은 넓은 쪽으로: 면 안에 가는 경계선이 생기지 않게
+    lab = {index: _lab(colour(index)) for index in counts}
+
+    def apart(one: int, other: int) -> float:
+        return float(np.sqrt(((lab[one] - lab[other]) ** 2).sum()))
+
+    kept: list[int] = []
+    for index in sorted(major, key=lambda index: -counts[index]):
+        if all(apart(index, other) >= merge for other in kept):
+            kept.append(index)
+
     out = np.full(labels.shape, -1, dtype=np.int32)
     for index in counts:
-        target = index if index in major else min(major, key=lambda other: float(((colour(index) - colour(other)) ** 2).sum()))
-        out[(labels == index) & solid] = major.index(target)
-    return Poster(out, [tuple(raw[index * 3:index * 3 + 3]) for index in major])  # type: ignore[misc]
+        target = index if index in kept else min(kept, key=lambda other: apart(index, other))
+        out[(labels == index) & solid] = kept.index(target)
+    return Poster(out, [tuple(raw[index * 3:index * 3 + 3]) for index in kept])  # type: ignore[misc]
+
+
+def _lab(rgb: Any) -> Any:
+    """sRGB(0에서 255)를 CIE Lab으로(색 차이를 사람 눈 기준으로 재기 위해)."""
+    np = _numpy()
+    value = np.asarray(rgb, dtype=np.float64) / 255.0
+    linear = np.where(value <= 0.04045, value / 12.92, ((value + 0.055) / 1.055) ** 2.4)
+    xyz = linear @ np.array([[0.4124, 0.2126, 0.0193], [0.3576, 0.7152, 0.1192], [0.1805, 0.0722, 0.9505]])
+    ratio = xyz / np.array([0.95047, 1.0, 1.08883])
+    f = np.where(ratio > 0.008856, np.cbrt(ratio), 7.787 * ratio + 16 / 116)
+    return np.array([116 * f[..., 1] - 16, 500 * (f[..., 0] - f[..., 1]), 200 * (f[..., 1] - f[..., 2])])
 
 
 def _boundary_loops(mask: Any) -> list[list[tuple[int, int]]]:
