@@ -1137,7 +1137,7 @@ class Wizard(QMainWindow):
         self.broadcast_button.setVisible(sys.platform == "win32")
         self.broadcast_button.clicked.connect(lambda: self.server and self.backend.open_url(f"{self.server.url}/broadcast/control"))
         self.logo_button = QPushButton("로고 만들기")
-        self.logo_button.setToolTip("기본 도형 또는 본인 API 키의 생성형 AI 심볼과 채널 이름으로 방송 로고(SVG, PNG) 만들기")
+        self.logo_button.setToolTip("아이콘, 기본 도형, 계정 없는 공개 모델(AI Horde) 또는 본인 키의 생성형 AI 심볼과 채널 이름으로 방송 로고(SVG, PNG) 만들기")
         self.logo_button.setEnabled(False)
         self.logo_button.clicked.connect(lambda: self.server and self.backend.open_url(f"{self.server.url}/logo"))
         self.overlay_log = QPlainTextEdit()

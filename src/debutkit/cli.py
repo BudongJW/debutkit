@@ -710,8 +710,28 @@ def _broadcast(args: argparse.Namespace) -> int:
     return 0 if status["state"] == "live" else 1
 
 
+def _logo_progress() -> Callable[[dict[str, Any]], None]:
+    """AI Horde 진행: 단계가 바뀌거나 1분이 지날 때 한 줄(대기열 위치, 예상 시간)."""
+    last: dict[str, Any] = {"state": None, "at": -60, "elapsed": 0}
+    names = {"submitting": "보내는 중", "queued": "대기 중", "processing": "그리는 중", "downloading": "그림 받는 중", "tracing": "벡터로 바꾸는 중"}
+
+    def show(values: dict[str, Any]) -> None:
+        state = values.get("state", "")
+        elapsed = last["elapsed"] = int(values["elapsed"]) if "elapsed" in values else last["elapsed"]  # 벡터화 단계는 마지막 경과 시간
+        if state == last["state"] and elapsed - last["at"] < 60:
+            return
+        last.update(state=state, at=elapsed)
+        parts = [names.get(state, state)]
+        if state == "queued" and values.get("queue_position"):
+            parts.append(f"대기열 {values['queue_position']}번째")
+        if state in ("queued", "processing") and values.get("wait_time"):
+            parts.append(f"예상 {max(1, round(values['wait_time'] / 60))}분")
+        print(f"  [{elapsed // 60:02d}:{elapsed % 60:02d}] {', '.join(parts)}", flush=True)
+    return show
+
+
 def _logo(args: argparse.Namespace) -> int:
-    """방송 로고 만들기(오버레이 없이 실행). AI 심볼은 저장한 본인 API 키 사용."""
+    """방송 로고 만들기(오버레이 없이 실행). 아이콘과 기본 도형은 무료, AI 심볼은 AI Horde(계정 없음) 또는 저장한 본인 키 사용."""
     from . import logo
 
     studio = logo.LogoStudio()
@@ -736,21 +756,46 @@ def _logo(args: argparse.Namespace) -> int:
             for item in recent:
                 print(f"  {item['id']}  {item['provider']} {item['model']}  {item['description']}")
             return 0
+        if command == "icons":
+            from . import logo_icons
+
+            found = logo_icons.search(" ".join(args.words or []), limit=args.limit)
+            for icon in found:
+                styles = ", ".join(icon["svg"])
+                print(f"  {icon['id']:<40} {icon['ko']} ({styles})")
+            print(f"{len(found)}개" + ("" if found else ": 다른 검색어(예: 고양이, 마이크, 하트, 동물, 음식)로 다시 찾기"))
+            return 0
         colors = [logo.check_color(value) for value in (args.color or [])][:2]
+        primary, accent = colors[0] if colors else "#FF4F8B", colors[1] if len(colors) > 1 else "#1E2327"
         symbol: dict[str, Any]
         if args.ai:
-            cost = "무료" if args.ai == "comfyui" else "무료 한도 사용" if args.ai == "huggingface" else "요금 발생"
-            print(f"{logo.PROVIDERS[args.ai].name}로 심볼 만드는 중({cost}, 보통 30초에서 몇 분)", flush=True)
-            made = studio.generate(args.ai, args.quality, args.describe, args.style, colors, args.comfyui)
+            cost = {"aihorde": "무료, 계정 없음", "comfyui": "무료", "huggingface": "무료 한도 사용"}.get(args.ai, "요금 발생")
+            wait = "익명은 대기열 때문에 보통 10~30분, Ctrl+C로 취소" if args.ai == "aihorde" else "보통 30초에서 몇 분"
+            print(f"{logo.PROVIDERS[args.ai].name}로 심볼 만드는 중({cost}, {wait})", flush=True)
+            if args.ai == "aihorde" and not studio.keys.has("aihorde"):
+                print("  키 없이(익명) 보냄: 설명과 결과 그림이 LAION 공개 데이터셋에 공유됨(13세 이상 사용 가능)", flush=True)
+            made = studio.generate(args.ai, args.quality, args.describe, args.style, colors, args.comfyui, progress=_logo_progress())
             symbol = {"id": made["id"]}
+        elif args.icon:
+            symbol = {"icon": args.icon, "style": args.icon_style, "colors": args.icon_colors, "primary": primary, "accent": accent}
         else:
-            symbol = {"template": args.template, "primary": colors[0] if colors else "#FF4F8B", "accent": colors[1] if len(colors) > 1 else "#1E2327"}
-        svg = studio.make({"name": args.name or "", "font": args.font, "layout": args.layout, "symbol": symbol, "text_color": args.text_color,
-                           "background": args.background})
+            symbol = {"template": args.template, "primary": primary, "accent": accent}
+        request = {"name": args.name or "", "font": args.font, "layout": args.layout, "symbol": symbol, "text_color": args.text_color,
+                   "background": args.background, "finish": args.finish, "finish_color": accent}
+        svg = studio.make(request)
         out = Path(args.out)
         out.write_text(svg, encoding="utf-8")
+        entry = studio.record({**request, "file": str(out)})
         print(f"로고 저장: {out}" + (" (AI 생성 표시 포함)" if args.ai else ""))
+        about = entry.get("symbol") or {}
+        if about.get("kind") == "icon":
+            print(f"심볼 출처: {about['set']} '{about['icon']}'({about['license']}, {about['copyright']})")
+        if about.get("kind") in ("icon", "template"):
+            print(f"안내: {logo.NON_EXCLUSIVE}")
         return 0
+    except KeyboardInterrupt:
+        print("\n취소함", file=sys.stderr)
+        return 130
     except logo.LogoError as error:
         print(f"로고 만들기 실패: {error}", file=sys.stderr)
         return 1
@@ -1058,26 +1103,39 @@ def build_parser() -> argparse.ArgumentParser:
     from .logo import FONTS, LAYOUTS, STYLES, TEMPLATES
     from .logo import PROVIDERS as LOGO_PROVIDERS
     from .logo import QUALITIES as LOGO_QUALITIES
+    from .logo_icons import COLOR_MODES, FINISHES
 
-    logos = sub.add_parser("logo", help="방송 로고 만들기: 기본 도형 또는 본인 API 키의 생성형 AI 심볼과 채널 이름(글꼴 윤곽선)으로 SVG 로고")
+    PHOSPHOR_WEIGHTS = ("thin", "light", "regular", "bold", "fill", "duotone")
+
+    logos = sub.add_parser("logo", help="방송 로고 만들기: 아이콘, 기본 도형 또는 생성형 AI 심볼과 채널 이름(글꼴 윤곽선)으로 SVG 로고")
     logos_sub = logos.add_subparsers(dest="logo_command", required=True)
-    logo_make = logos_sub.add_parser("make", help="로고 SVG 만들기(기본 도형은 무료, --ai는 저장한 API 키로 요금 발생)")
+    logo_make = logos_sub.add_parser("make", help="로고 SVG 만들기(아이콘과 기본 도형은 무료, --ai aihorde는 계정 없이 무료, 나머지는 본인 키)")
     logo_make.add_argument("--name", help="채널 이름(30자 이하)")
-    logo_make.add_argument("--template", choices=list(TEMPLATES), default="star", help="기본 도형(기본 %(default)s)")
+    logo_make.add_argument("--icon", metavar="아이콘", help="함께 배포한 아이콘(예: fluent/cat-face, phosphor/microphone. debutkit logo icons로 검색)")
+    logo_make.add_argument("--icon-style", default="auto", choices=["auto", "flat", "mono", *PHOSPHOR_WEIGHTS],
+                           help="아이콘 종류: Fluent는 flat(컬러), mono(단색), Phosphor는 굵기. auto는 컬러 또는 글꼴에 맞춘 굵기(기본 %(default)s)")
+    logo_make.add_argument("--icon-colors", default="channel", choices=list(COLOR_MODES), help="컬러 아이콘 색: channel(주 색, 보조 색으로 다시 칠함), "
+                           "original(원래 색)(기본 %(default)s)")
+    logo_make.add_argument("--template", choices=list(TEMPLATES), default="star", help="기본 도형(--icon, --ai가 없을 때, 기본 %(default)s)")
     logo_make.add_argument("--ai", choices=list(LOGO_PROVIDERS),
-                           help="생성형 AI로 심볼 만들기(--describe 필요). comfyui와 huggingface는 공개 모델 Qwen-Image")
+                           help="생성형 AI로 심볼 만들기(--describe 필요). aihorde는 계정 없이 FLUX.1 schnell, comfyui와 huggingface는 Qwen-Image")
     logo_make.add_argument("--comfyui", metavar="주소", help="--ai comfyui의 ComfyUI 주소(기본 http://127.0.0.1:8188)")
     logo_make.add_argument("--describe", help="AI 심볼 설명(글자 없이 그림으로, 300자 이하)")
     logo_make.add_argument("--style", choices=list(STYLES), default="cute", help="AI 심볼 느낌(기본 %(default)s)")
     logo_make.add_argument("--quality", choices=list(LOGO_QUALITIES), default="fast", help="AI 품질(기본 %(default)s)")
     logo_make.add_argument("--color", action="append", metavar="RRGGBB", help="주 색, 보조 색(2번까지 지정)")
+    logo_make.add_argument("--finish", choices=list(FINISHES), default="none",
+                           help="심볼 마감: outline(외곽선), bold(굵은 외곽선), sticker(외곽선과 흰 테두리), white(흰 테두리)(기본 %(default)s)")
     logo_make.add_argument("--font", choices=list(FONTS), default="pretendard", help="채널 이름 글꼴(기본 %(default)s)")
     logo_make.add_argument("--layout", choices=list(LAYOUTS), default="horizontal", help="배치(기본 %(default)s)")
     logo_make.add_argument("--text-color", default="#1E2327", help="글자 색(기본 %(default)s)")
     logo_make.add_argument("--background", metavar="RRGGBB", help="배경색(기본 투명)")
     logo_make.add_argument("--out", required=True, metavar="파일", help="저장할 SVG 파일")
-    logo_key = logos_sub.add_parser("key", help="생성형 AI API 키나 Hugging Face 토큰 저장(입력한 글자는 표시하지 않음)")
-    logo_key.add_argument("provider", choices=[key for key, item in LOGO_PROVIDERS.items() if item.needs_key])
+    logo_icons = logos_sub.add_parser("icons", help="함께 배포한 아이콘 검색(한국어나 영어 검색어, 없으면 전체)")
+    logo_icons.add_argument("words", nargs="*", metavar="검색어")
+    logo_icons.add_argument("--limit", type=int, default=60, help="최대 개수(기본 %(default)s)")
+    logo_key = logos_sub.add_parser("key", help="생성형 AI API 키, Hugging Face 토큰, AI Horde 등록 키 저장(입력한 글자는 표시하지 않음)")
+    logo_key.add_argument("provider", choices=[key for key, item in LOGO_PROVIDERS.items() if item.needs_key or item.optional_key])
     logo_key.add_argument("--stdin", action="store_true", help="표준 입력 첫 줄에서 읽기")
     logo_key.add_argument("--clear", action="store_true", help="저장한 키 삭제")
     logos_sub.add_parser("list", help="기본 도형과 최근 AI 심볼")

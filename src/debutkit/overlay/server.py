@@ -27,8 +27,11 @@
 - ``/program`` 송출 화면(OBS 없이 바로 방송, broadcast.py): 캐릭터, 채팅, 알림, 추첨, 휴대폰 카메라(앱)를 한 화면에. ``POST /program/size`` 창 안 화면 크기
 - ``/broadcast`` 방송 상태, ``/broadcast/control`` 방송 조작 화면, ``/broadcast/devices`` 소리 장치와 인코더.
   ``POST /broadcast/config``, ``/broadcast/key`` (``{"key": 키}`` 또는 ``{"clear": true}``), ``/broadcast/window``, ``/broadcast/start``, ``/broadcast/stop``
-- ``/logo`` 방송 로고 만들기 화면(logo.py), ``/logo/status`` 상태, ``/logo/symbol.svg?id=`` 또는 ``?template=&primary=&accent=`` 심볼 미리보기.
-  ``POST /logo/key`` (``{"provider", "key"}`` 또는 ``{"provider", "clear": true}``), ``/logo/generate`` AI 심볼 생성(사용자 키, 요금 발생), ``/logo/make`` 로고 SVG
+- ``/logo`` 방송 로고 만들기 화면(logo.py), ``/logo/status`` 상태(AI Horde 백그라운드 작업 포함), ``/logo/icons`` 아이콘 목록,
+  ``/logo/symbol.svg?id=`` 또는 ``?icon=&style=&colors=&primary=&accent=`` 또는 ``?template=&primary=&accent=`` (``&finish=`` 마감) 심볼 미리보기.
+  ``POST /logo/key`` (``{"provider", "key"}`` 또는 ``{"provider", "clear": true}``), ``/logo/generate`` AI 심볼 생성(사용자 키는 요금 발생,
+  AI Horde는 바로 작업 상태를 돌려주고 백그라운드로 기다림), ``/logo/cancel`` 백그라운드 작업 취소, ``/logo/make`` 로고 SVG,
+  ``/logo/record`` 저장한 로고 기록(심볼 출처와 라이선스)
 - ``POST /test`` 설정 화면의 테스트 메시지, ``POST /voice/test`` 말하기 시험
 
 127.0.0.1에만 열리고, 다른 웹사이트가 이 서버에 요청을 끼워 넣지 못하도록 Host와
@@ -55,7 +58,7 @@ from typing import Any, Callable, Iterable
 
 from .. import broadcast as broadcasts
 from .. import camera as cameras
-from .. import commands
+from .. import commands, logo_icons
 from .. import draw as drawing
 from .. import logo as logos
 from .. import motion as motions
@@ -256,6 +259,8 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
                 return self._json(broadcaster.devices())
             if path == "/logo/status":
                 return self._json(logo_studio().status())
+            if path == "/logo/icons":
+                return self._json(logo_icons.catalog())
             if path == "/logo/symbol.svg":
                 return self._logo_symbol(urllib.parse.parse_qs(query))
             if path == "/remote/admin/qr.svg":
@@ -293,7 +298,7 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
                             "/phone/calibrate", "/camera/obs", "/camera/config", "/remote/admin/start",
                             "/remote/admin/stop", "/remote/admin/pair", "/remote/admin/approve", "/remote/admin/remove", "/camera/answer",
                             "/camera/ended", "/program/size", "/broadcast/config", "/broadcast/key", "/broadcast/window", "/broadcast/start",
-                            "/broadcast/stop", "/logo/key", "/logo/generate", "/logo/make"):
+                            "/broadcast/stop", "/logo/key", "/logo/generate", "/logo/cancel", "/logo/make", "/logo/record"):
                 return self._send(HTTPStatus.NOT_FOUND, b"not found")
             try:
                 raw = json.loads(body or b"{}")
@@ -462,14 +467,22 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
                 return self._json({"error": f"설정 저장 실패: {error}"}, HTTPStatus.INTERNAL_SERVER_ERROR)
 
         def _logo_post(self, path: str, data: dict[str, Any]) -> None:
-            """로고 만들기: API 키 저장과 삭제, AI 심볼 생성(오래 걸림), 로고 SVG. 잘못된 요청은 400과 한국어 안내."""
+            """로고 만들기: API 키 저장과 삭제, AI 심볼 생성(오래 걸림, AI Horde는 백그라운드), 작업 취소, 로고 SVG, 로고 기록.
+            잘못된 요청은 400과 한국어 안내."""
             try:
                 studio = logo_studio()
                 if path == "/logo/key":
                     return self._json(studio.set_key(data.get("provider"), None if data.get("clear") is True else data.get("key")))
                 if path == "/logo/generate":
-                    return self._json({"symbol": studio.generate(data.get("provider"), data.get("quality"), data.get("description"),
-                                                                 data.get("style"), data.get("colors"), data.get("address"))})
+                    request = (data.get("provider"), data.get("quality"), data.get("description"), data.get("style"), data.get("colors"),
+                               data.get("address"))
+                    if data.get("provider") in logos.BACKGROUND_PROVIDERS:
+                        return self._json({"job": studio.start(*request)})
+                    return self._json({"symbol": studio.generate(*request)})
+                if path == "/logo/cancel":
+                    return self._json(studio.cancel())
+                if path == "/logo/record":
+                    return self._json({"record": studio.record(data)})
                 return self._json({"svg": studio.make(data)})
             except logos.LogoError as error:
                 return self._json({"error": str(error)}, HTTPStatus.BAD_REQUEST)
@@ -482,13 +495,9 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
                 return query.get(name, [default])[0]
 
             try:
-                if value("id"):
-                    found = logo_studio().symbol(value("id"))
-                    if found is None:
-                        return self._send(HTTPStatus.NOT_FOUND, b"not found")
-                    body = found["svg"]
-                else:
-                    body = logos.template_svg(value("template", "star"), value("primary", "#FF4F8B"), value("accent", "#1E2327"))
+                if value("id") and logo_studio().symbol(value("id")) is None:
+                    return self._send(HTTPStatus.NOT_FOUND, b"not found")
+                body = logo_studio().preview({name: values[0] for name, values in query.items() if values})
             except logos.LogoError:
                 return self._send(HTTPStatus.BAD_REQUEST, b"bad symbol")
             self._send(HTTPStatus.OK, body.encode("utf-8"), TYPES[".svg"], SVG_POLICY)
@@ -736,6 +745,7 @@ class OverlayServer:
         self._attached.append(_PhoneStopper(self.phone))
         self._attached.append(_RemoteStopper(self.remote))
         self._attached.append(_BroadcastStopper(self.broadcast))
+        self._attached.append(self.logo)  # 로고 만들기의 AI Horde 대기 취소
 
     @property
     def port(self) -> int:

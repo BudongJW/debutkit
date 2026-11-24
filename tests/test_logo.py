@@ -289,7 +289,7 @@ def test_studio_with_claude(tmp_path):
     assert made["provider"] == "Claude" and made["model"] == "claude-opus-5-5" and "#FF4F8B" in fake.calls[-1]["messages"][0]["content"]
     svg = studio.make({"name": "부동", "symbol": {"id": made["id"]}})
     assert logo.AI_COMPOSITE in svg and "생성형 AI(Claude claude-opus-5-5)" in svg
-    assert list(studio.status()["providers"])[:3] == ["comfyui", "huggingface", "claude"]
+    assert list(studio.status()["providers"])[:4] == ["aihorde", "comfyui", "huggingface", "claude"]
 
 
 def test_network_and_bad_answers():
@@ -392,7 +392,18 @@ def test_server_routes(tmp_path):
         code, body, _ = request(srv.port, "GET", "/logo")
         assert code == 200 and "로고 만들기".encode() in body
         status = json.loads(request(srv.port, "GET", "/logo/status")[1])
-        assert set(status["providers"]) == {"comfyui", "huggingface", "claude", "openai", "recraft"} and "star" in status["templates"] and status["recent"] == []
+        assert set(status["providers"]) == {"aihorde", "comfyui", "huggingface", "claude", "openai", "recraft"} and "star" in status["templates"]
+        assert status["recent"] == [] and status["job"] is None and "비독점" in status["notice"]
+        icons = json.loads(request(srv.port, "GET", "/logo/icons")[1])
+        assert len(icons["icons"]) > 300 and icons["categories"]["animal"] == "동물" and "svg" not in icons["icons"][0]
+        code, body, headers = request(srv.port, "GET", "/logo/symbol.svg?icon=fluent/cat-face&colors=channel&primary=112233&accent=445566&finish=sticker")
+        assert code == 200 and b"#112233" in body and b"#FFFFFF" in body and headers["Content-Type"] == "image/svg+xml"
+        code, body, _ = request(srv.port, "GET", "/logo/symbol.svg?icon=phosphor/heart&style=duotone&primary=AA0000")
+        assert code == 200 and b"#AA0000" in body and b"currentColor" not in body
+        assert request(srv.port, "GET", "/logo/symbol.svg?icon=nothing")[0] == 400
+        code, body, _ = request(srv.port, "POST", "/logo/record", {"name": "부동", "symbol": {"icon": "fluent/crown"}, "file": "부동.svg"})
+        assert code == 200 and json.loads(body)["record"]["symbol"]["set"] == "Microsoft Fluent Emoji"
+        srv.logo.folder = tmp_path / "logos"
         code, body, headers = request(srv.port, "GET", "/logo/symbol.svg?template=crown&primary=112233&accent=445566")
         assert code == 200 and b"#112233" in body and headers["Content-Type"] == "image/svg+xml" and "default-src 'none'" in headers["Content-Security-Policy"]
         assert request(srv.port, "GET", "/logo/symbol.svg?template=dragon")[0] == 400
@@ -413,6 +424,14 @@ def test_server_routes(tmp_path):
         code, body, _ = request(srv.port, "POST", "/logo/make", {"name": "부동", "symbol": {"id": made["id"]}})
         assert logo.AI_COMPOSITE in json.loads(body)["svg"]
         assert json.loads(request(srv.port, "POST", "/logo/key", {"provider": "openai", "clear": True})[1])["providers"]["openai"]["key_saved"] is False
+        srv.logo._opener = lambda request, timeout=None: (_ for _ in ()).throw(urllib.error.URLError("offline"))
+        code, body, _ = request(srv.port, "POST", "/logo/generate", {"provider": "aihorde", "description": "별", "colors": []})
+        job = json.loads(body)["job"]
+        assert code == 200 and job["state"] == "submitting" and job["anonymous"] is True  # 기다리지 않고 바로 작업 상태
+        srv.logo.wait(20)
+        job = json.loads(request(srv.port, "GET", "/logo/status")[1])["job"]
+        assert job["state"] == "failed" and "연결하지 못함" in job["error"]
+        assert request(srv.port, "POST", "/logo/cancel", {})[0] == 200
     finally:
         srv.stop()
 
@@ -432,3 +451,39 @@ def test_cli_logo(tmp_path, capsys, monkeypatch):
     printed = capsys.readouterr().out
     assert "Recraft 키" in printed and KEY not in printed
     assert main(["logo", "key", "recraft", "--clear"]) == 0 and "삭제" in capsys.readouterr().out
+    monkeypatch.setattr("sys.stdin", io.StringIO(KEY + "\n"))
+    assert main(["logo", "key", "aihorde", "--stdin"]) == 0 and "AI Horde" in capsys.readouterr().out  # 선택 등록 키
+    assert main(["logo", "key", "aihorde", "--clear"]) == 0
+
+
+def test_cli_logo_icons(tmp_path, capsys):
+    from debutkit.cli import main
+
+    assert main(["logo", "icons", "고양이", "--limit", "3"]) == 0
+    printed = capsys.readouterr().out
+    assert "fluent/cat-face" in printed and "고양이 얼굴" in printed and "3개" in printed
+    assert main(["logo", "icons", "없는검색어"]) == 0 and "0개: 다른 검색어" in capsys.readouterr().out
+    out = tmp_path / "logo.svg"
+    assert main(["logo", "make", "--name", "부동", "--icon", "phosphor/headphones", "--font", "blackhan", "--finish", "sticker",
+                 "--color", "7B5CFF", "--out", str(out)]) == 0
+    printed = capsys.readouterr().out
+    assert "심볼 출처: Phosphor Icons 'headphones'(MIT" in printed and "비독점" in printed
+    svg = out.read_text(encoding="utf-8")
+    assert "#7B5CFF" in svg and "#FFFFFF" in svg and logo.AI_COMPOSITE not in svg and "Phosphor Icons" in svg
+    made = (logo.logos_dir() / "made.jsonl").read_text(encoding="utf-8").splitlines()
+    entry = json.loads(made[-1])
+    assert entry["symbol"]["style"] == "fill" and entry["file"] == str(out) and entry["finish"] == "sticker"  # 굵은 글꼴에 맞춘 굵기
+    assert main(["logo", "make", "--name", "부동", "--icon", "unknown-icon", "--out", str(out)]) == 1 and "찾지 못함" in capsys.readouterr().err
+
+
+def test_cli_horde_progress_prints_once_a_minute(capsys):
+    from debutkit.cli import _logo_progress
+
+    show = _logo_progress()
+    for elapsed, position in ((0, 0), (1, 676), (16, 650), (40, 600), (61, 580), (90, 560), (130, 540)):
+        show({"state": "queued" if position else "submitting", "elapsed": elapsed, "queue_position": position, "wait_time": 1419})
+    show({"state": "processing", "elapsed": 131, "wait_time": 20})
+    show({"state": "tracing"})
+    lines = capsys.readouterr().out.splitlines()
+    assert lines == ["  [00:00] 보내는 중", "  [00:01] 대기 중, 대기열 676번째, 예상 24분", "  [01:01] 대기 중, 대기열 580번째, 예상 24분",
+                     "  [02:10] 대기 중, 대기열 540번째, 예상 24분", "  [02:11] 그리는 중, 예상 1분", "  [02:11] 벡터로 바꾸는 중"]

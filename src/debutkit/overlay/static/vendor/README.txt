@@ -1,4 +1,5 @@
-함께 배포하는 외부 라이브러리와 글꼴(캐릭터 화면의 VRM 표시, 동작 재생, 얼굴 추적, 후원 추첨 연출의 글꼴). 원본 파일을 수정하지 않고 포함.
+함께 배포하는 외부 라이브러리, 글꼴, 아이콘(캐릭터 화면의 VRM 표시, 동작 재생, 얼굴 추적, 후원 추첨 연출과 로고의 글꼴, 로고 심볼 아이콘).
+라이브러리와 글꼴은 원본 파일을 수정하지 않고 포함. 아이콘은 일부만 골라 숫자 자릿수를 줄인 묶음(packaging/build_icons.py).
 
 three 0.187.0 (MIT) https://github.com/mrdoob/three.js
   출처 https://cdn.jsdelivr.net/npm/three@0.187.0/ (build, examples/jsm 일부)
@@ -16,6 +17,15 @@ Pretendard 1.3.9 (SIL OFL 1.1, 예약 글꼴 이름 Pretendard) https://github.c
   출처 https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/static/woff2-subset/ (제작자 배포 파일 그대로, SemiBold, Bold), 라이선스 fonts/OFL-Pretendard.txt
 MediaPipe Face Landmarker 모델 face_landmarker.task (float16, 버전 1, Apache-2.0)
   출처 https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task
+Microsoft Fluent Emoji (MIT, Copyright (c) Microsoft Corporation) https://github.com/microsoft/fluentui-emoji
+  출처 커밋 1ffb34c752ecf5d402f04cfb4b392c77f57c54bc(2026-08-24)의 assets/*/Flat, High Contrast SVG에서 버튜버 주제 356개 선별.
+  Color 판은 SVG 필터가 많아 쓰지 않고, 마스크를 쓰는 High Contrast 6개도 제외. 경로 숫자를 소수 둘째 자리로 줄이고
+  한국어 이름과 검색어, 색별 넓이를 붙여 icons/fluent-emoji.json.gz로 저장, 라이선스 icons/LICENSE-fluent-emoji.txt
+Phosphor Icons @phosphor-icons/core 2.1.1 (MIT, Copyright (c) 2023 Phosphor Icons) https://github.com/phosphor-icons/core
+  출처 https://registry.npmjs.org/@phosphor-icons/core/-/core-2.1.1.tgz 의 assets(굵기 6종)에서 102개 선별(상표 로고 아이콘 제외).
+  경로 숫자를 소수 첫째 자리로 줄이고 한국어 이름과 검색어를 붙여 icons/phosphor.json.gz로 저장, 라이선스 icons/LICENSE-phosphor.txt
+쓰지 않는 아이콘 세트: OpenMoji(CC BY-SA, 동일조건), Remix Icon(라이선스가 로고 사용 금지), SVG Repo(아이콘별 라이선스 혼재),
+  Iconify 공개 API(런타임 요청 제한, 표기 라이선스가 원본과 다른 사례)
 
 SHA-256
   999152fa183e30112f2506d3c371e8edb2216163d6950a94f593d03a07fbd7b9  fonts/BlackHanSans-Regular.woff2
@@ -23,6 +33,10 @@ SHA-256
   b04538c9abec39a3db75108cf0af0fd9c77032fe8aa2cf38345b4d250e98e38e  fonts/OFL-Pretendard.txt
   78eb71c33101ee7d4f8d1b777d193a12d00f8a296e712a8c417cf27abe946397  fonts/Pretendard-Bold.subset.woff2
   4247dc5e260b92640c2cbd0e75091154647b71e1d5884116655e2903468c54cc  fonts/Pretendard-SemiBold.subset.woff2
+  646f8936b8ddcd14e13e578ff6857e368780b0d1a4f6066bee89211923a373e2  icons/LICENSE-fluent-emoji.txt
+  b5b1f1da112d18ea2147decfd48ddc1bf2b5aeb6c265381579340e95b15a2bb2  icons/LICENSE-phosphor.txt
+  c9ce8c46a48a748fbadfd9850daeb98df48218ef2652cf7e6d22feda23091163  icons/fluent-emoji.json.gz
+  f5d5a1d0d705ca1424040eb979540cad5de17832b0b38ebc738bfa812da813e7  icons/phosphor.json.gz
   cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30  mediapipe/LICENSE
   64184e229b263107bc2b804c6625db1341ff2bb731874b0bcc2fe6544e0bc9ff  mediapipe/face_landmarker.task
   fb0c02c296f44ce0cc324ba16bd646d8773eb4a7847db4019cc4d0430db7a9b5  mediapipe/vision_bundle.mjs

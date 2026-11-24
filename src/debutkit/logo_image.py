@@ -1,9 +1,10 @@
 """공개 이미지 모델로 로고 심볼 만들기: 단색 배경 위에 그린 그림을 받아 배경을 지우고 벡터(SVG)로 바꾼다.
 
-- 모델: Qwen-Image(Apache-2.0). 빠름은 Lightning LoRA 8단계, 고품질은 기본 단계
-- 실행 위치 두 가지
-  - ComfyUI: 사용자가 설치한 ComfyUI(이 PC나 같은 네트워크의 GPU PC)에 HTTP로 작업 제출. 설명이 그 PC 밖으로 나가지 않음
-  - Hugging Face: 공개 데모(Space)를 사용자 토큰으로 실행(Hugging Face의 무료 GPU 한도 사용)
+- 실행 위치 세 가지
+  - AI Horde: 계정 없이 자원봉사자 GPU의 FLUX.1 schnell(Apache-2.0, 4단계 고정). 비동기 제출 뒤 대기열 위치와 예상 시간을 받아 보며
+    기다림(익명은 최하위 우선순위라 보통 10~30분). 익명 요청의 지시문과 결과는 LAION 공개 데이터셋에 공유됨
+  - ComfyUI: 사용자가 설치한 ComfyUI(이 PC나 같은 네트워크의 GPU PC)에서 Qwen-Image(Apache-2.0). 설명이 그 PC 밖으로 나가지 않음
+  - Hugging Face: Qwen-Image 공개 데모(Space)를 사용자 토큰으로 실행(Hugging Face의 무료 GPU 한도 사용)
 - 처리 순서: 캐릭터에 없는 단색(초록, 초록 계열 색을 쓰면 자홍) 배경 위에 그리게 한 뒤
   1. 배경색 제거(배경색과 섞인 가장자리 픽셀은 배경 몫을 빼서 원래 색으로)
   2. 반투명 가장자리를 안쪽 색으로 다시 칠해 어두운 화면에서 밝은 테두리가 보이지 않게
@@ -13,6 +14,7 @@
 
 from __future__ import annotations
 
+import base64
 import io
 import json
 import math
@@ -355,7 +357,12 @@ def posterize(image: Any, colors: int = TRACE_COLORS, *, speck: int = 5, minor: 
     for index in counts:
         target = index if index in kept else min(kept, key=lambda other: apart(index, other))
         out[(labels == index) & solid] = kept.index(target)
-    return Poster(out, [tuple(raw[index * 3:index * 3 + 3]) for index in kept])  # type: ignore[misc]
+    # 칠할 색은 그 영역 픽셀의 중앙값: median cut 상자 평균은 경계의 섞인 픽셀까지 더해 좁은 색(귀 안쪽 분홍 등)이 탁해짐
+    palette = []
+    for position, index in enumerate(kept):
+        region = smooth[out == position]
+        palette.append(tuple(int(value) for value in np.median(region, axis=0)) if len(region) else tuple(raw[index * 3:index * 3 + 3]))
+    return Poster(out, palette)  # type: ignore[arg-type]
 
 
 def _lab(rgb: Any) -> Any:
@@ -812,3 +819,167 @@ def space_image(token: str, prompt: str, quality: str, *, opener: Opener = urlli
             raise ImageModelError("Hugging Face Space 응답을 읽지 못함") from None
         return Made(data, f"{model.label} (Hugging Face Space {model.space})", seed, prompt)
     raise ImageModelError("Hugging Face Space가 지금 동작하지 않음: " + ", ".join(stopped) + ". 잠시 뒤 다시 시도하거나 다른 품질 선택")
+
+
+# --- AI Horde(계정 없는 공개 모델) -----------------------------------------------------------
+
+HORDE_API = "https://aihorde.net/api/v2"
+HORDE_ANONYMOUS = "0000000000"  # 운영자가 정한 익명 키(최하위 우선순위, LAION 공유 항상 켜짐)
+#: Apache-2.0이 확인된 FLUX.1 schnell만 쓴다(Horde의 애니 SDXL 계열은 모델별 라이선스가 제각각)
+HORDE_MODEL = "Flux.1-Schnell fp8 (Compact)"
+HORDE_LABEL = "FLUX.1 schnell 4단계 1024px"
+HORDE_STEPS, HORDE_SIZE = 4, 1024
+HORDE_SITE = "https://github.com/BudongJW/debutkit"
+Progress = Callable[[dict[str, Any]], None]
+
+
+class Cancelled(ImageModelError):
+    """사용자가 기다리기를 멈춤."""
+
+
+def client_agent() -> str:
+    """Horde 운영자가 요청하는 앱 식별 머리글(앱 이름:버전:연락처)."""
+    return f"debutkit:{__version__}:{HORDE_SITE}"
+
+
+def _horde_headers(key: str) -> dict[str, str]:
+    return {"apikey": key or HORDE_ANONYMOUS, "Client-Agent": client_agent()}
+
+
+def horde_body(prompt: str, seed: int, *, registered: bool) -> dict[str, Any]:
+    """비동기 생성 요청. 1024x1024 4단계는 kudos 선불 없이 익명으로 가능한 크기."""
+    return {"prompt": prompt, "models": [HORDE_MODEL], "nsfw": False, "censor_nsfw": True, "r2": True,
+            "shared": not registered,  # 익명은 서버가 항상 공유로 처리, 등록 키는 공유 끔
+            "trusted_workers": False, "slow_workers": True,
+            "params": {"sampler_name": "k_euler", "cfg_scale": 1.0, "steps": HORDE_STEPS, "width": HORDE_SIZE, "height": HORDE_SIZE,
+                       "seed": str(seed), "n": 1, "karras": False}}
+
+
+def _horde_message(error: urllib.error.HTTPError, key: str) -> str:
+    try:
+        data = json.loads(error.read(4000).decode("utf-8", "replace"))
+        text = str(data.get("message") or "") if isinstance(data, dict) else ""
+        code = str(data.get("rc") or "") if isinstance(data, dict) else ""
+    except (ValueError, OSError):
+        text, code = "", ""
+    text = _mask(text, key)[:200]
+    if error.code == 401:
+        return "AI Horde 키가 올바르지 않음: 저장한 키를 지우면 키 없이(익명) 사용"
+    if error.code == 429:
+        return "AI Horde 요청이 많음(동시 요청 수 제한): 진행 중인 요청이 끝난 뒤 다시 시도"
+    if error.code == 503:
+        return "AI Horde 점검 중이거나 혼잡: 잠시 뒤 다시 시도"
+    if error.code == 403 or "kudos" in text.lower() or "upfront" in code.lower():
+        return f"AI Horde가 이 요청을 받지 않음: {text or error.code}"
+    if error.code == 400 and any(word in text.lower() for word in ("prompt", "csam", "filter")):
+        return f"설명이 AI Horde의 금지어 규칙에 걸림: 설명을 바꿔 다시 시도({text})"
+    return f"AI Horde 요청 오류({error.code}): {text}"
+
+
+def horde_image(key: str, prompt: str, *, opener: Opener = urllib.request.urlopen, seed: int | None = None,
+                timeout: float = 3600.0, sleep: Callable[[float], None] = time.sleep, clock: Callable[[], float] = time.monotonic,
+                progress: Progress | None = None, cancelled: Callable[[], bool] | None = None) -> Made:
+    """AI Horde에서 그림 1장. 대기열 위치와 예상 시간은 ``progress`` 로 알린다. ``cancelled`` 가 참이 되면 요청을 취소한다.
+
+    키가 없으면 익명(0000000000). 상태 확인은 대기 중 15초, 처리 중 5초 간격이고 결과 전체 조회는 끝났을 때 한 번
+    (운영자 안내: 결과 조회는 분당 10회 이하). 일시적인 연결 실패는 몇 번 다시 확인한다.
+    """
+    seed = secrets.randbelow(2**31) if seed is None else seed
+    headers = _horde_headers(key)
+    started = clock()
+
+    def report(**values: Any) -> None:
+        if progress is not None:
+            progress({"elapsed": int(clock() - started), **values})
+
+    report(state="submitting")
+    try:
+        queued = _json(opener, _request(f"{HORDE_API}/generate/async", data=horde_body(prompt, seed, registered=bool(key)), headers=headers), 60)
+    except urllib.error.HTTPError as error:
+        raise ImageModelError(_horde_message(error, key)) from None
+    except (urllib.error.URLError, OSError) as error:
+        raise ImageModelError(f"AI Horde에 연결하지 못함: 인터넷 연결 확인({_mask(str(error), key)})") from None
+    except ValueError:
+        raise ImageModelError("AI Horde 응답을 읽지 못함") from None
+    request_id = str(queued.get("id") or "") if isinstance(queued, dict) else ""
+    if not re.fullmatch(r"[0-9A-Za-z-]{8,64}", request_id):
+        raise ImageModelError("AI Horde 응답에 요청 번호가 없음")
+    check_url = f"{HORDE_API}/generate/check/{request_id}"
+    status_url = f"{HORDE_API}/generate/status/{request_id}"
+    plain = {"Client-Agent": client_agent()}
+
+    def cancel() -> None:
+        try:
+            with opener(_request(status_url, headers=plain, method="DELETE"), timeout=30):
+                pass
+        except (urllib.error.URLError, OSError, ValueError):
+            pass
+
+    failures = 0
+    deadline = started + timeout
+    try:
+        while True:
+            if cancelled is not None and cancelled():
+                raise Cancelled("AI Horde 요청 취소함")
+            state: Any = None
+            try:
+                state = _json(opener, _request(check_url, headers=plain), 30)
+                failures = 0
+            except urllib.error.HTTPError as error:
+                if error.code == 404:
+                    raise ImageModelError("AI Horde 요청이 서버에서 사라짐(오래 확인하지 못하면 삭제됨): 다시 만들기") from None
+                if error.code < 500 and error.code != 429:
+                    raise ImageModelError(_horde_message(error, key)) from None
+                failures += 1
+            except (urllib.error.URLError, OSError, ValueError):
+                failures += 1
+            if failures > 6:
+                raise ImageModelError("AI Horde 상태를 계속 받지 못함: 인터넷 연결 확인 뒤 다시 만들기")
+            busy = False
+            if isinstance(state, dict):
+                if state.get("faulted"):
+                    raise ImageModelError("AI Horde 처리 중 오류: 다시 만들기")
+                if state.get("is_possible") is False:
+                    raise ImageModelError("지금 AI Horde에 FLUX.1 schnell을 처리할 작업자가 없음: 나중에 다시 시도")
+                if state.get("done"):
+                    break
+                busy = int(state.get("processing") or 0) > 0
+                report(state="processing" if busy else "queued", queue_position=int(state.get("queue_position") or 0),
+                       wait_time=int(state.get("wait_time") or 0))
+            if clock() > deadline:
+                raise ImageModelError(f"AI Horde가 {timeout / 60:.0f}분 안에 끝내지 못함: 나중에 다시 시도하거나 등록 키 사용")
+            sleep(5.0 if busy else 15.0)
+        report(state="downloading")
+        result = _json(opener, _request(status_url, headers=plain), 60)
+        generations = result.get("generations") if isinstance(result, dict) else None
+        if not generations or not isinstance(generations[0], dict):
+            raise ImageModelError("AI Horde 결과에 그림이 없음: 다시 만들기")
+        made = generations[0]
+        if made.get("censored"):
+            raise ImageModelError("AI Horde 작업자의 안전 필터가 그림을 가림: 설명을 바꿔 다시 만들기")
+        image = str(made.get("img") or "")
+        if image.startswith("https://"):
+            with opener(_request(image), timeout=120) as response:  # 다운로드 링크(키를 보내지 않음)
+                data = _read(response)
+        elif image.startswith("http"):
+            raise ImageModelError("AI Horde가 암호화되지 않은 주소로 그림을 보냄")
+        else:
+            try:
+                data = base64.b64decode(image, validate=True)
+            except ValueError:
+                raise ImageModelError("AI Horde 그림을 읽지 못함") from None
+        worker = re.sub(r"[^\w .()-]", "", str(made.get("worker_name") or ""))[:40]
+        used_seed = int(made["seed"]) if str(made.get("seed") or "").isdigit() else seed
+        return Made(data, f"FLUX.1 schnell (AI Horde{', 작업자 ' + worker if worker else ''})", used_seed, prompt)
+    except ImageModelError:  # 취소 포함: 서버의 대기열에서도 빼기
+        cancel()
+        raise
+    except urllib.error.HTTPError as error:
+        cancel()
+        raise ImageModelError(_horde_message(error, key)) from None
+    except (urllib.error.URLError, OSError) as error:
+        cancel()
+        raise ImageModelError(f"AI Horde에 연결하지 못함: 인터넷 연결 확인({_mask(str(error), key)})") from None
+    except ValueError:
+        cancel()
+        raise ImageModelError("AI Horde 응답을 읽지 못함") from None

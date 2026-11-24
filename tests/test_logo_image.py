@@ -107,6 +107,19 @@ def test_real_model_sample_vectorizes_cleanly():
     assert len(svg) < 200_000
 
 
+def test_second_model_sample_keeps_narrow_pinks():
+    """AI Horde FLUX.1 schnell 실제 출력 2(debutkit rc19 실측): 옅은 연두 배경(약 212,245,163), 좁은 분홍 귀 안쪽과 볼.
+    처음 구현은 median cut 상자 평균을 칠해 분홍이 탁한 갈색(163,106,99)이 됨."""
+    from pathlib import Path
+
+    data = (Path(__file__).parent / "data" / "logo_flux_schnell_light_green.webp").read_bytes()
+    svg = logo.sanitize_svg(logo_image.symbol_svg(data, logo_image.GREEN))
+    fills = [tuple(int(value[i:i + 2], 16) for i in (0, 2, 4)) for value in re.findall(r'fill="#([0-9A-F]{6})"', svg)]
+    assert not any(g > r + 30 and g > b + 30 for r, g, b in fills)  # 연두 잔여 없음
+    assert any(r > 220 and 90 < g < 160 and b < 140 for r, g, b in fills)  # 분홍 유지
+    assert 3 <= len(fills) <= 7
+
+
 def test_cut_out_uses_the_drawn_background_when_it_differs():
     data = drawn(background=(40, 40, 200))  # 요청과 다른 파란 단색 배경: 테두리와 이어진 부분만 지움
     cut = logo_image.cut_out(data, logo_image.GREEN)
@@ -370,7 +383,7 @@ def test_studio_makes_a_symbol_with_comfyui(tmp_path):
     fake = FakeComfy()
     studio = logo.LogoStudio(keys=fake_keys(tmp_path), folder=tmp_path / "logos", opener=fake, sleep=lambda _: None)
     status = studio.status()["providers"]
-    assert list(status)[:2] == ["comfyui", "huggingface"] and status["comfyui"]["needs_key"] is False
+    assert list(status)[:3] == ["aihorde", "comfyui", "huggingface"] and status["comfyui"]["needs_key"] is False
     assert status["comfyui"]["address"] == "http://127.0.0.1:8188" and status["huggingface"]["needs_key"] is True
     with pytest.raises(logo.LogoError, match="키가 필요 없음"):
         studio.set_key("comfyui", "anything-long-enough")
@@ -396,3 +409,181 @@ def test_studio_needs_a_token_for_hugging_face(tmp_path):
     made = studio.generate("huggingface", "fast", "별", "cute", ["#22CC44"])
     assert "#FF00FF" in made["prompt"] and fake.joined[-1]["data"][0] == made["prompt"]  # 초록을 쓰면 자홍 배경
     assert "multimodalart/Qwen-Image-Fast" in made["model"]
+
+
+# --- AI Horde(가짜 서버) ---------------------------------------------------------------------
+
+HORDE_KEY = "hordeKEY123456789"
+HORDE_ID = "0d6e4b1c-1111-2222-3333-444455556666"
+ASYNC = "https://aihorde.net/api/v2/generate/async"
+
+
+class FakeHorde:
+    """AI Horde HTTP 응답 흉내: 비동기 제출, 상태 확인(대기열 위치), 결과, 취소, R2 그림 내려받기."""
+
+    def __init__(self, *, checks=None, result=None, submit_error=None, image=None, check_errors=0):
+        self.checks = list(checks if checks is not None else [
+            {"waiting": 1, "processing": 0, "done": False, "queue_position": 676, "wait_time": 1419, "is_possible": True},
+            {"waiting": 1, "processing": 0, "done": False, "queue_position": 518, "wait_time": 1154, "is_possible": True},
+            {"waiting": 0, "processing": 1, "done": False, "queue_position": 0, "wait_time": 20, "is_possible": True},
+            {"waiting": 0, "processing": 0, "finished": 1, "done": True, "queue_position": 0, "wait_time": 0, "is_possible": True}])
+        self.result = result or {"done": True, "generations": [{"img": "https://bucket.r2.cloudflarestorage.com/abc.webp?sig=1", "seed": "584518388",
+                                                                "worker_name": "Wanabeelee 4090N", "model": "Flux.1-Schnell fp8 (Compact)",
+                                                                "censored": False}]}
+        self.submit_error, self.image, self.check_errors = submit_error, image or drawn(background=(91, 198, 105)), check_errors
+        self.submitted: list = []
+        self.headers: list = []
+        self.deleted = 0
+        self.polls = 0
+
+    def __call__(self, request, timeout=None):
+        url = request.full_url
+        self.headers.append((url, request.get_method(), {key.lower(): value for key, value in request.header_items()}))
+        if url == ASYNC:
+            self.submitted.append(json.loads(request.data))
+            if self.submit_error:
+                raise self.submit_error
+            return io.BytesIO(json.dumps({"id": HORDE_ID, "kudos": 10}).encode())
+        if url.endswith(f"/generate/check/{HORDE_ID}"):
+            self.polls += 1
+            if self.check_errors:
+                self.check_errors -= 1
+                raise urllib.error.URLError("temporary")
+            state = self.checks.pop(0) if len(self.checks) > 1 else self.checks[0]
+            return io.BytesIO(json.dumps(state).encode())
+        if url.endswith(f"/generate/status/{HORDE_ID}"):
+            if request.get_method() == "DELETE":
+                self.deleted += 1
+                return io.BytesIO(b"{}")
+            return io.BytesIO(json.dumps(self.result).encode())
+        if url.startswith("https://bucket.r2.cloudflarestorage.com/"):
+            return io.BytesIO(self.image)
+        raise AssertionError(url)
+
+
+def test_horde_anonymous_request_waits_in_the_queue():
+    fake = FakeHorde()
+    seen: list = []
+    slept: list = []
+    made = logo_image.horde_image("", "a cat microphone", opener=fake, seed=7, sleep=slept.append, progress=seen.append)
+    body = fake.submitted[-1]
+    assert body["models"] == ["Flux.1-Schnell fp8 (Compact)"] and body["prompt"] == "a cat microphone" and body["shared"] is True
+    assert body["params"] == {"sampler_name": "k_euler", "cfg_scale": 1.0, "steps": 4, "width": 1024, "height": 1024, "seed": "7", "n": 1,
+                              "karras": False}
+    assert body["censor_nsfw"] is True and body["nsfw"] is False and body["r2"] is True
+    _, _, headers = fake.headers[0]
+    assert headers["apikey"] == "0000000000" and headers["client-agent"] == f"debutkit:{logo.__version__}:https://github.com/BudongJW/debutkit"
+    download = [item for item in fake.headers if "r2.cloudflarestorage" in item[0]][0]
+    assert "apikey" not in download[2]  # 그림 주소에는 키를 보내지 않음
+    assert [item.get("queue_position") for item in seen if item["state"] == "queued"] == [676, 518]
+    assert seen[-1]["state"] == "downloading" and "processing" in [item["state"] for item in seen]
+    assert slept == [15.0, 15.0, 5.0]  # 대기 중에는 15초, 처리 중에는 5초 간격
+    assert made.master == fake.image and made.seed == 584518388 and made.model == "FLUX.1 schnell (AI Horde, 작업자 Wanabeelee 4090N)"
+    assert fake.deleted == 0
+
+
+def test_horde_registered_key_turns_sharing_off_and_survives_hiccups():
+    fake = FakeHorde(check_errors=2)
+    logo_image.horde_image(HORDE_KEY, "star", opener=fake, sleep=lambda _: None)
+    assert fake.submitted[-1]["shared"] is False and fake.headers[0][2]["apikey"] == HORDE_KEY
+    assert all("apikey" not in headers for _, _, headers in fake.headers[1:])  # 상태 확인과 그림 받기에는 키를 보내지 않음
+    assert fake.polls == 6  # 일시적인 연결 실패 2번 뒤 이어서 확인
+
+
+def _horde_case(name):
+    return {
+        "key": FakeHorde(submit_error=http_error(ASYNC, 401, b'{"message": "Invalid API Key"}')),
+        "busy": FakeHorde(submit_error=http_error(ASYNC, 429, b'{"message": "Too many"}')),
+        "words": FakeHorde(submit_error=http_error(ASYNC, 400, b'{"message": "Prompt has been rejected"}')),
+        "offline": FakeHorde(submit_error=urllib.error.URLError("offline")),
+        "faulted": FakeHorde(checks=[{"done": False, "faulted": True}]),
+        "nobody": FakeHorde(checks=[{"done": False, "is_possible": False}]),
+        "censored": FakeHorde(result={"generations": [{"img": "x", "censored": True}]}),
+        "plain": FakeHorde(result={"generations": [{"img": "http://plain.example/a.webp"}]}),
+        "empty": FakeHorde(result={"generations": []}),
+        "lost": FakeHorde(check_errors=9),
+    }[name]
+
+
+@pytest.mark.parametrize(("name", "expected"), [
+    ("key", "키가 올바르지 않음"), ("busy", "요청이 많음"), ("words", "금지어"), ("offline", "연결하지 못함"), ("faulted", "처리 중 오류"),
+    ("nobody", "작업자가 없음"), ("censored", "안전 필터"), ("plain", "암호화되지 않은"), ("empty", "그림이 없음"), ("lost", "계속 받지 못함"),
+])
+def test_horde_errors_are_explained_and_cancel_the_request(name, expected):
+    fake = _horde_case(name)
+    with pytest.raises(logo_image.ImageModelError, match=expected) as caught:
+        logo_image.horde_image(HORDE_KEY, "p", opener=fake, sleep=lambda _: None)
+    assert HORDE_KEY not in str(caught.value)
+    assert fake.deleted == (0 if fake.submit_error else 1)  # 접수 뒤 실패하면 서버 대기열에서도 뺌
+
+
+def test_horde_times_out_and_can_be_cancelled():
+    clock = iter(range(0, 100_000, 600))
+    fake = FakeHorde(checks=[{"done": False, "waiting": 1, "queue_position": 900, "wait_time": 4000}])
+    with pytest.raises(logo_image.ImageModelError, match="60분 안에"):
+        logo_image.horde_image("", "p", opener=fake, sleep=lambda _: None, clock=lambda: next(clock))
+    assert fake.deleted == 1
+    fake = FakeHorde(checks=[{"done": False, "waiting": 1, "queue_position": 900, "wait_time": 4000}])
+    with pytest.raises(logo_image.Cancelled, match="취소"):
+        logo_image.horde_image("", "p", opener=fake, sleep=lambda _: None, cancelled=lambda: fake.polls >= 2)
+    assert fake.deleted == 1 and fake.polls == 2
+
+
+def test_studio_waits_for_horde_in_the_background(tmp_path):
+    fake = FakeHorde()
+    studio = logo.LogoStudio(keys=fake_keys(tmp_path), folder=tmp_path / "logos", opener=fake, sleep=lambda _: None)
+    providers = studio.status()["providers"]
+    assert list(providers)[0] == "aihorde" and providers["aihorde"]["needs_key"] is False and providers["aihorde"]["optional_key"] is True
+    assert providers["aihorde"]["background"] is True and providers["aihorde"]["key_saved"] is False
+    assert "LAION" in providers["aihorde"]["terms"] and "13세" in providers["aihorde"]["terms"]
+    job = studio.start("aihorde", "fast", "고양이 귀 마이크", "cute", ["#FF4F8B", "#1E2327"])
+    assert job["state"] == "submitting" and job["anonymous"] is True
+    studio.wait(60)
+    job = studio.status()["job"]
+    assert job["state"] == "done" and job["symbol"] and job["error"] == ""
+    record = studio.symbol(job["symbol"])
+    assert record["shared"] is True and record["seed"] == 584518388 and "FLUX.1 schnell" in record["model"]
+    assert "고양이 귀 마이크" in fake.submitted[-1]["prompt"] and "부동" not in fake.submitted[-1]["prompt"]
+    assert (tmp_path / "logos" / f"{job['symbol']}.png").read_bytes() == fake.image
+    svg = studio.make({"name": "부동", "symbol": {"id": job["symbol"]}, "finish": "outline"})
+    assert logo.AI_COMPOSITE in svg and "AI Horde" in svg
+    studio.set_key("aihorde", HORDE_KEY)  # 선택 등록 키
+    assert studio.status()["providers"]["aihorde"]["key_saved"] is True
+    with pytest.raises(logo.LogoError, match="기다렸다 받기만"):
+        studio.start("comfyui", "fast", "별", "cute", [])
+
+
+def test_studio_cancels_a_waiting_horde_job(tmp_path):
+    import threading
+
+    gate = threading.Event()
+    fake = FakeHorde(checks=[{"done": False, "waiting": 1, "queue_position": 300, "wait_time": 900}])
+
+    def sleep(_):
+        gate.set()
+        threading.Event().wait(0.01)
+    studio = logo.LogoStudio(keys=fake_keys(tmp_path), folder=tmp_path / "logos", opener=fake, sleep=sleep)
+    studio.start("aihorde", "fast", "별", "cute", [])
+    assert gate.wait(10)
+    assert studio.status()["job"]["queue_position"] == 300
+    with pytest.raises(logo.LogoError, match="이미 진행 중"):
+        studio.start("aihorde", "fast", "달", "cute", [])
+    studio.cancel()
+    studio.wait(10)
+    job = studio.status()["job"]
+    assert job["state"] == "cancelled" and "취소" in job["error"] and fake.deleted == 1
+    assert studio.status()["recent"] == []
+
+
+def test_closing_the_app_cancels_the_horde_wait_at_once(tmp_path):
+    import time
+
+    fake = FakeHorde(checks=[{"done": False, "waiting": 1, "queue_position": 300, "wait_time": 900}])
+    studio = logo.LogoStudio(keys=fake_keys(tmp_path), folder=tmp_path / "logos", opener=fake)  # 실제 시계: 상태 확인 사이 15초 기다림
+    studio.start("aihorde", "fast", "별", "cute", [])
+    deadline = time.monotonic() + 10
+    while fake.polls == 0 and time.monotonic() < deadline:
+        time.sleep(0.01)
+    began = time.monotonic()
+    studio.stop()  # 오버레이 서버를 멈출 때 부름
+    assert time.monotonic() - began < 3 and studio.status()["job"]["state"] == "cancelled" and fake.deleted == 1

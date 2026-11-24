@@ -1,11 +1,19 @@
 """방송 로고 만들기: 심볼과 채널 이름을 조합한 SVG 로고.
 
-- 심볼: 기본 도형(무료, 인터넷 연결 없음), 공개 이미지 모델 Qwen-Image(Apache-2.0)를 사용자의 ComfyUI나 Hugging Face 공개 데모로
-  실행해 그린 그림을 배경 제거와 벡터화로 SVG로 바꾼 것(logo_image.py), 또는 사용자 본인의 API 키로 생성형 AI가 만든 SVG(Claude가
-  SVG 코드를 직접 작성, OpenAI GPT-Image-2.6, Recraft V4.1 Vector). AI에는 글자 없는 심볼만 맡긴다(생성 이미지 안의 한글은 자모가 틀리기 쉬움)
+- 심볼(키 없는 무료 경로)
+  - 아이콘: 함께 배포한 Microsoft Fluent Emoji(Flat, High Contrast)와 Phosphor Icons(MIT)에서 고른 버튜버 주제 아이콘을 채널 색으로
+    다시 칠한 것(logo_icons.py). 인터넷 연결 없음
+  - 기본 도형 8종
+  - AI Horde: 계정 없이 자원봉사자 GPU에서 공개 모델 FLUX.1 schnell(Apache-2.0)로 그린 그림(대기열 때문에 수십 분 걸릴 수 있어
+    백그라운드 작업으로 기다림)
+- 심볼(본인 PC나 계정): 공개 이미지 모델 Qwen-Image(Apache-2.0)를 사용자의 ComfyUI나 Hugging Face 공개 데모로 실행, 또는 사용자 본인의
+  API 키로 생성형 AI가 만든 SVG(Claude가 SVG 코드를 직접 작성, OpenAI GPT-Image-2.6, Recraft V4.1 Vector). 그림을 받는 경로는 배경 제거와
+  벡터화로 SVG로 바꾼다(logo_image.py). AI에는 글자 없는 심볼만 맡긴다(생성 이미지 안의 한글은 자모가 틀리기 쉬움)
+- 마감: 어떤 심볼이든 전체 실루엣 외곽선과 스티커 흰 테두리를 두를 수 있음
 - 채널 이름: 함께 배포한 글꼴(Pretendard, Black Han Sans, SIL Open Font License)의 윤곽선으로 넣어 글꼴 설치 없이 어디서나 같게 보인다
 - 외부에서 받은 SVG는 정리(스크립트, 외부 연결, 내장 이미지 제거)한 뒤에만 쓴다
-- AI가 만든 심볼이 들어간 로고에는 생성 방식(IPTC 디지털 소스 유형)과 사용한 서비스를 파일 메타데이터로 남긴다(인공지능 기본법 표시 취지)
+- AI가 만든 심볼이 들어간 로고에는 생성 방식(IPTC 디지털 소스 유형)과 사용한 서비스를 파일 메타데이터로 남긴다(인공지능 기본법 표시 취지).
+  아이콘 심볼에는 AI 표시 대신 세트, 아이콘 이름, 라이선스를 남긴다
 - API 키는 사용자 것만 쓴다(공용 키 없음). secret.KeyBox로 암호화 보관. 설명 문장은 선택한 AI 서비스로 전송된다
 """
 
@@ -27,19 +35,24 @@ from importlib import resources
 from pathlib import Path
 from typing import Any, Callable
 
-from . import __version__, logo_image, settings
+from . import __version__, logo_icons, logo_image, settings
 from .secret import KeyBox
 
 SVG_NS = "http://www.w3.org/2000/svg"
 XLINK_NS = "http://www.w3.org/1999/xlink"
 RDF_NS = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
 IPTC_NS = "http://iptc.org/std/Iptc4xmpExt/2008-02-29/"
+DC_NS = "http://purl.org/dc/elements/1.1/"
 #: IPTC 디지털 소스 유형: AI 심볼에 사람이 고른 글꼴 글자를 합친 결과
 AI_COMPOSITE = "http://cv.iptc.org/newscodes/digitalsourcetype/compositeWithTrainedAlgorithmicMedia"
 ET.register_namespace("", SVG_NS)
 ET.register_namespace("xlink", XLINK_NS)
 ET.register_namespace("rdf", RDF_NS)
 ET.register_namespace("Iptc4xmpExt", IPTC_NS)
+ET.register_namespace("dc", DC_NS)
+#: 아이콘과 기본 도형은 모든 사용자가 같은 그림을 쓰는 재료라는 안내(로고 화면, 명령줄)
+NON_EXCLUSIVE = ("아이콘과 기본 도형은 다른 사용자도 같은 그림을 쓸 수 있는 비독점 재료라 상표로 독점하기 어려움. "
+                 "상표 등록이나 굿즈용 로고는 채널 이름 글자가 중심이 되게 만들고, 등록 전 특허정보검색서비스(KIPRIS)에서 비슷한 상표 확인")
 
 NAME_LIMIT = 30
 DESCRIPTION_LIMIT = 300
@@ -61,6 +74,7 @@ class Provider:
     key_hint: str
     endpoint: str
     needs_key: bool = True
+    optional_key: bool = False  # 키 없이도 되지만 넣으면 혜택(AI Horde 등록 키)
 
 
 CLAUDE_MODEL = "claude-opus-5-5"
@@ -72,6 +86,13 @@ CLAUDE_SYSTEM = ("You design simple flat vector logo symbols for live-streaming 
                  "imports or external references. Keep a strong silhouette that reads at 32 pixels.")
 
 PROVIDERS: dict[str, Provider] = {
+    "aihorde": Provider("aihorde", "AI Horde(계정 없이, 공개 모델)", {"fast": logo_image.HORDE_LABEL, "best": logo_image.HORDE_LABEL},
+                        {"fast": "무료(자원봉사자 GPU. 익명은 대기열 때문에 보통 10~30분)", "best": "무료(빠름과 같음. 이 서비스는 품질 구분 없음)"},
+                        "AI Horde 이용 약관 적용(13세 이상). 공개 모델 FLUX.1 schnell(Apache-2.0)을 자원봉사자의 GPU에서 실행. "
+                        "키 없이(익명) 보내면 설명과 결과 그림이 LAION 공개 데이터셋에 공유되고 그림을 그리는 자원봉사자도 설명을 봄: "
+                        "실명, 채널 이름, 연락처 같은 개인정보를 넣지 말 것",
+                        "키 없이 사용 가능. aihorde.net에서 무료로 가입해 받은 키를 넣으면 공유를 끄고 대기 순서가 앞당겨질 수 있음",
+                        logo_image.HORDE_API, needs_key=False, optional_key=True),
     "comfyui": Provider("comfyui", "ComfyUI(이 PC의 GPU)", {"fast": "Qwen-Image + Lightning 8단계", "best": "Qwen-Image 30단계"},
                         {"fast": "무료(이 PC의 그래픽카드 사용. 그래픽 메모리 12 GB 이상 권장)", "best": "무료(빠름보다 몇 배 오래 걸림)"},
                         "ComfyUI(GPL-3.0, 별도 설치)와 Qwen-Image 모델 파일(Apache-2.0) 필요. 설명은 ComfyUI가 있는 PC 밖으로 보내지 않음",
@@ -99,7 +120,9 @@ PROVIDERS: dict[str, Provider] = {
                         "recraft.ai의 API 화면에서 발급한 토큰", "https://external.api.recraft.ai/v1/images/generations"),
 }
 #: 그림을 받아 배경 제거와 벡터화로 SVG를 만드는 서비스(나머지는 SVG를 직접 받음)
-IMAGE_PROVIDERS = ("comfyui", "huggingface")
+IMAGE_PROVIDERS = ("aihorde", "comfyui", "huggingface")
+#: 끝날 때까지 오래 걸려 화면에서는 백그라운드 작업으로 기다리는 서비스
+BACKGROUND_PROVIDERS = ("aihorde",)
 QUALITIES = {"fast": "빠름", "best": "고품질"}
 STYLES = {
     "cute": ("귀여운", "cute and friendly, rounded shapes"),
@@ -364,8 +387,9 @@ def _number(value: float) -> str:
 
 
 def compose(symbol: str | None, name: str, *, font: str = "pretendard", layout: str = "horizontal", text_color: str = "#1E2327",
-            background: str | None = None, source: dict[str, str] | None = None) -> str:
-    """심볼(정리한 SVG)과 채널 이름으로 로고 SVG. ``source`` 가 있으면 AI 생성 표시(메타데이터와 설명)를 넣는다."""
+            background: str | None = None, source: dict[str, str] | None = None, credit: dict[str, str] | None = None) -> str:
+    """심볼(정리한 SVG)과 채널 이름으로 로고 SVG. ``source`` 가 있으면 AI 생성 표시(메타데이터와 설명)를,
+    ``credit`` (아이콘 출처)이 있으면 세트, 아이콘 이름, 라이선스를 설명과 메타데이터에 넣는다."""
     layout = check_choice(layout, LAYOUTS, "배치")
     name = check_name(name)
     if layout != "symbol" and not name:
@@ -405,6 +429,14 @@ def compose(symbol: str | None, name: str, *, font: str = "pretendard", layout: 
         metadata = ET.SubElement(root, f"{{{SVG_NS}}}metadata")
         rdf = ET.SubElement(metadata, f"{{{RDF_NS}}}RDF")
         ET.SubElement(rdf, f"{{{RDF_NS}}}Description", {f"{{{IPTC_NS}}}DigitalSourceType": AI_COMPOSITE})
+    elif credit and layout != "name":
+        description += (f" 심볼은 {credit['set']}의 {credit['icon']} 아이콘({credit['license']} 라이선스, {credit['copyright']}, "
+                        f"{credit['source']}). 채널 이름은 {FONTS[font].name} 글꼴.")
+        metadata = ET.SubElement(root, f"{{{SVG_NS}}}metadata")
+        rdf = ET.SubElement(metadata, f"{{{RDF_NS}}}RDF")
+        item = ET.SubElement(rdf, f"{{{RDF_NS}}}Description")
+        ET.SubElement(item, f"{{{DC_NS}}}source").text = f"{credit['source']} ({credit['set']} {credit['version']}, {credit['icon']})"
+        ET.SubElement(item, f"{{{DC_NS}}}rights").text = f"Symbol: {credit['set']} '{credit['icon']}', {credit['license']} License, {credit['copyright']}"
     elif layout != "name":
         description += " 심볼은 debutkit 기본 도형."
     ET.SubElement(root, f"{{{SVG_NS}}}desc").text = description
@@ -551,11 +583,11 @@ def logos_dir() -> Path:
 
 
 class LogoStudio:
-    """API 키 보관, 심볼 생성 기록, 로고 조합."""
+    """API 키 보관, 심볼 생성 기록, 오래 걸리는 생성의 백그라운드 작업, 로고 조합과 로고 기록."""
 
     def __init__(self, *, keys: KeyBox | None = None, folder: Path | None = None, opener: Opener = urllib.request.urlopen,
                  claude: ClaudeClient | None = None, clock: Callable[[], float] = time.time,
-                 sleep: Callable[[float], None] = time.sleep) -> None:
+                 sleep: Callable[[float], None] = time.sleep, monotonic: Callable[[], float] = time.monotonic) -> None:
         base = settings.settings_path().parent
         self.keys = keys or KeyBox(base / "logo-keys.json", b"debutkit-logo-key", "debutkit-logo")
         self.folder = folder or logos_dir()
@@ -563,9 +595,13 @@ class LogoStudio:
         self._claude = claude
         self._clock = clock
         self._sleep = sleep
+        self._monotonic = monotonic
         self._lock = threading.Lock()
         self._symbols: dict[str, dict[str, Any]] = {}
         self._busy = False
+        self._job: dict[str, Any] | None = None  # 백그라운드 작업(AI Horde) 상태
+        self._job_thread: threading.Thread | None = None
+        self._stop = threading.Event()
         self._load_saved()
 
     def _load_saved(self) -> None:
@@ -584,72 +620,77 @@ class LogoStudio:
 
     def set_key(self, provider: Any, key: Any) -> dict[str, Any]:
         provider_id = check_choice(provider, PROVIDERS, "AI 서비스")
-        if not PROVIDERS[provider_id].needs_key:
-            raise LogoError(f"{PROVIDERS[provider_id].name}는 키가 필요 없음")
+        chosen = PROVIDERS[provider_id]
+        if not (chosen.needs_key or chosen.optional_key):
+            raise LogoError(f"{chosen.name}는 키가 필요 없음")
         if key is None:
             self.keys.clear(provider_id)
         else:
             self.keys.save(provider_id, check_key(key))
         return self.status()
 
-    def _image_symbol(self, provider_id: str, key: str, text: str, style_id: str, palette: list[str], quality_id: str,
-                      address: Any) -> tuple[str, logo_image.Made]:
+    def _checked(self, provider: Any, quality: Any, description: Any, style: Any, colors: Any, address: Any) -> dict[str, Any]:
+        """생성 요청 확인(서비스, 품질, 느낌, 설명, 색, 키, ComfyUI 주소)."""
+        provider_id = check_choice(provider, PROVIDERS, "AI 서비스")
+        chosen = PROVIDERS[provider_id]
+        request = {"provider": provider_id, "quality": check_choice(quality or "fast", QUALITIES, "품질"),
+                   "style": check_choice(style or "cute", STYLES, "느낌"), "description": check_description(description),
+                   "colors": check_colors(colors), "key": self.keys.load(provider_id) if chosen.needs_key or chosen.optional_key else "",
+                   "address": address}
+        if chosen.needs_key and not request["key"]:
+            raise LogoError(f"{chosen.name} 키를 먼저 저장({chosen.key_hint})")
+        if provider_id == "comfyui":
+            try:
+                request["address"] = logo_image.check_address(address)
+            except logo_image.ImageModelError as error:
+                raise LogoError(str(error)) from None
+        return request
+
+    def _image_symbol(self, request: dict[str, Any], progress: logo_image.Progress | None = None,
+                      cancelled: Callable[[], bool] | None = None) -> tuple[str, logo_image.Made]:
         """공개 이미지 모델이 단색 배경 위에 그린 그림을 받아 배경 제거와 벡터화로 SVG."""
+        palette = request["colors"]
         back = logo_image.key_colour(palette)
-        prompt = logo_image.raster_prompt(text, STYLES[style_id][1], palette, back)
+        prompt = logo_image.raster_prompt(request["description"], STYLES[request["style"]][1], palette, back)
+        provider_id, key = request["provider"], request["key"] or ""
         try:
-            if provider_id == "comfyui":
-                made = logo_image.comfy_image(address, prompt, quality_id, opener=self._opener, sleep=self._sleep)
+            if provider_id == "aihorde":
+                made = logo_image.horde_image(key, prompt, opener=self._opener, sleep=self._pause, clock=self._monotonic, progress=progress,
+                                              cancelled=cancelled)
+            elif provider_id == "comfyui":
+                made = logo_image.comfy_image(request["address"], prompt, request["quality"], opener=self._opener, sleep=self._sleep)
             else:
-                made = logo_image.space_image(key, prompt, quality_id, opener=self._opener)
+                made = logo_image.space_image(key, prompt, request["quality"], opener=self._opener)
+            if progress is not None:
+                progress({"state": "tracing"})
             return logo_image.symbol_svg(made.master, back), made
         except logo_image.ImageModelError as error:
             raise LogoError(str(error)) from None
 
-    def generate(self, provider: Any, quality: Any, description: Any, style: Any, colors: Any, address: Any = None) -> dict[str, Any]:
-        """심볼 생성(서비스에 따라 요금이나 무료 한도 사용, 최대 몇 분). 결과는 정리해서 기록에 남긴다.
-
-        ``address`` 는 ComfyUI 주소(기본 http://127.0.0.1:8188).
-        """
-        provider_id = check_choice(provider, PROVIDERS, "AI 서비스")
-        quality_id = check_choice(quality or "fast", QUALITIES, "품질")
-        style_id = check_choice(style or "cute", STYLES, "느낌")
-        text = check_description(description)
-        palette = check_colors(colors)
-        chosen = PROVIDERS[provider_id]
-        key = self.keys.load(provider_id) if chosen.needs_key else ""
-        if chosen.needs_key and not key:
-            raise LogoError(f"{chosen.name} 키를 먼저 저장({chosen.key_hint})")
-        if provider_id == "comfyui":
-            try:
-                address = logo_image.check_address(address)
-            except logo_image.ImageModelError as error:
-                raise LogoError(str(error)) from None
-        with self._lock:
-            if self._busy:
-                raise LogoError("이미 만드는 중: 끝난 뒤 다시 시도")
-            self._busy = True
+    def _produce(self, request: dict[str, Any], progress: logo_image.Progress | None = None,
+                 cancelled: Callable[[], bool] | None = None) -> dict[str, Any]:
+        """심볼 1개 생성과 기록 보관."""
+        provider_id = request["provider"]
         made: logo_image.Made | None = None
-        try:
-            if provider_id in IMAGE_PROVIDERS:
-                raw, made = self._image_symbol(provider_id, key or "", text, style_id, palette, quality_id, address)
-                model = made.model
-            else:
-                raw, model = request_symbol(provider_id, key or "", build_prompt(text, style_id, palette), quality_id, palette,
-                                            opener=self._opener, claude=self._claude)
-            svg = sanitize_svg(raw)
-        finally:
-            with self._lock:
-                self._busy = False
-        record: dict[str, Any] = {"id": random_ids.token_hex(6), "provider": chosen.name, "model": model,
-                                  "description": text, "style": style_id, "colors": palette, "time": int(self._clock())}
+        if provider_id in IMAGE_PROVIDERS:
+            raw, made = self._image_symbol(request, progress, cancelled)
+            model = made.model
+        else:
+            raw, model = request_symbol(provider_id, request["key"] or "", build_prompt(request["description"], request["style"], request["colors"]),
+                                        request["quality"], request["colors"], opener=self._opener, claude=self._claude)
+        svg = sanitize_svg(raw)
+        record: dict[str, Any] = {"id": random_ids.token_hex(6), "provider": PROVIDERS[provider_id].name, "model": model,
+                                  "description": request["description"], "style": request["style"], "colors": request["colors"],
+                                  "time": int(self._clock())}
         if made is not None:  # 같은 심볼을 다시 만들 수 있게 시드와 지시문 기록
             record.update({"seed": made.seed, "prompt": made.prompt})
+        if provider_id == "aihorde":
+            record["shared"] = not request["key"]  # 익명 요청은 지시문과 결과가 LAION 공개 데이터셋에 공유됨
         with self._lock:
             self._symbols[record["id"]] = {**record, "svg": svg}
             while len(self._symbols) > KEEP:
                 self._symbols.pop(next(iter(self._symbols)))
-        try:  # 요금이나 한도가 든 결과는 파일로도 보관(실패해도 이번 화면에서는 사용 가능)
+        try:  # 요금이나 한도, 대기 시간이 든 결과는 파일로도 보관(실패해도 이번 화면에서는 사용 가능)
             self.folder.mkdir(parents=True, exist_ok=True)
             (self.folder / f"{record['id']}.svg").write_text(svg, encoding="utf-8")
             if made is not None:  # 모델이 그린 원본 그림
@@ -661,38 +702,171 @@ class LogoStudio:
             pass
         return dict(record)
 
+    def generate(self, provider: Any, quality: Any, description: Any, style: Any, colors: Any, address: Any = None, *,
+                 progress: logo_image.Progress | None = None, cancelled: Callable[[], bool] | None = None) -> dict[str, Any]:
+        """심볼 생성(끝날 때까지 기다림. 서비스에 따라 요금이나 무료 한도 사용, 최대 몇 분, AI Horde는 수십 분). 결과는 정리해서 기록에 남긴다.
+
+        ``address`` 는 ComfyUI 주소(기본 http://127.0.0.1:8188). ``progress``, ``cancelled`` 는 AI Horde 대기 표시와 취소.
+        """
+        request = self._checked(provider, quality, description, style, colors, address)
+        with self._lock:
+            if self._busy:
+                raise LogoError("이미 만드는 중: 끝난 뒤 다시 시도")
+            self._busy = True
+        try:
+            return self._produce(request, progress, cancelled)
+        finally:
+            with self._lock:
+                self._busy = False
+
+    # --- 백그라운드 작업(AI Horde: 익명은 대기열 때문에 수십 분) ---------------------------------
+
+    def start(self, provider: Any, quality: Any, description: Any, style: Any, colors: Any, address: Any = None) -> dict[str, Any]:
+        """오래 걸리는 생성을 백그라운드로 시작하고 바로 작업 상태를 돌려준다. 진행은 status()의 job."""
+        request = self._checked(provider, quality, description, style, colors, address)
+        if request["provider"] not in BACKGROUND_PROVIDERS:
+            raise LogoError(f"{PROVIDERS[request['provider']].name}는 기다렸다 받기만 지원")
+        with self._lock:
+            if self._job is not None and self._job["state"] not in ("done", "failed", "cancelled"):
+                raise LogoError("AI Horde 작업이 이미 진행 중: 끝나거나 취소한 뒤 다시 시도")
+            self._stop.clear()
+            self._job = {"id": random_ids.token_hex(4), "provider": PROVIDERS[request["provider"]].name, "description": request["description"],
+                         "anonymous": not request["key"], "state": "submitting", "queue_position": 0, "wait_time": 0, "elapsed": 0,
+                         "started": int(self._clock()), "error": "", "symbol": ""}
+            job = dict(self._job)
+        self._job_thread = threading.Thread(target=self._run_job, args=(request, job["id"]), name="debutkit-logo-job", daemon=True)
+        self._job_thread.start()
+        return job
+
+    def _update_job(self, job_id: str, values: dict[str, Any]) -> None:
+        with self._lock:
+            if self._job is not None and self._job["id"] == job_id:
+                self._job.update(values)
+
+    def _run_job(self, request: dict[str, Any], job_id: str) -> None:
+        try:
+            record = self._produce(request, lambda values: self._update_job(job_id, values), self._stop.is_set)
+            self._update_job(job_id, {"state": "done", "symbol": record["id"]})
+        except LogoError as error:
+            self._update_job(job_id, {"state": "cancelled" if self._stop.is_set() else "failed", "error": str(error)})
+        except Exception as error:  # noqa: BLE001 - 작업 스레드가 조용히 죽지 않게 화면에 알림
+            self._update_job(job_id, {"state": "failed", "error": f"심볼 처리 실패: {error}"})
+
+    def _pause(self, seconds: float) -> None:
+        """AI Horde 상태 확인 사이의 기다림. 실제 시계에서는 취소하면 바로 깨어난다."""
+        if self._sleep is time.sleep:
+            self._stop.wait(seconds)
+        else:
+            self._sleep(seconds)
+
+    def cancel(self) -> dict[str, Any]:
+        """백그라운드 작업 취소(서버 대기열에서도 뺀다)."""
+        self._stop.set()
+        return self.status()
+
+    def stop(self) -> None:
+        """프로그램을 닫을 때: 진행 중인 백그라운드 작업을 취소하고 AI Horde 대기열에서 빼기를 잠시 기다린다."""
+        with self._lock:
+            running = self._job is not None and self._job["state"] not in ("done", "failed", "cancelled")
+        if running:
+            self._stop.set()
+            self.wait(5)
+
+    def wait(self, timeout: float | None = None) -> None:
+        """백그라운드 작업이 끝날 때까지(시험과 프로그램 종료용)."""
+        if self._job_thread is not None:
+            self._job_thread.join(timeout)
+
     def symbol(self, symbol_id: str) -> dict[str, Any] | None:
         with self._lock:
             found = self._symbols.get(symbol_id)
             return dict(found) if found else None
 
+    # --- 심볼과 로고 조합 -------------------------------------------------------------------
+
+    def _symbol_svg(self, chosen: dict[str, Any], font: str) -> tuple[str, dict[str, str] | None, dict[str, str] | None, dict[str, Any]]:
+        """요청한 심볼 SVG와 AI 생성 표시(source), 아이콘 출처(credit), 로고 기록에 남길 설명."""
+        if chosen.get("id"):
+            found = self.symbol(str(chosen["id"]))
+            if found is None:
+                raise LogoError("고른 AI 심볼을 찾지 못함: 다시 만들기")
+            source = {"provider": found["provider"], "model": found["model"]}
+            return found["svg"], source, None, {"kind": "ai", "id": found["id"], **source, "time": found.get("time")}
+        primary = check_color(chosen.get("primary") or "#FF4F8B")
+        accent = check_color(chosen.get("accent") or "#1E2327")
+        if chosen.get("icon"):
+            try:
+                svg, credit = logo_icons.icon_svg(chosen["icon"], style=chosen.get("style"), colors=chosen.get("colors") or "channel",
+                                                  primary=primary, accent=accent, font=font)
+            except logo_icons.IconError as error:
+                raise LogoError(str(error)) from None
+            return svg, None, credit, {"kind": "icon", **credit, "colors": chosen.get("colors") or "channel", "primary": primary, "accent": accent}
+        template = chosen.get("template") or "star"
+        return template_svg(template, primary, accent), None, None, {"kind": "template", "template": template, "primary": primary, "accent": accent}
+
+    def _finished(self, svg: str, data: dict[str, Any], chosen: dict[str, Any]) -> str:
+        try:
+            return logo_icons.finish(svg, data.get("finish") or "none", check_color(data.get("finish_color") or chosen.get("accent") or "#1E2327"))
+        except logo_icons.IconError as error:
+            raise LogoError(str(error)) from None
+        except ET.ParseError as error:
+            raise LogoError(f"심볼 마감 실패: {error}") from None
+
+    def preview(self, query: dict[str, Any]) -> str:
+        """심볼 미리보기 SVG(id, icon, template 중 하나와 색, 종류, 마감)."""
+        font = check_choice(query.get("font") or "pretendard", FONTS, "글꼴")
+        svg, _, _, _ = self._symbol_svg(query, font)
+        return self._finished(svg, query, query)
+
     def make(self, data: dict[str, Any]) -> str:
-        """요청 내용으로 로고 SVG. symbol: {"template", "primary", "accent"} 또는 {"id"}."""
+        """요청 내용으로 로고 SVG. symbol: {"template", "primary", "accent"}, {"icon", "style", "colors", "primary", "accent"} 또는 {"id"}.
+        finish: none, outline, bold, sticker, white(심볼 마감), finish_color: 외곽선 색(기본 보조 색)."""
+        return self._compose(data)[0]
+
+    def _compose(self, data: dict[str, Any]) -> tuple[str, dict[str, Any] | None]:
         layout = check_choice(data.get("layout") or "horizontal", LAYOUTS, "배치")
+        font = check_choice(data.get("font") or "pretendard", FONTS, "글꼴")
         chosen = data.get("symbol") if isinstance(data.get("symbol"), dict) else {}
         svg: str | None = None
         source: dict[str, str] | None = None
+        credit: dict[str, str] | None = None
+        about: dict[str, Any] | None = None
         if layout != "name":
-            if chosen.get("id"):
-                found = self.symbol(str(chosen["id"]))
-                if found is None:
-                    raise LogoError("고른 AI 심볼을 찾지 못함: 다시 만들기")
-                svg, source = found["svg"], {"provider": found["provider"], "model": found["model"]}
-            else:
-                svg = template_svg(chosen.get("template") or "star", chosen.get("primary") or "#FF4F8B", chosen.get("accent") or "#1E2327")
+            svg, source, credit, about = self._symbol_svg(chosen, font)
+            svg = self._finished(svg, data, chosen)
         background = data.get("background") or None
-        return compose(svg, data.get("name") or "", font=check_choice(data.get("font") or "pretendard", FONTS, "글꼴"), layout=layout,
-                       text_color=data.get("text_color") or "#1E2327", background=background, source=source)
+        logo = compose(svg, data.get("name") or "", font=font, layout=layout, text_color=data.get("text_color") or "#1E2327",
+                       background=background, source=source, credit=credit)
+        return logo, about
+
+    def record(self, data: dict[str, Any]) -> dict[str, Any]:
+        """저장한 로고의 기록(설정 폴더 logos/made.jsonl): 채널 이름, 배치, 글꼴, 심볼 종류와 출처(아이콘은 세트, 이름, 라이선스)."""
+        _, about = self._compose(data)
+        entry = {"time": int(self._clock()), "name": check_name(data.get("name")), "layout": data.get("layout") or "horizontal",
+                 "font": data.get("font") or "pretendard", "finish": data.get("finish") or "none", "symbol": about,
+                 "file": str(data.get("file") or "")[:200]}
+        try:
+            self.folder.mkdir(parents=True, exist_ok=True)
+            with (self.folder / "made.jsonl").open("a", encoding="utf-8") as log:
+                log.write(json.dumps(entry, ensure_ascii=False) + "\n")
+        except OSError as error:
+            raise LogoError(f"로고 기록 저장 실패: {error}") from None
+        return entry
 
     def status(self) -> dict[str, Any]:
         with self._lock:
             recent = [{key: value for key, value in record.items() if key != "svg"} for record in reversed(list(self._symbols.values()))]
             busy = self._busy
+            job = dict(self._job) if self._job else None
+        if job and job["state"] not in ("done", "failed", "cancelled"):
+            job["elapsed"] = max(job["elapsed"], int(self._clock()) - job["started"])
         return {
             "providers": {key: {"name": item.name, "models": item.models, "price": item.price, "terms": item.terms, "key_hint": item.key_hint,
-                                "needs_key": item.needs_key, "key_saved": item.needs_key and self.keys.has(key),
+                                "needs_key": item.needs_key, "optional_key": item.optional_key, "background": key in BACKGROUND_PROVIDERS,
+                                "key_saved": (item.needs_key or item.optional_key) and self.keys.has(key),
                                 **({"address": item.endpoint} if key == "comfyui" else {})} for key, item in PROVIDERS.items()},
             "key_storage": self.keys.mode, "qualities": QUALITIES, "styles": {key: value[0] for key, value in STYLES.items()},
             "layouts": LAYOUTS, "fonts": {key: item.name for key, item in FONTS.items()},
-            "templates": {key: value[0] for key, value in TEMPLATES.items()}, "recent": recent, "busy": busy,
+            "templates": {key: value[0] for key, value in TEMPLATES.items()}, "finishes": {key: value[0] for key, value in logo_icons.FINISHES.items()},
+            "recent": recent, "busy": busy, "job": job, "notice": NON_EXCLUSIVE,
         }

@@ -164,9 +164,9 @@ def programs(item: Path, platform_name: str | None = None) -> tuple[Path, Path]:
 
 
 def smoke_test(cli: Path, gui: Path) -> None:
-    """파이썬 없이 켜지는지: 명령줄은 버전, 점검, 장면 설계, 준비 도구, 설정 마법사는 화면 없이 띄웠다 닫기."""
+    """파이썬 없이 켜지는지: 명령줄은 버전, 점검, 장면 설계, 준비 도구, 캐릭터 목록, 로고 아이콘 검색, 설정 마법사는 화면 없이 띄웠다 닫기."""
     env = {**os.environ, "PYTHONIOENCODING": "utf-8"}
-    for args in (["--version"], ["doctor", "--json"], ["scenes", "--dry-run"], ["setup"], ["character", "list"]):
+    for args in (["--version"], ["doctor", "--json"], ["scenes", "--dry-run"], ["setup"], ["character", "list"], ["logo", "icons", "microphone"]):
         done = subprocess.run([str(cli), *args], capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, timeout=180)
         if done.returncode not in (0, 1):  # doctor는 필요 항목이, setup은 ffmpeg가 없으면 1
             raise SystemExit(f"debutkit {' '.join(args)} 실패 ({done.returncode}): {done.stderr[-800:]}")
@@ -244,15 +244,16 @@ def notarize(app: Path, dist: Path, config: tuple[str, str, str], *, run: Callab
 #: 캐릭터 화면에 필요한 함께 배포 파일(빠지면 PNGTuber, VRM 표시 불가)
 BUNDLED = ("character.html", "character.js", "three.module.js", "three.core.js", "GLTFLoader.js", "FBXLoader.js", "fflate.module.js", "NURBSCurve.js",
            "NURBSUtils.js", "three-vrm.module.min.js", "three-vrm-animation.module.min.js", "BlackHanSans-Regular.woff2", "draw.js", "idle.svg", "talk_blink.svg",
-           "tracker.html", "tracker.js", "phone.html", "remote.html", "remote.js", "remote-sign.js", "vision_bundle.mjs", "vision_wasm_internal.wasm", "face_landmarker.task")
+           "tracker.html", "tracker.js", "phone.html", "remote.html", "remote.js", "remote-sign.js", "vision_bundle.mjs", "vision_wasm_internal.wasm", "face_landmarker.task",
+           "logo.html", "fluent-emoji.json.gz", "phosphor.json.gz", "LICENSE-fluent-emoji.txt", "LICENSE-phosphor.txt")
 
 
 def check_bundled(item: Path) -> None:
     names = {path.name for path in item.rglob("*") if path.is_file()}
     missing = [name for name in BUNDLED if name not in names]
     if missing:
-        raise SystemExit("실행 파일 묶음에 캐릭터 화면 파일 없음: " + ", ".join(missing))
-    print("  캐릭터 화면 파일: 정상")
+        raise SystemExit("실행 파일 묶음에 화면, 글꼴, 아이콘 파일 없음: " + ", ".join(missing))
+    print("  화면, 글꼴, 아이콘 파일: 정상")
 
 
 def size_mb(item: Path) -> float:
