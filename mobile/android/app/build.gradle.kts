@@ -109,6 +109,7 @@ dependencies {
     implementation("com.google.mediapipe:tasks-vision:1.2.3") // Apache-2.0
     implementation("com.google.zxing:core:3.5.4") // Apache-2.0, QR 코드 읽기
     implementation("io.github.webrtc-sdk:android:150.7871.08") // WebRTC(BSD-3), 카메라 영상 전송
+    implementation("com.github.pedroSG94.RootEncoder:library:2.8.2") // RootEncoder(Apache-2.0), 휴대폰만으로 방송(RTMP, RTMPS)
 
     testImplementation("junit:junit:4.13.2")
 }

@@ -14,3 +14,10 @@
 -dontwarn org.webrtc.**
 -keep class org.jni_zero.** { *; }
 -dontwarn org.jni_zero.**
+# 바로 방송: 송출 라이브러리(RootEncoder)는 기록 끄기 설정과 상관없이 RTMP 명령(스트림 키 포함)을 정보 수준으로 기록하므로
+# 배포 빌드에서는 정보, 디버그, 상세 기록 호출을 지운다(경고와 오류 기록은 남김)
+-assumenosideeffects class android.util.Log {
+    public static int v(...);
+    public static int d(...);
+    public static int i(...);
+}

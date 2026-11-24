@@ -71,13 +71,15 @@ import java.io.File
 import java.io.IOException
 import java.util.concurrent.Executors
 
-private val Ink = Color(0xFF1E2327)
-private val Paper = Color(0xFFFAF7F5)
-private val Pink = Color(0xFFFF4F8B)
-private val Ok = Color(0xFF1F7A4D)
-private val Bad = Color(0xFFB3261E)
+internal val Ink = Color(0xFF1E2327)
+internal val Paper = Color(0xFFFAF7F5)
+internal val Pink = Color(0xFFFF4F8B)
+internal val Ok = Color(0xFF1F7A4D)
+internal val Bad = Color(0xFFB3261E)
 
 private enum class Step { Unpaired, Scanning, Connecting, Waiting, Ready }
+
+private enum class Tab(val label: String) { Pc("PC와 연결"), Live("바로 방송") }
 
 class MainActivity : ComponentActivity() {
     val thermal = mutableIntStateOf(PowerManager.THERMAL_STATUS_NONE)
@@ -90,11 +92,23 @@ class MainActivity : ComponentActivity() {
         }
         val store = Store(this)
         if (BuildConfig.DEBUG) intent.getStringExtra("link")?.let { if (Pairing.parse(it) != null) store.save(it) } // 개발용: adb로 등록 주소 전달
+        val startTab = if (BuildConfig.DEBUG && debugLive()) Tab.Live else Tab.Pc
         setContent {
             MaterialTheme(colorScheme = lightColorScheme(primary = Ink, onPrimary = Color.White, background = Paper, surface = Paper)) {
-                Surface(Modifier.fillMaxSize(), color = Paper) { App(this, store) }
+                Surface(Modifier.fillMaxSize(), color = Paper) { App(this, store, startTab) }
             }
         }
+    }
+
+    /** 개발용(디버그 빌드만): adb로 바로 방송 설정 전달. live_server, live_key, live_mode(character, camera). 전달했으면 true. */
+    private fun debugLive(): Boolean {
+        val server = intent.getStringExtra("live_server") ?: return intent.getBooleanExtra("live", false)
+        val live = LiveStore(this)
+        val config = live.load()
+        live.save(config.copy(platform = Platform.Custom, servers = config.servers + (Platform.Custom to server),
+            camera = intent.getStringExtra("live_mode") == "camera"))
+        intent.getStringExtra("live_key")?.let { live.saveKey(Platform.Custom, it) }
+        return true
     }
 
     fun keepAwake(on: Boolean) {
@@ -110,7 +124,34 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun App(activity: MainActivity, store: Store) {
+private fun App(activity: MainActivity, store: Store, startTab: Tab) {
+    var tab by remember { mutableStateOf(startTab) }
+    val pairing = remember(tab) { store.load() }
+    Column(Modifier.fillMaxSize()) {
+        Row(Modifier.fillMaxWidth().background(Ink).statusBarsPadding().padding(16.dp, 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("debutkit 휴대폰", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+            Spacer(Modifier.weight(1f))
+            if (tab == Tab.Pc) pairing?.let { Text("${it.host}:${it.port}", color = Color.White.copy(alpha = 0.75f), fontSize = 12.sp) }
+        }
+        Row(Modifier.fillMaxWidth().background(Ink).padding(12.dp, 0.dp, 12.dp, 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Tab.entries.forEach { item ->
+                val selected = tab == item
+                Button({ tab = item }, Modifier.weight(1f).height(40.dp),
+                    colors = if (selected) ButtonDefaults.buttonColors(containerColor = Pink, contentColor = Ink)
+                    else ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.12f), contentColor = Color.White)) {
+                    Text(item.label, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal)
+                }
+            }
+        }
+        Column(Modifier.fillMaxSize().navigationBarsPadding().imePadding().verticalScroll(rememberScrollState()).padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            if (tab == Tab.Pc) PcLink(activity, store) else LiveScreen(activity)
+        }
+    }
+}
+
+@Composable
+private fun PcLink(activity: MainActivity, store: Store) {
     var pairing by remember { mutableStateOf(store.load()) }
     var step by remember { mutableStateOf(if (pairing == null) Step.Unpaired else Step.Connecting) }
     var code by remember { mutableStateOf("") }
@@ -164,36 +205,26 @@ private fun App(activity: MainActivity, store: Store) {
         }
     }
 
-    Column(Modifier.fillMaxSize()) {
-        Row(Modifier.fillMaxWidth().background(Ink).statusBarsPadding().padding(16.dp, 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("debutkit 휴대폰", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
-            Spacer(Modifier.weight(1f))
-            pairing?.let { Text("${it.host}:${it.port}", color = Color.White.copy(alpha = 0.75f), fontSize = 12.sp) }
-        }
-        Column(Modifier.fillMaxSize().navigationBarsPadding().imePadding().verticalScroll(rememberScrollState()).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            when (step) {
-                Step.Unpaired -> Unpaired(message, onScan = { step = Step.Scanning }, onLink = ::accept)
-                Step.Scanning -> Scanning(onFound = ::accept, onCancel = { step = Step.Unpaired })
-                Step.Connecting, Step.Waiting -> Waiting(step == Step.Waiting, code, message, onForget = { forget("") })
-                Step.Ready -> Ready(activity, pairing!!, onForget = { forget("이 휴대폰의 등록 정보를 지웠습니다.") }, onLost = { reason ->
-                    message = reason
-                    step = Step.Connecting
-                })
-            }
-        }
+    when (step) {
+        Step.Unpaired -> Unpaired(message, onScan = { step = Step.Scanning }, onLink = ::accept)
+        Step.Scanning -> Scanning(onFound = ::accept, onCancel = { step = Step.Unpaired })
+        Step.Connecting, Step.Waiting -> Waiting(step == Step.Waiting, code, message, onForget = { forget("") })
+        Step.Ready -> Ready(activity, pairing!!, onForget = { forget("이 휴대폰의 등록 정보를 지웠습니다.") }, onLost = { reason ->
+            message = reason
+            step = Step.Connecting
+        })
     }
 }
 
 @Composable
-private fun Card(content: @Composable () -> Unit) {
+internal fun Card(content: @Composable () -> Unit) {
     Surface(Modifier.fillMaxWidth(), color = Color.White, shape = MaterialTheme.shapes.small, tonalElevation = 0.dp, shadowElevation = 2.dp) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { content() }
     }
 }
 
 @Composable
-private fun BigButton(text: String, onClick: () -> Unit, primary: Boolean = true, enabled: Boolean = true) {
+internal fun BigButton(text: String, onClick: () -> Unit, primary: Boolean = true, enabled: Boolean = true) {
     val modifier = Modifier.fillMaxWidth().height(52.dp)
     if (primary) Button(onClick, modifier, enabled = enabled) { Text(text, fontWeight = FontWeight.Bold) }
     else OutlinedButton(onClick, modifier, enabled = enabled) { Text(text, fontWeight = FontWeight.Bold, color = Ink) }
@@ -216,7 +247,7 @@ private fun Unpaired(message: String, onScan: () -> Unit, onLink: (String) -> Un
     if (message.isNotEmpty()) Text(message, color = Bad)
     Card {
         Text("이 앱이 하는 일", fontWeight = FontWeight.Bold)
-        Text("휴대폰 앞면 카메라로 얼굴을 추적해 머리 움직임과 표정 52개를 debutkit PC로 보냅니다. 카메라 영상은 휴대폰 안에서만 처리하고 숫자 값만 보내며, 저장하거나 인터넷으로 보내지 않습니다.",
+        Text("PC와 연결하면 휴대폰 앞면 카메라로 얼굴을 추적해 머리 움직임과 표정 52개를 debutkit PC로 보내거나, 카메라 영상을 PC OBS로 보냅니다. 같은 Wi-Fi 안에서만 주고받고 저장하지 않습니다. PC 없이 방송할 때는 바로 방송을 사용하십시오.",
             color = Color.DarkGray, fontSize = 14.sp)
     }
 }
