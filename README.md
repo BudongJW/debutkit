@@ -34,7 +34,7 @@ PC 점검, OBS 장면 구성, 통합 채팅창과 후원 알림, 방송 중 자�
 | 채팅창과 후원 알림 | `debutkit overlay`, `debutkit draw`, `debutkit raffle` | OBS 브라우저 소스용 통합 채팅창과 후원 알림. 표시 형태 5종. 후원 추첨 연출(상품과 확률표, 금액별 추첨 횟수, 카드 뒤집기와 룰렛). 시청자 참여 추첨(채팅 !참가로 모집, 당첨자 뽑기, 순서 정하기). 스트리머, 매니저 채팅 명령. 휴대폰 조작 화면(`debutkit remote`, QR 등록과 PC 승인, 요청 서명) |
 | 휴대폰 앱 | `mobile/` | 안드로이드(APK, MediaPipe), 아이폰(ARKit, 소스 빌드) 얼굴 추적과 카메라 영상(WebRTC, OBS 브라우저 소스로 직접 전송) 앱. 같은 QR로 등록하고 PC에서 승인, 서명된 요청과 값만 사용. 안드로이드는 PC 없이 바로 방송(캐릭터 화면 또는 카메라 영상을 치지직, SOOP, YouTube, Twitch로 송출) 지원. [mobile/README.md](mobile/README.md) |
 | OBS 없이 바로 방송 | `debutkit broadcast` | Windows. 캐릭터, 채팅, 후원 알림, 추첨 연출을 모은 송출 화면을 치지직, SOOP, YouTube, Twitch로 바로 송출(ffmpeg 창 캡처, 하드웨어 H.264, 마이크). 스트림 키는 암호화 저장. 토크 방송용(게임 방송은 OBS) |
-| 방송 로고 만들기 | `debutkit logo` | 기본 도형 8종, 공개 이미지 모델 Qwen-Image(사용자의 ComfyUI 또는 Hugging Face 공개 데모, 배경 제거와 벡터화) 또는 사용자 본인 API 키의 생성형 AI(Claude, OpenAI, Recraft) 심볼과 채널 이름(글꼴 윤곽선)으로 SVG, 투명 PNG 로고. AI 생성 표시 메타데이터, 받은 SVG 정리, API 키 암호화 저장 |
+| 방송 로고 만들기 | `debutkit logo` | 함께 배포하는 아이콘(Fluent Emoji 356개, Phosphor 102개 굵기 6종, MIT, 한국어 검색, 채널 색 다시 칠하기)과 기본 도형 8종, 계정 없는 공개 모델 AI Horde(FLUX.1 schnell, 대기열 백그라운드 대기), 공개 이미지 모델 Qwen-Image(사용자의 ComfyUI 또는 Hugging Face 공개 데모) 또는 사용자 본인 API 키의 생성형 AI(Claude, OpenAI, Recraft) 심볼과 채널 이름(글꼴 윤곽선)으로 SVG, 투명 PNG 로고. 외곽선과 스티커 테두리 마감, 아이콘 출처와 AI 생성 표시 메타데이터, 받은 SVG 정리, API 키 암호화 저장 |
 | 방송 중 자동 클립 | `debutkit overlay --clip` | 채팅 급증 또는 스트리머와 매니저의 `!clip` 입력 시 OBS 리플레이 버퍼를 클립으로 저장 |
 | 준비 도구 | `debutkit setup`, `debutkit chzzk` | ffmpeg 다운로드, 새 버전 확인, 치지직 공식 API 로그인 |
 
