@@ -37,7 +37,7 @@
     <header class="dochead">
       <h1>사용 설명서</h1>
       <dl>
-        <dt>대상 버전</dt><dd>debutkit 1.0.0rc15</dd>
+        <dt>대상 버전</dt><dd>debutkit 1.0.0rc18</dd>
         <dt>방송 플랫폼</dt><dd>치지직, SOOP, Twitch, YouTube</dd>
         <dt>지원 환경</dt><dd>Windows 64비트(설치 프로그램, zip), macOS(Apple Silicon), Linux(x64), 파이썬 패키지</dd>
       </dl>
@@ -51,6 +51,7 @@
           <li><a href="#wizard">설정 마법사</a></li>
           <li><a href="#doctor">PC 점검</a></li>
           <li><a href="#character">캐릭터</a></li>
+          <li><a href="#logo">방송 로고 만들기</a></li>
           <li><a href="#scenes">OBS 장면</a></li>
           <li><a href="#overlay">채팅창과 후원 알림</a></li>
           <li><a href="#broadcast">OBS 없이 바로 방송</a></li>
@@ -110,7 +111,8 @@ debutkit-gui</code></pre>
             <tbody>
               <tr><th scope="row"><code>[live]</code></th><td>채팅 연결 모듈. OBS 제어, 채팅 수신, 자동 클립, ffmpeg 다운로드, 치지직 로그인</td></tr>
               <tr><th scope="row"><code>[youtube]</code></th><td>YouTube 채팅 스트리밍(grpcio, protobuf). 없으면 요청 방식 사용</td></tr>
-              <tr><th scope="row"><code>[gui]</code></th><td>설정 마법사(PySide6). <code>[live]</code>, <code>[youtube]</code> 포함</td></tr>
+              <tr><th scope="row"><code>[logo]</code></th><td>방송 로고 만들기의 글꼴 윤곽선(fonttools, brotli), Claude 연결(anthropic), 공개 모델 그림의 배경 제거와 벡터화(numpy, Pillow)</td></tr>
+              <tr><th scope="row"><code>[gui]</code></th><td>설정 마법사(PySide6). <code>[live]</code>, <code>[youtube]</code>, <code>[logo]</code> 포함</td></tr>
               <tr><th scope="row">옵션 없음</th><td>PC 점검(<code>doctor</code>)과 장면 설계 출력(<code>scenes --dry-run</code>)만 사용 가능</td></tr>
             </tbody>
           </table>
@@ -125,7 +127,7 @@ debutkit-gui</code></pre>
               <tr><th scope="row">PC 점검</th><td>이 단계를 열면 자동으로 점검. ffmpeg가 없으면 ffmpeg 다운로드 버튼 표시(Windows). 업로드 속도 측정 버튼</td></tr>
               <tr><th scope="row">캐릭터</th><td>캐릭터 등록(파일, 폴더), PNG 이미지로 만들기, 방송에 사용할 캐릭터 지정, 3D 캐릭터 동작(기본 동작, 후원 반응), VTube Studio와 Warudo로 보내기, 사용 조건 확인</td></tr>
               <tr><th scope="row">OBS 장면</th><td>WebSocket 포트, 비밀번호, 아바타 프로그램을 지정해 장면 생성</td></tr>
-              <tr><th scope="row">채팅과 알림</th><td>플랫폼별 채널 입력, 치지직 로그인, 자동 클립과 채팅 명령 선택 후 오버레이 시작. 실행 중 추첨 조작 화면 열기</td></tr>
+              <tr><th scope="row">채팅과 알림</th><td>플랫폼별 채널 입력, 치지직 로그인, 자동 클립과 채팅 명령 선택 후 오버레이 시작. 실행 중 추첨 조작 화면, 로고 만들기 열기</td></tr>
               <tr><th scope="row">마무리</th><td>단계별 준비 상태, 자동 클립 저장 폴더, 새 버전 확인, 저장한 설정 삭제, 문제 제보(점검 결과 복사, 기록 폴더 열기)</td></tr>
             </tbody>
           </table>
@@ -294,6 +296,44 @@ debutkit phone calibrate                              # 정면 맞추기(--reset
 debutkit vts login                                    # VTube Studio 연결(허용 요청 수락)
 debutkit vts load 모델                                 # VTube Studio 모델 불러오기
 debutkit vts trigger 단축키                            # 단축키 실행</code></pre>
+
+        <h2 id="logo">방송 로고 만들기</h2>
+        <p>채널 이름과 심볼을 조합해 방송 로고(SVG, 투명 배경 PNG)를 만듭니다. 심볼은 기본 도형(무료), 공개 이미지 모델 Qwen-Image(사용자의 ComfyUI 또는 Hugging Face 공개 데모) 또는 사용자 본인 API 키의 생성형 AI로 만듭니다.</p>
+        <ol class="procedure">
+          <li>설정 마법사의 채팅과 알림 단계에서 오버레이를 시작한 뒤 로고 만들기를 누릅니다. 브라우저에서 <code>http://127.0.0.1:8790/logo</code>를 열어도 됩니다.</li>
+          <li>채널 이름, 글꼴(Pretendard Bold, Black Han Sans), 배치(가로, 세로, 심볼만, 이름만), 글자 색과 배경색을 정합니다.</li>
+          <li>심볼은 기본 도형 8종에서 고르거나, AI로 만들기에서 서비스를 고르고 키를 저장(ComfyUI는 주소 입력)한 뒤 설명, 느낌, 품질, 색을 정해 만들기를 누릅니다. 생성은 보통 30초에서 몇 분 걸립니다.</li>
+          <li>밝은 배경과 어두운 배경 미리보기를 확인하고 SVG 또는 PNG(512, 1024, 2048 픽셀)로 저장합니다.</li>
+        </ol>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>서비스</th><th>방식</th><th>요금(2026-11 기준)</th><th>조건</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">ComfyUI</th><td>공개 모델 Qwen-Image(Apache-2.0)를 이 PC나 같은 네트워크 PC의 ComfyUI에서 실행. 받은 그림을 이 PC에서 배경 제거와 벡터화</td><td>무료(그래픽카드 사용)</td><td>ComfyUI(별도 설치)와 Qwen-Image 파일. 그래픽 메모리 12 GB 이상 권장. 설명은 ComfyUI가 있는 PC 밖으로 보내지 않음</td></tr>
+              <tr><th scope="row">Hugging Face</th><td>같은 모델을 Hugging Face 공개 데모(Space)에서 실행. 그래픽카드가 없는 PC용</td><td>계정의 무료 GPU 한도(무료 계정 하루 5분. 빠름 1장 약 1분, 고품질 4분)</td><td>Hugging Face 계정의 Read 토큰(settings의 Access Tokens)</td></tr>
+              <tr><th scope="row">Claude</th><td>Claude Opus 5.5가 SVG 코드를 직접 작성(단순한 평면 도형 위주)</td><td>토큰 과금. 1개 약 0.02달러에서 0.3달러(추정)</td><td>Anthropic 이용 약관과 사용 정책. 키는 platform.claude.com에서 발급</td></tr>
+              <tr><th scope="row">OpenAI</th><td>GPT-Image-2.6의 SVG 출력</td><td>토큰 과금(고정가 없음)</td><td>조직 인증 필요, 만 18세 미만은 보호자 동의</td></tr>
+              <tr><th scope="row">Recraft</th><td>Recraft V4.1 Vector</td><td>빠름 1장 0.08달러, 고품질 1장 0.30달러</td><td>만 18세 이상</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ul>
+          <li>ComfyUI 준비: ComfyUI를 설치하고 huggingface.co/Comfy-Org/Qwen-Image_ComfyUI의 split_files에서 diffusion_models(qwen_image_2512 또는 qwen_image의 fp8 파일), text_encoders(qwen_2.5_vl_7b_fp8_scaled), vae(qwen_image_vae) 파일을 ComfyUI의 같은 이름 models 폴더에 넣습니다. 빠름 품질에는 huggingface.co/lightx2v/Qwen-Image-Lightning의 8steps 파일을 loras 폴더에 함께 넣습니다(없으면 20단계로 실행). 그래픽 메모리가 부족하면 GGUF 모델(ComfyUI-GGUF)을 사용합니다.</li>
+          <li>공개 모델은 단색 배경 위에 그리게 한 그림을 이 PC에서 배경 제거, 가장자리 정리, 색 수 줄이기, 벡터화로 SVG 심볼로 만듭니다. 받은 원본 그림, 시드, 지시문은 설정 폴더의 <code>logos</code>에 보관합니다.</li>
+          <li>AI 심볼이 들어간 로고는 SVG 메타데이터에 AI 생성 표시(IPTC 디지털 소스 유형, 생성 서비스와 모델 이름)를 넣습니다. 방송 플랫폼과 앱 스토어의 AI 생성물 표시 규정을 확인합니다.</li>
+          <li>AI 생성물은 저작권 보호가 제한될 수 있습니다. 상표 등록이나 상업 사용 전에 KIPRIS에서 비슷한 상표를 확인합니다.</li>
+          <li>설명에는 글자를 넣지 않고 그림만 묘사합니다. 다른 회사 로고나 캐릭터를 흉내 내는 설명은 사용하지 않습니다.</li>
+          <li>받은 심볼은 정리(스크립트, 외부 주소, 내장 이미지 제거)한 뒤 사용합니다. 저장 전 미리보기에서 도형이 어긋난 곳이 없는지 확인합니다.</li>
+          <li>어두운 배경용으로는 글자 색을 밝게 바꾼 로고를 따로 저장합니다.</li>
+          <li>만든 심볼과 생성 기록은 설정 폴더의 <code>logos</code>에 보관합니다.</li>
+        </ul>
+        <h3 id="logo-cli">명령줄</h3>
+        <pre class="wrap"><code>debutkit logo key claude                        # API 키 저장(입력한 글자는 표시하지 않음, --clear 삭제)
+debutkit logo make --name 채널 --template star --out 로고.svg
+debutkit logo make --name 채널 --ai comfyui --describe "고양이 귀 헤드폰을 쓴 마이크" --out 로고.svg
+debutkit logo key huggingface                   # Hugging Face Read 토큰 저장
+debutkit logo make --name 채널 --ai huggingface --describe "고양이 귀 헤드폰을 쓴 마이크" --out 로고.svg
+debutkit logo list                              # 기본 도형과 최근 AI 심볼</code></pre>
 
         <h2 id="doctor">PC 점검</h2>
         <pre><code>debutkit doctor
@@ -697,6 +737,7 @@ debutkit overlay --youtube 영상ID --youtube-interval 15</code></pre>
               <tr><th scope="row"><code>debutkit chzzk login</code></th><td>치지직 공식 API 로그인. <code>logout</code>으로 토큰 삭제</td></tr>
               <tr><th scope="row"><code>debutkit youtube check</code></th><td>YouTube API 키, 라이브 채팅, 요청 방식, 스트리밍 방식 확인</td></tr>
               <tr><th scope="row"><code>debutkit character</code></th><td>캐릭터 등록, 목록, 방송 사용, 방송 프로그램으로 보내기</td></tr>
+              <tr><th scope="row"><code>debutkit logo</code></th><td>방송 로고 SVG 만들기, 생성형 AI API 키 저장과 삭제, 기본 도형과 최근 AI 심볼 목록</td></tr>
               <tr><th scope="row"><code>debutkit motion</code></th><td>3D 캐릭터 동작 등록, 목록, 기본 동작 지정, 실행</td></tr>
               <tr><th scope="row"><code>debutkit phone</code></th><td>휴대폰 얼굴 추적 연결, 상태, 정면 맞추기, 끊기(실행 중인 오버레이)</td></tr>
               <tr><th scope="row"><code>debutkit vts</code></th><td>VTube Studio 연결, 모델 불러오기, 단축키 목록과 실행</td></tr>
@@ -724,6 +765,7 @@ debutkit overlay --youtube 영상ID --youtube-interval 15</code></pre>
               <tr><th scope="row">아바타가 보이지 않음</th><td>아바타 프로그램 실행 여부, 게임 캡처 속성의 투명도 허용과 창 선택 확인</td></tr>
               <tr><th scope="row">바로 방송이 바로 끝남</th><td>조작 화면의 이유 확인. 스트림 키와 송출 서버 주소를 방송 플랫폼의 방송 설정 화면에서 다시 복사. 인코더 오류면 인코더를 x264로 변경</td></tr>
               <tr><th scope="row">바로 방송 화면이 멈춤</th><td>송출 화면 창의 최소화 해제(다른 창에 가려지는 것은 괜찮음). 방송 중 창 크기를 바꾼 경우 원래 크기로 되돌리거나 방송 다시 시작</td></tr>
+              <tr><th scope="row">AI 심볼 만들기 실패</th><td>화면의 이유 확인. 키 오류면 서비스에서 키를 다시 복사해 저장, 한도 초과나 잔액 부족이면 서비스의 결제 상태 확인(Hugging Face 무료 GPU 한도는 첫 사용 24시간 뒤 다시 채워짐), 응답 멈춤이나 혼잡이면 잠시 뒤 다시 시도, 안전 정책이면 설명 변경. ComfyUI 연결 실패면 ComfyUI 실행 여부와 주소, 모델 파일 안내면 위의 ComfyUI 준비 확인</td></tr>
               <tr><th scope="row">SmartScreen 경고</th><td>추가 정보 선택 후 실행. 실행 파일 사용이 어려운 경우 파이썬 패키지로 설치</td></tr>
             </tbody>
           </table>
@@ -733,13 +775,14 @@ debutkit overlay --youtube 영상ID --youtube-interval 15</code></pre>
         <h2 id="privacy">개인정보와 보안</h2>
         <ul>
           <li>사용 통계를 전송하지 않습니다.</li>
-          <li>외부 연결은 직접 실행한 경우에만 발생합니다: 업로드 속도 측정(Cloudflare 측정 서버, speed.cloudflare.com에 최대 31 MB의 임의 데이터 전송), 새 버전 확인(GitHub), ffmpeg 다운로드(GitHub). PC 정보는 전송하지 않습니다.</li>
+          <li>외부 연결은 직접 실행한 경우에만 발생합니다: 업로드 속도 측정(Cloudflare 측정 서버, speed.cloudflare.com에 최대 31 MB의 임의 데이터 전송), 새 버전 확인(GitHub), ffmpeg 다운로드(GitHub), 로고 만들기의 생성형 AI(사용자가 고른 서비스). PC 정보는 전송하지 않습니다.</li>
           <li>오버레이 서버는 127.0.0.1에서만 열리며, 다른 웹사이트의 요청은 Host, Origin 확인으로 차단합니다.</li>
           <li>채팅은 저장하지 않으며 화면 표시용 최근 30개만 메모리에 유지합니다. 자동 클립의 급증 판단에는 닉네임을 해시로만 사용합니다. 후원 추첨 결과(후원자 이름 포함)도 파일로 저장하지 않고 최근 100개만 메모리에 둡니다. 시청자 참여 추첨 명단도 메모리에만 두며 모집을 새로 시작하면 지웁니다.</li>
           <li>치지직 토큰은 이 PC의 사용자 설정 폴더에만 보관합니다. YouTube API 키와 치지직 Client Secret은 실행 중에만 사용합니다.</li>
           <li>저장한 설정(채널 주소, 포트, 선택 항목)은 이 PC의 사용자 설정 폴더에만 보관하며 외부로 전송하지 않습니다. API 키, 비밀번호는 저장하지 않습니다.</li>
           <li>OBS 없이 바로 방송의 스트림 키는 Windows 데이터 보호(DPAPI)로 이 Windows 사용자만 풀 수 있게 암호화해 설정 폴더에만 보관하고, 조작 화면과 기록에는 표시하지 않습니다. 송출 화면과 마이크 소리는 사용자가 지정한 방송 플랫폼 송출 서버로만 보내며 녹화하지 않습니다.</li>
           <li>휴대폰 앱의 바로 방송은 스트림 키를 휴대폰 키 저장소(AndroidKeyStore)의 키로 암호화해 앱 안에만 보관하고 백업하지 않습니다. 캐릭터 화면이나 카메라 영상과 마이크 소리는 사용자가 지정한 방송 플랫폼 송출 서버로만 보내며 저장하지 않습니다.</li>
+          <li>로고 만들기의 생성형 AI는 사용자가 만들기를 누른 경우에만 사용자가 고른 서비스로 심볼 설명, 느낌, 색을 보냅니다(ComfyUI는 사용자가 입력한 주소의 PC로만). 채널 이름은 보내지 않고 이 PC에서 글꼴 윤곽선으로 넣습니다. API 키는 Windows 데이터 보호(DPAPI)로 암호화해 설정 폴더에만 보관하고(다른 운영체제는 운영체제 키 보관소, 없으면 실행 중 메모리), 화면과 기록에는 표시하지 않습니다.</li>
           <li>캐릭터 음성 반응은 OBS가 계산한 마이크 음량 수치만 사용하며 음성을 저장하거나 전송하지 않습니다. 등록한 캐릭터 파일은 이 PC의 캐릭터 보관함에만 둡니다.</li>
           <li>VTube Studio 연동은 이 PC의 VTube Studio(127.0.0.1)에만 연결하며 토큰은 설정 폴더에만 보관합니다.</li>
           <li>웹캠 얼굴 추적은 브라우저 창 안에서 영상을 처리하고 숫자 값만 이 PC의 debutkit 서버로 보냅니다. 추적 화면은 보안 정책으로 이 PC 밖으로의 접속을 차단합니다.</li>
