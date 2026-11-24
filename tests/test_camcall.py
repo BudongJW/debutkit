@@ -5,10 +5,10 @@ from __future__ import annotations
 import http.client
 import json
 import secrets
-import socket
 import time
 
 import pytest
+from ports import free_port
 
 from debutkit import camera
 from debutkit.draw import DrawState
@@ -71,23 +71,6 @@ def test_call_flow_first_answer_wins_and_ends(monkeypatch):
     with pytest.raises(camcall.CallError):
         call.answer(third, "not sdp", [])
     call.unsubscribe(subscriber)
-
-
-def free_port() -> int:
-    for _ in range(50):
-        udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        udp.bind(("127.0.0.1", 0))
-        port = udp.getsockname()[1]
-        tcp = socket.socket()
-        try:
-            tcp.bind(("127.0.0.1", port))
-            return port
-        except OSError:
-            continue
-        finally:
-            tcp.close()
-            udp.close()
-    raise RuntimeError("free port not found")
 
 
 def signed(port, device, path, body):

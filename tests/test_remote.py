@@ -12,6 +12,7 @@ import time
 from pathlib import Path
 
 import pytest
+from ports import free_port
 
 from debutkit import camera, settings
 from debutkit.cli import main
@@ -22,24 +23,6 @@ from debutkit.overlay.server import OverlayServer
 from debutkit.raffle import Raffle
 
 STATIC = Path(__file__).parents[1] / "src" / "debutkit" / "overlay" / "static"
-
-
-def free_port() -> int:
-    """TCP와 UDP 모두 열 수 있는 번호(Windows는 UDP만 예약된 번호대가 있음: Hyper-V, WSL)."""
-    for _ in range(50):
-        udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        udp.bind(("127.0.0.1", 0))
-        port = udp.getsockname()[1]
-        tcp = socket.socket()
-        try:
-            tcp.bind(("127.0.0.1", port))
-            return port
-        except OSError:
-            continue
-        finally:
-            tcp.close()
-            udp.close()
-    raise RuntimeError("free port not found")
 
 
 @pytest.fixture(autouse=True)
