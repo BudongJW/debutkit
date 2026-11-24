@@ -1,5 +1,7 @@
 """실제 OBS로 장면 생성, 고급 출력 모드 리플레이 버퍼, 자동 클립을 검증한다(CI용, .github/workflows/verify.yml).
 
+    python packaging/verify_obs.py install     # Windows 전용 OBS 설치(Chocolatey, winget, OBS GitHub 릴리스의 공식 설치 파일 순서)
+    python packaging/verify_obs.py install github winget  # 설치 경로를 골라 그 순서로만 시도
     python packaging/verify_obs.py configure   # OBS 설정 파일 준비(첫 실행 안내 생략, WebSocket 사용, 고급 출력 모드)
     python packaging/verify_obs.py start 이름  # OBS 실행(출력은 RUNNER_TEMP/obs-이름.log)과 WebSocket 응답 대기
     python packaging/verify_obs.py wait        # OBS WebSocket 응답 대기
@@ -10,14 +12,15 @@
     python packaging/verify_obs.py camera      # debutkit camera setup으로 SRT 수신 소스 생성, ffmpeg가 휴대폰처럼 송신, 재생 상태와 틀린 암호 거부 확인
     python packaging/verify_obs.py logs        # OBS 출력과 로그 파일의 마지막 부분 출력
 
-Windows, macOS, Linux에서 같은 순서로 실행한다. configure는 이 PC의 OBS 설정을 덮어쓰므로
-CI 전용 컴퓨터에서만 실행한다(DEBUTKIT_VERIFY_OBS=1 필요).
+install을 뺀 나머지는 Windows, macOS, Linux에서 같은 순서로 실행한다. install은 이 PC에 OBS를 설치하고
+configure는 이 PC의 OBS 설정을 덮어쓰므로 CI 전용 컴퓨터에서만 실행한다(DEBUTKIT_VERIFY_OBS=1 필요).
 """
 
 from __future__ import annotations
 
 import json
 import os
+import shutil
 import signal
 import socket
 import subprocess
@@ -75,6 +78,69 @@ def obs_command() -> tuple[list[str], Path | None]:
     if sys.platform == "darwin":
         return ["/Applications/OBS.app/Contents/MacOS/OBS", "--disable-shutdown-check"], None
     return ["obs", "--disable-shutdown-check", "--minimize-to-tray"], None
+
+
+def _choco() -> None:
+    subprocess.run(["choco", "install", "obs-studio", "-y", "--no-progress"], timeout=300)
+
+
+def _winget() -> None:
+    if not shutil.which("winget"):
+        raise RuntimeError("winget 없음(이 실행 환경)")
+    subprocess.run(["winget", "install", "--id", "OBSProject.OBSStudio", "--exact", "--source", "winget", "--silent",
+                    "--accept-package-agreements", "--accept-source-agreements", "--disable-interactivity"], timeout=300)
+
+
+def _github() -> None:
+    """OBS GitHub 최신 릴리스의 공식 설치 파일(NSIS) 무인 설치. gh 명령과 GH_TOKEN 필요."""
+    folder = TEMP / "obs-installer"
+    shutil.rmtree(folder, ignore_errors=True)
+    subprocess.run(["gh", "release", "download", "--repo", "obsproject/obs-studio", "--dir", str(folder),
+                    "--pattern", "*-Windows-x64-Installer.exe", "--pattern", "*-Windows-Installer.exe"], check=True, timeout=300)
+    installers = sorted(folder.glob("*.exe"))
+    if not installers:
+        raise RuntimeError("최신 릴리스에 Windows 설치 파일 없음")
+    print(f"공식 설치 파일: {installers[0].name}", flush=True)
+    subprocess.run([str(installers[0]), "/S"], check=True, timeout=300)
+
+
+#: 설치 경로별 (설치 함수, 시도 횟수). 순서대로 시도
+INSTALLERS = {"choco": (_choco, 2), "winget": (_winget, 1), "github": (_github, 3)}
+
+
+def install(*sources: str) -> None:
+    """Windows OBS 설치. 설치 여부는 종료 코드가 아닌 obs64.exe 유무로 판단한다.
+
+    Chocolatey는 공개 저장소 장애 때 아무것도 설치하지 않고 성공으로 끝나므로(installed 0/0 packages)
+    다음 경로로 넘어간다. 모두 실패하면 오류로 종료.
+    """
+    if os.environ.get("DEBUTKIT_VERIFY_OBS") != "1":
+        raise SystemExit("이 PC에 OBS를 설치하므로 CI에서만 실행(DEBUTKIT_VERIFY_OBS=1)")
+    if sys.platform != "win32":
+        raise SystemExit("Windows 전용(Linux는 apt, macOS는 Homebrew로 설치)")
+    unknown = [name for name in sources if name not in INSTALLERS]
+    if unknown:
+        raise SystemExit(f"알 수 없는 설치 경로: {', '.join(unknown)} (사용 가능: {', '.join(INSTALLERS)})")
+    exe = Path(obs_command()[0][0])
+    order = list(sources or INSTALLERS)
+    for name in order:
+        run, tries = INSTALLERS[name]
+        for attempt in range(1, tries + 1):
+            if exe.is_file():
+                break
+            print(f"OBS 설치 시도: {name} ({attempt}/{tries})", flush=True)
+            try:
+                run()
+            except (OSError, subprocess.SubprocessError, RuntimeError) as error:
+                print(f"{name}: {error}", flush=True)
+            if not exe.is_file():
+                print(f"::warning::OBS 설치 안 됨({name}, {attempt}/{tries})", flush=True)
+                if attempt < tries:
+                    time.sleep(30 * attempt)
+    if not exe.is_file():
+        print(f"::error::OBS 설치 실패({', '.join(order)} 모두): {exe} 없음", flush=True)
+        raise SystemExit(1)
+    print(f"OBS 설치 확인: {exe}", flush=True)
 
 
 def running(pid: int) -> bool:
@@ -401,8 +467,9 @@ def camera(timeout: float = 60.0) -> None:
 
 def main(argv: list[str]) -> int:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # Windows 기본 코드 페이지로는 한국어 출력 불가
-    steps = {"configure": configure, "start": start, "wait": wait, "scenes": scenes, "stop": stop, "clip": clip, "voice": voice, "camera": camera, "logs": logs}
-    if not argv or argv[0] not in steps or len(argv) != (2 if argv[0] == "start" else 1):
+    steps = {"install": install, "configure": configure, "start": start, "wait": wait, "scenes": scenes, "stop": stop, "clip": clip,
+             "voice": voice, "camera": camera, "logs": logs}
+    if not argv or argv[0] not in steps or (argv[0] != "install" and len(argv) != (2 if argv[0] == "start" else 1)):
         print(__doc__)
         return 2
     steps[argv[0]](*argv[1:])

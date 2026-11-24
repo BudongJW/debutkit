@@ -47,8 +47,13 @@ jobs:
           sudo apt-get install -y obs-studio xvfb ffmpeg
           Xvfb :99 -screen 0 1920x1080x24 +extension Composite > /dev/null 2>&1 &
       - name: OBS (Windows)
+        # Chocolatey 공개 저장소 장애 대비: Chocolatey 2회, winget, OBS GitHub 릴리스의 공식 설치 파일 3회 순서로 시도.
+        # 설치 여부는 obs64.exe로 확인하고 모두 실패하면 이 단계에서 실패
         if: runner.os == 'Windows'
-        run: choco install obs-studio -y --no-progress
+        timeout-minutes: 15
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python packaging/verify_obs.py install
       - name: OBS, ffmpeg (macOS)
         if: runner.os == 'macOS'
         run: |
