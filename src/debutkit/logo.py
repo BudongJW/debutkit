@@ -1,7 +1,8 @@
 """방송 로고 만들기: 심볼과 채널 이름을 조합한 SVG 로고.
 
-- 심볼: 기본 도형(무료, 인터넷 연결 없음) 또는 사용자 본인의 API 키로 생성형 AI가 만든 SVG(Claude가 SVG 코드를 직접 작성,
-  OpenAI GPT-Image-2.6, Recraft V4.1 Vector). AI에는 글자 없는 심볼만 맡긴다(생성 이미지 안의 한글은 자모가 틀리기 쉬움)
+- 심볼: 기본 도형(무료, 인터넷 연결 없음), 공개 이미지 모델 Qwen-Image(Apache-2.0)를 사용자의 ComfyUI나 Hugging Face 공개 데모로
+  실행해 그린 그림을 배경 제거와 벡터화로 SVG로 바꾼 것(logo_image.py), 또는 사용자 본인의 API 키로 생성형 AI가 만든 SVG(Claude가
+  SVG 코드를 직접 작성, OpenAI GPT-Image-2.6, Recraft V4.1 Vector). AI에는 글자 없는 심볼만 맡긴다(생성 이미지 안의 한글은 자모가 틀리기 쉬움)
 - 채널 이름: 함께 배포한 글꼴(Pretendard, Black Han Sans, SIL Open Font License)의 윤곽선으로 넣어 글꼴 설치 없이 어디서나 같게 보인다
 - 외부에서 받은 SVG는 정리(스크립트, 외부 연결, 내장 이미지 제거)한 뒤에만 쓴다
 - AI가 만든 심볼이 들어간 로고에는 생성 방식(IPTC 디지털 소스 유형)과 사용한 서비스를 파일 메타데이터로 남긴다(인공지능 기본법 표시 취지)
@@ -26,7 +27,7 @@ from importlib import resources
 from pathlib import Path
 from typing import Any, Callable
 
-from . import __version__, settings
+from . import __version__, logo_image, settings
 from .secret import KeyBox
 
 SVG_NS = "http://www.w3.org/2000/svg"
@@ -59,6 +60,7 @@ class Provider:
     terms: str
     key_hint: str
     endpoint: str
+    needs_key: bool = True
 
 
 CLAUDE_MODEL = "claude-opus-5-5"
@@ -70,6 +72,18 @@ CLAUDE_SYSTEM = ("You design simple flat vector logo symbols for live-streaming 
                  "imports or external references. Keep a strong silhouette that reads at 32 pixels.")
 
 PROVIDERS: dict[str, Provider] = {
+    "comfyui": Provider("comfyui", "ComfyUI(이 PC의 GPU)", {"fast": "Qwen-Image + Lightning 8단계", "best": "Qwen-Image 30단계"},
+                        {"fast": "무료(이 PC의 그래픽카드 사용. 그래픽 메모리 12 GB 이상 권장)", "best": "무료(빠름보다 몇 배 오래 걸림)"},
+                        "ComfyUI(GPL-3.0, 별도 설치)와 Qwen-Image 모델 파일(Apache-2.0) 필요. 설명은 ComfyUI가 있는 PC 밖으로 보내지 않음",
+                        "키 필요 없음. ComfyUI를 실행하고 주소 입력", logo_image.COMFY_DEFAULT, needs_key=False),
+    "huggingface": Provider("huggingface", "Hugging Face(공개 모델 데모)",
+                            {"fast": "Qwen-Image + Lightning 8단계(Space multimodalart/Qwen-Image-Fast)",
+                             "best": "Qwen-Image-2512(Space Qwen/Qwen-Image-2512)"},
+                            {"fast": "무료 GPU 한도 사용(1장에 약 1분. 무료 계정 하루 5분, PRO 하루 40분)",
+                             "best": "무료 GPU 한도 사용(1장에 4분. 무료 계정은 하루 1장)"},
+                            "Hugging Face 이용 약관 적용. 공개 모델 Qwen-Image(Apache-2.0)를 Hugging Face의 공개 데모(Space)에서 실행하며 "
+                            "설명과 색이 Hugging Face로 전송됨. 계정 토큰 필요(토큰이 없으면 사용 한도 없음)",
+                            "huggingface.co 설정의 Access Tokens에서 Read 토큰 발급", "https://huggingface.co"),
     "claude": Provider("claude", "Claude", {"fast": CLAUDE_MODEL, "best": CLAUDE_MODEL},
                        {"fast": "토큰 과금(Claude Opus 5.5, 노력 낮음). 1개 약 0.02~0.1달러(추정)",
                         "best": "토큰 과금(Claude Opus 5.5, 노력 높음). 1개 약 0.05~0.3달러(추정)"},
@@ -84,6 +98,8 @@ PROVIDERS: dict[str, Provider] = {
                         "Recraft 이용 약관 적용: API는 만 18세 이상만 사용 가능",
                         "recraft.ai의 API 화면에서 발급한 토큰", "https://external.api.recraft.ai/v1/images/generations"),
 }
+#: 그림을 받아 배경 제거와 벡터화로 SVG를 만드는 서비스(나머지는 SVG를 직접 받음)
+IMAGE_PROVIDERS = ("comfyui", "huggingface")
 QUALITIES = {"fast": "빠름", "best": "고품질"}
 STYLES = {
     "cute": ("귀여운", "cute and friendly, rounded shapes"),
@@ -538,13 +554,15 @@ class LogoStudio:
     """API 키 보관, 심볼 생성 기록, 로고 조합."""
 
     def __init__(self, *, keys: KeyBox | None = None, folder: Path | None = None, opener: Opener = urllib.request.urlopen,
-                 claude: ClaudeClient | None = None, clock: Callable[[], float] = time.time) -> None:
+                 claude: ClaudeClient | None = None, clock: Callable[[], float] = time.time,
+                 sleep: Callable[[float], None] = time.sleep) -> None:
         base = settings.settings_path().parent
         self.keys = keys or KeyBox(base / "logo-keys.json", b"debutkit-logo-key", "debutkit-logo")
         self.folder = folder or logos_dir()
         self._opener = opener
         self._claude = claude
         self._clock = clock
+        self._sleep = sleep
         self._lock = threading.Lock()
         self._symbols: dict[str, dict[str, Any]] = {}
         self._busy = False
@@ -566,42 +584,77 @@ class LogoStudio:
 
     def set_key(self, provider: Any, key: Any) -> dict[str, Any]:
         provider_id = check_choice(provider, PROVIDERS, "AI 서비스")
+        if not PROVIDERS[provider_id].needs_key:
+            raise LogoError(f"{PROVIDERS[provider_id].name}는 키가 필요 없음")
         if key is None:
             self.keys.clear(provider_id)
         else:
             self.keys.save(provider_id, check_key(key))
         return self.status()
 
-    def generate(self, provider: Any, quality: Any, description: Any, style: Any, colors: Any) -> dict[str, Any]:
-        """사용자 키로 심볼 생성(요금 발생, 최대 몇 분). 결과는 정리해서 기록에 남긴다."""
+    def _image_symbol(self, provider_id: str, key: str, text: str, style_id: str, palette: list[str], quality_id: str,
+                      address: Any) -> tuple[str, logo_image.Made]:
+        """공개 이미지 모델이 단색 배경 위에 그린 그림을 받아 배경 제거와 벡터화로 SVG."""
+        back = logo_image.key_colour(palette)
+        prompt = logo_image.raster_prompt(text, STYLES[style_id][1], palette, back)
+        try:
+            if provider_id == "comfyui":
+                made = logo_image.comfy_image(address, prompt, quality_id, opener=self._opener, sleep=self._sleep)
+            else:
+                made = logo_image.space_image(key, prompt, quality_id, opener=self._opener)
+            return logo_image.symbol_svg(made.master, back), made
+        except logo_image.ImageModelError as error:
+            raise LogoError(str(error)) from None
+
+    def generate(self, provider: Any, quality: Any, description: Any, style: Any, colors: Any, address: Any = None) -> dict[str, Any]:
+        """심볼 생성(서비스에 따라 요금이나 무료 한도 사용, 최대 몇 분). 결과는 정리해서 기록에 남긴다.
+
+        ``address`` 는 ComfyUI 주소(기본 http://127.0.0.1:8188).
+        """
         provider_id = check_choice(provider, PROVIDERS, "AI 서비스")
         quality_id = check_choice(quality or "fast", QUALITIES, "품질")
         style_id = check_choice(style or "cute", STYLES, "느낌")
         text = check_description(description)
         palette = check_colors(colors)
-        key = self.keys.load(provider_id)
-        if not key:
-            raise LogoError(f"{PROVIDERS[provider_id].name} API 키를 먼저 저장({PROVIDERS[provider_id].key_hint})")
+        chosen = PROVIDERS[provider_id]
+        key = self.keys.load(provider_id) if chosen.needs_key else ""
+        if chosen.needs_key and not key:
+            raise LogoError(f"{chosen.name} 키를 먼저 저장({chosen.key_hint})")
+        if provider_id == "comfyui":
+            try:
+                address = logo_image.check_address(address)
+            except logo_image.ImageModelError as error:
+                raise LogoError(str(error)) from None
         with self._lock:
             if self._busy:
                 raise LogoError("이미 만드는 중: 끝난 뒤 다시 시도")
             self._busy = True
+        made: logo_image.Made | None = None
         try:
-            raw, model = request_symbol(provider_id, key, build_prompt(text, style_id, palette), quality_id, palette, opener=self._opener,
-                                        claude=self._claude)
+            if provider_id in IMAGE_PROVIDERS:
+                raw, made = self._image_symbol(provider_id, key or "", text, style_id, palette, quality_id, address)
+                model = made.model
+            else:
+                raw, model = request_symbol(provider_id, key or "", build_prompt(text, style_id, palette), quality_id, palette,
+                                            opener=self._opener, claude=self._claude)
             svg = sanitize_svg(raw)
         finally:
             with self._lock:
                 self._busy = False
-        record = {"id": random_ids.token_hex(6), "provider": PROVIDERS[provider_id].name, "model": model,
-                  "description": text, "style": style_id, "colors": palette, "time": int(self._clock())}
+        record: dict[str, Any] = {"id": random_ids.token_hex(6), "provider": chosen.name, "model": model,
+                                  "description": text, "style": style_id, "colors": palette, "time": int(self._clock())}
+        if made is not None:  # 같은 심볼을 다시 만들 수 있게 시드와 지시문 기록
+            record.update({"seed": made.seed, "prompt": made.prompt})
         with self._lock:
             self._symbols[record["id"]] = {**record, "svg": svg}
             while len(self._symbols) > KEEP:
                 self._symbols.pop(next(iter(self._symbols)))
-        try:  # 요금이 든 결과는 파일로도 보관(실패해도 이번 화면에서는 사용 가능)
+        try:  # 요금이나 한도가 든 결과는 파일로도 보관(실패해도 이번 화면에서는 사용 가능)
             self.folder.mkdir(parents=True, exist_ok=True)
             (self.folder / f"{record['id']}.svg").write_text(svg, encoding="utf-8")
+            if made is not None:  # 모델이 그린 원본 그림
+                suffix = ".webp" if made.master[:4] == b"RIFF" else ".jpg" if made.master[:3] == b"\xff\xd8\xff" else ".png"
+                (self.folder / f"{record['id']}{suffix}").write_bytes(made.master)
             with (self.folder / "log.jsonl").open("a", encoding="utf-8") as log:
                 log.write(json.dumps(record, ensure_ascii=False) + "\n")
         except OSError:
@@ -637,7 +690,8 @@ class LogoStudio:
             busy = self._busy
         return {
             "providers": {key: {"name": item.name, "models": item.models, "price": item.price, "terms": item.terms, "key_hint": item.key_hint,
-                                "key_saved": self.keys.has(key)} for key, item in PROVIDERS.items()},
+                                "needs_key": item.needs_key, "key_saved": item.needs_key and self.keys.has(key),
+                                **({"address": item.endpoint} if key == "comfyui" else {})} for key, item in PROVIDERS.items()},
             "key_storage": self.keys.mode, "qualities": QUALITIES, "styles": {key: value[0] for key, value in STYLES.items()},
             "layouts": LAYOUTS, "fonts": {key: item.name for key, item in FONTS.items()},
             "templates": {key: value[0] for key, value in TEMPLATES.items()}, "recent": recent, "busy": busy,

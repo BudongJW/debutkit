@@ -720,14 +720,14 @@ def _logo(args: argparse.Namespace) -> int:
         if command == "key":
             if args.clear:
                 studio.set_key(args.provider, None)
-                print(f"{logo.PROVIDERS[args.provider].name} API 키 삭제")
+                print(f"{logo.PROVIDERS[args.provider].name} 키 삭제")
                 return 0
             import getpass
 
-            key = sys.stdin.readline().strip() if args.stdin else getpass.getpass(f"{logo.PROVIDERS[args.provider].name} API 키(입력한 글자는 표시하지 않음): ")
+            key = sys.stdin.readline().strip() if args.stdin else getpass.getpass(f"{logo.PROVIDERS[args.provider].name} 키(입력한 글자는 표시하지 않음): ")
             status = studio.set_key(args.provider, key)
             mode = {"file": "암호화해 이 PC에 저장", "keyring": "운영체제 키 보관소에 저장", "memory": "이번 실행 동안만 사용(저장 안 함)"}[status["key_storage"]]
-            print(f"{logo.PROVIDERS[args.provider].name} API 키 {mode}")
+            print(f"{logo.PROVIDERS[args.provider].name} 키 {mode}")
             return 0
         if command == "list":
             print("기본 도형: " + ", ".join(f"{key}({label})" for key, label in studio.status()["templates"].items()))
@@ -739,8 +739,9 @@ def _logo(args: argparse.Namespace) -> int:
         colors = [logo.check_color(value) for value in (args.color or [])][:2]
         symbol: dict[str, Any]
         if args.ai:
-            print(f"{logo.PROVIDERS[args.ai].name}로 심볼 만드는 중(요금 발생, 보통 30초에서 몇 분)", flush=True)
-            made = studio.generate(args.ai, args.quality, args.describe, args.style, colors)
+            cost = "무료" if args.ai == "comfyui" else "무료 한도 사용" if args.ai == "huggingface" else "요금 발생"
+            print(f"{logo.PROVIDERS[args.ai].name}로 심볼 만드는 중({cost}, 보통 30초에서 몇 분)", flush=True)
+            made = studio.generate(args.ai, args.quality, args.describe, args.style, colors, args.comfyui)
             symbol = {"id": made["id"]}
         else:
             symbol = {"template": args.template, "primary": colors[0] if colors else "#FF4F8B", "accent": colors[1] if len(colors) > 1 else "#1E2327"}
@@ -1063,7 +1064,9 @@ def build_parser() -> argparse.ArgumentParser:
     logo_make = logos_sub.add_parser("make", help="로고 SVG 만들기(기본 도형은 무료, --ai는 저장한 API 키로 요금 발생)")
     logo_make.add_argument("--name", help="채널 이름(30자 이하)")
     logo_make.add_argument("--template", choices=list(TEMPLATES), default="star", help="기본 도형(기본 %(default)s)")
-    logo_make.add_argument("--ai", choices=list(LOGO_PROVIDERS), help="생성형 AI로 심볼 만들기(--describe 필요)")
+    logo_make.add_argument("--ai", choices=list(LOGO_PROVIDERS),
+                           help="생성형 AI로 심볼 만들기(--describe 필요). comfyui와 huggingface는 공개 모델 Qwen-Image")
+    logo_make.add_argument("--comfyui", metavar="주소", help="--ai comfyui의 ComfyUI 주소(기본 http://127.0.0.1:8188)")
     logo_make.add_argument("--describe", help="AI 심볼 설명(글자 없이 그림으로, 300자 이하)")
     logo_make.add_argument("--style", choices=list(STYLES), default="cute", help="AI 심볼 느낌(기본 %(default)s)")
     logo_make.add_argument("--quality", choices=list(LOGO_QUALITIES), default="fast", help="AI 품질(기본 %(default)s)")
@@ -1073,8 +1076,8 @@ def build_parser() -> argparse.ArgumentParser:
     logo_make.add_argument("--text-color", default="#1E2327", help="글자 색(기본 %(default)s)")
     logo_make.add_argument("--background", metavar="RRGGBB", help="배경색(기본 투명)")
     logo_make.add_argument("--out", required=True, metavar="파일", help="저장할 SVG 파일")
-    logo_key = logos_sub.add_parser("key", help="생성형 AI API 키 저장(입력한 글자는 표시하지 않음)")
-    logo_key.add_argument("provider", choices=list(LOGO_PROVIDERS))
+    logo_key = logos_sub.add_parser("key", help="생성형 AI API 키나 Hugging Face 토큰 저장(입력한 글자는 표시하지 않음)")
+    logo_key.add_argument("provider", choices=[key for key, item in LOGO_PROVIDERS.items() if item.needs_key])
     logo_key.add_argument("--stdin", action="store_true", help="표준 입력 첫 줄에서 읽기")
     logo_key.add_argument("--clear", action="store_true", help="저장한 키 삭제")
     logos_sub.add_parser("list", help="기본 도형과 최근 AI 심볼")

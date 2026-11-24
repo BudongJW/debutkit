@@ -289,7 +289,7 @@ def test_studio_with_claude(tmp_path):
     assert made["provider"] == "Claude" and made["model"] == "claude-opus-5-5" and "#FF4F8B" in fake.calls[-1]["messages"][0]["content"]
     svg = studio.make({"name": "부동", "symbol": {"id": made["id"]}})
     assert logo.AI_COMPOSITE in svg and "생성형 AI(Claude claude-opus-5-5)" in svg
-    assert list(studio.status()["providers"])[0] == "claude"
+    assert list(studio.status()["providers"])[:3] == ["comfyui", "huggingface", "claude"]
 
 
 def test_network_and_bad_answers():
@@ -343,7 +343,7 @@ def test_key_box_modes(tmp_path):
 def test_studio_generates_records_and_makes(tmp_path):
     record: list = []
     studio = logo.LogoStudio(keys=fake_keys(tmp_path), folder=tmp_path / "logos", opener=opener_returning(EVIL, record), clock=lambda: 1_800_000_000)
-    with pytest.raises(logo.LogoError, match="API 키를 먼저 저장"):
+    with pytest.raises(logo.LogoError, match="키를 먼저 저장"):
         studio.generate("openai", "fast", "고양이 귀", "cute", [])
     assert studio.set_key("openai", KEY)["providers"]["openai"]["key_saved"] is True
     made = studio.generate("openai", "fast", "고양이 귀 헤드폰", "bold", ["#FF4F8B"])
@@ -392,7 +392,7 @@ def test_server_routes(tmp_path):
         code, body, _ = request(srv.port, "GET", "/logo")
         assert code == 200 and "로고 만들기".encode() in body
         status = json.loads(request(srv.port, "GET", "/logo/status")[1])
-        assert set(status["providers"]) == {"claude", "openai", "recraft"} and "star" in status["templates"] and status["recent"] == []
+        assert set(status["providers"]) == {"comfyui", "huggingface", "claude", "openai", "recraft"} and "star" in status["templates"] and status["recent"] == []
         code, body, headers = request(srv.port, "GET", "/logo/symbol.svg?template=crown&primary=112233&accent=445566")
         assert code == 200 and b"#112233" in body and headers["Content-Type"] == "image/svg+xml" and "default-src 'none'" in headers["Content-Security-Policy"]
         assert request(srv.port, "GET", "/logo/symbol.svg?template=dragon")[0] == 400
@@ -402,7 +402,7 @@ def test_server_routes(tmp_path):
         code, body, _ = request(srv.port, "POST", "/logo/make", {"name": "", "symbol": {"template": "star"}})
         assert code == 400 and "채널 이름" in json.loads(body)["error"]
         code, body, _ = request(srv.port, "POST", "/logo/generate", {"provider": "openai", "description": "별"})
-        assert code == 400 and "API 키를 먼저 저장" in json.loads(body)["error"]
+        assert code == 400 and "키를 먼저 저장" in json.loads(body)["error"]
         code, body, _ = request(srv.port, "POST", "/logo/key", {"provider": "openai", "key": KEY})
         assert code == 200 and json.loads(body)["providers"]["openai"]["key_saved"] and KEY.encode() not in body
         code, body, _ = request(srv.port, "POST", "/logo/generate", {"provider": "openai", "quality": "fast", "description": "별", "colors": ["#FF4F8B"]})
@@ -430,5 +430,5 @@ def test_cli_logo(tmp_path, capsys, monkeypatch):
     monkeypatch.setattr("sys.stdin", io.StringIO(KEY + "\n"))
     assert main(["logo", "key", "recraft", "--stdin"]) == 0
     printed = capsys.readouterr().out
-    assert "Recraft API 키" in printed and KEY not in printed
+    assert "Recraft 키" in printed and KEY not in printed
     assert main(["logo", "key", "recraft", "--clear"]) == 0 and "삭제" in capsys.readouterr().out

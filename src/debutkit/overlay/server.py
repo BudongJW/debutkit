@@ -469,7 +469,7 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
                     return self._json(studio.set_key(data.get("provider"), None if data.get("clear") is True else data.get("key")))
                 if path == "/logo/generate":
                     return self._json({"symbol": studio.generate(data.get("provider"), data.get("quality"), data.get("description"),
-                                                                 data.get("style"), data.get("colors"))})
+                                                                 data.get("style"), data.get("colors"), data.get("address"))})
                 return self._json({"svg": studio.make(data)})
             except logos.LogoError as error:
                 return self._json({"error": str(error)}, HTTPStatus.BAD_REQUEST)
