@@ -151,8 +151,11 @@ def _devtools_capture(browser: str, url: str, out: Path, size: tuple[int, int], 
     import websocket  # websocket-client(debutkit[live])
 
     port = _free_port()
+    # Edge는 호환 계층 때문에 자기 자신을 다시 실행하고 처음 프로세스는 끝난다. 그러면 terminate로는 실제 브라우저가 남으므로
+    # 다시 실행하지 않게 하고, 끝낼 때는 DevTools의 Browser.close로 브라우저 스스로 닫게 한다
+    relaunch = ["--edge-skip-compat-layer-relaunch"] if Path(browser).name.lower() == "msedge.exe" else []
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as profile:  # 브라우저가 끝난 뒤에도 잠시 파일을 씀
-        process = subprocess.Popen([browser, "--headless=new", "--disable-gpu", "--hide-scrollbars", "--force-device-scale-factor=1",
+        process = subprocess.Popen([browser, "--headless=new", "--disable-gpu", "--hide-scrollbars", "--force-device-scale-factor=1", *relaunch,
                                     f"--remote-debugging-port={port}", f"--user-data-dir={profile}", f"--window-size={size[0]},{size[1]}", "about:blank"],
                                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         try:
@@ -187,6 +190,13 @@ def _devtools_capture(browser: str, url: str, out: Path, size: tuple[int, int], 
                 socket_.close()
             return True
         finally:
+            try:
+                browser_socket = websocket.create_connection(json.loads(urllib.request.urlopen(f"http://127.0.0.1:{port}/json/version", timeout=2).read())
+                                                             ["webSocketDebuggerUrl"], timeout=5, suppress_origin=True)
+                browser_socket.send(json.dumps({"id": 1, "method": "Browser.close"}))
+                browser_socket.close()
+            except (OSError, ValueError, KeyError, websocket.WebSocketException):
+                pass
             process.terminate()
             try:
                 process.wait(timeout=10)
