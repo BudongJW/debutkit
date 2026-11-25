@@ -811,12 +811,15 @@
   async function drain() {
     if (busy) return;
     busy = true;
-    while (queue.length) {  // 동시에 여러 후원이 와도 하나씩
+    while (queue.length) {  // 동시에 여러 후원이 와도 하나씩. 뽑기판 결과 등 가운데 연출과는 무대 차례(live.js의 cue)로 번갈아
+      const release = window.debutkitLive && !sample ? await window.debutkitLive.cue("draw") : () => {};
       try {
         await play(queue.shift());
       } catch (error) {
         console.warn("debutkit 추첨 연출", error);
         root.replaceChildren();
+      } finally {
+        release();
       }
     }
     busy = false;

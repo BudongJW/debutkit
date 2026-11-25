@@ -760,12 +760,15 @@
   async function drain() {
     if (busy) return;
     busy = true;
-    while (pending.length) {
+    while (pending.length) {  // 후원 추첨 등 가운데 연출과는 무대 차례(live.js의 cue)로 번갈아
+      const release = window.debutkitLive ? await window.debutkitLive.cue("pick") : () => {};
       try {
         await playOne(pending.shift());
       } catch (error) {
         console.warn("debutkit 뽑기판 연출", error);
         resultLayer.replaceChildren();
+      } finally {
+        release();
       }
     }
     busy = false;

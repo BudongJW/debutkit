@@ -3,7 +3,12 @@
 // 화면(live.js)이 받을 항목을 알려 오면 모든 화면이 원하는 항목을 합쳐 연결을 하나만 유지하고, 받은 값을 원하는 화면에만 나눠 준다.
 // 연결(다시 연결 포함) 직후 항목마다 처음 오는 값은 현재 상태라 initial 표시를 붙인다(화면은 지난 연출을 다시 재생하지 않음).
 // 나중에 연 화면에는 항목마다 마지막 값을 initial로 보낸다. events(채팅, 후원)는 최근 30개 목록으로.
+// 무대 차례(cue): 화면 가운데를 크게 쓰는 연출이 겹치지 않도록 먼저 요청한 화면부터 하나씩 허락한다(live.js의 cue).
 "use strict";
+
+const CUE_LIMIT = 40000;  // 한 연출이 무대를 잡을 수 있는 최대 시간(ms). 화면이 멈추거나 닫혀도 다음 차례로
+const cues = [];  // 기다리는 차례 {port, id}
+let holder = null;  // 지금 무대를 쓰는 차례 {port, id, at}
 
 const HISTORY = 30;
 const ports = new Map();  // 화면 연결 -> 받을 항목 Set
@@ -71,6 +76,26 @@ function connect() {
   };
 }
 
+function grant() {
+  if (holder && Date.now() - holder.at > CUE_LIMIT) holder = null;
+  while (!holder && cues.length) {
+    const next = cues.shift();
+    if (!ports.has(next.port)) continue;
+    holder = { ...next, at: Date.now() };
+    send(next.port, { cue: next.id });
+  }
+}
+
+function release(port, id) {
+  if (holder && holder.port === port && (id === undefined || holder.id === id)) holder = null;
+  for (let index = cues.length - 1; index >= 0; index -= 1) {
+    if (cues[index].port === port && (id === undefined || cues[index].id === id)) cues.splice(index, 1);
+  }
+  grant();
+}
+
+setInterval(grant, 2000);
+
 self.onconnect = (event) => {
   const port = event.ports[0];
   ports.set(port, new Set());
@@ -78,7 +103,17 @@ self.onconnect = (event) => {
     const request = message.data || {};
     if (request.close) {
       ports.delete(port);
+      release(port);
       connect();
+      return;
+    }
+    if (typeof request.cue === "string") {
+      cues.push({ port, id: request.cue });
+      grant();
+      return;
+    }
+    if (typeof request.release === "string") {
+      release(port, request.release);
       return;
     }
     if (Array.isArray(request.subscribe)) {
