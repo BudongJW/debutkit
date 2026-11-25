@@ -1,5 +1,5 @@
-"""명령줄: debutkit gui | doctor | scenes | camera | overlay | draw | raffle | phone | remote | broadcast | launch | logo | character | motion | vts |
-settings | setup | chzzk"""
+"""명령줄: debutkit gui | doctor | scenes | camera | overlay | draw | raffle | pick | wall | race | phone | vmc | remote | broadcast | launch | clip |
+logo | character | motion | vts | settings | setup | chzzk"""
 
 from __future__ import annotations
 
@@ -548,6 +548,13 @@ def _draw_show(config: Any, port: int) -> None:
     print(f"  구독, 멤버십: {'1회 추첨' if config.members else '추첨 안 함'}")
     print(f"  연출: {draw.STYLES[config.style]}, 결과 표시 {config.seconds}초, 추첨 이름 {config.title}")
     print(f"  표시: {draw.POSITIONS[config.position]}, 크기 {config.scale}%, 효과음 {'켬' if config.sound else '끔'}, 확률 {'표시' if config.show_percent else '표시 안 함'}")
+    design = draw.DESIGNS.get(config.style, {}).get(config.design, config.design)
+    print(f"  꾸미기: 모양 {design}, 결과 뒤 효과 {draw.EFFECTS.get(config.effect, config.effect)}, "
+          f"상품 이름 {draw.FONTS.get(config.name_font, '')} {draw.SIZES.get(config.name_size, '')}, 안내 글 {draw.FONTS.get(config.caption_font, '')} "
+          f"{draw.SIZES.get(config.caption_size, '')}")
+    if config.style == "tarot":
+        print(f"  오늘의 한마디: {'켬' if config.advice else '끔'}" + (f", 문장 {len(config.advice_lines)}개" if config.advice_lines else ", 기본 문장"))
+    print("  모양 목록: " + ", ".join(f"{key}({name})" for key, name in draw.DESIGNS.get(config.style, {}).items()))
     print(f"  방송 화면 http://127.0.0.1:{port}/draw  조작 화면 http://127.0.0.1:{port}/draw/control")
 
 
@@ -572,16 +579,21 @@ def _draw(args: argparse.Namespace) -> int:
     if command == "test":
         return _post_overlay(args.port, "/draw/test", {"amount": args.amount}, lambda answer: f"시험 추첨 {answer.get('count')}회: {answer.get('script', '')}")
     current = draw.load_config().to_dict()
-    data: dict[str, Any] = {key: current[key] for key in ("enabled", "prizes", "rules", "exact", "members", "style", "seconds", "title", "position",
-                                                           "scale", "sound", "show_percent")}
+    keys = ("enabled", "prizes", "rules", "exact", "members", "style", "seconds", "title", "position", "scale", "sound", "show_percent", "design",
+            "effect", "name_font", "name_size", "caption_font", "caption_size", "advice")
+    data: dict[str, Any] = {key: current[key] for key in (*keys, "advice_lines")}
     try:
         if args.prize:
             data["prizes"] = [{"name": name, "weight": weight} for weight, name in _draw_pairs(args.prize, "상품(가중치:이름)")]
         if args.rule:
             data["rules"] = [{"min_won": amount, "draws": count} for amount, count in _draw_pairs(args.rule, "규칙(금액:횟수)")]
-        for key in ("enabled", "exact", "members", "style", "seconds", "title", "position", "scale", "sound", "show_percent"):
-            if getattr(args, key) is not None:
+        for key in keys:
+            if key not in ("prizes", "rules") and getattr(args, key, None) is not None:
                 data[key] = getattr(args, key)
+        if args.advice_line:
+            data["advice_lines"] = args.advice_line
+        if args.style and args.style != current["style"] and args.design is None:
+            data["design"] = next(iter(draw.DESIGNS.get(args.style, {"basic": ""})))  # 연출을 바꾸면 그 연출의 첫 모양
         config = draw.save_config(draw.from_request(data))
     except (ValueError, OSError) as error:
         print(f"후원 추첨 설정 실패: {error}", file=sys.stderr)
@@ -643,6 +655,95 @@ def _phone(args: argparse.Namespace) -> int:
     if command == "calibrate":
         return _post_overlay(args.port, "/phone/calibrate", {"reset": args.reset}, describe)
     return _post_overlay(args.port, "/phone/stop", {}, describe)
+
+
+def _pick(args: argparse.Namespace) -> int:
+    """실행 중인 오버레이의 뽑기판: 상태, 칸 열기, 되돌리기, 섞기, 처음부터, 끝내고 공개, 방송 표시."""
+
+    def describe(answer: dict[str, Any]) -> str:
+        if isinstance(answer.get("entry"), dict):  # 칸 열기
+            entry = answer["entry"]
+            prize = entry.get("prize")
+            return f"{entry.get('cell')}번 칸: {prize.get('name') if isinstance(prize, dict) else prize or entry.get('name', '')}"
+        title = (answer.get("display") or {}).get("title") or "뽑기판"
+        return (f"{title}: {answer.get('opened', 0)}/{answer.get('total', 0)}칸 열림, " + ("방송에 표시 중" if answer.get("visible") else "방송에서 숨김")
+                + (", 끝남(배치 공개)" if answer.get("finished") else ""))
+
+    command = args.pick_command
+    if command == "status":
+        return _get_overlay(args.port, "/pick/state", describe)
+    if command == "open":
+        body: dict[str, Any] = {"by": args.by or ""}
+        if args.cell is not None:
+            body["cell"] = args.cell
+        return _post_overlay(args.port, "/pick/open", body, describe)
+    if command in ("show", "hide"):
+        return _post_overlay(args.port, "/pick/visible", {"visible": command == "show"}, describe)
+    return _post_overlay(args.port, f"/pick/{command}", {}, describe)
+
+
+def _wall(args: argparse.Namespace) -> int:
+    """실행 중인 오버레이의 후원 벽: 상태, 시험 후원, 비우기, 되돌리기, 시험 카드 지우기, 내보내기."""
+
+    def describe(answer: dict[str, Any]) -> str:
+        cards = answer.get("cards") or []
+        columns = answer.get("columns") or []
+        tests = sum(1 for card in cards if card.get("test"))
+        return f"후원 벽: 카드 {len(cards)}장(시험 {tests}장), 칸 {len(columns)}개" + (". 닉네임 숨김" if answer.get("config", {}).get("names") is False else "")
+
+    command = args.wall_command
+    if command == "status":
+        return _get_overlay(args.port, "/wall/state", describe)
+    if command == "test":
+        return _post_overlay(args.port, "/wall/test", {"unit": args.unit, "amount": args.amount, "name": args.name or "시험", "count": args.count},
+                             lambda answer: f"시험 카드 {args.count}장을 보냄({args.unit} {args.amount:g}). 시험 카드는 debutkit wall clear-tests 로 지우기")
+    if command == "export":
+        import urllib.error
+        import urllib.request
+
+        try:
+            with urllib.request.urlopen(f"http://127.0.0.1:{args.port}/wall/export", timeout=5) as response:
+                text = response.read().decode("utf-8")
+        except (urllib.error.URLError, OSError) as error:
+            print(f"오버레이에 연결하지 못함({args.port}번 포트): {error}", file=sys.stderr)
+            return 1
+        if args.out:
+            Path(args.out).write_text(text, encoding="utf-8")
+            print(f"저장: {args.out}")
+        else:
+            print(text)
+        return 0
+    if command == "clear-tests":
+        return _post_overlay(args.port, "/wall/remove", {"tests": True}, describe)
+    return _post_overlay(args.port, f"/wall/{command}", {}, describe)
+
+
+def _race(args: argparse.Namespace) -> int:
+    """실행 중인 오버레이의 참여 레이스: 상태, 시작, 다음 조, 멈춤."""
+
+    def describe(answer: dict[str, Any]) -> str:
+        state = answer.get("state", "")
+        words = {"idle": "대기", "running": "경기 중", "between": "다음 조 대기", "done": "끝"}
+        result = answer.get("last_result") or answer.get("result") or {}
+        line = f"참여 레이스: {words.get(state, state)}"
+        if answer.get("heat") is not None and answer.get("heats"):
+            line += f", {int(answer['heat']) + 1}/{len(answer['heats'])}조"
+        if result.get("winner"):
+            winner = result["winner"]
+            line += f". 우승 {winner.get('name') if isinstance(winner, dict) else winner}"
+        return line
+
+    command = args.race_command
+    if command == "status":
+        return _get_overlay(args.port, "/race/state", describe)
+    if command == "start":
+        body: dict[str, Any] = {"practice": args.practice}
+        if args.game:
+            body["game"] = args.game
+        if args.names:
+            body["paste"] = args.names
+        return _post_overlay(args.port, "/race/start", body, describe)
+    return _post_overlay(args.port, f"/race/{command}", {}, describe)
 
 
 def _vmc(args: argparse.Namespace) -> int:
@@ -1243,7 +1344,20 @@ def build_parser() -> argparse.ArgumentParser:
     mode.add_argument("--exact", dest="exact", action="store_const", const=True, help="금액이 정확히 같을 때만 추첨")
     mode.add_argument("--at-least", dest="exact", action="store_const", const=False, help="금액 이상이면 가장 큰 규칙(기본)")
     draw_set.add_argument("--members", action=argparse.BooleanOptionalAction, default=None, help="구독, 멤버십도 1회 추첨")
-    draw_set.add_argument("--style", choices=["card", "wheel"], help="연출: card(카드 뒤집기), wheel(룰렛)")
+    from .draw import EFFECTS as DRAW_EFFECTS
+    from .draw import FONTS as DRAW_FONTS
+    from .draw import SIZES as DRAW_SIZES
+    from .draw import STYLES as DRAW_STYLES
+
+    draw_set.add_argument("--style", choices=list(DRAW_STYLES), help="연출: " + ", ".join(f"{key}({name})" for key, name in DRAW_STYLES.items()))
+    draw_set.add_argument("--design", metavar="모양", help="연출별 모양(debutkit draw show 의 모양 목록)")
+    draw_set.add_argument("--effect", choices=list(DRAW_EFFECTS), help="결과 뒤 효과")
+    draw_set.add_argument("--name-font", choices=list(DRAW_FONTS), help="상품 이름 글꼴")
+    draw_set.add_argument("--name-size", choices=list(DRAW_SIZES), help="상품 이름 크기")
+    draw_set.add_argument("--caption-font", choices=list(DRAW_FONTS), help="안내 글(하단 띠, 한마디) 글꼴")
+    draw_set.add_argument("--caption-size", choices=list(DRAW_SIZES), help="안내 글 크기")
+    draw_set.add_argument("--advice", action=argparse.BooleanOptionalAction, default=None, help="타로의 오늘의 한마디")
+    draw_set.add_argument("--advice-line", action="append", metavar="문장", help="한마디 문장(여러 번 지정, 지정하면 목록 전체를 바꿈)")
     draw_set.add_argument("--seconds", type=int, metavar="초", help="결과 표시 시간(3에서 60초)")
     draw_set.add_argument("--title", metavar="이름", help="추첨 이름(20자 이내, 하단 띠에 표시). 예: 벌칙 룰렛")
     draw_set.add_argument("--position", choices=["center", "left", "right"], help="표시 위치: center(아래 가운데), left(왼쪽 아래), right(오른쪽 아래)")
@@ -1284,6 +1398,46 @@ def build_parser() -> argparse.ArgumentParser:
     phone_cal.add_argument("--reset", action="store_true", help="정면 맞추기 되돌리기")
     phone_sub.add_parser("stop", help="연결 끊기(다음 오버레이 실행 때 시작하지 않음)")
     phone.set_defaults(func=_phone)
+
+    picks = sub.add_parser("pick", help="뽑기판: 상태, 칸 열기, 되돌리기, 섞기, 처음부터, 끝내고 공개(실행 중인 오버레이. 설정은 /pick/control)")
+    picks.add_argument("--port", type=int, default=OVERLAY_PORT, help="오버레이 포트 (기본 %(default)s)")
+    picks_sub = picks.add_subparsers(dest="pick_command", required=True)
+    picks_sub.add_parser("status", help="열린 칸과 남은 상품")
+    pick_open = picks_sub.add_parser("open", help="칸 열기(번호를 생략하면 남은 칸 중 무작위)")
+    pick_open.add_argument("cell", nargs="?", type=int, metavar="번호")
+    pick_open.add_argument("--by", metavar="이름", help="연 사람(기록과 대본에 표시)")
+    for name, text in (("undo", "마지막으로 연 칸 되돌리기"), ("reshuffle", "남은 칸 다시 섞기"), ("reset", "처음부터 다시(새 배치)"),
+                       ("finish", "끝내고 배치 공개(공정성 확인 문자열)"), ("show", "방송에 표시"), ("hide", "방송에서 숨기기")):
+        picks_sub.add_parser(name, help=text)
+    picks.set_defaults(func=_pick)
+
+    walls = sub.add_parser("wall", help="후원 벽: 상태, 시험 후원, 비우기와 되돌리기, 시험 카드 지우기, 내보내기(실행 중인 오버레이. 설정은 /wall/control)")
+    walls.add_argument("--port", type=int, default=OVERLAY_PORT, help="오버레이 포트 (기본 %(default)s)")
+    walls_sub = walls.add_subparsers(dest="wall_command", required=True)
+    walls_sub.add_parser("status", help="카드와 칸 수")
+    wall_test = walls_sub.add_parser("test", help="시험 후원 카드(시험 표시)")
+    wall_test.add_argument("--unit", default="별풍선", help="단위: 별풍선, 애드벌룬, 원, bits 등 (기본 %(default)s)")
+    wall_test.add_argument("--amount", type=float, default=10, help="금액이나 개수 (기본 %(default)s)")
+    wall_test.add_argument("--name", metavar="이름")
+    wall_test.add_argument("--count", type=int, default=1, help="장수 (기본 %(default)s)")
+    walls_sub.add_parser("clear", help="벽 비우기(8초 안에 undo로 되돌리기)")
+    walls_sub.add_parser("undo", help="방금 비운 벽 되돌리기")
+    walls_sub.add_parser("clear-tests", help="시험 카드만 지우기")
+    wall_export = walls_sub.add_parser("export", help="후원자별 합계(텍스트)")
+    wall_export.add_argument("--out", metavar="파일", help="파일로 저장")
+    walls.set_defaults(func=_wall)
+
+    races = sub.add_parser("race", help="참여 레이스: 상태, 시작, 다음 조, 멈춤(실행 중인 오버레이. 참가자는 참여 추첨 명단, 설정은 /race/control)")
+    races.add_argument("--port", type=int, default=OVERLAY_PORT, help="오버레이 포트 (기본 %(default)s)")
+    races_sub = races.add_subparsers(dest="race_command", required=True)
+    races_sub.add_parser("status", help="경기 상태와 마지막 결과")
+    race_start = races_sub.add_parser("start", help="시작(참여 추첨 명단, --names로 이름 추가). 게임과 꾸미기는 저장한 설정")
+    race_start.add_argument("--game", choices=["marble", "run", "survival"], help="marble(구슬 레이스), run(달리기 경주), survival(서바이벌)")
+    race_start.add_argument("--names", metavar="이름", help='쉼표나 줄바꿈으로 구분, 이름*3은 3번 참가. 예: "치즈냥*3, 도토리"')
+    race_start.add_argument("--practice", action="store_true", help="연습(예시 이름, 결과 알림 없음)")
+    races_sub.add_parser("next", help="다음 조 시작")
+    races_sub.add_parser("stop", help="멈춤")
+    races.set_defaults(func=_race)
 
     vmc_parser = sub.add_parser("vmc", help="VMC 프로토콜 송신: debutkit 얼굴 추적 값(웹캠, 휴대폰)을 Warudo, VSeeFace 등으로 보내기(실행 중인 오버레이)")
     vmc_parser.add_argument("--port", type=int, default=OVERLAY_PORT, help="오버레이 포트 (기본 %(default)s)")
