@@ -598,9 +598,12 @@ class Wizard(QMainWindow):
         self.phone_button = QPushButton("휴대폰 얼굴 추적")
         self.phone_button.setToolTip("아이폰 앱(iFacialMocap, VTube Studio)의 얼굴 추적 값(ARKit 표정 52개)을 캐릭터에 반영. 같은 Wi-Fi 필요")
         self.phone_button.clicked.connect(self.open_phone)
+        self.vmc_button = QPushButton("VMC 송신")
+        self.vmc_button.setToolTip("debutkit 얼굴 추적 값을 Warudo, VSeeFace, VMagicMirror로 보내기(VMC 프로토콜)")
+        self.vmc_button.clicked.connect(self.open_vmc)
         self.remove_button = QPushButton("삭제")
         self.remove_button.clicked.connect(self.remove_character)
-        layout.addWidget(card(self.characters, self.character_detail, row(add, make, self.use_button), row(self.send_button, self.preview_button, self.tracker_button, self.phone_button, self.remove_button),
+        layout.addWidget(card(self.characters, self.character_detail, row(add, make, self.use_button), row(self.send_button, self.preview_button, self.tracker_button, self.phone_button, self.vmc_button, self.remove_button),
                               title="내 캐릭터"))
         self._filling = False
         self._pending_reaction = ""
@@ -963,6 +966,13 @@ class Wizard(QMainWindow):
         self.backend.open_url(f"{self.server.url}/phone")
         self._character_message("휴대폰과 PC를 같은 Wi-Fi에 연결하고, 휴대폰 앱에 표시된 IP 주소를 입력한 뒤 연결 시작을 누르십시오. "
                                 "처음 연결할 때 Windows 보안 경고가 나오면 개인 네트워크를 허용하십시오.")
+
+    def open_vmc(self) -> None:
+        """VMC 송신 설정 화면(보낼 주소와 포트, 퍼펙트 싱크, 좌우 반전)을 브라우저에서 연다."""
+        if self.server is None:
+            return self._character_message("채팅과 알림 단계에서 오버레이를 시작한 뒤 VMC 송신을 설정할 수 있습니다.")
+        self.backend.open_url(f"{self.server.url}/vmc")
+        self._character_message("받는 프로그램(Warudo, VSeeFace 등)에서 VMC 수신을 켜고 포트를 맞춘 뒤 송신 시작을 누르십시오.")
 
     def _pick_avatar(self) -> None:
         path, _ = QFileDialog.getOpenFileName(self, "아바타 모델", "", "모델 (*.vrm *.model3.json *.moc3);;모든 파일 (*)")

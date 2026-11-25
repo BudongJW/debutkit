@@ -781,7 +781,7 @@ class OverlayServer:
         self.logo = logos.LogoStudio()  # 방송 로고 만들기(API 키, 생성 기록)
         #: 방송 연출 기능(feature.py의 default_features: 뽑기판, 후원 벽, 참여 레이스 등)
         self.features = features_.default_features(features_.Context(notify=lambda text: self.hub.publish(system_event(text)), raffle=self.raffle,
-                                                                     draw=self.draw, port_of=lambda: self.port))
+                                                                     draw=self.draw, tracking=self.tracking, port_of=lambda: self.port))
         for part in self.features:
             self.hub.taps.extend(part.taps)
         self._sources = list(sources)

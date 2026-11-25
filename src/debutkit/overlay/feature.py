@@ -66,6 +66,7 @@ class Context:
     notify: Callable[[str], None]
     raffle: Any = None  # raffle.Raffle(시청자 참여 추첨의 참가자 명단)
     draw: Any = None  # draw.DrawState
+    tracking: Any = None  # tracking.TrackingState(얼굴 추적 값)
     port_of: Callable[[], int] = lambda: 8790
 
 
@@ -112,5 +113,7 @@ class Channel:
 
 def default_features(context: Context) -> list[Feature]:
     """오버레이 서버가 기본으로 켜는 기능들. 기능을 추가하면 여기에 한 줄 더한다."""
-    found: list[Feature] = []
+    from . import vmc
+
+    found: list[Feature] = [vmc.make_feature(context)]
     return found

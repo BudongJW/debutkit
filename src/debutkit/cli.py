@@ -643,6 +643,24 @@ def _phone(args: argparse.Namespace) -> int:
     return _post_overlay(args.port, "/phone/stop", {}, describe)
 
 
+def _vmc(args: argparse.Namespace) -> int:
+    """실행 중인 오버레이의 VMC 프로토콜 송신(얼굴 추적 값을 Warudo, VSeeFace 등으로)."""
+
+    def describe(status: dict[str, Any]) -> str:
+        if not status.get("running"):
+            return "VMC 송신 꺼짐"
+        options = ", ".join(name for name, on in (("퍼펙트 싱크 표정", status.get("perfect_sync")), ("거울처럼", status.get("mirror"))) if on) or "선택 없음"
+        state = status.get("error") or (f"보낸 횟수 {status.get('sent', 0)}" if status.get("receiving") else "얼굴 추적 값 대기(추적 화면이나 휴대폰 추적 켜기)")
+        return f"VMC 송신 중: {status['host']}:{status['port']}, 초당 최대 {status['rate']}회\n  {state}\n  {options}"
+
+    if args.vmc_command == "status":
+        return _get_overlay(args.port, "/vmc/status", describe)
+    if args.vmc_command == "start":
+        body = {"host": args.host, "port": args.vmc_port, "perfect_sync": not args.no_perfect_sync, "mirror": args.mirror, "rate": args.rate}
+        return _post_overlay(args.port, "/vmc/start", body, describe)
+    return _post_overlay(args.port, "/vmc/stop", {}, describe)
+
+
 def _remote(args: argparse.Namespace) -> int:
     """실행 중인 오버레이의 휴대폰 조작 화면(켜기, 끄기, 등록, 승인, 삭제)."""
     command = args.remote_command
@@ -1264,6 +1282,19 @@ def build_parser() -> argparse.ArgumentParser:
     phone_cal.add_argument("--reset", action="store_true", help="정면 맞추기 되돌리기")
     phone_sub.add_parser("stop", help="연결 끊기(다음 오버레이 실행 때 시작하지 않음)")
     phone.set_defaults(func=_phone)
+
+    vmc_parser = sub.add_parser("vmc", help="VMC 프로토콜 송신: debutkit 얼굴 추적 값(웹캠, 휴대폰)을 Warudo, VSeeFace 등으로 보내기(실행 중인 오버레이)")
+    vmc_parser.add_argument("--port", type=int, default=OVERLAY_PORT, help="오버레이 포트 (기본 %(default)s)")
+    vmc_sub = vmc_parser.add_subparsers(dest="vmc_command", required=True)
+    vmc_sub.add_parser("status", help="송신 상태")
+    vmc_start = vmc_sub.add_parser("start", help="송신 시작(설정 저장, 다음 오버레이 실행에도 시작)")
+    vmc_start.add_argument("--host", default="127.0.0.1", help="받는 프로그램의 주소(이 PC 127.0.0.1 또는 같은 네트워크 내부 주소, 기본 %(default)s)")
+    vmc_start.add_argument("--vmc-port", type=int, default=39539, help="받는 포트(Warudo, VSeeFace의 VMC 수신 포트, 기본 %(default)s)")
+    vmc_start.add_argument("--no-perfect-sync", action="store_true", help="ARKit 표정 52개는 보내지 않고 A, Blink, Joy만")
+    vmc_start.add_argument("--mirror", action="store_true", help="좌우 반전(받는 프로그램에서 반대로 움직일 때)")
+    vmc_start.add_argument("--rate", type=int, default=60, help="초당 최대 송신 횟수 10~120 (기본 %(default)s)")
+    vmc_sub.add_parser("stop", help="송신 멈춤(다음 실행 때 시작하지 않음)")
+    vmc_parser.set_defaults(func=_vmc)
 
     remote = sub.add_parser("remote", help="휴대폰 조작 화면: 같은 Wi-Fi의 휴대폰 브라우저로 참여 추첨, 3D 캐릭터 동작 조작(실행 중인 오버레이)")
     remote.add_argument("--port", type=int, default=OVERLAY_PORT, help="오버레이 포트 (기본 %(default)s)")

@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>debutkit VMC 송신</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <style>
+    :root { color-scheme: light; --bg: #ffffff; --panel: #faf7f5; --line: #e3dfdb; --text: #1e2327; --dim: #5b6670; --ok: #1f7a4d; --bad: #b3261e; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.6 "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; }
+    header { display: flex; align-items: center; gap: 12px; padding: 14px 24px; border-bottom: 1px solid var(--line); }
+    header img { width: 28px; height: 28px; }
+    header h1 { font-size: 17px; margin: 0; }
+    header a { margin-left: auto; color: var(--dim); font-size: 13px; }
+    main { max-width: 760px; margin: 0 auto; padding: 20px 24px 56px; }
+    .lead { color: var(--dim); margin: 0 0 18px; }
+    section { border: 1px solid var(--line); border-radius: 6px; padding: 16px 18px; margin-bottom: 18px; }
+    h2 { font-size: 16px; margin: 0 0 10px; }
+    .hint { color: var(--dim); font-size: 13px; margin: 6px 0 0; }
+    .fields { display: grid; grid-template-columns: 1fr 140px 140px; gap: 10px; }
+    label.field { display: grid; gap: 4px; font-weight: 600; font-size: 14px; }
+    label.check { display: flex; gap: 8px; align-items: center; font-size: 14px; margin-top: 10px; }
+    input[type=text], input[type=number] { padding: 6px 9px; border: 1px solid #c9c3bd; border-radius: 3px; font: 14px ui-monospace, Consolas, monospace; background: #fff; }
+    button { background: var(--text); color: #fff; border: 1px solid var(--text); border-radius: 3px; padding: 6px 13px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+    button.secondary { background: #fff; color: var(--text); border-color: #c9c3bd; }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 14px; }
+    .state { font-size: 14px; font-weight: 600; margin: 12px 0 0; }
+    .state.ok { color: var(--ok); }
+    .state.bad { color: var(--bad); }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { text-align: left; padding: 5px 4px; border-bottom: 1px solid var(--line); }
+    th { color: var(--dim); font-weight: 600; font-size: 13px; }
+    code { background: var(--panel); border: 1px solid var(--line); border-radius: 3px; padding: 0 5px; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <header><img src="/favicon.svg" alt=""><h1>VMC 송신</h1><a href="/">오버레이 설정 화면</a></header>
+  <main>
+    <p class="lead">debutkit 얼굴 추적 값(웹캠 추적 화면, 휴대폰 얼굴 추적)을 VMC 프로토콜로 다른 프로그램에 보냅니다. 머리 회전, 눈, 입, 웃음과 퍼펙트 싱크 표정 52개.</p>
+    <section>
+      <h2>보낼 곳</h2>
+      <div class="fields">
+        <label class="field">주소<input type="text" id="host" value="127.0.0.1" aria-label="받는 프로그램의 주소"></label>
+        <label class="field">포트<input type="number" id="port" value="39539" min="1024" max="65535"></label>
+        <label class="field">초당 최대<input type="number" id="rate" value="60" min="10" max="120"></label>
+      </div>
+      <label class="check"><input type="checkbox" id="perfect" checked> 퍼펙트 싱크 표정(ARKit 52개)도 보내기</label>
+      <label class="check"><input type="checkbox" id="mirror"> 좌우 반전(받는 프로그램에서 반대로 움직일 때)</label>
+      <div class="row"><button id="start">송신 시작</button><button class="secondary" id="stop">멈춤</button></div>
+      <p class="state" id="state">상태 확인 중</p>
+      <p class="hint">켜 두면 다음 오버레이 실행 때도 자동으로 시작합니다. 받는 곳은 이 PC나 같은 네트워크의 내부 주소만 됩니다(얼굴 추적 값이 인터넷으로 나가지 않게).</p>
+    </section>
+    <section>
+      <h2>받는 프로그램 설정</h2>
+      <table>
+        <tr><th>프로그램</th><th>설정</th></tr>
+        <tr><td>Warudo</td><td>블루프린트나 캐릭터 설정의 VMC 수신(Receive VMC) 켜기, 포트 <code>39539</code></td></tr>
+        <tr><td>VSeeFace</td><td>설정의 OSC/VMC 수신기(VMC protocol receiver) 켜기, 포트 <code>39539</code>. 머리와 표정을 받을 항목 선택</td></tr>
+        <tr><td>VMagicMirror</td><td>외부 트래킹의 VMC 프로토콜 수신 켜기, 포트 <code>39539</code></td></tr>
+      </table>
+      <p class="hint">다른 PC로 보낼 때는 그 PC의 내부 주소(예: 192.168.0.20)를 적고, 받는 PC의 방화벽에서 UDP 포트를 허용합니다.</p>
+    </section>
+  </main>
+  <script>
+    "use strict";
+    const $ = (id) => document.getElementById(id);
+    let filled = false;  // 입력 칸은 처음 한 번만 채움(고치는 중에 덮어쓰지 않게)
+    function show(status, error) {
+      const state = $("state");
+      if (error) { state.textContent = error; state.className = "state bad"; return; }
+      if (!filled && status.host) {
+        $("host").value = status.host; $("port").value = status.port; $("rate").value = status.rate;
+        $("perfect").checked = status.perfect_sync; $("mirror").checked = status.mirror;
+        filled = true;
+      }
+      if (!status.running) { state.textContent = "꺼짐"; state.className = "state"; return; }
+      const detail = status.error || (status.receiving ? `보낸 횟수 ${status.sent}` : "얼굴 추적 값 대기: 추적 화면이나 휴대폰 얼굴 추적을 켜십시오");
+      state.textContent = `송신 중: ${status.host}:${status.port}. ${detail}`;
+      state.className = status.error ? "state bad" : "state ok";
+    }
+    async function call(path, body) {
+      try {
+        const response = await fetch(path, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {});
+        const data = await response.json();
+        if (!response.ok) return show({}, data.error || "요청 실패");
+        show(data);
+      } catch (error) { show({}, "오버레이에 연결하지 못함"); }
+    }
+    $("start").addEventListener("click", () => call("/vmc/start", { host: $("host").value.trim(), port: Number($("port").value),
+      rate: Number($("rate").value), perfect_sync: $("perfect").checked, mirror: $("mirror").checked }));
+    $("stop").addEventListener("click", () => call("/vmc/stop", {}));
+    call("/vmc/status");
+    setInterval(() => call("/vmc/status"), 2000);
+  </script>
+</body>
+</html>
