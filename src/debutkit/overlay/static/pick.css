@@ -1,0 +1,321 @@
+/* debutkit 뽑기판: "방송 소품" 콘셉트. 잉크 외곽선과 흐림 없는 딱딱한 그림자, 종이 바탕, 테마 색 하나에서 나온 덮개와 당첨 띠.
+   금색은 희귀 상품 전용. 색, 칸 크기는 pick.js가 #pick에 변수로 넣는다(--cover, --board, --cw, --ch, --u 등).
+   OBS 28(Chromium 103)에서도 동작하도록 :has, color-mix, translate 속성을 쓰지 않는다. OBS 사용자 지정 CSS로 덮어쓸 수 있음 */
+
+@font-face { font-family: "Black Han Sans"; src: url("/vendor/fonts/BlackHanSans-Regular.woff2") format("woff2"); font-display: block; }
+@font-face { font-family: "Pretendard"; src: url("/vendor/fonts/Pretendard-SemiBold.subset.woff2") format("woff2"); font-weight: 600; font-display: block; }
+@font-face { font-family: "Pretendard"; src: url("/vendor/fonts/Pretendard-Bold.subset.woff2") format("woff2"); font-weight: 700; font-display: block; }
+
+:root {
+  --ink: #1e2327;
+  --paper: #faf7f5;
+  --hard: rgba(30, 35, 39, 0.9);
+  --body-font: "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+  --mono: ui-monospace, Consolas, "Cascadia Mono", monospace;
+  --grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.12 0 0 0 0 0.14 0 0 0 0 0.15 0 0 0 0.08 0'/></filter><rect width='120' height='120' filter='url(%23n)'/></svg>");
+}
+
+body.bg-dark { background: #59626a; }
+body.bg-light { background: #e9e4dd; }
+body.bg-checker { background: repeating-conic-gradient(#30373c 0% 25%, #2a3035 0% 50%) 0 0 / 40px 40px; }
+
+/* ---------------------------------------------------------------- 무대 */
+#pick {
+  position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: 50px 60px; box-sizing: border-box;
+  pointer-events: none; font-family: var(--body-font); color: var(--ink);
+}
+#pick[data-position="left"] { justify-content: flex-start; }
+#pick[data-position="right"] { justify-content: flex-end; }
+.pk-stage { transform: scale(var(--scale, 1)); transform-origin: 50% 50%; transition: opacity 0.35s ease, transform 0.35s ease; }
+#pick[data-position="left"] .pk-stage { transform-origin: 0 50%; }
+#pick[data-position="right"] .pk-stage { transform-origin: 100% 50%; }
+#pick.hidden .pk-stage { opacity: 0; transform: scale(calc(var(--scale, 1) * 0.96)) translateY(24px); }
+.pk-stage.enter { animation: pk-enter 0.45s cubic-bezier(0.2, 1.2, 0.4, 1); }
+
+.pk-panel { display: flex; flex-direction: column; gap: 14px; }
+.pk-panel.framed {
+  position: relative; padding: 26px 32px 20px; background: var(--board) var(--grain); border: 4px solid var(--ink); border-radius: 6px;
+  box-shadow: 10px 10px 0 var(--hard);
+}
+.pk-head { display: flex; flex-direction: column; gap: 6px; }
+.pk-title { margin: 0; font: var(--title-size) / var(--title-line) var(--display); font-weight: var(--display-weight); color: var(--title-color, var(--text));
+  text-align: var(--title-align); word-break: keep-all; }
+.pk-caption { margin: 0; font: 600 var(--caption-size) / var(--caption-line) var(--body-font); color: var(--caption-color, var(--text)); opacity: 0.86;
+  text-align: var(--caption-align); white-space: pre-line; word-break: keep-all; }
+.pk-panel.bare .pk-title, .pk-panel.bare .pk-caption { color: var(--title-color, var(--paper)); opacity: 1;
+  text-shadow: -3px -3px 0 var(--ink), 3px -3px 0 var(--ink), -3px 3px 0 var(--ink), 3px 3px 0 var(--ink), 0 -3px 0 var(--ink), 0 3px 0 var(--ink),
+               -3px 0 0 var(--ink), 3px 0 0 var(--ink), 6px 6px 0 var(--ink); }
+.pk-panel.bare .pk-caption { color: var(--caption-color, var(--paper)); }
+
+/* ---------------------------------------------------------------- 칸 */
+.pk-board { display: grid; grid-template-columns: repeat(var(--cols), var(--cw)); gap: var(--gap); justify-content: center; align-self: center; }
+.pk-cell { position: relative; width: var(--cw); height: var(--ch); transition: opacity 0.25s, transform 0.3s cubic-bezier(0.2, 1.3, 0.4, 1); }
+.pk-stage.enter .pk-cell { animation: pk-drop 0.4s cubic-bezier(0.2, 1.3, 0.4, 1) both; animation-delay: calc(var(--i) * 12ms); }
+.pk-board.focusing .pk-cell:not(.focus) { opacity: 0.45; }
+.pk-cell.focus { z-index: 20; transform: scale(1.12) translateY(-4px); }
+.pk-inner { position: absolute; inset: 0; }
+.pk-prize, .pk-cover { position: absolute; inset: 0; box-sizing: border-box; border-radius: var(--radius, 8px); }
+.pk-cover { z-index: 2; }
+.pk-cell.open .pk-cover, .pk-cell.revealed .pk-cover { display: none; }
+
+/* 열린 칸: 종이 쪽지. 당첨은 위쪽 색 띠, 희귀는 금색, 꽝은 사선 무늬와 흐린 글자 */
+.pk-prize {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 6%; overflow: hidden; text-align: center;
+  background: var(--paper) var(--grain); border: calc(var(--line) * 1px) solid var(--ink); box-shadow: calc(var(--u) * 0.035) calc(var(--u) * 0.035) 0 var(--hard);
+}
+.pk-prize .pk-name { position: relative; font-family: var(--display); font-weight: var(--display-weight); line-height: 1.1; color: var(--ink);
+  white-space: pre-line; word-break: keep-all; overflow-wrap: anywhere; }
+.pk-prize .pk-pn { position: absolute; left: 7%; bottom: 5%; font: 700 calc(var(--u) * 0.13) / 1 var(--body-font); color: var(--muted);
+  font-variant-numeric: tabular-nums; }
+.pk-prize .pk-by { position: absolute; right: 7%; bottom: 5%; max-width: 70%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font: 700 calc(var(--u) * 0.11) / 1 var(--body-font); color: var(--muted); }
+.pk-prize.t-win::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 15%; background: var(--win);
+  border-bottom: calc(var(--line) * 1px) solid var(--ink); }
+.pk-prize.t-win .pk-name { margin-top: 8%; }
+.pk-prize.t-rare { background: var(--gold) var(--grain); border-color: var(--ink); box-shadow: calc(var(--u) * 0.035) calc(var(--u) * 0.035) 0 var(--hard),
+  inset 0 0 0 calc(var(--line) * 1px) var(--gold-deep); }
+.pk-prize.t-rare::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(115deg, transparent 34%,
+  rgba(255, 255, 255, 0.6) 46%, rgba(255, 244, 196, 0.35) 52%, transparent 62%); background-size: 280% 100%; animation: pk-sheen 2.6s ease-in-out 0.3s infinite; }
+.pk-prize.t-miss { background: repeating-linear-gradient(135deg, transparent 0 calc(var(--u) * 0.06), rgba(30, 35, 39, 0.07) calc(var(--u) * 0.06) calc(var(--u) * 0.12)),
+  var(--miss) var(--grain); }
+.pk-prize.t-miss .pk-name { color: var(--muted); }
+.pk-cell.revealed .pk-prize { opacity: 0.62; border-style: dashed; box-shadow: none; }
+.pk-cell.revealed .pk-prize::after { animation: none; }
+
+/* 덮개 공통: 무늬는 .pat-*, 번호는 .pk-num */
+.pk-face { position: absolute; inset: 0; box-sizing: border-box; border-radius: var(--radius, 8px); border: calc(var(--line) * 1px) solid var(--ink);
+  background-color: var(--cover); box-shadow: calc(var(--u) * 0.035) calc(var(--u) * 0.035) 0 var(--hard); overflow: hidden; }
+.pat-number, .pat-emblem, .pat-question { background: var(--cover); }
+.pat-dots { background: radial-gradient(circle, var(--cover-deep) 24%, transparent 26%) 0 0 / calc(var(--u) * 0.16) calc(var(--u) * 0.16), var(--cover); }
+.pat-stripes { background: repeating-linear-gradient(135deg, var(--cover) 0 calc(var(--u) * 0.07), var(--cover-deep) calc(var(--u) * 0.07) calc(var(--u) * 0.14)); }
+.pat-check { background: repeating-conic-gradient(var(--cover) 0 25%, var(--cover-deep) 0 50%) 0 0 / calc(var(--u) * 0.24) calc(var(--u) * 0.24); }
+.pat-grid { background: linear-gradient(var(--cover-deep) 2px, transparent 2px) -1px -1px / calc(var(--u) * 0.14) calc(var(--u) * 0.14),
+  linear-gradient(90deg, var(--cover-deep) 2px, transparent 2px) -1px -1px / calc(var(--u) * 0.14) calc(var(--u) * 0.14), var(--cover); }
+.pat-stars { background: var(--pat-stars) 0 0 / calc(var(--u) * 0.34) calc(var(--u) * 0.34), var(--cover); }
+.pat-hearts { background: var(--pat-hearts) 0 0 / calc(var(--u) * 0.3) calc(var(--u) * 0.3), var(--cover); }
+.pat-waves { background: var(--pat-waves) 0 0 / calc(var(--u) * 0.36) calc(var(--u) * 0.18), var(--cover); }
+.pat-gift { background:
+  linear-gradient(90deg, transparent 41%, var(--ink) 41% 43%, var(--cover-light) 43% 57%, var(--ink) 57% 59%, transparent 59%),
+  linear-gradient(transparent 41%, var(--ink) 41% 43%, var(--cover-light) 43% 57%, var(--ink) 57% 59%, transparent 59%), var(--cover); }
+.pat-question { background: radial-gradient(circle, rgba(255, 255, 255, 0.22) 18%, transparent 20%) 0 0 / calc(var(--u) * 0.2) calc(var(--u) * 0.2), var(--cover); }
+
+.pk-num { position: absolute; left: 50%; top: 50%; display: flex; align-items: center; justify-content: center; box-sizing: border-box;
+  min-width: calc(var(--u) * 0.46); height: calc(var(--u) * 0.46); padding: 0 calc(var(--u) * 0.06); transform: translate(-50%, -50%);
+  background: var(--paper); color: var(--ink); border: calc(var(--line) * 1px) solid var(--ink); border-radius: 999px;
+  font: calc(var(--u) * 0.26) / 1 var(--display); font-weight: var(--display-weight); font-variant-numeric: tabular-nums; z-index: 2; }
+.pk-num.big { min-width: 0; height: auto; padding: 0; background: none; border: 0; color: var(--on-cover); font-size: calc(var(--u) * 0.5);
+  text-shadow: calc(var(--u) * 0.025) calc(var(--u) * 0.025) 0 var(--cover-deep); }
+.pk-num.corner { left: auto; top: auto; right: 7%; bottom: 7%; transform: none; min-width: calc(var(--u) * 0.3); height: calc(var(--u) * 0.3);
+  font-size: calc(var(--u) * 0.17); }
+.pk-q { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-54%); text-align: center; font: calc(var(--u) * 0.62) / 1 var(--display);
+  color: var(--on-cover); text-shadow: calc(var(--u) * 0.03) calc(var(--u) * 0.03) 0 var(--cover-deep); }
+.pk-emblem { position: absolute; left: 50%; top: 47%; width: 46%; height: auto; transform: translate(-50%, -50%); }
+.pk-bow { position: absolute; left: 50%; top: 50%; width: 46%; transform: translate(-50%, -62%); }
+
+/* ---------------------------------------------------------------- 테마: 카드 뒤집기 */
+.theme-card .pk-cell { perspective: 900px; }
+.theme-card .pk-inner { transform-style: preserve-3d; transition: transform 0.62s cubic-bezier(0.3, 0.7, 0.3, 1.15); }
+.theme-card .pk-prize { transform: rotateY(180deg); backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.theme-card .pk-cover { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.theme-card .pk-cell.open .pk-cover, .theme-card .pk-cell.revealed .pk-cover { display: block; }
+.theme-card .pk-cell.open .pk-inner, .theme-card .pk-cell.revealed .pk-inner, .theme-card .pk-cell.opening .pk-inner { transform: rotateY(180deg); }
+.theme-card .pk-cell.open .pk-inner { transition: none; }
+.theme-card .pk-face::before { content: ""; position: absolute; inset: 7%; border: max(2px, calc(var(--u) * 0.018)) solid var(--on-cover); border-radius: 5px;
+  opacity: 0.55; }
+.theme-card .pk-cell.opening .pk-cover { animation: pk-rattle 0.24s linear; }
+
+/* ---------------------------------------------------------------- 테마: 긁는 복권. 복권 종이(쪽지)는 그대로, 은박 부분만 긁어 냄 */
+.theme-ticket { --radius: 6px; }
+.theme-ticket .pk-prize { padding: 18% 12% 14%; }
+.theme-ticket .pk-prize::before { content: ""; position: absolute; inset: 14% 5% 5%; border: 2px dashed var(--board-deep); border-radius: 4px; height: auto; background: none; }
+.theme-ticket .pk-prize.t-win .pk-name { margin-top: 0; }
+.theme-ticket .pk-prize.t-win { box-shadow: calc(var(--u) * 0.035) calc(var(--u) * 0.035) 0 var(--hard), inset 0 calc(var(--u) * 0.115) 0 var(--win); }
+.theme-ticket .pk-prize.t-win .pk-tag { color: var(--on-win); }
+.theme-ticket .pk-prize .pk-pn { left: 10%; bottom: 9%; }
+.theme-ticket .pk-prize .pk-by { right: 10%; bottom: 9%; }
+.theme-ticket .pk-cell:not(.open):not(.revealed) .pk-prize { color: transparent; }
+.theme-ticket .pk-cover { inset: 16% 10% 12%; border-radius: 4px; }
+.theme-ticket .pk-face { display: flex; flex-direction: column; border-width: 2px; box-shadow: none; background: none; }
+.theme-ticket .pk-strip { flex: 1; position: relative; transform-origin: 0 50%; background-attachment: local; }
+.theme-ticket .pk-strip:nth-child(even) { transform-origin: 100% 50%; }
+.theme-ticket .pk-strip::after { content: ""; position: absolute; inset: 0;
+  background: repeating-linear-gradient(100deg, rgba(255, 255, 255, 0) 0 6px, rgba(255, 255, 255, 0.16) 6px 7px); }
+.theme-ticket .pk-num { z-index: 3; }
+.theme-ticket .pk-tag { position: absolute; left: 50%; top: 4%; transform: translateX(-50%); font: 700 calc(var(--u) * 0.085) / 1 var(--body-font);
+  letter-spacing: 0.12em; color: var(--muted); white-space: nowrap; }
+.theme-ticket .pk-cell.opening .pk-strip { animation: pk-scratch 0.26s steps(5, end) forwards; animation-delay: calc(var(--k) * 150ms + 120ms); }
+.theme-ticket .pk-cell.opening .pk-num { animation: pk-fade 0.2s ease-in forwards; }
+
+/* ---------------------------------------------------------------- 테마: 봉투. 덮개를 열면 쪽지가 올라오고 봉투는 아래로 빠짐 */
+.theme-envelope { --radius: 4px; }
+.theme-envelope .pk-cell { perspective: 700px; }
+.theme-envelope .pk-face::before { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 62%;
+  background: linear-gradient(to top right, transparent calc(50% - 1.5px), var(--ink) calc(50% - 1.5px) calc(50% + 1.5px), transparent calc(50% + 1.5px)) 0 0 / 50.5% 100% no-repeat,
+              linear-gradient(to top left, transparent calc(50% - 1.5px), var(--ink) calc(50% - 1.5px) calc(50% + 1.5px), transparent calc(50% + 1.5px)) 100% 0 / 50.5% 100% no-repeat; opacity: 0.55; }
+.theme-envelope .pk-flap { position: absolute; left: 0; right: 0; top: 0; height: 58%; transform-origin: 50% 0; z-index: 2;
+  filter: drop-shadow(0 calc(var(--line) * 1px) 0 var(--ink)); }
+.theme-envelope .pk-flap i { position: absolute; inset: 0; background: var(--cover-deep); clip-path: polygon(0 0, 100% 0, 50% 100%); }
+.theme-envelope .pk-flap i::after { content: ""; position: absolute; inset: 0; background: rgba(255, 255, 255, 0.12); clip-path: polygon(8% 0, 92% 0, 50% 86%); }
+.theme-envelope .pk-num { top: 56%; }
+.theme-envelope .pk-cell.opening .pk-flap { animation: pk-flap 0.4s ease-in forwards; }
+.theme-envelope .pk-cell.opening .pk-cover { animation: pk-sink 0.55s ease-in 0.42s forwards; }
+.theme-envelope .pk-cell.opening .pk-prize { animation: pk-rise 0.6s cubic-bezier(0.2, 1.3, 0.4, 1) 0.4s both; }
+
+/* ---------------------------------------------------------------- 테마: 캡슐. 위 뚜껑이 튀어 오르고 아래 반쪽은 떨어짐 */
+.theme-capsule { --radius: 50%; }
+.theme-capsule .pk-face { display: none; }
+.theme-capsule .pk-half { position: absolute; left: 0; right: 0; box-sizing: border-box; border: calc(var(--line) * 1px) solid var(--ink); overflow: hidden; }
+.theme-capsule .pk-top { top: 0; height: 51%; border-radius: 50% 50% 0 0 / 100% 100% 0 0; border-bottom-width: 0; z-index: 2; }
+.theme-capsule .pk-top::after { content: ""; position: absolute; left: 16%; top: 16%; width: 22%; height: 16%; border-radius: 50%; background: rgba(255, 255, 255, 0.55);
+  transform: rotate(-30deg); }
+.theme-capsule .pk-bottom { bottom: 0; height: 51%; border-radius: 0 0 50% 50% / 0 0 100% 100%;
+  background: linear-gradient(180deg, var(--ink) 0 calc(var(--line) * 1px), var(--paper) calc(var(--line) * 1px)); }
+.theme-capsule .pk-bottom::after { content: ""; position: absolute; left: 10%; right: 10%; top: 18%; height: 2px; background: var(--board-deep); }
+.theme-capsule .pk-cover { filter: drop-shadow(calc(var(--u) * 0.035) calc(var(--u) * 0.035) 0 var(--hard)); }
+.theme-capsule .pk-num { top: 30%; min-width: calc(var(--u) * 0.36); height: calc(var(--u) * 0.36); font-size: calc(var(--u) * 0.2); }
+.theme-capsule .pk-num.big { top: 30%; font-size: calc(var(--u) * 0.32); }
+.theme-capsule .pk-num.corner { right: auto; bottom: auto; left: 50%; top: 72%; transform: translate(-50%, -50%); }
+.theme-capsule .pk-q { top: 30%; font-size: calc(var(--u) * 0.36); transform: translateY(-50%); }
+.theme-capsule .pk-emblem, .theme-capsule .pk-bow { top: 28%; width: 30%; }
+.theme-capsule .pk-prize { padding: 14%; }
+.theme-capsule .pk-prize.t-win::before { height: 20%; }
+.theme-capsule .pk-prize .pk-pn { left: 50%; transform: translateX(-50%); bottom: 7%; }
+.theme-capsule .pk-prize .pk-by { display: none; }
+.theme-capsule .pk-cell.opening .pk-top { animation: pk-pop-top 0.7s cubic-bezier(0.3, 0.6, 0.4, 1) 0.1s forwards; }
+.theme-capsule .pk-cell.opening .pk-bottom { animation: pk-drop-bottom 0.6s ease-in 0.2s forwards; }
+.theme-capsule .pk-cell.opening .pk-prize { animation: pk-bounce 0.55s cubic-bezier(0.2, 1.5, 0.4, 1) 0.28s both; }
+
+/* ---------------------------------------------------------------- 테마: 작은 문. 문틀 안에서 문이 열림 */
+.theme-door { --radius: 5px; }
+.theme-door .pk-cell { perspective: 800px; }
+.theme-door .pk-prize { border-radius: 5px 5px 2px 2px; }
+.theme-door .pk-cover { transform-origin: 0 50%; }
+.theme-door .pk-face { border-radius: 5px 5px 2px 2px; }
+.theme-door .pk-face::before { content: ""; position: absolute; inset: 9% 12% 46%; border: max(2px, calc(var(--u) * 0.02)) solid var(--cover-deep); border-radius: 3px; }
+.theme-door .pk-face::after { content: ""; position: absolute; inset: 60% 12% 9%; border: max(2px, calc(var(--u) * 0.02)) solid var(--cover-deep); border-radius: 3px; }
+.theme-door .pk-knob { position: absolute; right: 9%; top: 52%; width: calc(var(--u) * 0.1); height: calc(var(--u) * 0.1); border-radius: 50%; background: var(--gold);
+  border: 2px solid var(--ink); z-index: 3; }
+.theme-door .pk-num { top: 30%; min-width: calc(var(--u) * 0.36); height: calc(var(--u) * 0.36); font-size: calc(var(--u) * 0.2); border-radius: 4px; }
+.theme-door .pk-num.big { top: 46%; font-size: calc(var(--u) * 0.42); }
+.theme-door .pk-cell.opening .pk-cover { animation: pk-door 0.75s cubic-bezier(0.4, 0.1, 0.3, 1) forwards; }
+
+/* ---------------------------------------------------------------- 테마: 스티커 떼기. 오른쪽 아래 모서리부터 접혀 올라간 뒤 떨어짐 */
+.theme-sticker { --radius: 18%; }
+.theme-sticker .pk-face { border-radius: 18%; box-shadow: inset 0 0 0 calc(var(--u) * 0.05) var(--paper), calc(var(--u) * 0.035) calc(var(--u) * 0.035) 0 var(--hard); }
+.theme-sticker .pk-curl { position: absolute; inset: 0; z-index: 3; filter: drop-shadow(-2px -2px 0 var(--ink)) drop-shadow(3px 3px 0 var(--hard)); pointer-events: none; }
+.theme-sticker .pk-curl i { position: absolute; inset: 0; clip-path: polygon(100% 100%, 100% 100%, 100% 100%);
+  background: linear-gradient(135deg, #ffffff 0%, var(--miss) 70%, #cfc8c1 100%); }
+.theme-sticker .pk-cell.opening .pk-face { animation: pk-peel-face 0.55s ease-in forwards; }
+.theme-sticker .pk-cell.opening .pk-curl i { animation: pk-peel-curl 0.55s ease-in forwards; }
+.theme-sticker .pk-cell.opening .pk-cover { animation: pk-fly 0.45s ease-in 0.58s forwards; }
+
+/* ---------------------------------------------------------------- 테마: 메모지. 테이프로 붙인 메모가 흔들리다 떨어짐 */
+.theme-memo { --radius: 2px; }
+.theme-memo .pk-panel.framed { background: linear-gradient(var(--board-deep) 1px, transparent 1px) 0 0 / 100% 34px, var(--board) var(--grain); }
+.theme-memo .pk-cover { transform-origin: 50% 4%; }
+.theme-memo .pk-face { border-radius: 2px; box-shadow: calc(var(--u) * 0.04) calc(var(--u) * 0.05) 0 var(--hard); }
+.theme-memo .pk-face::after { content: ""; position: absolute; right: 0; bottom: 0; width: 20%; height: 20%;
+  background: linear-gradient(135deg, var(--cover-deep) 50%, transparent 50%); border-top-left-radius: 2px; }
+.theme-memo .pk-tape { position: absolute; left: 50%; top: -6%; width: 42%; height: 15%; transform: translateX(-50%) rotate(-3deg); z-index: 3;
+  background: rgba(250, 247, 245, 0.78); border: 1.5px solid rgba(30, 35, 39, 0.45); }
+.theme-memo .pk-num { background: none; border: 0; color: var(--on-cover); font-size: calc(var(--u) * 0.34); transform: translate(-50%, -50%) rotate(-4deg); }
+.theme-memo .pk-num.big { font-size: calc(var(--u) * 0.48); }
+.theme-memo .pk-num.corner { transform: rotate(-4deg); font-size: calc(var(--u) * 0.2); }
+.theme-memo .pk-cell:nth-child(3n) .pk-cover { transform: rotate(1.5deg); }
+.theme-memo .pk-cell:nth-child(3n + 1) .pk-cover { transform: rotate(-1.2deg); }
+.theme-memo .pk-cell.opening .pk-cover { animation: pk-memo 0.95s cubic-bezier(0.5, 0, 0.7, 0.4) forwards; }
+
+/* ---------------------------------------------------------------- 아래 줄: 참여 안내, 남은 상품, 공정성 확인 */
+.pk-foot { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.pk-help { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.pk-help span { padding: 7px 14px 5px; background: var(--ink); color: var(--paper); font: 24px / 1.1 var(--display); font-weight: var(--display-weight);
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.3); }
+.pk-help span::before { content: ""; display: inline-block; width: 10px; height: 10px; margin: 0 9px 3px 0; background: var(--win); }
+.pk-left { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; max-width: 1500px; }
+.pk-left span { display: inline-flex; align-items: baseline; gap: 6px; padding: 5px 12px 4px; background: var(--paper) var(--grain); border: 2px solid var(--ink);
+  box-shadow: 3px 3px 0 var(--hard); font: 700 19px / 1.2 var(--body-font); color: var(--ink); }
+.pk-left span b { font: 20px / 1 var(--display); font-weight: var(--display-weight); }
+.pk-left span.t-rare { background: var(--gold) var(--grain); }
+.pk-left span.gone { opacity: 0.5; text-decoration: line-through; box-shadow: none; }
+.pk-meta { display: flex; flex-wrap: wrap; justify-content: center; align-items: baseline; gap: 4px 16px; font: 600 15px / 1.3 var(--body-font);
+  color: var(--text); opacity: 0.78; }
+.pk-panel.bare .pk-meta { align-self: center; padding: 4px 12px; background: var(--ink); color: var(--paper); opacity: 1; box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.3); }
+.pk-panel.bare .pk-meta .done { background: var(--paper); color: var(--ink); }
+.pk-meta .hash { font-family: var(--mono); font-size: 14px; letter-spacing: 0.02em; word-break: break-all; }
+.pk-meta .count { font: 20px / 1 var(--display); font-weight: var(--display-weight); opacity: 1; }
+.pk-meta .done { padding: 2px 8px; background: var(--ink); color: var(--paper); font-weight: 700; opacity: 1; }
+
+/* ---------------------------------------------------------------- 결과 카드(화면 가운데) */
+#pick-result { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; z-index: 40; }
+.pk-result {
+  position: relative; width: calc(820px * var(--rs, 1)); box-sizing: border-box; display: flex; flex-direction: column; font-family: var(--body-font);
+  background: var(--paper) var(--grain); border: calc(5px * var(--rs, 1)) solid var(--ink); border-radius: 10px; box-shadow: calc(16px * var(--rs, 1)) calc(16px * var(--rs, 1)) 0 var(--hard);
+  transform: rotate(-1.5deg); animation: pk-card-in 0.5s cubic-bezier(0.2, 1.4, 0.4, 1) both; overflow: hidden;
+}
+.pk-result.leave { animation: pk-card-out 0.32s ease-in forwards; }
+.pk-rband { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: calc(14px * var(--rs, 1)) calc(26px * var(--rs, 1)) calc(10px * var(--rs, 1));
+  background: var(--win); color: var(--on-win); border-bottom: calc(5px * var(--rs, 1)) solid var(--ink); font: calc(40px * var(--rs, 1)) / 1 var(--display);
+  font-weight: var(--display-weight); }
+.pk-rband .pk-rtier { padding: calc(6px * var(--rs, 1)) calc(14px * var(--rs, 1)) calc(4px * var(--rs, 1)); background: var(--ink); color: var(--paper);
+  font-size: calc(30px * var(--rs, 1)); }
+.pk-rname { padding: calc(40px * var(--rs, 1)) calc(36px * var(--rs, 1)) calc(18px * var(--rs, 1)); font: var(--rname-size) / 1.08 var(--display);
+  font-weight: var(--display-weight); color: var(--result-color, var(--ink)); text-align: var(--result-align, center); word-break: keep-all; overflow-wrap: anywhere; }
+.pk-rby { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 0 calc(30px * var(--rs, 1)) calc(28px * var(--rs, 1));
+  font: 700 calc(30px * var(--rs, 1)) / 1.2 var(--body-font); color: var(--muted); }
+.pk-rby .platform { display: inline-flex; align-items: center; gap: 7px; font-size: calc(22px * var(--rs, 1)); }
+.pk-rby .platform::before { content: ""; width: calc(12px * var(--rs, 1)); height: calc(12px * var(--rs, 1)); background: var(--platform, var(--win)); }
+.pk-result.t-rare { background: var(--gold) var(--grain); }
+.pk-result.t-rare .pk-rband { background: var(--ink); color: var(--gold); }
+.pk-result.t-rare .pk-rband .pk-rtier { background: var(--gold); color: var(--ink); }
+.pk-result.t-rare .pk-rby { color: var(--ink); }
+.pk-result.t-rare::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(110deg, transparent 35%,
+  rgba(255, 255, 255, 0.7) 48%, transparent 60%); background-size: 260% 100%; animation: pk-sheen 1.8s ease-in-out 0.4s 2; }
+.pk-result.t-miss { background: var(--miss) var(--grain); }
+.pk-result.t-miss .pk-rband { background: repeating-linear-gradient(135deg, var(--ink) 0 9px, #3a4249 9px 18px); color: var(--paper); }
+.pk-result.t-miss .pk-rband .pk-rtier { background: var(--paper); color: var(--ink); }
+.pk-result.t-miss .pk-rname { color: var(--result-color, var(--muted)); }
+.pk-result.t-miss { animation: pk-card-in 0.5s cubic-bezier(0.2, 1.4, 0.4, 1) both, pk-wobble 0.5s ease-in-out 0.5s; }
+
+/* ---------------------------------------------------------------- 효과(pick.js가 Web Animations로 움직임) */
+#pick-fx { position: fixed; inset: 0; pointer-events: none; z-index: 50; overflow: hidden; }
+#pick-fx .fx { position: absolute; left: 0; top: 0; will-change: transform, opacity; }
+#pick-fx .bit { width: 12px; height: 18px; border: 2px solid var(--ink); box-sizing: border-box; }
+#pick-fx .pixel { width: 16px; height: 16px; border: 2px solid var(--ink); box-sizing: border-box; }
+#pick-fx .ring { border-radius: 50%; border: 8px solid var(--ink); box-shadow: inset 0 0 0 6px var(--win); box-sizing: border-box; }
+#pick-fx .ribbon { width: 26px; height: 190px; }
+#pick-fx .puff { border-radius: 50%; background: var(--miss); border: 3px solid var(--ink); box-sizing: border-box; }
+#pick-fx .drop { width: 4px; height: 22px; background: var(--ink); border-radius: 2px; }
+#pick-fx svg { overflow: visible; }
+.pk-rays { position: absolute; left: 50%; top: 50%; width: 2600px; height: 2600px; margin: -1300px 0 0 -1300px; z-index: -1;
+  background: repeating-conic-gradient(from 0deg, var(--ray, rgba(255, 216, 77, 0.38)) 0deg 5deg, transparent 5deg 15deg);
+  -webkit-mask-image: radial-gradient(circle, transparent 0 17%, #000 17.2% 46%, transparent 46.2%); mask-image: radial-gradient(circle, transparent 0 17%, #000 17.2% 46%, transparent 46.2%); }
+
+@keyframes pk-enter { from { opacity: 0; transform: scale(calc(var(--scale, 1) * 0.96)) translateY(18px); } }
+@keyframes pk-drop { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; transform: none; } }
+@keyframes pk-fade { to { opacity: 0; } }
+@keyframes pk-sheen { from { background-position: 120% 0; } to { background-position: -40% 0; } }
+@keyframes pk-rattle { 0%, 100% { transform: none; } 25% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } 75% { transform: rotate(-2deg); } }
+@keyframes pk-scratch { to { transform: scaleX(0); } }
+@keyframes pk-flap { to { transform: rotateX(180deg); } }
+@keyframes pk-sink { to { transform: translateY(70%); opacity: 0; } }
+@keyframes pk-rise { from { transform: translateY(22%) scale(0.86); } to { transform: none; } }
+@keyframes pk-pop-top { 0% { transform: none; } 40% { transform: translateY(-46%) rotate(-24deg); opacity: 1; } 100% { transform: translate(-24%, -120%) rotate(-70deg); opacity: 0; } }
+@keyframes pk-drop-bottom { to { transform: translateY(80%) rotate(12deg); opacity: 0; } }
+@keyframes pk-bounce { 0% { transform: scale(0.5); opacity: 0; } 60% { transform: scale(1.08); opacity: 1; } 100% { transform: scale(1); } }
+@keyframes pk-door { 0% { transform: rotateY(0); } 20% { transform: rotateY(-12deg); } 100% { transform: rotateY(-108deg); opacity: 0.2; } }
+@keyframes pk-peel-face {
+  0% { clip-path: polygon(0 0, 100% 0, 100% 100%, 100% 100%, 0 100%); }
+  100% { clip-path: polygon(0 0, 100% 0, 100% 8%, 8% 100%, 0 100%); }
+}
+@keyframes pk-peel-curl {
+  0% { clip-path: polygon(100% 100%, 100% 100%, 100% 100%); }
+  100% { clip-path: polygon(100% 8%, 8% 100%, 8% 8%); }
+}
+@keyframes pk-fly { to { transform: translate(40%, -70%) rotate(22deg); opacity: 0; } }
+@keyframes pk-memo {
+  0% { transform: rotate(0); } 18% { transform: rotate(9deg); } 36% { transform: rotate(-7deg); }
+  52% { transform: rotate(4deg); opacity: 1; } 100% { transform: translateY(160%) rotate(28deg); opacity: 0; }
+}
+@keyframes pk-card-in { 0% { transform: scale(0.35) rotate(-8deg); opacity: 0; } 65% { transform: scale(1.05) rotate(0); opacity: 1; } 100% { transform: rotate(-1.5deg); } }
+@keyframes pk-card-out { to { transform: scale(0.85) rotate(2deg) translateY(30px); opacity: 0; } }
+@keyframes pk-wobble { 25% { transform: rotate(-4deg); } 50% { transform: rotate(2deg); } 75% { transform: rotate(-3deg); } 100% { transform: rotate(-1.5deg); } }
