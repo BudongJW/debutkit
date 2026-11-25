@@ -121,8 +121,8 @@
         <p class="price">무료</p>
         <p class="price-note">모든 기능 무상 공개, Apache-2.0</p>
         <dl class="meta">
-          <dt>버전</dt><dd>0.9.0. 1.0 후보 1.0.0rc19 사전 릴리스</dd>
-          <dt>최근 릴리스</dt><dd>2026-11-24</dd>
+          <dt>버전</dt><dd>0.9.0. 1.0 후보 1.0.0rc20 사전 릴리스</dd>
+          <dt>최근 릴리스</dt><dd>2026-11-26</dd>
           <dt>지원 환경</dt><dd>Windows 64비트, macOS(Apple Silicon), Linux(x64)</dd>
           <dt>방송 플랫폼</dt><dd>치지직, SOOP, Twitch, YouTube</dd>
           <dt>필요 프로그램</dt><dd>OBS Studio 28 이상(OBS 없이 바로 방송은 Windows와 ffmpeg)</dd>
@@ -174,7 +174,11 @@
           <li><b>채팅창과 후원 알림</b> 치지직, SOOP, Twitch, YouTube 채팅을 OBS 브라우저 소스 하나에 표시. 후원, 구독, 슈퍼챗, 멤버십 알림. 표시 형태 5종 <code>overlay</code></li>
           <li><b>시청자 참여 추첨</b> 채팅에 <code>!참가</code>를 입력한 시청자(선택 시 후원자 포함)를 모아 당첨자를 뽑거나 순서를 정하고 방송 화면에 당첨 카드, 순서표로 표시 <code>raffle</code></li>
           <li><b>채팅 명령</b> 스트리머와 매니저가 채팅으로 캐릭터 동작, VTube Studio 단축키, 참여 추첨을 조작(<code>!동작</code>, <code>!단축키</code>, <code>!모집</code>, <code>!추첨</code>)</li>
-          <li><b>후원 추첨 연출</b> 후원이 오면 상품표에서 확률대로 뽑아 카드 뒤집기나 룰렛으로 표시. 금액별 추첨 횟수, 희귀 상품 강조, 최근 결과와 읽을 문장, OBS 독용 조작 화면 <code>draw</code></li>
+          <li><b>후원 추첨 연출</b> 후원이 오면 상품표에서 확률대로 뽑아 카드 뒤집기, 룰렛, 캡슐 뽑기, 즉석 복권, 티켓 출력, 추첨기, 타로로 표시. 금액별 추첨 횟수, 희귀 상품 강조, 대본 새 창, OBS 독용 조작 화면 <code>draw</code></li>
+          <li><b>뽑기판</b> 칸을 눌러 여는 방송용 뽑기판. 당첨 칸은 조작 화면에서만 보이고 채팅 명령이나 후원으로 시청자가 열기(선택). 배치의 SHA-256 값을 먼저 공개하는 공정성 확인 <code>pick</code></li>
+          <li><b>후원 벽, 목표 게이지, 후원 순위</b> 4개 플랫폼의 후원을 단위별 칸에 카드로 쌓는 방송 벽지. 시그니처 금액 그림, 오라 단계, 등장 연출 10종. 닉네임은 이 PC에만 저장 <code>wall</code></li>
+          <li><b>참여 레이스</b> 참여 추첨 참가자가 겨루는 구슬 레이스, 달리기 경주, 서바이벌. 순위는 시작할 때 정해 모든 화면이 같은 결과 <code>race</code></li>
+          <li><b>방송 화면 미리보기와 방송 색</b> 모든 방송 화면을 OBS 장면과 같은 자리에 겹쳐 보고 시험 후원으로 확인. 주 색과 강조 색 하나로 모든 화면의 색을 맞춤 <code>/stage</code></li>
           <li><b>캐릭터</b> PNGTuber, 3D(VRM, GLB, FBX), Live2D 등록과 사용 조건 확인. debutkit 캐릭터 화면으로 방송(마이크 음량으로 입 움직임, 눈 깜빡임, 웹캠 얼굴 추적). 기본 캐릭터 포함 <code>character</code></li>
           <li><b>방송 로고 만들기</b> 함께 배포하는 아이콘(Fluent Emoji, Phosphor, MIT, 한국어 검색, 채널 색)과 기본 도형, 계정 없는 공개 모델 AI Horde, 공개 이미지 모델 Qwen-Image(ComfyUI 또는 Hugging Face) 또는 본인 API 키의 생성형 AI(Claude, OpenAI, Recraft) 심볼과 채널 이름(글꼴 윤곽선)으로 SVG, 투명 PNG 로고. 외곽선과 스티커 마감, 아이콘 출처와 AI 생성 표시, API 키 암호화 저장 <code>logo</code></li>
           <li><b>휴대폰 앱</b> 안드로이드, 아이폰 앞면 카메라로 얼굴 추적(MediaPipe, ARKit)해 표정 52개와 머리 움직임을 PC로 전송. 카메라 영상 모드는 WebRTC로 OBS에 직접 전송. QR 등록과 PC 승인. 안드로이드는 PC 없이 바로 방송(캐릭터 화면 또는 카메라 영상) <code>mobile</code></li>
@@ -184,7 +188,9 @@
           <li><b>휴대폰 얼굴 추적</b> 아이폰 앱(iFacialMocap, VTube Studio)의 ARKit 표정 52개와 머리 움직임을 같은 Wi-Fi로 받아 캐릭터에 반영. 퍼펙트 싱크 모델은 얼굴 전체가 움직임 <code>phone</code></li>
           <li><b>3D 캐릭터 동작</b> VRMA, Mixamo 등의 FBX, GLB 동작 등록. 대기 중 반복하는 기본 동작과 후원 반응 <code>motion</code></li>
           <li><b>VTube Studio 연동</b> Live2D 모델 보내기와 불러오기, 후원 시 단축키 실행. VRM은 Warudo로 보내기 <code>vts</code></li>
-          <li><b>방송 중 자동 클립</b> 채팅이 평소보다 크게 증가하거나 스트리머, 매니저가 <code>!clip</code>을 입력하면 OBS 리플레이 버퍼를 클립으로 저장. 동시 송출 시 전 플랫폼 채팅 합산 <code>overlay --clip</code></li>
+          <li><b>방송 중 자동 클립</b> 채팅이 평소보다 크게 증가하거나 스트리머, 매니저가 <code>!clip</code>을 입력하면 OBS 리플레이 버퍼를 클립으로 저장. 동시 송출 시 전 플랫폼 채팅 합산. 클립마다 움짤과 세로 쇼츠(선택) <code>overlay --clip</code>, <code>clip</code></li>
+          <li><b>방송 시작 버튼</b> 방송에 필요한 프로그램, 폴더, 사이트를 차례로 켜고 메신저, 게임 런처는 먼저 끔. 창 자리 기억(듀얼 모니터), 방송 끝에 꺼 둔 프로그램 다시 켜기 <code>launch</code></li>
+          <li><b>VMC 송신</b> debutkit 얼굴 추적 값(웹캠, 휴대폰, 표정 52개)을 Warudo, VSeeFace, VMagicMirror로 <code>vmc</code></li>
           <li><b>공식 API 연동</b> 치지직 Open API 로그인(본인 채널의 채팅, 후원, 구독), YouTube Data API 라이브 채팅 <code>chzzk login</code></li>
         </ul>
         <p class="note">설정 마법사에서 모든 기능을 사용할 수 있으며, 같은 기능을 명령줄로도 제공합니다.</p>
@@ -250,6 +256,7 @@ debutkit-gui</code></pre>
           <table>
             <thead><tr><th>버전</th><th>날짜</th><th>주요 내용</th></tr></thead>
             <tbody>
+              <tr><th scope="row"><a href="news.html#v1-0-0rc20">1.0.0rc20</a></th><td>2026-11-26</td><td>1.0 후보 20차. 방송 연출(뽑기판, 후원 벽, 참여 레이스, 추첨 연출 5종), 방송 시작 버튼, 클립 다듬기, VMC 송신, 방송 색과 미리보기</td></tr>
               <tr><th scope="row"><a href="news.html#v1-0-0rc19">1.0.0rc19</a></th><td>2026-11-24</td><td>1.0 후보 19차. 로고 만들기 2차(함께 배포하는 아이콘과 마감, 계정 없는 공개 모델 AI Horde)</td></tr>
               <tr><th scope="row"><a href="news.html#v1-0-0rc18">1.0.0rc18</a></th><td>2026-11-24</td><td>1.0 후보 18차. 방송 로고 만들기(기본 도형 또는 본인 API 키의 생성형 AI 심볼과 채널 이름)</td></tr>
               <tr><th scope="row"><a href="news.html#v1-0-0rc17">1.0.0rc17</a></th><td>2026-11-24</td><td>1.0 후보 17차. 휴대폰만으로 바로 방송(안드로이드, 캐릭터 화면 또는 카메라 영상)</td></tr>
