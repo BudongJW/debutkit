@@ -246,7 +246,7 @@ def test_overlay_page_handles_raffle():
 
     static = Path(raffle.__file__).parent / "overlay" / "static"
     script = (static / "draw.js").read_text(encoding="utf-8")
-    assert "/live?feeds=draw,raffle" in script and "acceptRaffle" in script and 'band: "당첨"' in script
+    assert 'subscribe(["draw", "raffle", "theme"]' in script and "acceptRaffle" in script and 'band: "당첨"' in script
     assert 'id="raffle"' in (static / "draw.html").read_text(encoding="utf-8")
     control = (static / "draw-control.html").read_text(encoding="utf-8")
     assert "/raffle/start" in control and "/raffle/draw" in control and "!모집" in control

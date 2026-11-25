@@ -229,12 +229,12 @@ def test_bad_post_bodies_get_answers(server):
 
 
 def test_settings_page_uses_one_stream():
-    """설정 화면과 미리보기 세 개(채팅, 알림, 캐릭터)가 쓰는 연결은 4개: 브라우저 제한(6개) 안."""
+    """설정 화면은 연결 1개, 미리보기(채팅, 알림, 캐릭터)는 공유 연결(live.js) 1개: 브라우저 제한(6개) 안."""
     static = Path(character.__file__).parent / "overlay" / "static"
     page = (static / "index.html").read_text(encoding="utf-8")
     assert page.count("new EventSource(") == 1 and 'new EventSource("/live")' in page
     script = (static / "character.js").read_text(encoding="utf-8")
-    assert script.count("new EventSource(") == 1 and 'new EventSource("/live")' in script
+    assert "new EventSource(" not in script and "debutkitLive.subscribe" in script
 
 
 def test_korean_character_ids_are_url_encoded(server, tmp_path):
