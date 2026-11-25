@@ -1076,7 +1076,8 @@ class Wizard(QMainWindow):
         self.scenes_result.setText("OBS 연결 중")
         base = f"http://127.0.0.1:{self.port.value()}"
         options = scenes.SceneOptions(overlay_url=f"{base}/chat", alerts_url=f"{base}/alerts", character_url=f"{base}/character",
-                                       draw_url=f"{base}/draw", avatar=str(self.avatar_app.currentData()))
+                                       draw_url=f"{base}/draw", pick_url=f"{base}/pick", wall_url=f"{base}/wall", race_url=f"{base}/race",
+                                       avatar=str(self.avatar_app.currentData()))
         port, password, replay = self.obs_port.value(), self.obs_password.text() or None, 60 if self.replay.isChecked() else None
 
         def job() -> None:

@@ -23,7 +23,12 @@ def test_five_scenes_with_overlay_everywhere():
         assert f"{PREFIX}채팅" in names
         assert all(name.startswith(PREFIX) for name in names)
     main = scenes[1]
-    assert [item.role for item in main.items] == ["color", "game", "window", "browser", "browser", "browser"]
+    assert [item.role for item in main.items] == ["color", "game", "window", "browser", "browser", "browser", "browser", "browser", "browser"]
+    hidden = [item.source for item in main.items if not item.enabled]  # 방송 연출은 숨긴 채로 넣고 필요할 때 켬
+    assert hidden == [f"{PREFIX}후원 벽", f"{PREFIX}뽑기판", f"{PREFIX}참여 레이스"]
+    assert [item.settings["url"] for item in main.items if not item.enabled] == ["http://127.0.0.1:8790/wall", "http://127.0.0.1:8790/pick",
+                                                                                "http://127.0.0.1:8790/race"]
+    assert all(item.enabled for item in scenes[0].items) and "숨김" in format_plan(scenes, resolve_kinds(WINDOWS_KINDS))
 
 
 def test_items_stay_on_canvas():
@@ -98,6 +103,10 @@ def test_apply_creates_shared_sources_once():
     assert f"{PREFIX}채팅" in created
     reused = [data["sourceName"] for kind, data in obs.calls if kind == "CreateSceneItem"]
     assert reused.count(f"{PREFIX}채팅") == len(scenes) - 1
+    enabled = {(kind, data.get("inputName") or data.get("sourceName")): data["sceneItemEnabled"] for kind, data in obs.calls
+               if kind in ("CreateInput", "CreateSceneItem")}
+    assert enabled[("CreateInput", f"{PREFIX}뽑기판")] is False and enabled[("CreateSceneItem", f"{PREFIX}뽑기판")] is False  # 토크 장면에도 숨김
+    assert enabled[("CreateInput", f"{PREFIX}채팅")] is True
     transforms = [kind for kind, _ in obs.calls if kind == "SetSceneItemTransform"]
     assert len(transforms) == sum(len(scene.items) for scene in scenes)
     json.dumps(obs.calls)  # 모든 요청이 JSON으로 보낼 수 있는 값

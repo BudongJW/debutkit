@@ -42,6 +42,10 @@ class SceneOptions:
     alerts_url: str = "http://127.0.0.1:8790/alerts"
     character_url: str = "http://127.0.0.1:8790/character"
     draw_url: str = "http://127.0.0.1:8790/draw"
+    #: 방송 연출(뽑기판, 후원 벽, 참여 레이스). 본방송과 토크 장면에 숨긴 채로 넣고 필요할 때 OBS에서 켠다
+    pick_url: str = "http://127.0.0.1:8790/pick"
+    wall_url: str = "http://127.0.0.1:8790/wall"
+    race_url: str = "http://127.0.0.1:8790/race"
     avatar: str = "vts"  # vts | vseeface | warudo | vmagicmirror | debutkit(캐릭터 화면) | none
     background: int = 0xFF3D1F2A  # OBS 색은 ABGR 순서: 짙은 남보라
     os_name: str = field(default_factory=lambda: {"win32": "Windows", "darwin": "Darwin"}.get(sys.platform, "Linux"))
@@ -58,6 +62,7 @@ class Item:
     role: str  # KIND_CANDIDATES의 키
     settings: dict[str, Any]
     transform: dict[str, Any]
+    enabled: bool = True  # False면 장면에 넣되 숨김(OBS 소스 목록의 눈 아이콘으로 켬)
 
 
 @dataclass(frozen=True)
@@ -152,6 +157,15 @@ def build_scenes(width: int, height: int, kinds: dict[str, str], options: SceneO
         settings = {"url": options.draw_url, "width": W, "height": H, "reroute_audio": False, "shutdown": False}
         return Item(f"{PREFIX}후원 추첨", "browser", settings, _bounds(0, 0, W, H))
 
+    def stage(name: str, url: str) -> Item | None:  # 방송 연출: 숨긴 채로 넣음(평소 투명이 아닌 화면이라 필요할 때만 켬)
+        if "browser" not in kinds:
+            return None
+        settings = {"url": url, "width": W, "height": H, "reroute_audio": True, "shutdown": False}
+        return Item(f"{PREFIX}{name}", "browser", settings, _bounds(0, 0, W, H), enabled=False)
+
+    def stages() -> tuple[Item | None, ...]:
+        return stage("후원 벽", options.wall_url), stage("뽑기판", options.pick_url), stage("참여 레이스", options.race_url)
+
     def caption(name: str, text: str) -> Item | None:
         if "text" not in kinds:
             return None
@@ -174,8 +188,8 @@ def build_scenes(width: int, height: int, kinds: dict[str, str], options: SceneO
 
     return [
         scene("대기 화면", "방송 시작 전 대기. 안내 문구와 채팅", background(), caption("대기 문구", options.starting_text), chat(), alerts(), draws()),
-        scene("본방송", "게임 화면, 아바타, 채팅, 후원 알림과 추첨", background(), game(), main_avatar, chat(), alerts(), draws()),
-        scene("토크", "잡담, 노래. 아바타 크게 표시", background(), talk_avatar, chat(), alerts(), draws()),
+        scene("본방송", "게임 화면, 아바타, 채팅, 후원 알림과 추첨", background(), game(), main_avatar, *stages(), chat(), alerts(), draws()),
+        scene("토크", "잡담, 노래. 아바타 크게 표시", background(), talk_avatar, *stages(), chat(), alerts(), draws()),
         scene("자리 비움", "휴식 시간. 마이크는 직접 음소거", background(), caption("자리 비움 문구", options.brb_text), chat(), alerts(), draws()),
         scene("엔딩", "방송 마무리", background(), caption("엔딩 문구", options.ending_text), chat()),
     ]
@@ -205,12 +219,13 @@ def apply(client: Any, scenes: list[Scene], kinds: dict[str, str], *, replace: b
         report.created_scenes.append(scene.name)
         for item in scene.items:
             if item.source in existing_inputs:
-                item_id = client.request("CreateSceneItem", {"sceneName": scene.name, "sourceName": item.source})["sceneItemId"]
+                item_id = client.request("CreateSceneItem", {"sceneName": scene.name, "sourceName": item.source,
+                                                             "sceneItemEnabled": item.enabled})["sceneItemId"]
                 if item.source not in report.created_sources and item.source not in report.reused_sources:
                     report.reused_sources.append(item.source)
             else:
                 item_id = client.request("CreateInput", {"sceneName": scene.name, "inputName": item.source, "inputKind": kinds[item.role],
-                                                         "inputSettings": item.settings, "sceneItemEnabled": True})["sceneItemId"]
+                                                         "inputSettings": item.settings, "sceneItemEnabled": item.enabled})["sceneItemId"]
                 existing_inputs.add(item.source)
                 report.created_sources.append(item.source)
             client.request("SetSceneItemTransform", {"sceneName": scene.name, "sceneItemId": item_id, "sceneItemTransform": item.transform})
@@ -275,7 +290,8 @@ def format_plan(scenes: list[Scene], kinds: dict[str, str]) -> str:
         lines.append(f"[{scene.name}] {scene.purpose}")
         for item in scene.items:
             t = item.transform
-            lines.append(f"    - {item.source}  ({kinds.get(item.role, '?')}, {t['boundsWidth']}x{t['boundsHeight']})")
+            hidden = ", 숨김: 필요할 때 켜기" if not item.enabled else ""
+            lines.append(f"    - {item.source}  ({kinds.get(item.role, '?')}, {t['boundsWidth']}x{t['boundsHeight']}{hidden})")
     return "\n".join(lines)
 
 
