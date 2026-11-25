@@ -1,0 +1,47 @@
+/* debutkit 조작 화면 공통 모양(설정 화면, 추첨, 뽑기판, 후원 벽, 레이스, 미리보기, 휴대폰, 방송, 로고, VMC).
+   방송 색(/theme.css?fonts=0)의 --dk-* 변수를 강조색에 쓴다. 화면별 모양은 각 화면의 <style>에서 덧붙인다.
+   OBS 독(?dock 또는 좁은 창)에서는 머리말과 이동 막대를 줄이고 여백을 좁힌다(ui.js가 body에 dock 표시) */
+
+:root {
+  color-scheme: light;
+  --bg: #ffffff;
+  --panel: #faf7f5;
+  --line: #e3dfdb;
+  --text: #1e2327;
+  --dim: #5b6670;
+  --link: #bf3b68;
+  --gold: #b58500;
+  --ok: #1f7a4d;
+  --bad: #b3261e;
+  --accent: var(--dk-primary, #ff4f8b);
+  --accent-deep: var(--dk-primary-deep, #bf3b68);
+  --on-accent: var(--dk-on-primary, #1e2327);
+}
+
+/* 이동 막대: 조작 화면 사이를 오간다. 현재 화면은 방송 색 밑줄 */
+.dk-nav { display: flex; gap: 2px; padding: 0 16px; border-bottom: 1px solid var(--line); background: var(--panel); overflow-x: auto; scrollbar-width: thin; }
+.dk-nav a { flex: none; padding: 9px 12px 8px; color: var(--dim); font-size: 13px; font-weight: 600; text-decoration: none; border-bottom: 3px solid transparent; white-space: nowrap; }
+.dk-nav a:hover { color: var(--text); }
+.dk-nav a[aria-current="page"] { color: var(--text); border-bottom-color: var(--accent); }
+.dk-nav .dk-nav-gap { flex: 1; }
+.dk-nav .dk-dot { display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--dk-highlight, #ffd84d) inset; vertical-align: 0; }
+
+/* 방송 색 강조: 주요 버튼 */
+button.primary, .button.primary { background: var(--accent); border-color: var(--accent-deep); color: var(--on-accent); }
+
+/* OBS 독: 좁은 창에 맞춘 압축 모양 */
+body.dock header { padding: 8px 12px; }
+body.dock header h1 { font-size: 15px; }
+body.dock header > a, body.dock .lead { display: none; }
+body.dock .dk-nav { display: none; }
+body.dock main { padding: 10px 12px 32px; }
+body.dock section { padding: 12px; }
+body.dock .grid { grid-template-columns: 1fr; gap: 12px; }
+
+/* 작업 결과 알림(화면 아래 가운데에 잠깐) */
+.dk-toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%) translateY(20px); opacity: 0; padding: 9px 16px; border-radius: 4px;
+  background: var(--text); color: #fff; font-size: 14px; font-weight: 600; pointer-events: none; transition: opacity 0.18s, transform 0.18s; z-index: 50; }
+.dk-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.dk-toast.bad { background: var(--bad); }
+
+@media (prefers-reduced-motion: reduce) { .dk-toast { transition: none; } }

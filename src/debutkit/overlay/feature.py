@@ -64,6 +64,7 @@ class Context:
     """기능을 만들 때 받는 서버 부품. ``notify`` 는 채팅창에 보이는 debutkit 안내(시스템 메시지)."""
 
     notify: Callable[[str], None]
+    publish: Callable[[Any], None] = lambda event: None  # 허브에 사건 보내기(시험 후원 등)
     raffle: Any = None  # raffle.Raffle(시청자 참여 추첨의 참가자 명단)
     draw: Any = None  # draw.DrawState
     tracking: Any = None  # tracking.TrackingState(얼굴 추적 값)
@@ -113,7 +114,7 @@ class Channel:
 
 def default_features(context: Context) -> list[Feature]:
     """오버레이 서버가 기본으로 켜는 기능들. 기능을 추가하면 여기에 한 줄 더한다."""
-    from . import vmc
+    from . import stage, theme, vmc
 
-    found: list[Feature] = [vmc.make_feature(context)]
+    found: list[Feature] = [theme.make_feature(context), stage.make_feature(context), vmc.make_feature(context)]
     return found

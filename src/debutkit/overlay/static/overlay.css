@@ -1,13 +1,17 @@
-/* debutkit overlay. 색은 브랜드 컬러(Slate #1E2327, Cream #FAF7F5, Pink #FF4F8B).
+/* debutkit overlay. 색은 방송 색(/theme.css의 --dk-*, 기본 Slate #1E2327, Cream #FAF7F5, Pink #FF4F8B)을 따른다.
    OBS 브라우저 소스 속성의 사용자 지정 CSS로 덮어써서 변경 가능 */
 :root {
   --font-size: 22px;
   --font: "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans CJK KR", sans-serif;
-  --slate: #1e2327;
-  --cream: #faf7f5;
-  --accent: #ff4f8b;
-  --gold: #ffd84d;
-  --name: #ffb3cb;
+  --display: var(--dk-display, "Black Han Sans", "Malgun Gothic", sans-serif);
+  --slate: var(--dk-ink, #1e2327);
+  --cream: var(--dk-paper, #faf7f5);
+  --accent: var(--dk-primary, #ff4f8b);
+  --accent-deep: var(--dk-primary-deep, #bf3b68);
+  --on-accent: var(--dk-on-primary, #1e2327);
+  --gold: var(--dk-highlight, #ffd84d);
+  --on-gold: var(--dk-on-highlight, #1e2327);
+  --name: var(--dk-primary-light, #ffb3cb);
   --moderator: #8fd3ff;
 }
 
@@ -80,7 +84,7 @@ body[data-theme="light"] .line {
   border-radius: 0.45em;
   padding: 0.3em 0.6em;
 }
-body[data-theme="light"] .name { color: #bf3b68; }
+body[data-theme="light"] .name { color: var(--accent-deep); }
 body[data-theme="light"] .line.moderator .name { color: #1d6fa5; }
 body[data-theme="light"] .line.donation { color: #8a5a00; }
 
@@ -121,33 +125,64 @@ body[data-theme="light"] .line.donation { color: #8a5a00; }
 
 .emote { height: 1.4em; vertical-align: middle; margin: 0 0.1em; }
 
-/* ---------------------------------------------------------------- 후원, 구독 알림 */
+/* ---------------------------------------------------------------- 후원, 구독 알림
+   "방송 소품"(후원 추첨, 뽑기판, 후원 벽과 같은 재질): 크림 종이 카드, 잉크 외곽선, 흐림 없는 딱딱한 그림자,
+   방송 색 꼬리표(후원)나 강조 색 꼬리표(구독), 제목은 Black Han Sans. ?style=glass 는 이전 모양(어두운 반투명 상자) */
 #alerts {
   position: fixed;
   inset: 0;
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding-top: 6vh;
+  padding-top: 7vh;
 }
 
 .alert {
-  min-width: 36vw;
-  max-width: 64vw;
-  padding: 0.8em 1.2em 0.9em 1.3em;
-  border-left: 0.3em solid var(--accent);
-  border-radius: 0.35em;
-  background: rgba(30, 35, 39, 0.94);
-  color: var(--cream);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
-  animation: enter 0.3s ease-out;
-  transition: opacity 0.6s, transform 0.6s;
+  position: relative;
+  min-width: 34vw;
+  max-width: 62vw;
+  padding: 1em 1.3em 0.9em;
+  border: 0.14em solid var(--slate);
+  border-radius: 0.55em;
+  background: var(--cream);
+  color: var(--slate);
+  box-shadow: 0 0.3em 0 var(--slate);
+  animation: stamp 0.45s cubic-bezier(0.2, 1.5, 0.4, 1);
+  transition: opacity 0.5s, transform 0.5s;
 }
-.alert.member { border-left-color: var(--gold); }
-.alert.gone { opacity: 0; transform: translateY(-12px); }
-.alert .platform { font-size: 0.65em; }
-.alert-title { font-size: 1.35em; font-weight: 700; margin: 0.3em 0 0.15em; }
-.alert-text { font-size: 1em; color: #d8dde1; }
+.alert::before {
+  content: attr(data-label);
+  position: absolute;
+  left: 1em;
+  top: -0.95em;
+  padding: 0.1em 0.65em 0.18em;
+  border: 0.13em solid var(--slate);
+  border-radius: 0.4em;
+  background: var(--accent);
+  color: var(--on-accent);
+  font: 0.78em var(--display);
+  letter-spacing: 0.02em;
+  box-shadow: 0 0.16em 0 var(--slate);
+}
+.alert.member::before { background: var(--gold); color: var(--on-gold); }
+.alert.gone { opacity: 0; transform: translateY(-14px) scale(0.98); }
+.alert .platform { position: absolute; right: 1em; top: -0.62em; font-size: 0.62em; border: 0.15em solid var(--slate); }
+.alert-title { font: 1.5em/1.25 var(--display); margin: 0.12em 0 0.22em; letter-spacing: 0.01em; word-break: keep-all; overflow-wrap: anywhere; }
+.alert-title .who { color: var(--accent-deep); }
+.alert-title .amount { padding: 0 0.12em; background: linear-gradient(transparent 55%, var(--gold) 55%, var(--gold) 92%, transparent 92%); }
+.alert-text { font-size: 1em; font-weight: 600; color: #3a4249; word-break: keep-all; overflow-wrap: anywhere; }
+.alert-text:empty { display: none; }
+
+body[data-style="glass"] .alert { border: 0; border-left: 0.3em solid var(--accent); border-radius: 0.35em; background: rgba(30, 35, 39, 0.94);
+  color: var(--cream); box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4); animation: enter 0.3s ease-out; padding: 0.8em 1.2em 0.9em 1.3em; }
+body[data-style="glass"] .alert.member { border-left-color: var(--gold); }
+body[data-style="glass"] .alert::before { display: none; }
+body[data-style="glass"] .alert .platform { position: static; border: 0; }
+body[data-style="glass"] .alert-title { font: 700 1.35em/1.4 var(--font); margin: 0.3em 0 0.15em; }
+body[data-style="glass"] .alert-title .who, body[data-style="glass"] .alert-title .amount { color: inherit; background: none; padding: 0; }
+body[data-style="glass"] .alert-text { color: #d8dde1; font-weight: 400; }
 
 @keyframes rise { from { transform: translateY(6px); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes enter { from { transform: translateY(-10px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes stamp { 0% { transform: translateY(-28px) scale(1.04); opacity: 0; } 60% { opacity: 1; } 100% { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .alert, .line { animation: none; } }

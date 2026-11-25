@@ -1,4 +1,5 @@
-// debutkit overlay: /events 사건 흐름을 받아 채팅창과 알림을 표시한다. 글은 textContent로만 넣는다.
+// debutkit overlay: 채팅, 후원 사건(/live의 events, 공유 연결 live.js)을 받아 채팅창과 알림을 표시한다. 글은 textContent로만 넣는다.
+// live.js가 없으면 /events 에 직접 연결한다. 방송 색(theme)도 같은 연결로 받아 새로고침 없이 바꾼다.
 "use strict";
 
 const PLATFORMS = {
@@ -48,6 +49,19 @@ function badge(event) {
 }
 
 function connect(onEvent) {
+  if (window.debutkitLive) {
+    // 처음 값은 최근 사건 목록. 다른 화면 때문에 공유 연결이 다시 열려도 목록은 처음 한 번만 그린다(줄 중복 방지)
+    let replayed = false;
+    return window.debutkitLive.subscribe(["events", "theme"], (feed, data, initial) => {
+      if (feed !== "events") return;
+      if (Array.isArray(data.history)) {
+        if (!replayed) for (const event of data.history) onEvent({ ...event, replay: true });
+        replayed = true;
+        return;
+      }
+      if (!initial) onEvent(data);
+    });
+  }
   const source = new EventSource("/events");
   source.onmessage = (message) => {
     try {
@@ -56,7 +70,7 @@ function connect(onEvent) {
       console.warn("debutkit: 잘못된 사건", error);
     }
   };
-  return source;
+  return () => source.close();
 }
 
 function startChat(root) {
@@ -96,6 +110,7 @@ function startChat(root) {
 
 function startAlerts(root) {
   const seconds = number("seconds", 6);
+  document.body.dataset.style = option("style", "prop");
   const queue = [];
   let busy = false;
   const next = () => {
@@ -108,10 +123,23 @@ function startAlerts(root) {
     root.replaceChildren();
     const card = document.createElement("div");
     card.className = `alert ${event.kind}`;
+    card.dataset.label = event.kind === "member" ? "구독" : "후원";
     card.appendChild(badge(event));
+    // 제목: 이름(방송 색), 금액(형광펜), 인사. 글은 textContent로만
     const title = document.createElement("div");
     title.className = "alert-title";
-    title.textContent = event.kind === "member" ? `${event.name} 님, 구독해 주셔서 감사합니다` : `${event.name} 님, ${amountText(event)} 후원 감사합니다`;
+    const who = document.createElement("span");
+    who.className = "who";
+    who.textContent = event.name;
+    title.append(who, " 님, ");
+    if (event.kind === "member") {
+      title.append("구독해 주셔서 감사합니다");
+    } else {
+      const amount = document.createElement("span");
+      amount.className = "amount";
+      amount.textContent = amountText(event);
+      title.append(amount, " 후원 감사합니다");
+    }
     card.appendChild(title);
     const text = document.createElement("div");
     text.className = "alert-text";

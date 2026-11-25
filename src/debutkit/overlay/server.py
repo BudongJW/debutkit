@@ -78,8 +78,9 @@ STATIC = {"/": "index.html", "/chat": "chat.html", "/alerts": "alerts.html", "/o
           "/camera/view": "camera-view.html", "/camera-view.js": "camera-view.js", "/program": "program.html", "/broadcast/control": "broadcast.html", "/logo": "logo.html"}
 #: 외부에서 받은 SVG를 직접 열 때도 스크립트, 외부 연결이 동작하지 않게(logo.py에서 이미 정리)
 SVG_POLICY = "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:"
-#: /live 로 받을 수 있는 항목. feeds를 지정하지 않으면 DEFAULT_FEEDS
-LIVE_FEEDS = ("voice", "tracking", "motion", "draw", "raffle", "camera")
+#: /live 로 받을 수 있는 항목(등록한 기능의 항목 추가). feeds를 지정하지 않으면 DEFAULT_FEEDS.
+#: events 는 /events 와 같은 채팅, 후원 사건(처음 값은 최근 사건 목록). 화면들이 공유 연결(live-worker.js) 하나로 모든 항목을 받게 한다
+LIVE_FEEDS = ("voice", "tracking", "motion", "draw", "raffle", "camera", "events")
 DEFAULT_FEEDS = ("voice", "tracking", "motion")
 #: 요청 본문 최대 크기(추첨 설정은 상품표가 길 수 있음)
 BODY_LIMIT = {"/draw/config": 32768, "/camera/answer": 32768}
@@ -191,7 +192,8 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
             studio_box[0] = logos.LogoStudio()
         return studio_box[0]
 
-    states: dict[str, Any] = {"voice": voice, "tracking": tracking, "motion": motion, "draw": draw, "raffle": raffle, "camera": call}
+    states: dict[str, Any] = {"voice": voice, "tracking": tracking, "motion": motion, "draw": draw, "raffle": raffle, "camera": call,
+                              "events": _HubFeed(hub)}
     feature_static: dict[str, str] = {}
     feature_get: dict[str, Callable[[Any], Any]] = {}
     feature_post: dict[str, Callable[[Any], Any]] = {}
@@ -689,6 +691,31 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
     return Handler
 
 
+class _HubFeed:
+    """허브의 사건(채팅, 후원, 구독, 안내)을 /live 의 events 항목으로. 처음 값은 최근 사건 목록(``replay`` 표시), 그 뒤로는 사건 하나씩."""
+
+    def __init__(self, hub: Hub) -> None:
+        self.hub = hub
+
+    def subscribe(self, into: Any) -> tuple[Any, dict[str, Any]]:
+        tap = _EventTap(into)
+        with self.hub._lock:
+            self.hub._subscribers.append(tap)  # type: ignore[arg-type]
+            history = list(self.hub.history)
+        return tap, {"history": [{**event.to_dict(), "replay": True} for event in history]}
+
+    def unsubscribe(self, tap: Any) -> None:
+        self.hub.unsubscribe(tap)
+
+
+class _EventTap:
+    def __init__(self, into: Any) -> None:
+        self.into = into
+
+    def put_nowait(self, event: OverlayEvent) -> None:
+        self.into.put_nowait({**event.to_dict(), "replay": False})
+
+
 class _Tagged:
     """여러 상태의 새 값을 대기열 하나로 모은다: 값마다 이름을 붙여 ``(이름, 값)`` 으로 넣는다."""
 
@@ -780,7 +807,8 @@ class OverlayServer:
         self.broadcast = broadcasts.Broadcaster(self.program, lambda: self.port, notify=lambda text: self.hub.publish(system_event(text)))
         self.logo = logos.LogoStudio()  # 방송 로고 만들기(API 키, 생성 기록)
         #: 방송 연출 기능(feature.py의 default_features: 뽑기판, 후원 벽, 참여 레이스 등)
-        self.features = features_.default_features(features_.Context(notify=lambda text: self.hub.publish(system_event(text)), raffle=self.raffle,
+        self.features = features_.default_features(features_.Context(notify=lambda text: self.hub.publish(system_event(text)),
+                                                                     publish=self.hub.publish, raffle=self.raffle,
                                                                      draw=self.draw, tracking=self.tracking, port_of=lambda: self.port))
         for part in self.features:
             self.hub.taps.extend(part.taps)
