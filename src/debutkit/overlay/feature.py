@@ -113,4 +113,6 @@ class Channel:
 def default_features(context: Context) -> list[Feature]:
     """오버레이 서버가 기본으로 켜는 기능들. 기능을 추가하면 여기에 한 줄 더한다."""
     found: list[Feature] = []
+    from .. import wall  # 후원 벽
+    found.append(wall.feature(context))
     return found

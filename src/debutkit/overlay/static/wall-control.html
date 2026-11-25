@@ -1,0 +1,723 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>debutkit 후원 벽</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <style>
+    :root { color-scheme: light; --bg: #ffffff; --panel: #faf7f5; --line: #e3dfdb; --text: #1e2327; --dim: #5b6670; --link: #bf3b68; --gold: #b58500; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.6 "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; }
+    header { display: flex; align-items: center; gap: 12px; padding: 14px 24px; border-bottom: 1px solid var(--line); }
+    header img { width: 28px; height: 28px; }
+    header h1 { font-size: 17px; margin: 0; }
+    header a { margin-left: auto; color: var(--dim); font-size: 13px; }
+    main { max-width: 1100px; margin: 0 auto; padding: 20px 24px 56px; }
+    .lead { color: var(--dim); margin: 0 0 6px; }
+    .privacy { margin: 0 0 18px; padding: 7px 12px; background: var(--panel); border-left: 3px solid var(--link); font-size: 13px; color: var(--text); }
+    .stack { display: grid; gap: 20px; align-content: start; min-width: 0; }
+    .scroll { max-height: 460px; overflow: auto; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 20px; align-items: start; }
+    section { border: 1px solid var(--line); border-radius: 6px; padding: 16px 18px; min-width: 0; }
+    section.wide { grid-column: 1 / -1; }
+    h2 { font-size: 16px; margin: 0 0 10px; }
+    h3 { font-size: 14px; margin: 16px 0 6px; }
+    .hint { color: var(--dim); font-size: 13px; margin: 6px 0 0; }
+    .url { display: grid; grid-template-columns: 74px 1fr auto; gap: 6px; align-items: center; margin: 6px 0; }
+    .url span { font-size: 13px; font-weight: 600; }
+    .url input { min-width: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 3px; padding: 6px 9px; font: 13px ui-monospace, Consolas, monospace; color: var(--text); }
+    .url small { grid-column: 2 / -1; margin-top: -4px; color: var(--dim); font-size: 12px; }
+    button { background: var(--text); color: #fff; border: 1px solid var(--text); border-radius: 3px; padding: 6px 13px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+    button.secondary { background: #fff; color: var(--text); border-color: #c9c3bd; }
+    button.small { padding: 3px 9px; font-size: 13px; }
+    button.danger { background: #fff; color: #b3261e; border-color: #e0b4b0; }
+    button.undo { background: var(--link); border-color: var(--link); }
+    button:hover { opacity: 0.88; }
+    button:disabled { opacity: 0.45; cursor: default; }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { text-align: left; padding: 5px 4px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+    th { color: var(--dim); font-weight: 600; font-size: 13px; }
+    td input:not([type=checkbox]):not([type=file]), td select { width: 100%; padding: 5px 7px; border: 1px solid #c9c3bd; border-radius: 3px; font: inherit; background: #fff; }
+    td.act { text-align: right; white-space: nowrap; }
+    td.act button + button { margin-left: 4px; }
+    td.num { width: 110px; }
+    td.unit { width: 104px; }
+    label.check { display: flex; gap: 8px; align-items: center; font-weight: 600; }
+    select, input[type=number], input[type=text] { padding: 5px 7px; border: 1px solid #c9c3bd; border-radius: 3px; font: inherit; background: #fff; }
+    .state { font-size: 13px; color: var(--dim); }
+    .state.error { color: #b3261e; }
+    .buckets { display: grid; grid-template-columns: 74px 1fr; gap: 6px 10px; align-items: center; }
+    .buckets span { font-weight: 600; font-size: 14px; }
+    .preview { position: relative; height: 0; padding-top: 56.25%; margin-top: 10px; border-radius: 3px; overflow: hidden;
+      background: repeating-conic-gradient(#30373c 0% 25%, #2a3035 0% 50%) 0 0 / 20px 20px; }
+    .preview.light { background: repeating-conic-gradient(#e9e4dd 0% 25%, #dcd6ce 0% 50%) 0 0 / 20px 20px; }
+    .preview iframe { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; border: 0; transform-origin: 0 0; color-scheme: normal; }
+    .summary { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 0; }
+    .summary span { background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 0 10px; font-size: 13px; }
+    .summary span.test { border-color: #e8c34a; background: #fff6cc; }
+    textarea { width: 100%; min-height: 180px; margin-top: 10px; padding: 8px 10px; border: 1px solid #c9c3bd; border-radius: 3px; font: 13px/1.5 ui-monospace, Consolas, monospace; }
+    .thumb { width: 44px; height: 44px; object-fit: contain; background: var(--panel); border: 1px solid var(--line); border-radius: 3px; display: block; }
+    .thumb.none { display: flex; align-items: center; justify-content: center; color: var(--dim); font-size: 11px; }
+    .file { display: inline-flex; align-items: center; gap: 6px; }
+    .file input { display: none; }
+    .file span { display: inline-block; padding: 3px 9px; border: 1px solid #c9c3bd; border-radius: 3px; font-size: 13px; font-weight: 600; cursor: pointer; background: #fff; }
+    .cards { list-style: none; margin: 10px 0 0; padding: 0; max-height: 420px; overflow: auto; }
+    .cards li { display: grid; grid-template-columns: 64px 1fr auto; gap: 4px 10px; align-items: center; padding: 7px 2px; border-top: 1px solid var(--line); }
+    .cards .time { color: var(--dim); font-size: 12px; font-variant-numeric: tabular-nums; }
+    .cards .who { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .cards .who small { font-weight: 600; color: var(--dim); margin-left: 6px; }
+    .cards .where { grid-column: 2; font-size: 13px; color: var(--dim); }
+    .cards .where b { color: var(--link); font-weight: 600; }
+    .cards .tools { grid-column: 3; grid-row: 1 / span 2; display: flex; gap: 4px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+    .cards select { max-width: 170px; padding: 3px 5px; font-size: 13px; }
+    .dot { display: inline-block; width: 9px; height: 9px; margin-right: 6px; vertical-align: 1px; background: var(--c, #bf3b68); }
+    .gauge { height: 10px; margin-top: 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 2px; overflow: hidden; }
+    .gauge i { display: block; height: 100%; width: 0; background: var(--link); }
+    ol.top { margin: 8px 0 0; padding-left: 22px; font-size: 14px; }
+    a.link { display: inline-block; padding: 5px 12px; border: 1px solid #c9c3bd; border-radius: 3px; color: var(--text); font-size: 14px; font-weight: 600; text-decoration: none; }
+    a.link:hover { border-color: var(--text); }
+    @media (max-width: 520px) { main { padding: 14px 12px 40px; } section { padding: 12px; } .url { grid-template-columns: 1fr auto; } .url span { grid-column: 1 / -1; } .url small { grid-column: 1 / -1; } }
+  </style>
+</head>
+<body>
+<header>
+  <img src="/favicon.svg" alt="">
+  <h1>debutkit 후원 벽</h1>
+  <a href="/">오버레이 설정 화면</a>
+</header>
+<main>
+  <p class="lead">치지직, SOOP, YouTube, Twitch 후원이 올 때마다 카드 한 장을 방송 화면의 칸에 붙입니다. 칸은 단위(별풍선, 애드벌룬, 원, 비트, 외화)마다 나뉘고, 벽은 비우기 전까지 방송이 끝나도 남습니다. 목표 게이지와 후원 순위도 같은 카드로 계산합니다.</p>
+  <p class="privacy">후원자 닉네임은 이 PC의 <code id="data-file">wall.json</code>(설정 폴더)에만 저장하고 다른 곳으로 보내지 않으며, 벽 비우기로 지웁니다(8초 안에 되돌리기).</p>
+  <div class="grid">
+    <div class="stack">
+    <section>
+      <h2>벽 관리</h2>
+      <div class="summary" id="summary"></div>
+      <div class="row">
+        <button class="secondary" id="replay">마지막 카드 다시 보기</button>
+        <button class="secondary" id="export">텍스트로 내보내기</button>
+      </div>
+      <div class="row">
+        <button class="secondary" id="remove-tests">시험 카드 지우기</button>
+        <button class="danger" id="clear">벽 비우기</button>
+        <button class="undo" id="undo" hidden>되돌리기</button>
+        <span class="state" id="manage-state"></span>
+      </div>
+      <div id="export-box" hidden>
+        <textarea id="export-text" readonly aria-label="후원 벽 기록"></textarea>
+        <div class="row"><button class="secondary small" id="export-copy">복사</button><a class="link" href="/wall/export" target="_blank" rel="noopener">새 창에서 열기</a></div>
+      </div>
+      <p class="hint">내보내기는 단위별 후원자 건수와 합계, 칸별 건수입니다. 비운 뒤 8초가 지나면 되돌릴 수 없습니다.</p>
+    </section>
+
+    <section>
+      <h2>시험 후원</h2>
+      <div class="row">
+        <select id="test-unit" aria-label="단위"></select>
+        <input id="test-amount" type="number" min="0" step="any" value="10" style="width:110px" aria-label="금액">
+        <input id="test-name" type="text" maxlength="40" placeholder="이름(기본 시험)" style="width:140px" aria-label="이름">
+      </div>
+      <div class="row">
+        <select id="test-platform" aria-label="플랫폼"></select>
+        <label>장수 <input id="test-count" type="number" min="1" max="30" value="1" style="width:64px"></label>
+        <button id="test">시험 후원</button>
+      </div>
+      <div class="row"><button class="secondary" id="test-mix">여러 단위 12장 한꺼번에</button><span class="state" id="test-state"></span></div>
+      <p class="hint">시험 카드는 방송 화면에 시험 표시와 함께 붙고 목표, 순위에도 들어갑니다. 확인한 뒤 시험 카드 지우기로 뺍니다. 한꺼번에 보내면 대기 카드가 많아져 빠른 진행으로 붙습니다.</p>
+    </section>
+    </div>
+
+    <section>
+      <h2>방송 화면</h2>
+      <div class="url"><span>후원 벽</span><input id="wall-url" readonly aria-label="후원 벽 주소"><button class="secondary small" data-copy="wall-url">복사</button><small>권장 크기 1920x1080, 평소 투명</small></div>
+      <div class="url"><span>목표</span><input id="goal-url" readonly aria-label="목표 게이지 주소"><button class="secondary small" data-copy="goal-url">복사</button><small>권장 크기 1280x240</small></div>
+      <div class="url"><span>순위</span><input id="rank-url" readonly aria-label="후원 순위 주소"><button class="secondary small" data-copy="rank-url">복사</button><small>권장 크기 560x720</small></div>
+      <p class="hint">OBS 브라우저 소스로 추가합니다. 크기를 줄여도 비율대로 줄어듭니다.</p>
+      <h3>OBS 안에서 조작</h3>
+      <div class="url"><span>조작 화면</span><input id="control-url" readonly aria-label="조작 화면 주소"><button class="secondary small" data-copy="control-url">복사</button></div>
+      <p class="hint">OBS 독 메뉴의 사용자 지정 브라우저 독에 이 주소를 넣으면 OBS 안에서 이 화면을 사용할 수 있습니다.</p>
+    </section>
+
+    <section class="wide">
+      <h2>배치와 미리보기</h2>
+      <div class="row">
+        <button class="secondary small" id="preview-toggle">미리보기 켜기</button>
+        <select id="preview-bg" aria-label="미리보기 배경"><option value="dark">어두운 배경</option><option value="light">밝은 배경</option></select>
+        <button class="secondary small" id="layout-reset">칸 배치 초기화</button>
+        <span class="state" id="layout-state"></span>
+      </div>
+      <div class="preview" id="preview" hidden><iframe id="preview-frame" title="후원 벽 미리보기"></iframe></div>
+      <p class="hint">미리보기나 OBS 소스의 상호작용 창에서 칸 머리를 끌어 옮기고, 오른쪽 아래 모서리를 끌어 크기를 바꿉니다. 옮긴 칸은 고정되고(금색 테두리) 나머지 칸은 자동으로 놓입니다. 칸 머리를 두 번 누르면 그 칸만 자동 배치로 돌아갑니다.</p>
+    </section>
+
+    <section>
+      <h2>칸 나누기</h2>
+      <div class="buckets" id="buckets"></div>
+      <p class="hint">앞자리별은 34개, 44개, 59개를 30~39개, 40~49개, 50~59개 칸으로, 자릿수별은 세 후원을 모두 10~99개 칸으로 모읍니다. 외화는 통화(USD, JPY 등)마다 칸이 따로입니다.</p>
+      <div class="row"><button data-save>저장</button><span class="state" data-save-state></span></div>
+    </section>
+
+    <section>
+      <h2>연출</h2>
+      <div class="row"><label>등장 <select id="entrance" aria-label="등장 연출"></select></label><label>대기 효과 <select id="idle" aria-label="대기 효과"></select></label></div>
+      <div class="row"><label>빠른 진행: 대기 카드 <input id="fast-after" type="number" min="2" max="50" style="width:64px">장 이상</label></div>
+      <div class="row"><label class="check"><input type="checkbox" id="names"> 방송에 닉네임 표시</label><label class="check"><input type="checkbox" id="sound"> 효과음</label></div>
+      <div class="row"><label class="check"><input type="checkbox" id="auto-clear"> 오버레이를 시작할 때 벽 비우기</label></div>
+      <div class="row"><label class="check"><input type="checkbox" id="empty-signatures"> 후원 전에도 시그니처 칸 세우기</label></div>
+      <p class="hint">닉네임 표시를 끄면 방송 화면과 순위에 금액만 나옵니다(이 화면에는 그대로). 효과음은 OBS 브라우저 소스 속성의 OBS 오디오 제어를 켠 경우 방송에 나갑니다.</p>
+      <div class="row"><button data-save>저장</button><span class="state" data-save-state></span></div>
+    </section>
+
+    <section class="wide">
+      <h2>시그니처</h2>
+      <table>
+        <thead><tr><th>단위</th><th>금액</th><th>이름</th><th>그림</th><th>숫자 숨기기</th><th></th></tr></thead>
+        <tbody id="signatures"></tbody>
+      </table>
+      <div class="row"><button class="secondary small" id="add-signature">시그니처 추가</button><span class="state" id="signature-state"></span></div>
+      <p class="hint">단위와 금액이 정확히 같은 후원을 큰 칸에 따로 모읍니다. 그림은 PNG, GIF(움직임 유지), WebP, JPEG 8MB 이하입니다. 그림에 숫자가 들어 있으면 숫자 숨기기를 켭니다. 줄마다 저장합니다.</p>
+    </section>
+
+    <section>
+      <h2>오라 단계</h2>
+      <table>
+        <thead><tr><th>단위</th><th>금액 이상</th><th>효과</th><th>세기(%)</th><th></th></tr></thead>
+        <tbody id="auras"></tbody>
+      </table>
+      <div class="row"><button class="secondary small" id="add-aura">단계 추가</button></div>
+      <p class="hint">금액이 클수록 밝아집니다: 빛 번짐, 반사광, 별가루, 금박 순. 세기는 30%에서 200%입니다. 같은 단위의 단계 중 금액 이하에서 가장 높은 단계를 씁니다.</p>
+      <div class="row"><button data-save>저장</button><span class="state" data-save-state></span></div>
+    </section>
+
+    <section>
+      <h2>목표</h2>
+      <div class="row"><label>이름 <input id="goal-title" type="text" maxlength="20" style="width:150px"></label><label>목표 <input id="goal-target" type="number" min="1" step="any" style="width:120px"></label></div>
+      <div class="row"><label>기준 <select id="goal-basis" aria-label="목표 기준"></select></label></div>
+      <h3>중간 목표</h3>
+      <table>
+        <thead><tr><th>금액</th><th>이름(선택)</th><th></th></tr></thead>
+        <tbody id="milestones"></tbody>
+      </table>
+      <div class="row"><button class="secondary small" id="add-milestone">중간 목표 추가</button></div>
+      <p class="state" id="goal-now"></p>
+      <div class="gauge"><i id="goal-gauge"></i></div>
+      <p class="hint">지난 비우기 이후 벽에 붙은 카드로 계산합니다. 원 기준 합계는 원 후원과 별풍선(1개 100원)을 더합니다.</p>
+      <div class="row"><button data-save>저장</button><span class="state" data-save-state></span></div>
+    </section>
+
+    <section>
+      <h2>순위</h2>
+      <div class="row"><label>이름 <input id="rank-title" type="text" maxlength="20" style="width:150px"></label><label>인원 <input id="rank-count" type="number" min="1" max="20" style="width:64px">명</label></div>
+      <div class="row"><label>원으로 바꿀 수 없는 후원 <select id="rank-others" aria-label="원으로 바꿀 수 없는 후원"></select></label></div>
+      <p class="hint">같은 플랫폼의 같은 닉네임을 한 사람으로 원 기준 합계(별풍선 1개 100원)를 냅니다. 애드벌룬, 비트, 외화는 환율을 쓰지 않고 그 밖의 후원으로 따로 표시하거나 뺍니다.</p>
+      <ol class="top" id="rank-now"></ol>
+      <p class="state" id="rank-note"></p>
+      <div class="row"><button data-save>저장</button><span class="state" data-save-state></span></div>
+    </section>
+
+    <section class="wide">
+      <h2>칸 목록</h2>
+      <div class="scroll"><table>
+        <thead><tr><th>칸</th><th>건수</th><th>배치</th><th>그림</th><th></th></tr></thead>
+        <tbody id="columns"></tbody>
+      </table></div>
+      <p class="hint">칸마다 그림을 붙일 수 있습니다(칸 머리 위에 표시). 칸 나누기를 바꾸면 칸 이름이 달라져 그림과 배치를 다시 정해야 할 수 있습니다.</p>
+      <p class="state" id="column-state"></p>
+    </section>
+
+    <section class="wide">
+      <h2>최근 카드</h2>
+      <p class="hint">카드 하나를 다른 칸이나 따로 세운 칸으로 옮기고, 원래 칸으로 되돌릴 수 있습니다. 최근 80장까지 표시합니다.</p>
+      <ul class="cards" id="cards"></ul>
+      <p class="state" id="card-state"></p>
+    </section>
+  </div>
+</main>
+<script>
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const el = (tag, className, text) => {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  };
+  const post = (path, body) => fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) })
+    .then(async (response) => ({ ok: response.ok, data: await response.json().catch(() => ({})) }))
+    .catch(() => ({ ok: false, data: { error: "오버레이에 연결하지 못함(오버레이 실행 확인)" } }));
+  const COLORS = { chzzk: "#00d68f", soop: "#3d7bff", twitch: "#9146ff", youtube: "#ff0033", demo: "#ff4f8b" };
+  const UNIT_NAMES = { bits: "비트", "외화": "외화" };
+  const unitName = (unit) => UNIT_NAMES[unit] || unit;
+  const MAX_IMAGE = 8 * 1024 * 1024;
+  let status = null;
+  let config = null;
+
+  function note(id, text, error) {
+    $(id).textContent = text;
+    $(id).classList.toggle("error", Boolean(error));
+  }
+  function options(select, table, value) {
+    select.replaceChildren(...Object.entries(table).map(([key, label]) => {
+      const option = el("option", "", label);
+      option.value = key;
+      return option;
+    }));
+    if (value !== undefined) select.value = value;
+  }
+  function input(type, value, attributes) {
+    const node = el("input");
+    node.type = type;
+    if (type === "checkbox") node.checked = Boolean(value);
+    else node.value = value ?? "";
+    for (const [name, attribute] of Object.entries(attributes || {})) node.setAttribute(name, attribute);
+    return node;
+  }
+  function cell(child, className) {
+    const node = el("td", className || "");
+    if (child) node.appendChild(child);
+    return node;
+  }
+  function unitSelect(value, units) {
+    const select = el("select");
+    select.setAttribute("aria-label", "단위");
+    options(select, Object.fromEntries(units.map((unit) => [unit, unitName(unit)])), value);
+    return select;
+  }
+  const unitsForRules = () => [...new Set([...(status ? status.choices.units : []), "USD"])];
+  const amountText = (card) => card.text;
+  const columnName = (column) => column.title ? `${column.title}(${column.tag})` : `${column.tag} ${column.number}${column.suffix}`;
+
+  for (const [id, path] of [["wall-url", "/wall"], ["goal-url", "/wall/goal"], ["rank-url", "/wall/rank"], ["control-url", "/wall/control"]]) $(id).value = location.origin + path;
+  for (const button of document.querySelectorAll("[data-copy]")) {
+    button.addEventListener("click", async () => {
+      const field = $(button.dataset.copy);
+      field.select();
+      try { await navigator.clipboard.writeText(field.value); } catch { document.execCommand("copy"); }
+      button.textContent = "복사됨";
+      setTimeout(() => (button.textContent = "복사"), 1500);
+    });
+  }
+
+  // ---------------------------------------------------------------- 미리보기(필요할 때만: 방송 화면처럼 연결을 하나 씀)
+  const fit = () => ($("preview-frame").style.transform = `scale(${$("preview").clientWidth / 1920})`);
+  window.addEventListener("resize", fit);
+  $("preview-toggle").addEventListener("click", () => {
+    const opening = $("preview").hidden;
+    $("preview").hidden = !opening;
+    $("preview-frame").src = opening ? "/wall?edit=1" : "about:blank";
+    $("preview-toggle").textContent = opening ? "미리보기 끄기" : "미리보기 켜기";
+    fit();
+  });
+  $("preview-bg").addEventListener("change", () => $("preview").classList.toggle("light", $("preview-bg").value === "light"));
+  $("layout-reset").addEventListener("click", async () => {
+    const { ok, data } = await post("/wall/layout", { reset: true });
+    note("layout-state", ok ? "모든 칸을 자동 배치로 돌렸습니다." : data.error || "초기화 실패", !ok);
+    refresh();
+  });
+
+  // ---------------------------------------------------------------- 설정 채우기, 모으기
+  function bucketRows() {
+    $("buckets").replaceChildren(...Object.entries(status.choices.buckets).flatMap(([unit, modes]) => {
+      const select = el("select");
+      select.dataset.unit = unit;
+      select.setAttribute("aria-label", `${unitName(unit)} 칸 나누기`);
+      options(select, modes, config.buckets[unit]);
+      return [el("span", "", unitName(unit)), select];
+    }));
+  }
+
+  function auraRow(tier) {
+    const row = el("tr");
+    const effect = el("select", "effect");
+    options(effect, status.choices.auras, tier.effect);
+    effect.setAttribute("aria-label", "효과");
+    const remove = el("button", "secondary small", "삭제");
+    remove.addEventListener("click", () => row.remove());
+    row.append(cell(unitSelect(tier.unit, unitsForRules()), "unit"), cell(input("number", tier.min, { min: "0", step: "any", class: "min", "aria-label": "금액" }), "num"),
+               cell(effect), cell(input("number", tier.strength, { min: "30", max: "200", step: "10", class: "strength", "aria-label": "세기" }), "num"), cell(remove, "act"));
+    row.querySelector("select").classList.add("unit");
+    return row;
+  }
+
+  function milestoneRow(item) {
+    const row = el("tr");
+    const remove = el("button", "secondary small", "삭제");
+    remove.addEventListener("click", () => row.remove());
+    row.append(cell(input("number", item.at, { min: "0", step: "any", class: "at", "aria-label": "금액" }), "num"),
+               cell(input("text", item.label, { maxlength: "20", class: "label", "aria-label": "이름" })), cell(remove, "act"));
+    return row;
+  }
+
+  function fill() {
+    bucketRows();
+    options($("entrance"), status.choices.entrances, config.entrance);
+    options($("idle"), status.choices.idles, config.idle);
+    $("fast-after").value = config.fast_after;
+    $("names").checked = config.names;
+    $("sound").checked = config.sound;
+    $("auto-clear").checked = config.auto_clear;
+    $("empty-signatures").checked = config.empty_signatures;
+    $("auras").replaceChildren(...config.auras.map(auraRow));
+    $("goal-title").value = config.goal.title;
+    $("goal-target").value = config.goal.target;
+    options($("goal-basis"), status.choices.goal_bases, config.goal.basis);
+    $("milestones").replaceChildren(...config.goal.milestones.map(milestoneRow));
+    $("rank-title").value = config.rank.title;
+    $("rank-count").value = config.rank.count;
+    options($("rank-others"), status.choices.others, config.rank.others);
+    signatureRows();
+  }
+
+  function collect() {
+    return {
+      buckets: Object.fromEntries([...$("buckets").querySelectorAll("select")].map((select) => [select.dataset.unit, select.value])),
+      entrance: $("entrance").value, idle: $("idle").value, fast_after: Number($("fast-after").value),
+      names: $("names").checked, sound: $("sound").checked, auto_clear: $("auto-clear").checked, empty_signatures: $("empty-signatures").checked,
+      auras: [...$("auras").children].map((row) => ({ unit: row.querySelector(".unit").value, min: Number(row.querySelector(".min").value),
+                                                      effect: row.querySelector(".effect").value, strength: Number(row.querySelector(".strength").value) })),
+      goal: { title: $("goal-title").value.trim(), basis: $("goal-basis").value, target: Number($("goal-target").value),
+              milestones: [...$("milestones").children].map((row) => ({ at: Number(row.querySelector(".at").value), label: row.querySelector(".label").value.trim() })) },
+      rank: { title: $("rank-title").value.trim(), count: Number($("rank-count").value), others: $("rank-others").value },
+    };
+  }
+
+  for (const button of document.querySelectorAll("[data-save]")) {
+    const state = button.parentElement.querySelector("[data-save-state]");
+    button.addEventListener("click", async () => {
+      const { ok, data } = await post("/wall/config", collect());
+      state.classList.toggle("error", !ok);
+      if (!ok) return (state.textContent = `저장하지 못함: ${data.error || "알 수 없는 오류"}`);
+      status = data;
+      config = data.config;
+      fill();
+      render(true);
+      state.textContent = "저장했습니다. 방송 화면에 바로 적용됩니다.";
+      setTimeout(() => (state.textContent = ""), 4000);
+    });
+  }
+  $("add-aura").addEventListener("click", () => $("auras").appendChild(auraRow({ unit: "별풍선", min: 100, effect: "glow", strength: 100 })));
+  $("add-milestone").addEventListener("click", () => $("milestones").appendChild(milestoneRow({ at: "", label: "" })));
+
+  // ---------------------------------------------------------------- 그림 읽기(크기 먼저 확인)
+  function readImage(file) {
+    return new Promise((resolve, reject) => {
+      if (!file) return reject(new Error("그림 파일을 고르세요"));
+      if (file.size > MAX_IMAGE) return reject(new Error("그림 파일은 8MB 이하"));
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(new Error("그림 파일을 읽지 못함"));
+      reader.readAsDataURL(file);
+    });
+  }
+  function fileButton(label, onFile) {
+    const wrap = el("label", "file");
+    const field = input("file", "", { accept: "image/png,image/gif,image/webp,image/jpeg" });
+    field.addEventListener("change", () => {
+      if (field.files[0]) onFile(field.files[0]);
+      field.value = "";
+    });
+    wrap.append(field, el("span", "", label));
+    return wrap;
+  }
+  function thumb(name) {
+    if (!name) return el("span", "thumb none", "없음");
+    const image = el("img", "thumb");
+    image.alt = "";
+    image.src = name.startsWith("/") ? name : `/wall/image?name=${encodeURIComponent(name)}`;
+    return image;
+  }
+
+  // ---------------------------------------------------------------- 시그니처(줄마다 저장)
+  function signatureRow(signature) {
+    const row = el("tr");
+    const unit = unitSelect(signature.unit || "별풍선", unitsForRules());
+    const amount = input("number", signature.amount ?? "", { min: "0", step: "any", "aria-label": "금액" });
+    const title = input("text", signature.title || "", { maxlength: "20", placeholder: "예: 천사 풍선", "aria-label": "이름" });
+    const hide = input("checkbox", signature.hide_number, { "aria-label": "숫자 숨기기" });
+    let image = null;  // 새로 고른 그림(data URL), 빈 문자열은 그림 빼기
+    const art = el("td");
+    const preview = el("div", "file");
+    const shown = thumb(signature.image);
+    preview.appendChild(shown);
+    const pick = fileButton("그림", async (file) => {
+      try {
+        image = await readImage(file);
+        preview.firstChild.replaceWith(Object.assign(el("img", "thumb"), { src: image, alt: "" }));
+        note("signature-state", "그림을 골랐습니다. 저장을 누르세요.");
+      } catch (error) {
+        note("signature-state", error.message, true);
+      }
+    });
+    const drop = el("button", "secondary small", "빼기");
+    drop.addEventListener("click", () => {
+      image = "";
+      preview.firstChild.replaceWith(thumb(""));
+    });
+    preview.append(pick, drop);
+    art.appendChild(preview);
+    const save = el("button", "small", signature.id ? "저장" : "추가");
+    save.addEventListener("click", async () => {
+      const body = { unit: unit.value, amount: Number(amount.value), title: title.value.trim(), hide_number: hide.checked };
+      if (signature.id) body.id = signature.id;
+      if (image !== null) body.image = image;
+      save.disabled = true;
+      const { ok, data } = await post("/wall/signature", body);
+      save.disabled = false;
+      if (!ok) return note("signature-state", `저장하지 못함: ${data.error || "알 수 없는 오류"}`, true);
+      config.signatures = data.signatures;
+      signatureRows();
+      note("signature-state", "시그니처를 저장했습니다.");
+      refresh();
+    });
+    const remove = el("button", "secondary small", "삭제");
+    remove.addEventListener("click", async () => {
+      if (!signature.id) return row.remove();
+      const { ok, data } = await post("/wall/signature/remove", { id: signature.id });
+      if (!ok) return note("signature-state", data.error || "삭제 실패", true);
+      config.signatures = data.signatures;
+      signatureRows();
+      note("signature-state", "시그니처를 지웠습니다. 그 금액의 카드는 칸 나누기 칸으로 돌아갑니다.");
+      refresh();
+    });
+    row.append(cell(unit, "unit"), cell(amount, "num"), cell(title), art, cell(hide), cell(save, "act"));
+    row.lastChild.appendChild(remove);
+    return row;
+  }
+  function signatureRows() {
+    $("signatures").replaceChildren(...config.signatures.map(signatureRow));
+  }
+  $("add-signature").addEventListener("click", () => $("signatures").appendChild(signatureRow({ unit: "별풍선", amount: "", title: "", hide_number: false })));
+
+  // ---------------------------------------------------------------- 시험 후원, 벽 관리
+  function testChoices() {
+    options($("test-unit"), Object.fromEntries([...unitsForRules()].map((unit) => [unit, unitName(unit)])), $("test-unit").value || "별풍선");
+    options($("test-platform"), { demo: "시험", soop: "SOOP", chzzk: "치지직", youtube: "YouTube", twitch: "Twitch" }, $("test-platform").value || "demo");
+  }
+  $("test").addEventListener("click", async () => {
+    const { ok, data } = await post("/wall/test", { unit: $("test-unit").value, amount: Number($("test-amount").value), name: $("test-name").value.trim(),
+                                                    platform: $("test-platform").value, count: Number($("test-count").value) });
+    note("test-state", ok ? `시험 카드 ${data.added}장을 보냈습니다.` : data.error || "시험 후원 실패", !ok);
+    refresh();
+  });
+  $("test-mix").addEventListener("click", async () => {
+    const { ok, data } = await post("/wall/test", { mix: true });
+    note("test-state", ok ? `시험 카드 ${data.added}장을 보냈습니다.` : data.error || "시험 후원 실패", !ok);
+    refresh();
+  });
+  $("replay").addEventListener("click", async () => {
+    const { ok, data } = await post("/wall/replay");
+    note("manage-state", ok ? "마지막 카드를 다시 보여 줍니다." : data.error || "다시 보기 실패", !ok);
+  });
+  $("remove-tests").addEventListener("click", async () => {
+    const { ok, data } = await post("/wall/remove", { tests: true });
+    note("manage-state", ok ? `시험 카드 ${data.removed}장을 지웠습니다.` : data.error || "지우기 실패", !ok);
+    refresh();
+  });
+  let undoUntil = 0;
+  let undoTimer = 0;
+  function undoTick() {
+    const left = Math.max(0, (undoUntil - Date.now()) / 1000);
+    $("undo").hidden = left <= 0;
+    $("undo").textContent = `되돌리기(${Math.ceil(left)}초)`;
+    clearTimeout(undoTimer);
+    if (left > 0) undoTimer = setTimeout(undoTick, 200);
+  }
+  $("clear").addEventListener("click", async () => {
+    const { ok, data } = await post("/wall/clear");
+    if (!ok) return note("manage-state", data.error || "비우기 실패", true);
+    note("manage-state", data.cleared ? `카드 ${data.cleared}장을 비웠습니다.` : "비울 카드가 없습니다.");
+    undoUntil = data.undo ? Date.now() + data.undo * 1000 : 0;
+    undoTick();
+    refresh();
+  });
+  $("undo").addEventListener("click", async () => {
+    const { ok, data } = await post("/wall/undo");
+    note("manage-state", ok ? `카드 ${data.restored}장을 되돌렸습니다.` : data.error || "되돌리기 실패", !ok);
+    undoUntil = 0;
+    undoTick();
+    refresh();
+  });
+  $("export").addEventListener("click", async () => {
+    try {
+      $("export-text").value = await (await fetch("/wall/export", { cache: "no-store" })).text();
+      $("export-box").hidden = false;
+    } catch {
+      note("manage-state", "내보내지 못함(오버레이 실행 확인)", true);
+    }
+  });
+  $("export-copy").addEventListener("click", async () => {
+    $("export-text").select();
+    try { await navigator.clipboard.writeText($("export-text").value); } catch { document.execCommand("copy"); }
+    $("export-copy").textContent = "복사됨";
+    setTimeout(() => ($("export-copy").textContent = "복사"), 1500);
+  });
+
+  // ---------------------------------------------------------------- 상태 그리기(2초마다 확인, 바뀐 부분만)
+  const shown = { summary: "", columns: "", cards: "", goal: "", rank: "" };
+  function changed(name, value) {
+    const mark = JSON.stringify(value);
+    if (shown[name] === mark) return false;
+    shown[name] = mark;
+    return true;
+  }
+
+  function renderSummary() {
+    const summary = status.summary;
+    if (!changed("summary", summary)) return;
+    const chips = [el("span", "", `카드 ${summary.cards.toLocaleString("ko-KR")}장`), el("span", "", `칸 ${summary.columns}개`)];
+    for (const unit of summary.units) chips.push(el("span", "", `${unit.text}(${unit.count}건)`));
+    if (summary.tests) chips.push(el("span", "test", `시험 카드 ${summary.tests}장`));
+    $("summary").replaceChildren(...chips);
+    $("remove-tests").disabled = !summary.tests;
+  }
+
+  function renderColumns() {
+    if (!changed("columns", status.columns.map((column) => [column.key, column.count, column.pinned, column.image, column.number, column.title]))) return;
+    if (!status.columns.length) {
+      const row = el("tr");
+      const empty = el("td", "", "아직 칸이 없습니다. 시험 후원으로 확인할 수 있습니다.");
+      empty.colSpan = 5;
+      empty.className = "state";
+      row.appendChild(empty);
+      return $("columns").replaceChildren(row);
+    }
+    $("columns").replaceChildren(...status.columns.map((column) => {
+      const row = el("tr");
+      const image = el("div", "file");
+      image.appendChild(thumb(column.image));
+      image.appendChild(fileButton("올리기", async (file) => {
+        try {
+          const { ok, data } = await post("/wall/column", { key: column.key, image: await readImage(file) });
+          note("column-state", ok ? `${columnName(column)} 칸에 그림을 붙였습니다.` : data.error || "그림 붙이기 실패", !ok);
+        } catch (error) {
+          note("column-state", error.message, true);
+        }
+        refresh();
+      }));
+      if (column.image && column.kind !== "sig") {
+        const drop = el("button", "secondary small", "빼기");
+        drop.addEventListener("click", async () => {
+          const { ok, data } = await post("/wall/column", { key: column.key, image: "" });
+          note("column-state", ok ? "그림을 뺐습니다." : data.error || "실패", !ok);
+          refresh();
+        });
+        image.appendChild(drop);
+      }
+      const auto = el("button", "secondary small", "자동 배치");
+      auto.disabled = !column.pinned;
+      auto.addEventListener("click", async () => {
+        await post("/wall/layout", { key: column.key, auto: true });
+        refresh();
+      });
+      row.append(cell(el("span", "", columnName(column))), cell(el("span", "", `${column.count}건`)), cell(el("span", "state", column.pinned ? "고정" : "자동")),
+                 cell(image), cell(auto, "act"));
+      if (column.kind === "sig") image.lastChild.remove();  // 시그니처 그림은 시그니처 줄에서
+      return row;
+    }));
+  }
+
+  function renderCards() {
+    if ($("cards").contains(document.activeElement) && document.activeElement.tagName === "SELECT") return;  // 고르는 중에는 그대로
+    if (!changed("cards", [status.cards.map((card) => [card.id, card.column, card.name]), status.columns.map((column) => column.key)])) return;
+    if (!status.cards.length) return $("cards").replaceChildren(el("li", "state", "카드가 없습니다."));
+    const names = Object.fromEntries(status.columns.map((column) => [column.key, columnName(column)]));
+    $("cards").replaceChildren(...status.cards.map((card) => {
+      const item = el("li");
+      const at = new Date(card.time * 1000);
+      item.appendChild(el("span", "time", [at.getHours(), at.getMinutes(), at.getSeconds()].map((part) => String(part).padStart(2, "0")).join(":")));
+      const who = el("span", "who");
+      const dot = el("span", "dot");
+      dot.style.setProperty("--c", COLORS[card.platform] || "#8a8499");
+      who.append(dot, document.createTextNode(card.name));
+      who.appendChild(el("small", "", `${amountText(card)}${card.test ? ", 시험" : ""}`));
+      item.appendChild(who);
+      const tools = el("span", "tools");
+      const target = el("select");
+      target.setAttribute("aria-label", "옮길 칸");
+      options(target, { "": "옮길 칸", solo: "따로 세우기", ...Object.fromEntries(status.columns.filter((column) => column.key !== card.column).map((column) => [column.key, names[column.key]])) }, "");
+      target.addEventListener("change", async () => {
+        if (!target.value) return;
+        const { ok, data } = await post("/wall/detach", { card: card.id, column: target.value });
+        note("card-state", ok ? "카드를 옮겼습니다." : data.error || "옮기지 못함", !ok);
+        target.blur();
+        refresh();
+      });
+      tools.appendChild(target);
+      if (card.detached) {
+        const restore = el("button", "secondary small", "원래 칸으로");
+        restore.addEventListener("click", async () => {
+          const { ok, data } = await post("/wall/restore", { card: card.id });
+          note("card-state", ok ? "원래 칸으로 되돌렸습니다." : data.error || "되돌리지 못함", !ok);
+          refresh();
+        });
+        tools.appendChild(restore);
+      }
+      const again = el("button", "secondary small", "다시 보기");
+      again.addEventListener("click", () => post("/wall/replay", { card: card.id }));
+      const remove = el("button", "secondary small", "지우기");
+      remove.addEventListener("click", async () => {
+        const { ok, data } = await post("/wall/remove", { card: card.id });
+        note("card-state", ok ? "카드를 지웠습니다." : data.error || "지우지 못함", !ok);
+        refresh();
+      });
+      tools.append(again, remove);
+      item.appendChild(tools);
+      const where = el("span", "where", "");
+      where.appendChild(document.createTextNode(card.detached ? "옮긴 칸: " : "칸: "));
+      where.appendChild(el(card.detached ? "b" : "span", "", names[card.column] || card.column));
+      item.appendChild(where);
+      return item;
+    }));
+  }
+
+  function renderGoal() {
+    const goal = status.goal;
+    if (!changed("goal", goal)) return;
+    const next = goal.next ? `, 다음 중간 목표 ${goal.next.text}${goal.next.label ? ` ${goal.next.label}` : ""}` : "";
+    note("goal-now", `지금 ${goal.current_text} / ${goal.target_text} (${Math.floor(goal.percent)}%${goal.reached ? ", 달성" : ""}${next})`);
+    $("goal-gauge").style.width = `${Math.min(100, goal.percent)}%`;
+  }
+
+  function renderRank() {
+    const rank = status.rank;
+    if (!changed("rank", rank)) return;
+    $("rank-now").replaceChildren(...rank.entries.slice(0, 5).map((entry) => el("li", "", `${entry.name} ${entry.text}`)));
+    const parts = [];
+    if (!rank.entries.length) parts.push("아직 원 기준 후원이 없습니다.");
+    if (rank.excluded) parts.push(`원으로 바꿀 수 없는 후원 ${rank.excluded}건은 ${rank.others_mode === "separate" ? "그 밖의 후원으로 따로 표시" : "순위에서 뺌"}.`);
+    note("rank-note", parts.join(" "));
+  }
+
+  function render() {
+    renderSummary();
+    renderColumns();
+    renderCards();
+    renderGoal();
+    renderRank();
+    if (status.undo > 0 && !undoUntil) {
+      undoUntil = Date.now() + status.undo * 1000;
+      undoTick();
+    }
+  }
+
+  async function refresh() {
+    try {
+      status = await (await fetch("/wall/state", { cache: "no-store" })).json();
+      if (!config) {
+        config = status.config;
+        $("data-file").title = status.file;
+        testChoices();
+        fill();
+      }
+      render();
+    } catch (error) {
+      note("manage-state", "오버레이에 연결하지 못함(오버레이 실행 확인)", true);
+    }
+  }
+  refresh();
+  setInterval(refresh, 2000);
+</script>
+</body>
+</html>
