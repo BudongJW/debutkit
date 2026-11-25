@@ -11,6 +11,7 @@ import os
 import platform
 import sys
 import threading
+import time
 import urllib.parse
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -43,7 +44,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from .. import __version__, camera, character, chzzk, clip, doctor, logs, motion, scenes, settings, speed, tools, vts
+from .. import __version__, camera, character, chzzk, clip, doctor, launcher, logs, motion, scenes, settings, speed, tools, vts
 from ..doctor import FAIL, INFO, JOIN_URL, LABELS, OK, OVERLAY_PORT, SOFTWARE_URL, WARN
 
 STEPS = ["1  PC 점검", "2  캐릭터", "3  OBS 장면", "4  채팅과 알림", "5  마무리"]
@@ -74,18 +75,18 @@ QPushButton:disabled {{ color: #6F7880; }}
 QPushButton#Primary {{ background: {text}; color: {ink}; border-color: {text}; font-weight: 700; }}
 QPushButton#Primary:hover {{ background: #FFFFFF; }}
 QPushButton#Primary:disabled {{ background: {border}; color: {muted}; border-color: {border}; }}
-QLineEdit, QSpinBox, QComboBox, QPlainTextEdit {{ background: {field}; border: 1px solid {border}; border-radius: 4px; padding: 4px 8px; }}
-QLineEdit:focus, QSpinBox:focus, QComboBox:focus, QPlainTextEdit:focus {{ border-color: {pink}; }}
+QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox, QPlainTextEdit {{ background: {field}; border: 1px solid {border}; border-radius: 4px; padding: 4px 8px; }}
+QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus, QPlainTextEdit:focus {{ border-color: {pink}; }}
 QComboBox QAbstractItemView {{ background: {field}; selection-background-color: {border}; }}
 QCheckBox::indicator {{ width: 15px; height: 15px; border-radius: 3px; border: 1px solid {border}; background: {field}; }}
 QCheckBox::indicator:checked {{ background: {pink}; border-color: {pink}; }}
-QCheckBox:disabled, QLineEdit:disabled, QSpinBox:disabled, QComboBox:disabled {{ color: #6F7880; }}
+QCheckBox:disabled, QLineEdit:disabled, QSpinBox:disabled, QDoubleSpinBox:disabled, QComboBox:disabled {{ color: #6F7880; }}
 QListWidget#Steps {{ background: {nav}; border: none; border-right: 1px solid {border}; padding: 14px 0; outline: 0; }}
 QListWidget#Steps::item {{ padding: 10px 18px; border: none; border-left: 3px solid transparent; color: {muted}; }}
 QListWidget#Steps::item:selected {{ background: {surface}; color: {text}; font-weight: 700; border-left: 3px solid {pink}; }}
-QListWidget#Characters, QListWidget#Motions {{ background: {field}; border: 1px solid {border}; border-radius: 4px; padding: 4px; outline: 0; }}
-QListWidget#Characters::item, QListWidget#Motions::item {{ padding: 6px 8px; border-radius: 3px; color: {text}; }}
-QListWidget#Characters::item:selected, QListWidget#Motions::item:selected {{ background: {border}; color: {text}; }}
+QListWidget#Characters, QListWidget#Motions, QListWidget#Launch {{ background: {field}; border: 1px solid {border}; border-radius: 4px; padding: 4px; outline: 0; }}
+QListWidget#Characters::item, QListWidget#Motions::item, QListWidget#Launch::item {{ padding: 6px 8px; border-radius: 3px; color: {text}; }}
+QListWidget#Characters::item:selected, QListWidget#Motions::item:selected, QListWidget#Launch::item:selected {{ background: {border}; color: {text}; }}
 QToolTip {{ background: {field}; color: {text}; border: 1px solid {border}; }}
 """.format(**COLORS)
 EXTRA_STYLE = ""
@@ -237,6 +238,12 @@ def _open_folder(path: Path) -> Any:
     return QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
 
 
+def _edit_launcher(parent: QWidget) -> bool:
+    from .launch_dialog import LaunchDialog
+
+    return LaunchDialog(parent).exec() == QDialog.DialogCode.Accepted
+
+
 @dataclass
 class Backend:
     """창이 부르는 실제 동작. 테스트에서 바꿔 끼운다."""
@@ -284,6 +291,12 @@ class Backend:
     set_idle_motion: Callable[[str | None], Any] = motion.set_idle
     pick_motion: Callable[[], str | None] = _pick_motion
     pick_clip: Callable[[list[str]], str | None] = _pick_clip
+    load_launcher: Callable[[], Any] = launcher.load
+    save_launcher: Callable[[Any], Any] = launcher.save
+    make_launcher: Callable[..., Any] = launcher.Launcher
+    make_watcher: Callable[..., Any] = launcher.Watcher
+    edit_launcher: Callable[[QWidget], bool] = _edit_launcher
+    wait_for_obs: Callable[[int], bool] = field(default=lambda port: launcher.wait_for_port("127.0.0.1", port, 60.0))
 
 
 class Bridge(QObject):
@@ -300,6 +313,8 @@ class Bridge(QObject):
     speed = Signal(object)  # doctor.Check
     vts = Signal(object)  # {"message": 안내, "models": [...], "hotkeys": [...]}
     youtube = Signal(str)
+    launch = Signal(str)  # 방송 시작 버튼 진행 한 줄
+    launch_done = Signal(object)  # (세팅, 설정, 결과 목록, 켰는지)
 
 
 def card(*widgets: QWidget, title: str = "") -> QWidget:
@@ -356,7 +371,11 @@ class Wizard(QMainWindow):
         self.bridge.speed.connect(self._show_speed)
         self.bridge.youtube.connect(self._show_youtube)
         self.bridge.vts.connect(self._show_vts)
+        self.bridge.launch.connect(self._launch_line)
+        self.bridge.launch_done.connect(self._launch_done)
         self.server: Any = None
+        self.launch_watcher: Any = None
+        self._launch_lines: list[str] = []
         self.checked: list[doctor.Check] = []
         self._threads: list[threading.Thread] = []
         self._closed = False
@@ -1281,6 +1300,7 @@ class Wizard(QMainWindow):
         page = QWidget()
         layout = QVBoxLayout(page)
         layout.addWidget(self._title("마무리", "방송 전 준비 상태를 확인합니다."))
+        layout.addWidget(self._launch_card())
         self.summary = text("", links=True)
         layout.addWidget(card(self.summary, title="준비 상태"))
         folder = QPushButton("클립 폴더 열기")
@@ -1309,6 +1329,106 @@ class Wizard(QMainWindow):
                               muted=True, links=True))
         layout.addStretch(1)
         return page
+
+    # ------------------------------------------------------------------ 방송 시작 버튼(launcher.py)
+    def _launch_card(self) -> QWidget:
+        self.launch_profiles = QComboBox()
+        self.launch_profiles.setMinimumWidth(160)
+        self.launch_button = QPushButton("켜기")
+        self.launch_button.setObjectName("Primary")
+        self.launch_button.setToolTip("끌 것을 먼저 끄고 켤 것을 차례로 켭니다. 이미 켜진 프로그램은 건너뜁니다")
+        self.launch_button.clicked.connect(self.run_launch)
+        self.launch_end_button = QPushButton("방송 끝")
+        self.launch_end_button.setToolTip("이번 방송에 꺼 둔 프로그램을 다시 켜고 감시를 멈춥니다")
+        self.launch_end_button.clicked.connect(self.end_launch)
+        edit = QPushButton("세팅 편집")
+        edit.clicked.connect(self.edit_launch)
+        self.launch_state = text("방송에 필요한 프로그램, 폴더, 사이트를 한 번에 켜고 메신저, 게임 런처처럼 방해되는 프로그램은 끕니다. "
+                                 "세팅 편집에서 목록에 끌어다 놓습니다.", muted=True)
+        self._fill_launch_profiles()
+        return card(row(self.launch_profiles, self.launch_button, self.launch_end_button, edit), self.launch_state, title="방송 시작 버튼")
+
+    def _fill_launch_profiles(self) -> None:
+        try:
+            config = self.backend.load_launcher()
+        except OSError:
+            return
+        self.launch_profiles.clear()
+        self.launch_profiles.addItems([profile.name for profile in config.profiles])
+        self.launch_profiles.setCurrentText(config.active)
+
+    def edit_launch(self) -> None:
+        if self.backend.edit_launcher(self):
+            self._fill_launch_profiles()
+            self.launch_state.setText("세팅을 저장했습니다.")
+
+    def _launch_buttons(self, enabled: bool) -> None:
+        for widget in (self.launch_button, self.launch_end_button, self.launch_profiles):
+            widget.setEnabled(enabled)
+
+    def run_launch(self) -> None:
+        config = self.backend.load_launcher()
+        name = self.launch_profiles.currentText() or config.active
+        try:
+            profile = config.profile(name)
+        except launcher.LauncherError as error:
+            self.launch_state.setText(str(error))
+            return
+        if config.active != name:
+            config.active = name
+            self.backend.save_launcher(config)
+        if self.launch_watcher is not None:
+            self.launch_watcher.stop()
+            self.launch_watcher = None
+        self._launch_lines = []
+        self._launch_buttons(False)
+        self.launch_state.setText(f"{name} 켜는 중")
+        obs_port = self.obs_port.value()
+
+        def job() -> None:
+            steps = self.backend.make_launcher(config, report=lambda step: self._emit(self.bridge.launch, step.text())).run(name)
+            if profile.obs_check:
+                self._emit(self.bridge.launch, "OBS 연결 확인 중(최대 60초)")
+                ok = self.backend.wait_for_obs(obs_port)
+                self._emit(self.bridge.launch, "OBS 연결 가능" if ok else "OBS WebSocket 응답 없음: OBS 도구 메뉴의 WebSocket 서버 설정 확인")
+            self._emit(self.bridge.launch_done, (profile, config, steps, True))
+
+        self._run(job)
+
+    def end_launch(self) -> None:
+        if self.launch_watcher is not None:
+            self.launch_watcher.stop()
+            self.launch_watcher = None
+        config = self.backend.load_launcher()
+        name = self.launch_profiles.currentText() or config.active
+        self._launch_lines = []
+        self._launch_buttons(False)
+        self.launch_state.setText("방송 끝 정리 중")
+
+        def job() -> None:
+            steps = self.backend.make_launcher(config, report=lambda step: self._emit(self.bridge.launch, step.text())).end(name)
+            self._emit(self.bridge.launch_done, (config.profile(name), config, steps, False))
+
+        self._run(job)
+
+    def _launch_line(self, line: str) -> None:
+        self._launch_lines = (self._launch_lines + [line])[-10:]
+        self.launch_state.setText("\n".join(self._launch_lines))
+
+    def _launch_done(self, payload: tuple[Any, Any, list[Any], bool]) -> None:
+        profile, config, steps, started = payload
+        self._launch_buttons(True)
+        if not steps:
+            self._launch_line("할 일이 없음: 세팅 편집에서 켤 것, 끌 것을 추가" if started else "다시 켤 프로그램 없음")
+        if not started:
+            return
+        if profile.watch and profile.stop:
+            notify = lambda message: self._emit(self.bridge.launch, f"{time.strftime('%H:%M')} {message}")  # noqa: E731
+            self.launch_watcher = self.backend.make_watcher(profile, config, notify).start()
+            self._launch_line("꺼 둔 프로그램이 다시 켜지는지 감시 중(방송 끝을 누르면 멈춤)")
+        if profile.overlay and self.server is None:
+            self._launch_line("오버레이 시작(채팅과 알림 단계 설정)")
+            self.toggle_overlay()
 
     def copy_diagnostics(self) -> None:
         if not self.checked:
@@ -1407,6 +1527,9 @@ class Wizard(QMainWindow):
         if self._keep_settings:
             self.remember()
         self._closed = True
+        if self.launch_watcher is not None:
+            self.launch_watcher.stop()
+            self.launch_watcher = None
         if self.server is not None:
             self.server.stop()
             self.server = None

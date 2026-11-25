@@ -675,3 +675,93 @@ def test_phone_camera_button_shows_connection_and_qr(app):
         assert "연결하지 못함" in window.camera_result.text()
     finally:
         window.close()
+
+
+def test_launch_card_runs_watches_starts_overlay_and_ends(app):
+    from debutkit import launcher
+
+    config = launcher.Config([launcher.Profile("방송", stop=["Discord.exe"], overlay=True), launcher.Profile("게임")], "방송")
+    saved, runs, watchers, edits = [], [], [], []
+
+    class FakeLauncher:
+        def __init__(self, config, report):
+            self.report = report
+
+        def run(self, name):
+            runs.append(("run", name))
+            step = launcher.Step("stopped", "Discord.exe")
+            self.report(step)
+            return [step]
+
+        def end(self, name):
+            runs.append(("end", name))
+            step = launcher.Step("restored", "Discord.exe")
+            self.report(step)
+            return [step]
+
+    class FakeWatcher:
+        def __init__(self, profile, config, notify):
+            self.notify, self.stopped = notify, False
+            watchers.append(self)
+
+        def start(self):
+            return self
+
+        def stop(self):
+            self.stopped = True
+
+    window = Wizard(Calls().backend(load_launcher=lambda: config, save_launcher=saved.append, make_launcher=FakeLauncher, make_watcher=FakeWatcher,
+                                    edit_launcher=lambda parent: edits.append(parent) or True))
+    try:
+        window.port.setValue(18791)
+        assert [window.launch_profiles.itemText(i) for i in range(window.launch_profiles.count())] == ["방송", "게임"]
+        window.launch_button.click()
+        assert wait_for(app, lambda: "감시 중" in window.launch_state.text())
+        assert runs == [("run", "방송")] and "끔: Discord.exe" in window.launch_state.text() and window.server is not None  # 켠 뒤 오버레이 시작
+        watchers[0].notify("꺼 둔 프로그램이 다시 켜짐: Discord.exe")
+        assert wait_for(app, lambda: "다시 켜짐: Discord.exe" in window.launch_state.text())
+        window.launch_end_button.click()
+        assert wait_for(app, lambda: "다시 켬: Discord.exe" in window.launch_state.text() and window.launch_button.isEnabled())
+        assert watchers[0].stopped and runs[-1] == ("end", "방송")
+        window.launch_profiles.setCurrentText("게임")
+        window.launch_button.click()
+        assert wait_for(app, lambda: runs[-1] == ("run", "게임")) and saved and saved[-1].active == "게임"
+        [button for button in window.findChildren(QPushButton) if button.text() == "세팅 편집"][0].click()
+        assert edits and "세팅을 저장" in window.launch_state.text()
+    finally:
+        window.close()
+
+
+def test_launch_dialog_edits_and_saves(app, tmp_path, monkeypatch):
+    from debutkit import launcher
+    from debutkit.gui.launch_dialog import LaunchDialog
+
+    stored = []
+    program = tmp_path / "tool.exe"
+    program.write_bytes(b"MZ")
+    dialog = LaunchDialog(load=launcher.load, save=stored.append, processes=lambda: [launcher.Proc(1, "KakaoTalk.exe"), launcher.Proc(2, "explorer.exe")],
+                          resolve=lambda path: "C:/Apps/Discord/Discord.exe",
+                          remember=lambda config, name: [launcher.Step("placed", "tool.exe", "0,0 800x600")])
+    try:
+        dialog.add_start([str(program), "https://studio.chzzk.naver.com", str(tmp_path)])
+        assert [item.kind for item in dialog.profile.start] == ["program", "url", "folder"]
+        dialog.start_list.setCurrentRow(0)
+        dialog.delay.setValue(5.5)
+        dialog.move(1)
+        assert [item.kind for item in dialog.profile.start] == ["url", "program", "folder"] and dialog.profile.start[1].delay == 5.5
+        dialog.add_stop(["C:/Users/me/Desktop/Discord.lnk", "explorer.exe", "Discord.exe"])
+        assert dialog.profile.stop == ["Discord.exe"] and "끌 수 없는" in dialog.state.text()
+        monkeypatch.setattr("debutkit.gui.launch_dialog.QInputDialog.getItem", lambda *a, **k: ("KakaoTalk.exe", True))
+        dialog.pick_running()
+        assert dialog.profile.stop == ["Discord.exe", "KakaoTalk.exe"]
+        dialog.checks["watch"].setChecked(False)
+        assert not dialog.profile.watch and not dialog.checks["rekill"].isEnabled()
+        monkeypatch.setattr("debutkit.gui.launch_dialog.QInputDialog.getText", lambda *a, **k: ("게임", True))
+        dialog.copy_profile()
+        assert dialog.current == "게임" and dialog.profiles.currentText() == "게임" and dialog.profile.stop == ["Discord.exe", "KakaoTalk.exe"]
+        dialog.remember_windows()
+        assert "창 위치 맞춤: tool.exe" in dialog.state.text()
+        dialog.save_and_close()
+        assert stored and stored[-1].active == "게임" and [p.name for p in stored[-1].profiles] == ["방송", "게임"]
+    finally:
+        dialog.close()
