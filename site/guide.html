@@ -49,6 +49,7 @@
         <ol>
           <li><a href="#install">설치</a></li>
           <li><a href="#wizard">설정 마법사</a></li>
+          <li><a href="#launch">방송 시작 버튼</a></li>
           <li><a href="#doctor">PC 점검</a></li>
           <li><a href="#character">캐릭터</a></li>
           <li><a href="#logo">방송 로고 만들기</a></li>
@@ -148,6 +149,30 @@ debutkit-gui</code></pre>
           <li>삭제: 마무리 단계의 저장한 설정 삭제 버튼 또는 <code>debutkit settings --clear</code></li>
         </ul>
 
+        <h2 id="launch">방송 시작 버튼</h2>
+        <p>방송에 필요한 프로그램(OBS, VTube Studio 등), 폴더, 사이트(치지직 스튜디오 등)를 정해 둔 순서로 켜고, 메신저와 게임 런처처럼 방송에 방해되는 프로그램은 먼저 끕니다. 방송이 끝나면 꺼 둔 프로그램을 다시 켭니다.</p>
+        <ol class="procedure">
+          <li>설정 마법사 마무리 단계의 방송 시작 버튼 카드에서 세팅 편집을 누릅니다.</li>
+          <li>켤 것 목록에 프로그램, 바로가기, 폴더를 끌어다 놓거나 파일, 폴더, 사이트 버튼으로 추가합니다. 위에서부터 차례로 켜며, 항목마다 다음 항목까지 기다리는 시간을 정합니다(무거운 프로그램은 넉넉하게).</li>
+          <li>끌 것 목록에는 켜진 프로그램에서 고르거나 프로그램 이름(예: <code>Discord.exe</code>, <code>KakaoTalk.exe</code>)을 입력합니다. 바로가기를 놓으면 대상 프로그램 이름으로 바꿉니다.</li>
+          <li>프로그램 창을 원하는 자리와 크기(모니터, 최대화 포함)로 둔 뒤 지금 창 위치 기억을 누르면 다음부터 그 자리로 엽니다(Windows).</li>
+          <li>저장한 뒤 방송 전에 켜기, 방송이 끝나면 방송 끝을 누릅니다.</li>
+        </ol>
+        <div class="tablewrap">
+          <table>
+            <tbody>
+              <tr><th scope="row">세팅</th><td>게임, 작업, 노래 방송처럼 상황별로 여러 개. 복제해서 금방 만들고 백업 파일로 다른 PC에 옮김</td></tr>
+              <tr><th scope="row">끄는 방식</th><td>창 닫기 요청을 보내고 6초 안에 남아 있으면 강제 종료. 운영체제, 보안 프로그램, debutkit, 보호 목록의 프로그램은 끄지 않음</td></tr>
+              <tr><th scope="row">이미 켜진 프로그램</th><td>다시 켜지 않음(선택: 창만 기억한 자리로 옮기기)</td></tr>
+              <tr><th scope="row">사이트</th><td>Edge(없으면 Chrome)의 새 창으로 열고 기억한 자리로 옮김</td></tr>
+              <tr><th scope="row">다시 켜짐 알림</th><td>꺼 둔 프로그램이 방송 중에 다시 켜지면 카드에 표시(선택: 다시 끄기)</td></tr>
+              <tr><th scope="row">켠 뒤</th><td>선택: OBS WebSocket 연결 확인(최대 60초), 채팅과 알림 단계 설정으로 오버레이 시작</td></tr>
+              <tr><th scope="row">방송 끝</th><td>이번 방송에 끈 프로그램을 다시 켜고 감시를 멈춤(세팅에서 끌 수 있음)</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>명령줄: <code>debutkit launch add 방송 "C:/Program Files/obs-studio/bin/64bit/obs64.exe" https://studio.chzzk.naver.com</code>, <code>debutkit launch add 방송 Discord.exe --stop</code>, <code>debutkit launch</code>(켜기), <code>debutkit launch end</code>(방송 끝). 창 위치는 <code>debutkit launch remember</code>. macOS, Linux는 켜기와 끄기만 사용할 수 있습니다.</p>
+
         <h2 id="character">캐릭터</h2>
         <p>방송에 사용할 캐릭터를 등록하고 사용 조건을 확인합니다. PNGTuber와 3D(VRM, GLB, FBX)는 debutkit 캐릭터 화면으로 바로 방송하고, Live2D는 VTube Studio로 보내 방송합니다.</p>
         <figure>
@@ -221,6 +246,18 @@ debutkit-gui</code></pre>
           <li>휴대폰 값을 받는 중에는 웹캠 추적 창의 값을 사용하지 않습니다.</li>
           <li>퍼펙트 싱크: ARKit 이름 표정(eyeBlinkLeft, jawOpen 등)을 가진 3D 캐릭터는 눈썹, 볼, 코, 혀까지 얼굴 전체가 움직입니다. 웹캠 추적도 같은 방식으로 반영합니다.</li>
           <li>머리가 반대로 돌면 거울처럼 움직이기를 바꾸고, 위아래가 반대면 위아래 반전을 선택합니다. 연결되지 않으면 Windows 네트워크 프로필(개인 네트워크), 아이폰의 로컬 네트워크 허용, 같은 앱을 받는 다른 프로그램(VSeeFace, Warudo 등) 종료를 확인합니다.</li>
+        </ul>
+        <h3 id="character-vmc">VMC 송신(Warudo, VSeeFace, VMagicMirror)</h3>
+        <p>debutkit의 얼굴 추적 값(웹캠 추적 창, 휴대폰 얼굴 추적)을 VMC 프로토콜로 다른 프로그램에 보냅니다. 머리 회전, 양쪽 눈, 입, 웃음과 퍼펙트 싱크 표정 52개를 보냅니다.</p>
+        <ol class="procedure">
+          <li>받는 프로그램에서 VMC 수신을 켭니다(Warudo의 VMC 수신, VSeeFace의 VMC protocol receiver, VMagicMirror의 외부 트래킹). 포트는 기본 39539.</li>
+          <li>오버레이를 실행한 상태에서 설정 마법사 캐릭터 단계의 VMC 송신을 누르거나 <code>http://127.0.0.1:8790/vmc</code>를 엽니다.</li>
+          <li>주소(같은 PC는 127.0.0.1)와 포트를 확인하고 송신 시작을 누릅니다. 켜 두면 다음 오버레이 실행 때도 자동으로 시작합니다.</li>
+        </ol>
+        <ul>
+          <li>받는 곳은 이 PC나 같은 네트워크의 내부 주소만 지정할 수 있습니다. 다른 PC로 보낼 때는 받는 PC의 방화벽에서 UDP 포트를 허용합니다.</li>
+          <li>얼굴을 찾지 못하는 동안에는 보내지 않아 받는 프로그램이 마지막 자세를 유지합니다. 좌우가 반대로 움직이면 좌우 반전을 선택합니다.</li>
+          <li>명령줄: <code>debutkit vmc start --host 127.0.0.1 --vmc-port 39539</code>, <code>debutkit vmc status</code>, <code>debutkit vmc stop</code></li>
         </ul>
         <h3 id="character-app">debutkit 휴대폰 앱</h3>
         <p>휴대폰 앞면 카메라로 얼굴을 추적해 머리 움직임과 표정 52개를 PC로 보내는 debutkit 전용 앱입니다. 다른 회사 앱 없이 안드로이드 휴대폰으로도 휴대폰 얼굴 추적을 사용할 수 있습니다. PC 없이 휴대폰만으로 방송하는 방법은 <a href="#broadcast-phone">휴대폰만으로 바로 방송</a>을 참고합니다.</p>
@@ -663,6 +700,15 @@ debutkit broadcast start      # 방송 시작(stop으로 끝내기)</code></pre>
           </ul>
         </div>
 
+        <h3 id="clip-fx">움짤과 세로 쇼츠</h3>
+        <p>저장한 클립이나 다른 영상으로 움짤(GIF, WebP)과 세로 쇼츠(1080x1920 MP4, 소리 포함)를 만듭니다. 결과는 원본 옆에 저장하고, 같은 이름이 있으면 번호를 붙여 덮어쓰지 않습니다.</p>
+        <ul>
+          <li>자동 클립과 함께: 설정 마법사의 클립마다 움짤(GIF), 클립마다 세로 쇼츠를 선택하거나 <code>debutkit overlay --clip --clip-gif --clip-shorts</code>. 움짤은 클립 앞 6초, 폭 480</li>
+          <li>직접 만들기: <code>debutkit clip gif 클립.mp4 --start 3 --duration 5</code>, <code>debutkit clip webp 클립.mp4</code>(Pillow 필요), <code>debutkit clip shorts 클립.mp4 --mode crop --focus 0.8</code></li>
+          <li>쇼츠 형태: <code>blur</code> 흐린 배경 위에 원본(기본), <code>crop</code> 세로로 자르기(<code>--focus</code> 0은 왼쪽, 1은 오른쪽. 캐릭터가 있는 쪽), <code>fit</code> 위아래 여백</li>
+          <li>워터마크: <code>--watermark 로고.png --watermark-position bottom-right --watermark-size 18 --watermark-opacity 85</code>. 방송 로고 만들기의 투명 PNG를 그대로 사용</li>
+        </ul>
+
         <h2 id="chzzk">치지직 공식 API</h2>
         <p>본인 채널의 채팅, 후원, 구독을 네이버 공식 Open API로 수신합니다. 비공식 수신보다 안정적이며 후원 정보가 정확합니다.</p>
         <h3 id="chzzk-app">애플리케이션 등록</h3>
@@ -751,6 +797,9 @@ debutkit overlay --youtube 영상ID --youtube-interval 15</code></pre>
               <tr><th scope="row"><code>debutkit remote</code></th><td>휴대폰 조작 화면 켜기, 끄기, 휴대폰 등록, 승인, 삭제(실행 중인 오버레이)</td></tr>
               <tr><th scope="row"><code>debutkit raffle</code></th><td>시청자 참여 추첨 모집, 마감, 당첨자 뽑기, 순서 정하기(실행 중인 오버레이)</td></tr>
               <tr><th scope="row"><code>debutkit broadcast</code></th><td>OBS 없이 바로 방송 설정, 스트림 키 저장, 송출 화면 열기, 시작, 끝내기(실행 중인 오버레이, Windows)</td></tr>
+              <tr><th scope="row"><code>debutkit launch</code></th><td>방송 시작 버튼: 세팅 켜기, 방송 끝(<code>end</code>), 켤 것과 끌 것 추가와 삭제, 옵션, 창 위치 기억, 감시, 백업</td></tr>
+              <tr><th scope="row"><code>debutkit clip</code></th><td>클립이나 영상으로 움짤(<code>gif</code>, <code>webp</code>)과 세로 쇼츠(<code>shorts</code>) 만들기</td></tr>
+              <tr><th scope="row"><code>debutkit vmc</code></th><td>얼굴 추적 값의 VMC 송신 시작, 상태, 멈춤(실행 중인 오버레이)</td></tr>
               <tr><th scope="row"><code>debutkit setup</code></th><td>ffmpeg와 채팅 연결 모듈 확인. <code>--ffmpeg</code>로 다운로드, <code>--check-update</code>로 새 버전 확인</td></tr>
               <tr><th scope="row"><code>debutkit chzzk login</code></th><td>치지직 공식 API 로그인. <code>logout</code>으로 토큰 삭제</td></tr>
               <tr><th scope="row"><code>debutkit youtube check</code></th><td>YouTube API 키, 라이브 채팅, 요청 방식, 스트리밍 방식 확인</td></tr>
@@ -784,6 +833,9 @@ debutkit overlay --youtube 영상ID --youtube-interval 15</code></pre>
               <tr><th scope="row">바로 방송이 바로 끝남</th><td>조작 화면의 이유 확인. 스트림 키와 송출 서버 주소를 방송 플랫폼의 방송 설정 화면에서 다시 복사. 인코더 오류면 인코더를 x264로 변경</td></tr>
               <tr><th scope="row">바로 방송 화면이 멈춤</th><td>송출 화면 창의 최소화 해제(다른 창에 가려지는 것은 괜찮음). 방송 중 창 크기를 바꾼 경우 원래 크기로 되돌리거나 방송 다시 시작</td></tr>
               <tr><th scope="row">AI 심볼 만들기 실패</th><td>화면의 이유 확인. AI Horde가 오래 걸리면 대기열 위치가 줄어드는지 확인(익명은 가장 뒤 순서), 작업자가 없다는 안내면 나중에 다시 시도, 안전 필터 안내면 설명 변경. 키 오류면 서비스에서 키를 다시 복사해 저장, 한도 초과나 잔액 부족이면 서비스의 결제 상태 확인(Hugging Face 무료 GPU 한도는 첫 사용 24시간 뒤 다시 채워짐), 응답 멈춤이나 혼잡이면 잠시 뒤 다시 시도, 안전 정책이면 설명 변경. ComfyUI 연결 실패면 ComfyUI 실행 여부와 주소, 모델 파일 안내면 위의 ComfyUI 준비 확인</td></tr>
+              <tr><th scope="row">방송 시작 버튼이 프로그램을 끄지 못함</th><td>관리자 권한으로 실행된 프로그램은 끄지 못할 수 있음. 프로그램 이름(작업 관리자의 세부 정보 탭) 확인</td></tr>
+              <tr><th scope="row">창이 기억한 자리로 가지 않음</th><td>모니터 연결 확인(연결되지 않은 모니터의 자리는 건너뜀). 창이 늦게 뜨는 프로그램은 켜는 간격을 늘림</td></tr>
+              <tr><th scope="row">VMC로 받은 캐릭터가 움직이지 않음</th><td>받는 프로그램의 VMC 수신 켜기와 포트 확인, VMC 화면의 보낸 횟수가 늘어나는지 확인. 얼굴 추적 창이나 휴대폰 추적이 켜져 있어야 함</td></tr>
               <tr><th scope="row">SmartScreen 경고</th><td>추가 정보 선택 후 실행. 실행 파일 사용이 어려운 경우 파이썬 패키지로 설치</td></tr>
             </tbody>
           </table>
@@ -795,6 +847,8 @@ debutkit overlay --youtube 영상ID --youtube-interval 15</code></pre>
           <li>사용 통계를 전송하지 않습니다.</li>
           <li>외부 연결은 직접 실행한 경우에만 발생합니다: 업로드 속도 측정(Cloudflare 측정 서버, speed.cloudflare.com에 최대 31 MB의 임의 데이터 전송), 새 버전 확인(GitHub), ffmpeg 다운로드(GitHub), 로고 만들기의 생성형 AI(사용자가 고른 서비스). PC 정보는 전송하지 않습니다.</li>
           <li>오버레이 서버는 127.0.0.1에서만 열리며, 다른 웹사이트의 요청은 Host, Origin 확인으로 차단합니다.</li>
+          <li>방송 시작 버튼의 세팅(프로그램 경로, 사이트 주소, 창 위치)과 이번 방송에 끈 프로그램 목록은 설정 폴더의 <code>launcher.json</code>, <code>launcher-session.json</code>에만 보관합니다.</li>
+          <li>VMC 송신은 얼굴 추적 숫자 값만 사용자가 지정한 이 PC나 같은 네트워크의 프로그램으로 보내며, 인터넷 주소는 받는 곳으로 지정할 수 없습니다.</li>
           <li>채팅은 저장하지 않으며 화면 표시용 최근 30개만 메모리에 유지합니다. 자동 클립의 급증 판단에는 닉네임을 해시로만 사용합니다. 후원 추첨 결과(후원자 이름 포함)도 파일로 저장하지 않고 최근 100개만 메모리에 둡니다. 시청자 참여 추첨 명단도 메모리에만 두며 모집을 새로 시작하면 지웁니다.</li>
           <li>치지직 토큰은 이 PC의 사용자 설정 폴더에만 보관합니다. YouTube API 키와 치지직 Client Secret은 실행 중에만 사용합니다.</li>
           <li>저장한 설정(채널 주소, 포트, 선택 항목)은 이 PC의 사용자 설정 폴더에만 보관하며 외부로 전송하지 않습니다. API 키, 비밀번호는 저장하지 않습니다.</li>
