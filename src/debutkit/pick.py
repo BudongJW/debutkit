@@ -74,7 +74,8 @@ PLATFORMS = {"chzzk": "치지직", "soop": "SOOP", "youtube": "YouTube", "twitch
 THEMES = {"card": "카드 뒤집기", "ticket": "긁는 복권", "envelope": "봉투", "capsule": "캡슐", "door": "작은 문", "sticker": "스티커 떼기",
           "memo": "메모지"}
 #: 테마 색: 하나를 고르면 덮개, 판 바탕, 글자, 당첨 띠 색을 맞춘다(직접 지정한 색이 우선)
-COLORS = {"pink": ("핑크", "#ff4f8b"), "cherry": ("체리", "#e23b4e"), "tangerine": ("귤", "#ff7a2f"), "peach": ("복숭아", "#ffa48a"),
+#: channel(방송 색)은 설정 화면, 방송 화면 미리보기에서 고른 방송 색(overlay/theme.py)을 따른다
+COLORS = {"channel": ("방송 색", "#ff4f8b"), "pink": ("핑크", "#ff4f8b"), "cherry": ("체리", "#e23b4e"), "tangerine": ("귤", "#ff7a2f"), "peach": ("복숭아", "#ffa48a"),
           "lime": ("라임", "#8cc63f"), "mint": ("민트", "#22b8a0"), "sky": ("하늘", "#47a8f5"), "navy": ("남색", "#2f4fbf"),
           "violet": ("보라", "#8a5cf5"), "lilac": ("라일락", "#c39bf0"), "cocoa": ("코코아", "#8a5a44"), "slate": ("먹", "#3a4249")}
 COLOR_PARTS = {"cover": "덮개", "board": "판 바탕", "text": "글자", "win": "당첨 띠"}
@@ -144,7 +145,7 @@ class Config:
     prizes: tuple[Prize, ...] = DEFAULT_PRIZES
     blank: str = DEFAULT_BLANK
     theme: str = "card"
-    color: str = "pink"  # COLORS 이름 또는 #RRGGBB
+    color: str = "channel"  # COLORS 이름(channel은 방송 색) 또는 #RRGGBB
     colors: dict[str, str] = field(default_factory=dict)  # 직접 지정한 색(COLOR_PARTS)
     cover: str = "number"
     font: str = "blackhan"
@@ -229,10 +230,24 @@ def _on(color: str) -> str:
     return INK if contrast(color, INK) >= contrast(color, PAPER) else PAPER
 
 
+def color_hex(key: str) -> str:
+    """테마 색 이름의 색. channel은 지금 방송 색의 주 색."""
+    if key == "channel":
+        from .overlay import theme
+
+        return theme.load()["primary"]
+    return COLORS[key][1]
+
+
+def options() -> dict[str, Any]:
+    """조작 화면의 선택 목록(방송 색은 지금 색으로)."""
+    return {**OPTIONS, "colors": {key: {"label": label, "hex": color_hex(key)} for key, (label, _) in COLORS.items()}}
+
+
 def palette(color: str, overrides: dict[str, str] | None = None) -> dict[str, str]:
     """테마 색 하나에서 나머지 색을 만든다. ``overrides`` (cover, board, text, win)는 직접 지정한 색."""
     overrides = overrides or {}
-    base = COLORS[color][1] if color in COLORS else color if _COLOR.match(color or "") else COLORS["pink"][1]
+    base = color_hex(color) if color in COLORS else color if _COLOR.match(color or "") else COLORS["pink"][1]
     cover = overrides.get("cover") or base
     board = overrides.get("board") or _mix(base, PAPER, 0.88)
     win = overrides.get("win") or base
@@ -650,7 +665,7 @@ class PickBoard:
             return {"version": self._version, "board": {"id": board.id, "name": board.name}, "boards": boards, "config": config.to_dict(),
                     "layout": layout, "opened": len(board.opened), "total": config.cells, "visible": board.visible, "finished": board.finished,
                     "commit": self._commit(board), "rounds": list(board.rounds), "remaining": self._remaining(board),
-                    "log": list(reversed(board.log)), "help": self._help(config), "stored": self._stored, "options": OPTIONS}
+                    "log": list(reversed(board.log)), "help": self._help(config), "stored": self._stored, "options": options()}
 
     def proof(self) -> dict[str, Any]:
         """공개해도 되는 공정성 확인 정보: 지금 배치의 값(끝난 판은 확인 문자열 포함)과 지난 배치들."""

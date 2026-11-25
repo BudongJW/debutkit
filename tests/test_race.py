@@ -80,7 +80,7 @@ def test_raffle_entries_become_tickets():
     ({"speed": 0.5}, "0.7에서 2.2 사이"),
     ({"speed": True}, "0.7에서 2.2 사이"),
     ({"design": "neon"}, "wood(나무 장난감)"),
-    ({"color": "#ff0000"}, "색은 pink"),
+    ({"color": "#ff0000"}, "색은 channel, pink"),
     ({"font": "comic"}, "글꼴은 blackhan"),
     ({"volume": 101}, "0에서 100 사이"),
     ({"practice_count": 1}, "2에서 100 사이"),

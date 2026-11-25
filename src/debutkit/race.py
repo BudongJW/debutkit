@@ -45,7 +45,8 @@ SECONDS = {"marble": {"short": 24, "normal": 36, "long": 54}, "run": {"short": 1
 SPEED = (0.7, 2.2)
 DESIGNS = {"wood": "나무 장난감", "metal": "유리와 금속", "paper": "종이 공작"}
 #: 기본 색. 화면은 이 색 하나에서 밝은 색, 어두운 색, 참가자 색을 만든다
-COLORS = {"pink": ("분홍", "#ff4f8b"), "red": ("빨강", "#e5484d"), "orange": ("주황", "#ff8a3d"), "yellow": ("노랑", "#f2b705"),
+#: channel(방송 색)은 설정 화면, 방송 화면 미리보기에서 고른 방송 색(overlay/theme.py)을 따른다
+COLORS = {"channel": ("방송 색", "#ff4f8b"), "pink": ("분홍", "#ff4f8b"), "red": ("빨강", "#e5484d"), "orange": ("주황", "#ff8a3d"), "yellow": ("노랑", "#f2b705"),
           "lime": ("연두", "#7cb342"), "green": ("초록", "#1f9d67"), "mint": ("민트", "#20b2aa"), "sky": ("하늘", "#3ba7f0"),
           "blue": ("파랑", "#3d63dd"), "purple": ("보라", "#8e5cf0"), "lilac": ("라일락", "#c27ae0"), "brown": ("갈색", "#a0673d"),
           "slate": ("먹색", "#59626a")}
@@ -80,7 +81,7 @@ SOURCE_LABELS = {"chat": "채팅", "donation": "후원", "manual": "직접", "pa
 PLATFORM_LABELS = {"chzzk": "치지직", "soop": "SOOP", "youtube": "YouTube", "twitch": "Twitch", "demo": "시험"}
 DEFAULTS: dict[str, Any] = {
     "game": "marble", "course": "zigzag", "format": "heats", "surprise": "some", "events": {game: list(kinds) for game, kinds in EVENTS.items()},
-    "rank": "first", "custom_rank": 2, "length": "normal", "speed": 1.0, "design": "wood", "color": "pink", "font": "blackhan",
+    "rank": "first", "custom_rank": 2, "length": "normal", "speed": 1.0, "design": "wood", "color": "channel", "font": "blackhan",
     "sound": True, "volume": 70, "listen": False, "use_raffle": True, "dedupe": False, "practice_count": 24,
 }
 
@@ -168,10 +169,19 @@ def save_options(options: dict[str, Any]) -> None:
     settings.save_data(DATA_FILE, options)
 
 
+def color_hex(key: str) -> str:
+    """색 이름의 색. channel은 지금 방송 색의 주 색."""
+    if key == "channel":
+        from .overlay import theme
+
+        return theme.load()["primary"]
+    return COLORS[key][1]
+
+
 def choices() -> dict[str, Any]:
     """조작 화면의 선택 목록."""
     return {"games": GAMES, "courses": COURSES, "formats": FORMATS, "surprises": SURPRISES, "events": EVENTS, "ranks": RANKS, "lengths": LENGTHS,
-            "designs": DESIGNS, "colors": {key: {"label": label, "hex": value} for key, (label, value) in COLORS.items()},
+            "designs": DESIGNS, "colors": {key: {"label": label, "hex": color_hex(key)} for key, (label, _) in COLORS.items()},
             "fonts": {key: {"label": label, "css": css} for key, (label, css) in FONTS.items()}, "speed": list(SPEED),
             "limits": {"min": MIN_RUNNERS, "max": MAX_RUNNERS, "lanes": LANES, "at_once": MAX_AT_ONCE, "repeat": MAX_REPEAT, "name": MAX_NAME}}
 
@@ -537,10 +547,10 @@ class RaceState:
         self._check_count(options, tickets)
         seed = self._rng.randint(100000, 999999)
         plan = build_plan(options["game"], [ticket["name"] for ticket in tickets], options, seed)
-        color_label, color_hex = COLORS[options["color"]]
+        chosen_hex = color_hex(options["color"])
         plan["practice"] = practice
         plan["options"] = {"surprise": options["surprise"], "events": options["events"][options["game"]], "design": options["design"],
-                           "color": options["color"], "color_hex": color_hex, "font": options["font"], "font_css": FONTS[options["font"]][1],
+                           "color": options["color"], "color_hex": chosen_hex, "font": options["font"], "font_css": FONTS[options["font"]][1],
                            "speed": options["speed"], "length": options["length"]}
         plan["notes"] = notes
         with self._lock:
@@ -679,7 +689,7 @@ class RaceState:
             tickets = tickets[:MAX_AT_ONCE]
         plan = build_plan(options["game"], [ticket["name"] for ticket in tickets], {**options, "custom_rank": 1}, seed)
         plan.update(id=0, practice=True, notes=[], options={"surprise": options["surprise"], "events": options["events"][options["game"]],
-                                                            "design": options["design"], "color": options["color"], "color_hex": COLORS[options["color"]][1],
+                                                            "design": options["design"], "color": options["color"], "color_hex": color_hex(options["color"]),
                                                             "font": options["font"], "font_css": FONTS[options["font"]][1], "speed": options["speed"],
                                                             "length": options["length"]})
         try:

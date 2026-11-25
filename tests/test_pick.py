@@ -44,7 +44,7 @@ class Clock:
 def test_defaults_palette_and_options():
     config = pick.Config()
     assert config.cells == 20 and config.blank == "꽝" and sum(prize.count for prize in config.prizes) == 8
-    assert len(pick.COLORS) == 12 and len(pick.THEMES) >= 6 and len(pick.COVERS) >= 8 and len(pick.EFFECTS) - 2 >= 8
+    assert len(pick.COLORS) == 13 and len(pick.THEMES) >= 6  # 방송 색(channel) + 12색 and len(pick.COVERS) >= 8 and len(pick.EFFECTS) - 2 >= 8
     for key, (_, hex_) in pick.COLORS.items():  # 고른 색 하나에서 나머지 색, 글자 색은 대비가 큰 쪽
         colors = pick.palette(key)
         assert colors["cover"] == hex_ and colors["on_cover"] in (pick.INK, pick.PAPER)
@@ -56,6 +56,12 @@ def test_defaults_palette_and_options():
     loaded = pick.parse_config({"color": "#AABBCC", "colors": {"board": "#FFFFFF", "text": ""}, "styles": {"title": {"size": 80}}})
     assert loaded.color == "#aabbcc" and loaded.colors == {"board": "#ffffff"} and loaded.styles["title"]["size"] == 80
     assert loaded.styles["caption"] == pick.DEFAULT_STYLES["caption"]
+    # 방송 색(channel)은 설정 화면에서 고른 색을 따른다
+    from debutkit.overlay import theme
+
+    assert pick.palette("channel")["base"] == "#ff4f8b" and pick.Config().color == "channel"
+    settings.save_data(theme.DATA, {"primary": "#3557d6", "highlight": "#ffd84d"})
+    assert pick.palette("channel")["base"] == "#3557d6" and pick.options()["colors"]["channel"]["hex"] == "#3557d6"
     assert pick.parse_config({"caption": " 첫 줄 \n\n 둘째   줄 "}).caption == "첫 줄\n둘째 줄"
 
 
@@ -76,7 +82,7 @@ def test_defaults_palette_and_options():
     ({"caption": "가\n나\n다\n라"}, "3줄 이내"),
     ({"blank": "가" * 25}, "빈칸 이름은 24자 이내"),
     ({"theme": "slot"}, "디자인은 card"),
-    ({"color": "rainbow"}, "테마 색은 pink"),
+    ({"color": "rainbow"}, "테마 색은 channel, pink"),
     ({"colors": {"cover": "red"}}, "덮개 색은 #RRGGBB"),
     ({"cover": "plaid"}, "덮개 무늬는"),
     ({"font": "comic"}, "글꼴은"),
