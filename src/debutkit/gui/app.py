@@ -1182,12 +1182,24 @@ class Wizard(QMainWindow):
         self.logo_button.setToolTip("아이콘, 기본 도형, 계정 없는 공개 모델(AI Horde) 또는 본인 키의 생성형 AI 심볼과 채널 이름으로 방송 로고(SVG, PNG) 만들기")
         self.logo_button.setEnabled(False)
         self.logo_button.clicked.connect(lambda: self.server and self.backend.open_url(f"{self.server.url}/logo"))
+        #: 방송 연출 조작 화면(OBS 독으로도 사용): 뽑기판, 후원 벽, 참여 레이스
+        self.stage_buttons: dict[str, QPushButton] = {}
+        for path, label, tip in (("/pick/control", "뽑기판", "칸을 눌러 여는 뽑기판. 당첨 칸은 조작 화면에서만 보임. 채팅과 후원으로 시청자가 열기(선택)"),
+                                 ("/wall/control", "후원 벽", "들어온 후원을 카드로 쌓는 방송 벽지, 목표 게이지, 후원 순위(치지직, SOOP, YouTube, Twitch)"),
+                                 ("/race/control", "참여 레이스", "참여 추첨 참가자(!참가, 후원 참가)가 겨루는 레이스 게임")):
+            button = QPushButton(label)
+            button.setToolTip(tip)
+            button.setEnabled(False)
+            button.clicked.connect(lambda _=False, path=path: self.server and self.backend.open_url(f"{self.server.url}{path}"))
+            self.stage_buttons[path] = button
         self.overlay_log = QPlainTextEdit()
         self.overlay_log.setReadOnly(True)
         self.overlay_log.setMaximumBlockCount(200)
         self.overlay_log.setPlaceholderText("연결 상태와 저장한 클립이 이곳에 표시됩니다.")
+        stage_label = QLabel("방송 연출")
+        stage_label.setObjectName("Muted")
         layout.addWidget(card(fields, row(self.overlay_button, self.open_button, self.draw_button, self.remote_button, self.broadcast_button,
-                                          self.logo_button)))
+                                          self.logo_button), row(stage_label, *self.stage_buttons.values())))
         layout.addWidget(self.overlay_log, 1)
         return page
 
@@ -1309,6 +1321,8 @@ class Wizard(QMainWindow):
         self.overlay_button.setText("오버레이 중지" if running else "오버레이 시작")
         self.open_button.setEnabled(running)
         self.draw_button.setEnabled(running)
+        for button in self.stage_buttons.values():
+            button.setEnabled(running)
         self.remote_button.setEnabled(running)
         self.broadcast_button.setEnabled(running)
         self.logo_button.setEnabled(running)
