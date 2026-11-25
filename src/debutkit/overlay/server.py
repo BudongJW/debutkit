@@ -33,6 +33,7 @@
   AI Horde는 바로 작업 상태를 돌려주고 백그라운드로 기다림), ``/logo/cancel`` 백그라운드 작업 취소, ``/logo/make`` 로고 SVG,
   ``/logo/record`` 저장한 로고 기록(심볼 출처와 라이선스)
 - ``POST /test`` 설정 화면의 테스트 메시지, ``POST /voice/test`` 말하기 시험
+- 그 밖의 방송 연출 기능(뽑기판, 후원 벽, 참여 레이스 등)은 feature.py의 ``Feature`` 로 등록한 주소(``default_features``)
 
 127.0.0.1에만 열리고, 다른 웹사이트가 이 서버에 요청을 끼워 넣지 못하도록 Host와
 Origin을 확인한다. 받은 채팅은 저장하지 않고 최근 몇십 개만 메모리에 둔다.
@@ -64,6 +65,7 @@ from .. import logo as logos
 from .. import motion as motions
 from .. import raffle as raffles
 from . import camcall
+from . import feature as features_
 from . import phone as phones
 from . import remote as remotes
 from .events import OverlayEvent, system_event
@@ -81,6 +83,13 @@ LIVE_FEEDS = ("voice", "tracking", "motion", "draw", "raffle", "camera")
 DEFAULT_FEEDS = ("voice", "tracking", "motion")
 #: 요청 본문 최대 크기(추첨 설정은 상품표가 길 수 있음)
 BODY_LIMIT = {"/draw/config": 32768, "/camera/answer": 32768}
+#: 이 서버가 직접 처리하는 POST 주소(등록한 기능의 주소는 Feature.post)
+POST_PATHS = ("/test", "/voice/test", "/tracking", "/motion", "/draw/config", "/draw/test", "/draw/clear", "/raffle/start", "/raffle/stop",
+              "/raffle/clear", "/raffle/add", "/raffle/remove", "/raffle/draw", "/phone/start", "/phone/stop", "/phone/options",
+              "/phone/calibrate", "/camera/obs", "/camera/config", "/remote/admin/start",
+              "/remote/admin/stop", "/remote/admin/pair", "/remote/admin/approve", "/remote/admin/remove", "/camera/answer",
+              "/camera/ended", "/program/size", "/broadcast/config", "/broadcast/key", "/broadcast/window", "/broadcast/start",
+              "/broadcast/stop", "/logo/key", "/logo/generate", "/logo/cancel", "/logo/make", "/logo/record")
 #: 얼굴 추적 화면은 이 서버 밖으로 접속하지 못하게 한다(함께 배포한 MediaPipe의 사용 기록 전송 차단, 카메라 영상 외부 전송 방지)
 TRACKER_POLICY = ("default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'; img-src 'self' blob: data:; "
                   "media-src 'self' blob: mediastream:; style-src 'self' 'unsafe-inline'; worker-src 'self' blob:; frame-ancestors 'none'")
@@ -159,8 +168,11 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
                  obs_target: Callable[[], tuple[str, int, str | None] | None] | None = None, remote: remotes.RemoteControl | None = None,
                  call: camcall.CameraCall | None = None, program: broadcasts.ProgramState | None = None,
                  broadcaster: broadcasts.Broadcaster | None = None, studio: logos.LogoStudio | None = None,
-                 stopping: threading.Event | None = None) -> type[BaseHTTPRequestHandler]:
-    """``stopping`` 이 설정되면 열린 사건 흐름을 모두 끝낸다(화면은 새 서버에 다시 연결)."""
+                 stopping: threading.Event | None = None, features: Iterable[features_.Feature] = ()) -> type[BaseHTTPRequestHandler]:
+    """``stopping`` 이 설정되면 열린 사건 흐름을 모두 끝낸다(화면은 새 서버에 다시 연결).
+
+    ``features`` 는 등록할 방송 연출 기능(feature.py). 주소나 실시간 항목 이름이 겹치면 ValueError.
+    """
     voice = voice or VoiceState()
     tracking = tracking or TrackingState()
     motion = motion or motions.MotionState()
@@ -180,6 +192,22 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
         return studio_box[0]
 
     states: dict[str, Any] = {"voice": voice, "tracking": tracking, "motion": motion, "draw": draw, "raffle": raffle, "camera": call}
+    feature_static: dict[str, str] = {}
+    feature_get: dict[str, Callable[[Any], Any]] = {}
+    feature_post: dict[str, Callable[[Any], Any]] = {}
+    body_limit: dict[str, int] = dict(BODY_LIMIT)
+    for part in features:
+        for table, values, taken in ((feature_static, part.static, STATIC), (feature_get, part.get, STATIC), (feature_post, part.post, POST_PATHS)):
+            for path, value in values.items():
+                if path in taken or (table is feature_post and path in feature_post) or (table is not feature_post and (path in feature_get or path in feature_static)):
+                    raise ValueError(f"주소가 겹침: {path} ({part.name})")
+                table[path] = value
+        for name, state in part.feeds.items():
+            if name in states:
+                raise ValueError(f"실시간 항목 이름이 겹침: {name} ({part.name})")
+            states[name] = state
+        body_limit.update(part.body_limit)
+    live_feeds = tuple(states)
     stopping = stopping or threading.Event()
     step = min(0.5, keepalive)
 
@@ -220,9 +248,11 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
                 return self._stream(tracking)
             if path == "/live":
                 wanted = urllib.parse.parse_qs(query).get("feeds", [""])[0].split(",")
-                return self._feeds({name: states[name] for name in LIVE_FEEDS if name in wanted} or {name: states[name] for name in DEFAULT_FEEDS})
+                return self._feeds({name: states[name] for name in live_feeds if name in wanted} or {name: states[name] for name in DEFAULT_FEEDS})
             if path == "/status":
                 return self._send(HTTPStatus.OK, json.dumps({"listeners": hub.listeners}).encode(), "application/json")
+            if path in feature_get:
+                return self._feature(feature_get[path], urllib.parse.parse_qs(query))
             if path == "/character/humanoid.json":  # GLB, FBX의 뼈와 표정 이름 표(humanoid.py)
                 from .. import humanoid
 
@@ -278,7 +308,7 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
                 if body is None:
                     return self._send(HTTPStatus.NOT_FOUND, b"not found")
                 return self._send(HTTPStatus.OK, body, TYPES.get("." + path.rsplit(".", 1)[-1], "application/octet-stream"))
-            name = STATIC.get(path)
+            name = STATIC.get(path) or feature_static.get(path)
             if name is None:
                 return self._send(HTTPStatus.NOT_FOUND, b"not found")
             self._send(HTTPStatus.OK, _static(name), TYPES["." + name.rsplit(".", 1)[1]], TRACKER_POLICY if path.startswith("/tracker") else "")
@@ -287,24 +317,21 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
             # 응답 전에 요청 본문을 먼저 읽는다(읽지 않고 닫으면 Windows에서 연결이 끊겨 거부 응답이 전달되지 않음)
             path = self.path.split("?", 1)[0]
             try:
-                length = min(int(self.headers.get("Content-Length") or 0), BODY_LIMIT.get(path, 4096))
+                length = min(int(self.headers.get("Content-Length") or 0), body_limit.get(path, 4096))
             except ValueError:
                 return self._send(HTTPStatus.BAD_REQUEST, b"bad length")
             body = self.rfile.read(length) if length > 0 else b""
             if not self._local():
                 return self._send(HTTPStatus.FORBIDDEN, b"forbidden")
-            if path not in ("/test", "/voice/test", "/tracking", "/motion", "/draw/config", "/draw/test", "/draw/clear", "/raffle/start", "/raffle/stop",
-                            "/raffle/clear", "/raffle/add", "/raffle/remove", "/raffle/draw", "/phone/start", "/phone/stop", "/phone/options",
-                            "/phone/calibrate", "/camera/obs", "/camera/config", "/remote/admin/start",
-                            "/remote/admin/stop", "/remote/admin/pair", "/remote/admin/approve", "/remote/admin/remove", "/camera/answer",
-                            "/camera/ended", "/program/size", "/broadcast/config", "/broadcast/key", "/broadcast/window", "/broadcast/start",
-                            "/broadcast/stop", "/logo/key", "/logo/generate", "/logo/cancel", "/logo/make", "/logo/record"):
+            if path not in POST_PATHS and path not in feature_post:
                 return self._send(HTTPStatus.NOT_FOUND, b"not found")
             try:
                 raw = json.loads(body or b"{}")
             except ValueError:
                 raw = {}
             data = raw if isinstance(raw, dict) else {}
+            if path in feature_post:
+                return self._feature(feature_post[path], data)
             if path == "/voice/test":
                 voice.test(bool(data.get("talking", True)))
                 return self._send(HTTPStatus.OK, b"ok")
@@ -366,6 +393,18 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
 
         def _json(self, value: Any, status: int = HTTPStatus.OK) -> None:
             self._send(status, json.dumps(value, ensure_ascii=False).encode(), "application/json")
+
+        def _feature(self, handler: Callable[[Any], Any], argument: Any) -> None:
+            """등록한 기능의 조회, 조작. 잘못된 요청은 기능이 정한 상태(기본 400)와 한국어 안내, 저장 실패는 500."""
+            try:
+                value = handler(argument)
+            except features_.FeatureError as error:
+                return self._json({"error": str(error)}, error.status)
+            except OSError as error:
+                return self._json({"error": f"저장 실패: {error}"}, HTTPStatus.INTERNAL_SERVER_ERROR)
+            if isinstance(value, features_.Raw):
+                return self._send(HTTPStatus.OK, value.body, value.content_type, value.policy)
+            return self._json(value)
 
         def _draw_post(self, path: str, raw: Any, data: dict[str, Any]) -> None:
             """추첨 설정 저장, 시험 추첨(저장한 설정, 사용 꺼짐이어도 실행), 최근 결과 비우기."""
@@ -680,6 +719,16 @@ class _RemoteStopper:
         self.remote.stop(save=False)
 
 
+class _FeatureStopper:
+    """서버를 멈출 때 등록한 기능의 정리 함수를 부른다."""
+
+    def __init__(self, stop: Callable[[], None]) -> None:
+        self._stop = stop
+
+    def stop(self) -> None:
+        self._stop()
+
+
 class _BroadcastStopper:
     """서버를 멈출 때 송출도 끝내고 송출 화면 창을 닫는다(창의 페이지가 이 서버를 쓰므로)."""
 
@@ -730,6 +779,11 @@ class OverlayServer:
         self.program = broadcasts.ProgramState()  # 송출 화면 창 크기(OBS 없이 바로 방송)
         self.broadcast = broadcasts.Broadcaster(self.program, lambda: self.port, notify=lambda text: self.hub.publish(system_event(text)))
         self.logo = logos.LogoStudio()  # 방송 로고 만들기(API 키, 생성 기록)
+        #: 방송 연출 기능(feature.py의 default_features: 뽑기판, 후원 벽, 참여 레이스 등)
+        self.features = features_.default_features(features_.Context(notify=lambda text: self.hub.publish(system_event(text)), raffle=self.raffle,
+                                                                     draw=self.draw, port_of=lambda: self.port))
+        for part in self.features:
+            self.hub.taps.extend(part.taps)
         self._sources = list(sources)
         self._poll = poll
         self._retry = retry
@@ -740,12 +794,13 @@ class OverlayServer:
                                                                    motion=self.motion, draw=self.draw, raffle=self.raffle, phone=self.phone,
                                                                    obs_target=lambda: self.obs_target, remote=self.remote, call=self.camera_call,
                                                                    program=self.program, broadcaster=self.broadcast, studio=self.logo,
-                                                                   stopping=self._stop))
+                                                                   stopping=self._stop, features=self.features))
         self._attached.append(self.commands)  # 단축키 실행 스레드 정리
         self._attached.append(_PhoneStopper(self.phone))
         self._attached.append(_RemoteStopper(self.remote))
         self._attached.append(_BroadcastStopper(self.broadcast))
         self._attached.append(self.logo)  # 로고 만들기의 AI Horde 대기 취소
+        self._attached.extend(_FeatureStopper(part.stop) for part in self.features if part.stop is not None)
 
     @property
     def port(self) -> int:

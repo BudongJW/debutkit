@@ -139,6 +139,32 @@ def save(values: dict[str, Any], path: Path | None = None) -> Path:
     return path
 
 
+def data_path(name: str) -> Path:
+    """설정 파일과 같은 폴더의 기능별 파일(예: ``pick.json``). 뽑기판, 후원 벽처럼 구조가 있는 설정과 기록."""
+    if not name or "/" in name or "\\" in name or name.startswith("."):
+        raise ValueError(f"잘못된 파일 이름: {name}")
+    return settings_path().parent / name
+
+
+def load_data(name: str) -> dict[str, Any]:
+    """기능별 파일 읽기. 없거나 손상되었으면 빈 값(기능이 기본값으로 시작)."""
+    try:
+        data = json.loads(data_path(name).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def save_data(name: str, values: dict[str, Any]) -> Path:
+    """기능별 파일 쓰기(임시 파일에 쓴 뒤 바꿔 중간에 깨지지 않게). API 키, 비밀번호는 넣지 않는다."""
+    path = data_path(name)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(path.name + ".tmp")
+    temporary.write_text(json.dumps(values, ensure_ascii=False, indent=2), encoding="utf-8")
+    os.replace(temporary, path)
+    return path
+
+
 def clear(path: Path | None = None) -> Path | None:
     """저장한 설정 삭제. 지운 파일 경로, 없으면 None."""
     path = path or settings_path()
