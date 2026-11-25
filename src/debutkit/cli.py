@@ -118,7 +118,7 @@ def _camera(args: argparse.Namespace) -> int:
 #: overlay 옵션과 저장 설정 항목의 대응(API 키, 비밀번호는 저장하지 않음)
 OVERLAY_SETTINGS = {"chzzk": "chzzk", "chzzk_api": "chzzk_api", "soop": "soop", "twitch": "twitch", "youtube": "youtube",
                     "youtube_mode": "youtube_mode", "youtube_interval": "youtube_interval", "demo": "demo", "port": "overlay_port",
-                    "clip": "clip", "clip_dir": "clip_dir", "obs_port": "obs_port", "voice_input": "voice_input", "voice_threshold": "voice_threshold",
+                    "clip": "clip", "clip_dir": "clip_dir", "clip_gif": "clip_gif", "clip_shorts": "clip_shorts", "obs_port": "obs_port", "voice_input": "voice_input", "voice_threshold": "voice_threshold",
                     "vts_reaction": "vts_reactions", "motion_reaction": "motion_reactions"}
 
 
@@ -236,9 +236,39 @@ def _start_autoclip(server: Any, args: argparse.Namespace) -> bool:
         print(f"자동 클립 켜기 실패: {error}", file=sys.stderr)
         print("  확인: OBS 실행, WebSocket 서버 사용, 리플레이 버퍼 사용(debutkit scenes --replay-buffer)", file=sys.stderr)
         return False
-    server.attach(AutoClipper(server.hub, clipper).start())
-    print(f"  자동 클립: 사용(OBS {version}, 저장 위치 {out}). 채팅 급증 또는 스트리머의 !clip 입력 시 저장")
+    post = None
+    if args.clip_gif or args.clip_shorts:
+        from .clipfx import PostProcessor
+        from .overlay.events import system_event
+
+        post = PostProcessor(bool(args.clip_gif), bool(args.clip_shorts), lambda text: server.hub.publish(system_event(text)))
+    server.attach(AutoClipper(server.hub, clipper, post=post).start())
+    extra = ", ".join(name for name, on in (("움짤", args.clip_gif), ("세로 쇼츠", args.clip_shorts)) if on)
+    print(f"  자동 클립: 사용(OBS {version}, 저장 위치 {out}). 채팅 급증 또는 스트리머의 !clip 입력 시 저장" + (f". 클립마다 {extra}도 만듦" if extra else ""))
     return True
+
+
+def _clipfx(args: argparse.Namespace) -> int:
+    """클립 다듬기: 움짤(GIF, WebP), 세로 쇼츠."""
+    from . import clipfx
+
+    try:
+        watermark = clipfx.Watermark(Path(args.watermark), args.watermark_position, args.watermark_size / 100, args.watermark_opacity / 100) \
+            if args.watermark else None
+        made = []
+        for source in args.files:
+            if args.clipfx_command == "gif":
+                made.append(clipfx.make_gif(Path(source), start=args.start, duration=args.duration, width=args.width, fps=args.fps, watermark=watermark))
+            elif args.clipfx_command == "webp":
+                made.append(clipfx.make_webp(Path(source), start=args.start, duration=args.duration, width=args.width, fps=args.fps, quality=args.quality,
+                                             watermark=watermark))
+            else:
+                made.append(clipfx.make_shorts(Path(source), mode=args.mode, focus=args.focus, start=args.start, duration=args.duration, watermark=watermark))
+            print(f"저장: {made[-1]}", flush=True)
+    except clipfx.ClipFxError as error:
+        print(str(error), file=sys.stderr)
+        return 1
+    return 0
 
 
 def _setup(args: argparse.Namespace) -> int:
@@ -1138,6 +1168,8 @@ def build_parser() -> argparse.ArgumentParser:
     clip = overlay.add_argument_group("자동 클립")
     clip.add_argument("--clip", action="store_true", help="채팅 급증 또는 스트리머의 !clip 입력 시 OBS 리플레이 버퍼를 클립으로 저장 (ffmpeg 필요)")
     clip.add_argument("--clip-dir", help="클립 저장 폴더 (기본 동영상/debutkit-clips)")
+    clip.add_argument("--clip-gif", action="store_true", default=None, help="클립마다 움짤(GIF, 앞 6초, 폭 480)도 만들기")
+    clip.add_argument("--clip-shorts", action="store_true", default=None, help="클립마다 세로 쇼츠(1080x1920, 흐린 배경)도 만들기")
     clip.add_argument("--obs-host", default="127.0.0.1")
     clip.add_argument("--obs-port", type=int, default=4455)
     clip.add_argument("--obs-password", help="OBS WebSocket 비밀번호 (또는 OBS_WEBSOCKET_PASSWORD)")
@@ -1274,6 +1306,32 @@ def build_parser() -> argparse.ArgumentParser:
     live_stop = live_sub.add_parser("stop", help="방송 끝내기")
     live_stop.add_argument("--close", action="store_true", help="송출 화면 창도 닫기")
     live.set_defaults(func=_broadcast)
+
+    from .clipfx import POSITIONS as MARK_POSITIONS
+    from .clipfx import SHORTS_MODES
+
+    clips = sub.add_parser("clip", help="클립 다듬기: 저장한 클립이나 영상으로 움짤(GIF, WebP)과 세로 쇼츠 만들기(ffmpeg 필요). 원본 옆에 저장")
+    clips_sub = clips.add_subparsers(dest="clipfx_command", required=True)
+    for name, text in (("gif", "움짤 GIF(어디서나 재생)"), ("webp", "움짤 WebP(GIF보다 선명하고 작음, Pillow 필요)"),
+                       ("shorts", "세로 쇼츠 MP4(1080x1920, 소리 포함)")):
+        command = clips_sub.add_parser(name, help=text)
+        command.add_argument("files", nargs="+", metavar="영상")
+        command.add_argument("--start", type=float, metavar="초", help="시작 위치")
+        command.add_argument("--duration", type=float, metavar="초", help="길이(최대 60초)")
+        if name in ("gif", "webp"):
+            command.add_argument("--width", type=int, default=480, help="폭 픽셀(기본 %(default)s)")
+            command.add_argument("--fps", type=int, default=15, help="초당 장수(기본 %(default)s)")
+        if name == "webp":
+            command.add_argument("--quality", type=int, default=75, help="화질 10에서 100(기본 %(default)s)")
+        if name == "shorts":
+            command.add_argument("--mode", choices=list(SHORTS_MODES), default="blur",
+                                 help="blur 흐린 배경(기본), crop 자르기, fit 위아래 여백")
+            command.add_argument("--focus", type=float, default=0.5, help="crop일 때 가로 위치 0(왼쪽)에서 1(오른쪽). 캐릭터가 오른쪽이면 0.8 등")
+        command.add_argument("--watermark", metavar="그림", help="워터마크 그림(투명 PNG 권장, debutkit logo로 만든 로고 등)")
+        command.add_argument("--watermark-position", choices=list(MARK_POSITIONS), default="bottom-right", help="워터마크 위치(기본 %(default)s)")
+        command.add_argument("--watermark-size", type=float, default=18.0, metavar="%", help="결과 폭에 대한 워터마크 폭(기본 %(default)s%%)")
+        command.add_argument("--watermark-opacity", type=float, default=85.0, metavar="%", help="워터마크 불투명도(기본 %(default)s%%)")
+        command.set_defaults(func=_clipfx)
 
     starts = sub.add_parser("launch", help="방송 시작 버튼: 세팅에 넣은 프로그램, 폴더, 사이트를 차례로 켜고 방해되는 프로그램은 끔. 방송 끝에 다시 켬")
     starts_sub = starts.add_subparsers(dest="launch_command")

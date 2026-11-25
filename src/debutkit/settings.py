@@ -29,6 +29,8 @@ FIELDS: dict[str, type] = {
     "demo": bool,
     "clip": bool,
     "clip_dir": str,
+    "clip_gif": bool,  # 자동 클립마다 움짤(GIF)도 만들기(clipfx.py)
+    "clip_shorts": bool,  # 자동 클립마다 세로 쇼츠(1080x1920)도 만들기
     "overlay_port": int,
     "obs_port": int,
     "avatar_app": str,

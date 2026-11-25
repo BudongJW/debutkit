@@ -104,14 +104,21 @@ def _make_overlay(sources: list[tuple[str, Callable[[], Any]]], port: int) -> An
     return OverlayServer(sources, port=port)
 
 
-def _make_autoclipper(hub: Any, port: int, password: str | None) -> tuple[Any, str]:
+def _make_autoclipper(hub: Any, port: int, password: str | None, gif: bool = False, shorts: bool = False) -> tuple[Any, str]:
     problem = clip.preflight()
     if problem:
         raise RuntimeError(problem)
     out = clip.default_clip_dir()
     clipper = clip.replay_clipper(out, "127.0.0.1", port, password)
     version = clipper.check(start_buffer=True)
-    return clip.AutoClipper(hub, clipper), f"자동 클립 시작(OBS {version}). 저장 위치: {out}"
+    post = None
+    if gif or shorts:
+        from .. import clipfx
+        from ..overlay.events import system_event
+
+        post = clipfx.PostProcessor(gif, shorts, lambda message: hub.publish(system_event(message)))
+    extra = ", ".join(name for name, on in (("움짤", gif), ("세로 쇼츠", shorts)) if on)
+    return clip.AutoClipper(hub, clipper, post=post), f"자동 클립 시작(OBS {version}). 저장 위치: {out}" + (f". 클립마다 {extra}도 만듦" if extra else "")
 
 
 def _check_youtube(address: str, api_key: str | None) -> str:
@@ -1111,6 +1118,10 @@ class Wizard(QMainWindow):
         self.chzzk_state = text("로그인됨" if signed_in else "로그인 전", muted=True)
         self.demo = QCheckBox("데모 채팅 함께 표시(표시 형태 확인용)")
         self.autoclip = QCheckBox("자동 클립: 채팅 급증 또는 !clip 입력 시 저장(OBS 리플레이 버퍼, ffmpeg 필요)")
+        self.clip_gif = QCheckBox("클립마다 움짤(GIF)")
+        self.clip_shorts = QCheckBox("클립마다 세로 쇼츠(1080x1920)")
+        self.clip_gif.setToolTip("클립 앞 6초를 폭 480 GIF로. 클립 폴더에 함께 저장")
+        self.clip_shorts.setToolTip("흐린 배경 위에 원본을 놓은 세로 영상. 다른 형태는 debutkit clip shorts 명령")
         self.chat_commands = QCheckBox("스트리머, 매니저 채팅 명령: !동작, !단축키, !모집, !마감, !추첨, !순서")
         self.chat_commands.setChecked(True)
         self.chat_commands.setToolTip("스트리머와 매니저의 채팅만 처리. 캐릭터 동작, VTube Studio 단축키, 시청자 참여 추첨 조작")
@@ -1126,6 +1137,7 @@ class Wizard(QMainWindow):
         form.addRow("", self.chzzk_state)
         form.addRow("", self.demo)
         form.addRow("", self.autoclip)
+        form.addRow("", row(self.clip_gif, self.clip_shorts))
         form.addRow("", self.chat_commands)
         self.voice_threshold = QSpinBox()
         self.voice_threshold.setRange(-70, -10)
@@ -1273,7 +1285,8 @@ class Wizard(QMainWindow):
 
             def job() -> None:
                 try:
-                    clipper, message = self.backend.make_autoclipper(server.hub, port, password)
+                    extras = {name: True for name, box in (("gif", self.clip_gif), ("shorts", self.clip_shorts)) if box.isChecked()}
+                    clipper, message = self.backend.make_autoclipper(server.hub, port, password, **extras)
                     server.attach(clipper.start())
                     self._emit(self.bridge.log, message)
                 except Exception as error:
@@ -1289,7 +1302,7 @@ class Wizard(QMainWindow):
         self.broadcast_button.setEnabled(running)
         self.logo_button.setEnabled(running)
         for widget in (self.chzzk, self.soop, self.twitch, self.youtube, self.youtube_key, self.youtube_check_button, self.chzzk_api, self.chzzk_id, self.chzzk_secret, self.chzzk_login_button,
-                       self.demo, self.autoclip, self.voice_threshold, self.port):
+                       self.demo, self.autoclip, self.clip_gif, self.clip_shorts, self.voice_threshold, self.port):
             widget.setEnabled(not running)
 
     def _append_log(self, line: str) -> None:
@@ -1463,7 +1476,7 @@ class Wizard(QMainWindow):
         values: dict[str, Any] = {name: [field_.text().strip()] for name, field_ in
                                   (("chzzk", self.chzzk), ("soop", self.soop), ("twitch", self.twitch), ("youtube", self.youtube))}
         values.update(chzzk_api=self.chzzk_api.isChecked(), chzzk_client_id=self.chzzk_id.text().strip(), demo=self.demo.isChecked(),
-                      clip=self.autoclip.isChecked(), chat_commands=self.chat_commands.isChecked(), overlay_port=self.port.value(), obs_port=self.obs_port.value(),
+                      clip=self.autoclip.isChecked(), clip_gif=self.clip_gif.isChecked(), clip_shorts=self.clip_shorts.isChecked(), chat_commands=self.chat_commands.isChecked(), overlay_port=self.port.value(), obs_port=self.obs_port.value(),
                       avatar_app=str(self.avatar_app.currentData()), replay_buffer=60 if self.replay.isChecked() else 0,
                       avatar_path=self.avatar_path.text().strip(), agency=self.avatar_agency.isChecked(),
                       voice_threshold=float(self.voice_threshold.value()), voice_input=self._voice_input, vts_reactions=self.vts_reaction_rules(),
@@ -1476,7 +1489,8 @@ class Wizard(QMainWindow):
                 field_.setText(values[name][0])
         if values.get("chzzk_client_id") and not self.chzzk_id.text():  # 환경 변수가 우선
             self.chzzk_id.setText(values["chzzk_client_id"])
-        for name, box in (("chzzk_api", self.chzzk_api), ("demo", self.demo), ("clip", self.autoclip), ("agency", self.avatar_agency),
+        for name, box in (("chzzk_api", self.chzzk_api), ("demo", self.demo), ("clip", self.autoclip), ("clip_gif", self.clip_gif),
+                          ("clip_shorts", self.clip_shorts), ("agency", self.avatar_agency),
                           ("chat_commands", self.chat_commands)):
             if name in values:
                 box.setChecked(values[name])
