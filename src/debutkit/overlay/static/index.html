@@ -20,6 +20,7 @@
     .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
     section { border: 1px solid var(--line); border-radius: 4px; padding: 18px 20px; }
     h2 { font-size: 16px; margin: 0 0 10px; }
+    h3 { font-size: 14px; margin: 14px 0 4px; }
     .url { display: flex; gap: 6px; margin: 0 0 12px; }
     .url input { flex: 1; min-width: 0; background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 3px; padding: 7px 10px; font: 13px ui-monospace, Consolas, monospace; }
     button { background: var(--text); color: #fff; border: 1px solid var(--text); border-radius: 3px; padding: 7px 14px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
@@ -104,7 +105,8 @@
     </section>
     <section>
       <h2>방송 연출</h2>
-      <p class="hint">OBS 브라우저 소스 권장 크기는 모두 1920x1080(방송 화면 전체). 장면 만들기는 본방송과 토크 장면에 숨긴 채로 넣으므로 필요할 때 OBS 소스 목록의 눈 아이콘으로 켭니다. 조작 화면은 OBS 독(사용자 지정 브라우저 독)으로도 씁니다.</p>
+      <p class="hint">OBS 브라우저 소스 권장 크기는 1920x1080(방송 화면 전체), 목표 게이지는 1280x240, 후원 순위는 560x720. 장면 만들기는 본방송과 토크 장면에 숨긴 채로 넣으므로 필요할 때 OBS 소스 목록의 눈 아이콘으로 켭니다. 조작 화면은 OBS 독(사용자 지정 브라우저 독)으로도 씁니다.</p>
+      <div class="row"><a class="button" href="/stage" target="_blank" rel="noopener">방송 화면 미리보기와 방송 색</a></div>
       <h3>뽑기판</h3>
       <div class="url"><input id="pick-url" readonly aria-label="뽑기판 주소"><button data-copy="pick-url">복사</button></div>
       <div class="row"><a class="button" href="/pick/control" target="_blank" rel="noopener">뽑기판 조작 화면</a></div>
