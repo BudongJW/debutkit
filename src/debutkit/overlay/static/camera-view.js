@@ -69,9 +69,8 @@ async function accept(call) {
   }
 }
 
-const live = new EventSource("/live?feeds=camera");
-live.addEventListener("camera", (message) => {
-  const call = JSON.parse(message.data);
+// 공유 연결(live.js): 다른 방송 화면과 /live 연결 하나를 함께 쓴다
+window.debutkitLive.subscribe(["camera"], (feed, call) => {
   if (call.type === "offer" && call.id !== current) {
     accept(call).catch((error) => show(`연결 실패: ${error.message}`));
   } else if ((call.type === "stop" || call.type === "idle") && (!call.id || call.id === current)) {

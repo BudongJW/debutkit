@@ -46,6 +46,8 @@ class SceneOptions:
     pick_url: str = "http://127.0.0.1:8790/pick"
     wall_url: str = "http://127.0.0.1:8790/wall"
     race_url: str = "http://127.0.0.1:8790/race"
+    goal_url: str = "http://127.0.0.1:8790/wall/goal"
+    rank_url: str = "http://127.0.0.1:8790/wall/rank"
     avatar: str = "vts"  # vts | vseeface | warudo | vmagicmirror | debutkit(캐릭터 화면) | none
     background: int = 0xFF3D1F2A  # OBS 색은 ABGR 순서: 짙은 남보라
     os_name: str = field(default_factory=lambda: {"win32": "Windows", "darwin": "Darwin"}.get(sys.platform, "Linux"))
@@ -157,14 +159,24 @@ def build_scenes(width: int, height: int, kinds: dict[str, str], options: SceneO
         settings = {"url": options.draw_url, "width": W, "height": H, "reroute_audio": False, "shutdown": False}
         return Item(f"{PREFIX}후원 추첨", "browser", settings, _bounds(0, 0, W, H))
 
-    def stage(name: str, url: str) -> Item | None:  # 방송 연출: 숨긴 채로 넣음(평소 투명이 아닌 화면이라 필요할 때만 켬)
+    def stage(name: str, url: str, size: tuple[int, int] = (1920, 1080), box: tuple[float, float, float, float] = (0, 0, 1, 1)) -> Item | None:
+        """방송 연출: 숨긴 채로 넣고 필요할 때 OBS에서 켠다. 숨긴 동안은 브라우저를 멈춰 연결과 그리기를 쉰다(켜면 서버의 지금 상태로 다시 그림).
+
+        ``size`` 는 화면이 설계된 크기, ``box`` 는 놓을 자리(캔버스 비율: 왼쪽, 위, 가로, 세로)."""
         if "browser" not in kinds:
             return None
-        settings = {"url": url, "width": W, "height": H, "reroute_audio": True, "shutdown": False}
-        return Item(f"{PREFIX}{name}", "browser", settings, _bounds(0, 0, W, H), enabled=False)
+        settings = {"url": url, "width": size[0], "height": size[1], "reroute_audio": True, "shutdown": True}
+        x, y, w, h = box
+        return Item(f"{PREFIX}{name}", "browser", settings, _bounds(W * x, H * y, W * w, H * h), enabled=False)
+
+    def wall() -> Item | None:  # 후원 벽은 벽지처럼 캐릭터 뒤에
+        return stage("후원 벽", options.wall_url)
 
     def stages() -> tuple[Item | None, ...]:
-        return stage("후원 벽", options.wall_url), stage("뽑기판", options.pick_url), stage("참여 레이스", options.race_url)
+        """캐릭터 앞의 연출. 목표 게이지는 왼쪽 위(알림이 뜨는 가운데 위와 겹치지 않게), 순위는 그 아래 왼쪽"""
+        return (stage("뽑기판", options.pick_url), stage("참여 레이스", options.race_url),
+                stage("목표 게이지", options.goal_url, (1280, 240), (0.017, 0.022, 0.3, 0.1)),
+                stage("후원 순위", options.rank_url, (560, 720), (0.017, 0.14, 0.15, 0.36)))
 
     def caption(name: str, text: str) -> Item | None:
         if "text" not in kinds:
@@ -188,8 +200,8 @@ def build_scenes(width: int, height: int, kinds: dict[str, str], options: SceneO
 
     return [
         scene("대기 화면", "방송 시작 전 대기. 안내 문구와 채팅", background(), caption("대기 문구", options.starting_text), chat(), alerts(), draws()),
-        scene("본방송", "게임 화면, 아바타, 채팅, 후원 알림과 추첨", background(), game(), main_avatar, *stages(), chat(), alerts(), draws()),
-        scene("토크", "잡담, 노래. 아바타 크게 표시", background(), talk_avatar, *stages(), chat(), alerts(), draws()),
+        scene("본방송", "게임 화면, 아바타, 채팅, 후원 알림과 추첨", background(), game(), wall(), main_avatar, *stages(), chat(), alerts(), draws()),
+        scene("토크", "잡담, 노래. 아바타 크게 표시", background(), wall(), talk_avatar, *stages(), chat(), alerts(), draws()),
         scene("자리 비움", "휴식 시간. 마이크는 직접 음소거", background(), caption("자리 비움 문구", options.brb_text), chat(), alerts(), draws()),
         scene("엔딩", "방송 마무리", background(), caption("엔딩 문구", options.ending_text), chat()),
     ]

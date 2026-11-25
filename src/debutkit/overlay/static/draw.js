@@ -19,8 +19,11 @@
   const NS = "http://www.w3.org/2000/svg";
   const INK = "#1e2327";
   const PAPER = "#faf7f5";
-  const GOLD = "#ffd84d";
-  const PINK = "#ff4f8b";
+  // 방송 색(/theme.css): 화면을 불러올 때의 색. 색을 바꾸면 연출이 없을 때 화면을 새로 불러온다
+  const themed = (name, fallback) => (window.debutkitTheme && window.debutkitTheme.color(name)) || fallback;
+  const GOLD = themed("highlight", "#ffd84d");
+  const PINK = themed("primary", "#ff4f8b");
+  const PINK_LIGHT = themed("primary-light", "#ffb3cb");
   const FAST_QUEUE = 3;  // 빠른 모드: 기다리는 추첨(지금 연출 포함) 수
   const FAST_RATE = 0.5;  // 빠른 모드의 연출 시간 배율
   const FAST_HOLD = 4;  // 빠른 모드의 결과 표시 최대 시간(초)
@@ -344,7 +347,7 @@
     const props = scene.querySelector(".dk-props");
     if (!run || !props) return;
     const box = props.getBoundingClientRect();
-    run(box, rare ? [GOLD, PINK, PAPER, GOLD, "#ffb3cb"] : [PINK, PAPER, "#ffb3cb", PINK], rare);
+    run(box, rare ? [GOLD, PINK, PAPER, GOLD, PINK_LIGHT] : [PINK, PAPER, PINK_LIGHT, PINK], rare);
   }
 
   // ---------------------------------------------------------------- 카드
@@ -393,7 +396,7 @@
     for (const [name, value] of Object.entries(vars)) node.style.setProperty(name, value);
     const inner = el("div", "inner");
     const back = el("div", "face back");
-    back.appendChild(emblem("#ff4f8b", INK));
+    back.appendChild(emblem(PINK, INK));
     const front = el("div", "face front");
     front.appendChild(el("div", "band", item.band || (item.rare ? "희귀" : item.miss ? "꽝" : "일반")));
     const name = el("div", "dk-name", item.name);
@@ -450,7 +453,7 @@
   }
 
   // ---------------------------------------------------------------- 룰렛
-  const FILLS = ["#ff4f8b", PAPER, "#ffb3cb"];
+  const FILLS = [PINK, PAPER, PINK_LIGHT];
 
   function wheelParts(prizes, showPercent) {
     const svg = svgEl("svg", { viewBox: "-120 -120 240 240", class: "wheel-svg", "aria-hidden": "true" });
@@ -477,7 +480,7 @@
     let normal = 0;
     prizes.forEach((prize, index) => {
       const sweep = (prize.percent / total) * 360;
-      let fill = prize.rare ? "#ffd84d" : prize.miss ? "url(#dk-stripes)" : FILLS[normal++ % FILLS.length];
+      let fill = prize.rare ? GOLD : prize.miss ? "url(#dk-stripes)" : FILLS[normal++ % FILLS.length];
       if (!prize.rare && !prize.miss) {  // 이웃 칸, 마지막과 첫 칸이 같은 색이 되지 않게
         const first = segments.length ? segments[0].fill : null;
         if (fill === previous || (index === prizes.length - 1 && fill === first)) fill = FILLS.find((color) => color !== previous && color !== first) || fill;
@@ -521,7 +524,7 @@
     }
     spin.appendChild(svgEl("circle", { r: 100, fill: "none", stroke: INK, "stroke-width": 3 }));
     spin.appendChild(svgEl("circle", { r: 21, fill: PAPER, stroke: INK, "stroke-width": 3 }));
-    const cap = emblemShapes("#ff4f8b", INK);
+    const cap = emblemShapes(PINK, INK);
     cap.setAttribute("transform", "scale(0.3) translate(-60,-45)");
     spin.appendChild(cap);
     svg.appendChild(spin);
@@ -530,7 +533,7 @@
 
   function flapper() {
     const svg = svgEl("svg", { viewBox: "0 0 34 62", class: "flapper", "aria-hidden": "true" });
-    svg.appendChild(svgEl("path", { d: "M17 3 C28 3 31 13 27 23 L19 57 Q17 61 15 57 L7 23 C3 13 6 3 17 3 Z", fill: "#ff4f8b", stroke: INK, "stroke-width": 3,
+    svg.appendChild(svgEl("path", { d: "M17 3 C28 3 31 13 27 23 L19 57 Q17 61 15 57 L7 23 C3 13 6 3 17 3 Z", fill: PINK, stroke: INK, "stroke-width": 3,
       "stroke-linejoin": "round" }));
     svg.appendChild(svgEl("circle", { cx: 17, cy: 11, r: 4, fill: PAPER, stroke: INK, "stroke-width": 2 }));
     return svg;
@@ -736,7 +739,7 @@
   }
 
   // ---------------------------------------------------------------- 연출 목록: 카드, 룰렛(이 파일)과 소품 연출(draw-props.js, 이 파일보다 먼저 불러옴)
-  const kit = { el, svgEl, wait, beat, tone, emblem, emblemShapes, confetti, shake, nextFrame, revealOrder, nameSize, INK, PAPER, GOLD, PINK,
+  const kit = { el, svgEl, wait, beat, tone, emblem, emblemShapes, confetti, shake, nextFrame, revealOrder, nameSize, INK, PAPER, GOLD, PINK, PINK_LIGHT,
                 scale: () => sceneScale, pace: () => pace };
   const PLAYERS = { card: playCards, wheel: playWheel, ...(typeof window.debutkitDrawProps === "function" ? window.debutkitDrawProps(kit) : {}) };
   const STYLES = Object.keys(PLAYERS);
@@ -834,31 +837,21 @@
   // 연결할 때(다시 연결 포함) 받는 첫 값: 추첨은 지난 결과라 재생하지 않고, 참여 추첨은 현재 모집 상태라 그대로 표시(참가 알림만 생략)
   // 미리보기(?sample)는 실시간 연결을 열지 않는다(조작 화면의 미리보기가 OBS 소스와 같은 주소의 동시 연결 수를 나눠 쓰지 않게)
   const sample = params.get("sample");
-  let first = true;
-  let raffleFirst = true;
+  // 공유 연결(live.js): 연결(다시 연결 포함) 직후의 값(initial)은 지난 결과나 현재 상태라 연출하지 않는다
   if (!sample) {
-    const source = new EventSource("/live?feeds=draw,raffle");
-    source.addEventListener("open", () => {
-      first = true;
-      raffleFirst = true;
-    });
-    source.addEventListener("draw", (message) => {
-      const result = JSON.parse(message.data);
-      if (first) {
-        first = false;
-        return;
+    window.debutkitLive.subscribe(["draw", "raffle", "theme"], (feed, data, initial) => {
+      if (feed === "theme") {
+        if (!initial && !busy) location.reload();  // 소품의 색은 불러올 때 정해서 새로 불러옴
+      } else if (feed === "draw") {
+        if (!initial) accept(data);
+      } else if (feed === "raffle") {
+        if (data.type === "status") {
+          if (data.open && !raffleBar) refreshDisplay().then(() => raffleStatus(data, initial));
+          else raffleStatus(data, initial);
+        } else if (!initial) {
+          acceptRaffle(data);
+        }
       }
-      accept(result);
-    });
-    source.addEventListener("raffle", (message) => {
-      const data = JSON.parse(message.data);
-      if (data.type === "status") {
-        if (data.open && !raffleBar) refreshDisplay().then(() => raffleStatus(data, raffleFirst));
-        else raffleStatus(data, raffleFirst);
-      } else if (!raffleFirst) {
-        acceptRaffle(data);
-      }
-      raffleFirst = false;
     });
   }
 

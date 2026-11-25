@@ -32,6 +32,8 @@
       bar.appendChild(link);
     }
     header.after(bar);
+    const home = header.querySelector('a[href="/"]');  // 이동 막대에 같은 곳이 있어 머리말의 링크는 숨김
+    if (home) home.hidden = true;
   }
 
   function dock() {

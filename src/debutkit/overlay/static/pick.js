@@ -810,13 +810,11 @@
   }
 
   let chain = Promise.resolve();  // 받은 순서대로 처리(글꼴 기다림 포함)
-  const source = new EventSource("/live?feeds=pick");
-  source.addEventListener("open", () => {
-    first = true;
-  });
-  source.addEventListener("pick", (message) => {
-    const data = JSON.parse(message.data);
-    if (!data || !data.display) return;
+  // 공유 연결(live.js): 연결(다시 연결 포함) 직후의 값(initial)은 지금 상태라 연출 없이 그린다
+  window.debutkitLive.subscribe(["pick", "theme"], (feed, data, initial) => {
+    if (feed === "theme" && !initial && !busy) location.reload();  // 방송 색을 쓰는 판의 색은 서버가 정해서 새로 불러옴
+    if (feed !== "pick" || !data || !data.display) return;
+    if (initial) first = true;
     chain = chain.then(() => accept(data)).catch((error) => console.warn("debutkit 뽑기판", error));
   });
   window.debutkitPick.overlay = { render, grid, fitSize, get state() { return state; }, pending };  // 시험용

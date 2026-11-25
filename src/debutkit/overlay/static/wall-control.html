@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>debutkit 후원 벽</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/theme.css?fonts=0">
+  <link rel="stylesheet" href="/ui.css">
   <style>
     :root { color-scheme: light; --bg: #ffffff; --panel: #faf7f5; --line: #e3dfdb; --text: #1e2327; --dim: #5b6670; --link: #bf3b68; --gold: #b58500; }
     * { box-sizing: border-box; }
@@ -166,6 +168,7 @@
       <div class="row"><label class="check"><input type="checkbox" id="names"> 방송에 닉네임 표시</label><label class="check"><input type="checkbox" id="sound"> 효과음</label></div>
       <div class="row"><label class="check"><input type="checkbox" id="auto-clear"> 오버레이를 시작할 때 벽 비우기</label></div>
       <div class="row"><label class="check"><input type="checkbox" id="empty-signatures"> 후원 전에도 시그니처 칸 세우기</label></div>
+      <div class="row"><label class="check"><input type="checkbox" id="avoid-chat"> 자동 배치에서 오른쪽 채팅 자리 비우기</label></div>
       <p class="hint">닉네임 표시를 끄면 방송 화면과 순위에 금액만 나옵니다(이 화면에는 그대로). 효과음은 OBS 브라우저 소스 속성의 OBS 오디오 제어를 켠 경우 방송에 나갑니다.</p>
       <div class="row"><button data-save>저장</button><span class="state" data-save-state></span></div>
     </section>
@@ -359,6 +362,7 @@
     $("sound").checked = config.sound;
     $("auto-clear").checked = config.auto_clear;
     $("empty-signatures").checked = config.empty_signatures;
+    $("avoid-chat").checked = config.avoid_chat !== false;
     $("auras").replaceChildren(...config.auras.map(auraRow));
     $("goal-title").value = config.goal.title;
     $("goal-target").value = config.goal.target;
@@ -374,7 +378,7 @@
     return {
       buckets: Object.fromEntries([...$("buckets").querySelectorAll("select")].map((select) => [select.dataset.unit, select.value])),
       entrance: $("entrance").value, idle: $("idle").value, fast_after: Number($("fast-after").value),
-      names: $("names").checked, sound: $("sound").checked, auto_clear: $("auto-clear").checked, empty_signatures: $("empty-signatures").checked,
+      names: $("names").checked, sound: $("sound").checked, auto_clear: $("auto-clear").checked, empty_signatures: $("empty-signatures").checked, avoid_chat: $("avoid-chat").checked,
       auras: [...$("auras").children].map((row) => ({ unit: row.querySelector(".unit").value, min: Number(row.querySelector(".min").value),
                                                       effect: row.querySelector(".effect").value, strength: Number(row.querySelector(".strength").value) })),
       goal: { title: $("goal-title").value.trim(), basis: $("goal-basis").value, target: Number($("goal-target").value),
@@ -719,5 +723,7 @@
   refresh();
   setInterval(refresh, 2000);
 </script>
+<script src="/theme.js"></script>
+<script src="/ui.js"></script>
 </body>
 </html>

@@ -524,3 +524,18 @@ def test_cli_broadcast(capsys, monkeypatch):
     finally:
         srv.stop()
     assert main(["broadcast", "--port", port, "status"]) == 1 and "오버레이에 연결하지 못함" in capsys.readouterr().err
+
+
+def test_program_layers_choose_stage_overlays(tmp_path):
+    from debutkit import broadcast as broadcasts
+
+    config = broadcasts.from_request({"layers": ["pick", "wall", "race"]})
+    assert config.layers == ("wall", "pick", "race")  # 정해진 순서(후원 벽은 캐릭터 뒤)
+    assert broadcasts.BroadcastConfig().layers == ("race",)
+    with pytest.raises(broadcasts.BroadcastError, match="송출 화면 연출"):
+        broadcasts.from_request({"layers": ["confetti"]})
+    path = tmp_path / "broadcast.json"
+    broadcasts.save_config(config, path)
+    assert broadcasts.load_config(path).layers == ("wall", "pick", "race")
+    caster = broadcasts.Broadcaster(broadcasts.ProgramState(), lambda: 8790)
+    assert "layers=wall%2Cpick%2Crace" in caster.program_url(config)

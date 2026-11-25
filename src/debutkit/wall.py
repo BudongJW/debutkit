@@ -84,7 +84,7 @@ DEFAULT_AURAS = [
 ]
 DEFAULT_CONFIG: dict[str, Any] = {
     "buckets": dict(DEFAULT_BUCKETS), "auras": DEFAULT_AURAS, "entrance": "pop", "idle": "float", "fast_after": 6, "sound": False,
-    "names": True, "auto_clear": False, "empty_signatures": False,
+    "names": True, "auto_clear": False, "empty_signatures": False, "avoid_chat": True,
     "goal": {"title": "오늘의 목표", "basis": "won", "target": 100000,
              "milestones": [{"at": 30000, "label": ""}, {"at": 60000, "label": ""}]},
     "rank": {"title": "후원 순위", "count": 5, "others": "separate"},
@@ -93,6 +93,8 @@ DEFAULT_CONFIG: dict[str, Any] = {
 
 # 칸 크기(1920x1080 기준). 칸 머리와 카드 크기는 wall.css와 맞춘다
 MARGIN, GAP = 40, 18
+#: 자동 배치에서 비워 둘 오른쪽 채팅 자리(장면 만들기의 채팅창 폭 22%와 여백)
+CHAT_SPACE = 460
 COLUMN_W, SIGNATURE_W = 200, 270
 MIN_W, MIN_H = 120, 160
 
@@ -291,10 +293,10 @@ def aura_for(unit: str, amount: float, tiers: list[dict[str, Any]]) -> dict[str,
 # --------------------------------------------------------------------------- 칸 배치
 
 
-def arrange(columns: list[dict[str, Any]], layout: dict[str, dict[str, int]]) -> None:
+def arrange(columns: list[dict[str, Any]], layout: dict[str, dict[str, int]], *, avoid_chat: bool = False) -> None:
     """칸 위치와 크기(x, y, w, h)를 채운다. 저장한 배치(끌어 옮긴 칸)는 그대로, 나머지는 왼쪽 위부터 줄을 바꿔 가며 놓는다.
 
-    칸이 많으면 3줄 안에 들어가도록 폭을 줄이고, 줄 수에 맞춰 높이를 나눈다.
+    칸이 많으면 3줄 안에 들어가도록 폭을 줄이고, 줄 수에 맞춰 높이를 나눈다. ``avoid_chat`` 이면 오른쪽 채팅 자리를 비운다.
     """
     auto = []
     for column in columns:
@@ -306,7 +308,7 @@ def arrange(columns: list[dict[str, Any]], layout: dict[str, dict[str, int]]) ->
             auto.append(column)
     if not auto:
         return
-    width = CANVAS[0] - 2 * MARGIN
+    width = CANVAS[0] - 2 * MARGIN - (CHAT_SPACE if avoid_chat else 0)
     for scale in (1.0, 0.9, 0.8, 0.7, 0.62):
         sizes = [round((SIGNATURE_W if column["kind"] == "sig" else COLUMN_W) * scale) for column in auto]
         rows: list[list[int]] = [[]]
@@ -539,7 +541,7 @@ _FIELDS: dict[str, Callable[[Any], Any]] = {
     "buckets": _buckets, "auras": _auras, "goal": _goal, "rank": _rank, "entrance": _choice(ENTRANCES, "등장 연출은"),
     "idle": _choice(IDLES, "대기 효과는"), "fast_after": _fast_after,
 }
-_FLAGS = ("sound", "names", "auto_clear", "empty_signatures")
+_FLAGS = ("sound", "names", "auto_clear", "empty_signatures", "avoid_chat")
 
 
 def update_config(config: dict[str, Any], data: Any) -> dict[str, Any]:
@@ -828,7 +830,7 @@ class Wall:
         for column in columns:
             del column["sort"]
             column["image"] = f"/wall/image?name={column['image']}" if column["image"] else ""
-        arrange(columns, self.layout)
+        arrange(columns, self.layout, avoid_chat=self.config.get("avoid_chat", True))
         return columns, placed
 
     def _card_view(self, card: dict[str, Any], column: str, names: bool) -> dict[str, Any]:

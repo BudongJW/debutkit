@@ -24,18 +24,18 @@ function show(text) {
 }
 
 function listen() {
-  // 브라우저의 같은 주소 동시 연결 수 제한(6개, OBS 브라우저 소스끼리 공유) 때문에 연결 하나로 받는다
-  const source = new EventSource("/live");
-  source.addEventListener("tracking", (message) => Object.assign(tracked, { found: false }, JSON.parse(message.data)));
-  source.addEventListener("motion", (message) => motionRequests.handler?.(JSON.parse(message.data)));
+  // 브라우저의 같은 주소 동시 연결 수 제한(6개, OBS 브라우저 소스끼리 공유) 때문에 다른 방송 화면과 공유 연결(live.js) 하나로 받는다
+  window.debutkitLive.subscribe(demo ? ["tracking", "motion"] : ["voice", "tracking", "motion"], (feed, data) => {
+    if (feed === "tracking") Object.assign(tracked, { found: false }, data);
+    else if (feed === "motion") motionRequests.handler?.(data);
+    else if (feed === "voice") Object.assign(voice, data);
+  });
   if (demo) {  // 말하기 시험: 0.6초 말하고 0.6초 쉼
     setInterval(() => {
       voice.talking = !voice.talking;
       voice.level = voice.talking ? 0.75 : 0;
     }, 600);
-    return;
   }
-  source.addEventListener("voice", (message) => Object.assign(voice, JSON.parse(message.data)));
 }
 
 function scheduleBlink(blink) {

@@ -115,13 +115,14 @@
     "use strict";
     const $ = (id) => document.getElementById(id);
     // 아래에서 위 순서(OBS 장면과 같음). [id, 이름, 주소, 자리(왼쪽, 위, 가로, 세로), 처음에 켬]
+    // 후원 벽은 벽지처럼 캐릭터 뒤, 목표 게이지와 순위는 왼쪽 위(알림이 뜨는 가운데 위와 겹치지 않게)
     const LAYERS = [
-      ["character", "캐릭터", "/character", [0, 410, 614, 670], true],
       ["wall", "후원 벽", "/wall", null, false],
-      ["goal", "목표 게이지", "/wall/goal", null, false],
-      ["rank", "후원 순위", "/wall/rank", null, false],
-      ["race", "참여 레이스", "/race", null, false],
+      ["character", "캐릭터", "/character", [0, 410, 614, 670], true],
       ["pick", "뽑기판", "/pick", null, false],
+      ["race", "참여 레이스", "/race", null, false],
+      ["goal", "목표 게이지", "/wall/goal", [33, 24, 576, 108], false],
+      ["rank", "후원 순위", "/wall/rank", [33, 151, 288, 389], false],
       ["chat", "채팅", "/chat", [1466, 32, 422, 1016], true],
       ["alerts", "후원 알림", "/alerts", null, true],
       ["draw", "후원 추첨", "/draw", null, true],

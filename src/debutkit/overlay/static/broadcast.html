@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>debutkit 바로 방송</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/theme.css?fonts=0">
+  <link rel="stylesheet" href="/ui.css">
   <style>
     :root { color-scheme: light; --bg: #ffffff; --panel: #faf7f5; --line: #e3dfdb; --text: #1e2327; --dim: #5b6670; --ok: #1f7a4d; --bad: #b3261e; --live: #c4194f; }
     * { box-sizing: border-box; }
@@ -129,6 +131,15 @@
         <input type="color" id="background">
       </label>
       <label class="check"><input type="checkbox" id="camera"> 휴대폰 앱 카메라 영상을 크게 표시</label>
+      <h3>함께 넣을 방송 연출</h3>
+      <div class="row" id="layers">
+        <label class="check"><input type="checkbox" value="wall"> 후원 벽</label>
+        <label class="check"><input type="checkbox" value="goal"> 목표 게이지</label>
+        <label class="check"><input type="checkbox" value="rank"> 후원 순위</label>
+        <label class="check"><input type="checkbox" value="pick"> 뽑기판</label>
+        <label class="check"><input type="checkbox" value="race"> 참여 레이스</label>
+      </div>
+      <p class="hint">채팅, 알림, 후원 추첨은 항상 들어갑니다. 뽑기판은 조작 화면의 방송에 표시, 숨기기를 따르고 참여 레이스는 경기 중에만 보입니다. 배치는 방송 화면 미리보기에서 확인합니다.</p>
       <div class="row">
         <button id="open-window" class="secondary">송출 화면 열기</button>
       </div>
@@ -171,6 +182,7 @@
     $("title").value = config.title;
     $("background").value = `#${config.background}`;
     $("camera").checked = config.camera;
+    for (const box of $("layers").querySelectorAll("input")) box.checked = (config.layers || []).includes(box.value);
     deviceOptions($("mic"), config.mic, "없음(무음)");
     deviceOptions($("extra-audio"), config.extra_audio, "없음");
   }
@@ -260,6 +272,7 @@
   $("title").addEventListener("change", () => save({ title: $("title").value }));
   $("background").addEventListener("change", () => save({ background: $("background").value.slice(1) }));
   $("camera").addEventListener("change", () => save({ camera: $("camera").checked }));
+  $("layers").addEventListener("change", () => save({ layers: [...$("layers").querySelectorAll("input:checked")].map((box) => box.value) }));
   $("save-key").addEventListener("click", async () => {
     await act("/broadcast/key", { key: $("key").value });
     if (!lastError) $("key").value = "";
@@ -272,5 +285,7 @@
   refresh().then(findDevices);
   setInterval(refresh, 1000);
 </script>
+<script src="/theme.js"></script>
+<script src="/ui.js"></script>
 </body>
 </html>

@@ -765,3 +765,18 @@ def test_launch_dialog_edits_and_saves(app, tmp_path, monkeypatch):
         assert stored and stored[-1].active == "게임" and [p.name for p in stored[-1].profiles] == ["방송", "게임"]
     finally:
         dialog.close()
+
+
+def test_saving_keeps_settings_the_wizard_does_not_manage(app):
+    calls = Calls()
+    calls.stored = {"chzzk": ["old"], "draw_design": "night", "draw_effect": "confetti", "youtube_interval": 15.0, "raffle_title": "참여"}
+    window = Wizard(calls.backend(save_settings=lambda values: calls.saves.append(values)))
+    try:
+        window.chzzk.setText("")  # 비운 입력 칸은 저장하지 않음(마법사가 다루는 항목)
+        window.remember()
+        saved = calls.saves[-1]
+        assert "chzzk" not in saved and saved["draw_design"] == "night" and saved["draw_effect"] == "confetti"
+        assert saved["youtube_interval"] == 15.0 and saved["raffle_title"] == "참여"
+    finally:
+        window._keep_settings = False
+        window.close()

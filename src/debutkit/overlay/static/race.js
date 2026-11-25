@@ -2976,13 +2976,9 @@
     }).catch((error) => console.warn("debutkit: 예시 장면을 만들지 못함", error));
   } else {
     // 연결할 때(다시 연결 포함) 받는 첫 값이 지금 상태: 진행 중이면 지금 장면부터 이어 그린다
-    const source = new EventSource("/live?feeds=race");
-    source.addEventListener("race", (message) => {
-      try {
-        accept(JSON.parse(message.data));
-      } catch (error) {
-        console.warn("debutkit: 잘못된 레이스 값", error);
-      }
+    // 공유 연결(live.js). 처리 실패는 live.js가 콘솔에 남긴다
+    window.debutkitLive.subscribe(["race", "theme"], (feed, data) => {
+      if (feed === "race") accept(data);
     });
   }
   window.debutkitRace = { accept, makePalette, buildProfiles, progressOf };  // 시험용

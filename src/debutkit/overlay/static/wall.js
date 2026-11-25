@@ -9,6 +9,8 @@
 
 (() => {
   const params = new URLSearchParams(location.search);
+  // 방송 색(/theme.css): 축하 조각 색은 그때그때 읽는다(색을 바꾸면 바로 반영)
+  const themed = (name, fallback) => (window.debutkitTheme && window.debutkitTheme.color(name)) || fallback;
   const route = location.pathname.replace(/\/+$/, "");
   const VIEW = route === "/wall/goal" ? "goal" : route === "/wall/rank" ? "rank" : "wall";
   const SHARED = (window.debutkit && window.debutkit.PLATFORMS) || {};
@@ -292,7 +294,7 @@
     // ---------------------------------------------------------- 카드
     function stars(count) {
       const layer = el("span", "wl-stars");
-      const colors = ["#ffd84d", "#faf7f5", "#ff4f8b", "#ffd84d"];
+      const colors = [themed("highlight", "#ffd84d"), "#faf7f5", themed("primary", "#ff4f8b"), themed("highlight", "#ffd84d")];
       for (let i = 0; i < count; i++) {
         const star = el("i");
         const side = i % 4;
@@ -390,7 +392,7 @@
         card.face.appendChild(node);
         setTimeout(() => node.remove(), life);
       };
-      if (name === "sparkle") add(burst("wl-burst", 10, 120, ["#ffd84d", "#ff4f8b", "#faf7f5"]), 1300);
+      if (name === "sparkle") add(burst("wl-burst", 10, 120, [themed("highlight", "#ffd84d"), themed("primary", "#ff4f8b"), "#faf7f5"]), 1300);
       else if (name === "stamp") add(el("span", "wl-ring"), 1200);
       else if (name === "drop") {
         const dust = el("span", "wl-dust");
@@ -628,21 +630,9 @@
 
     // ---------------------------------------------------------- 연결
     fontsReady.then(() => {
-      let first = true;
-      const source = new EventSource("/live?feeds=wall");
-      source.addEventListener("open", () => {
-        first = true;
-      });
-      source.addEventListener("wall", (event) => {
-        let message;
-        try {
-          message = JSON.parse(event.data);
-        } catch (error) {
-          return;
-        }
-        const wasFirst = first;
-        first = false;
-        receive(message, wasFirst);
+      // 공유 연결(live.js): 연결(다시 연결 포함) 직후의 값(initial)은 지금 상태
+      window.debutkitLive.subscribe(["wall", "theme"], (feed, message, initial) => {
+        if (feed === "wall" && message) receive(message, initial);
       });
     });
     window.debutkitWall = { columns, cards, pending, applyState, applyAdd, layoutColumn };  // 시험용
@@ -774,7 +764,7 @@
           mark.classList.remove("pop");
           void mark.offsetWidth;
           mark.classList.add("pop");
-          setTimeout(() => celebrate(mark, ["#ffd84d", "#ff4f8b", "#faf7f5"]), 900);
+          setTimeout(() => celebrate(mark, [themed("highlight", "#ffd84d"), themed("primary", "#ff4f8b"), "#faf7f5"]), 900);
           if (params.has("sound")) setTimeout(() => tone("aura", 2), 900);
         }
       });
@@ -782,7 +772,7 @@
         stamp = el("span", "wg-stamp", "달성");
         plate.appendChild(stamp);
         if (previous && !previous.reached) {
-          setTimeout(() => celebrate(percent, ["#ffd84d", "#ff4f8b", "#faf7f5", "#ffd84d"]), 300);
+          setTimeout(() => celebrate(percent, [themed("highlight", "#ffd84d"), themed("primary", "#ff4f8b"), "#faf7f5", themed("highlight", "#ffd84d")]), 300);
           if (params.has("sound")) tone("goal");
         }
       } else if (!goal.reached && stamp) {

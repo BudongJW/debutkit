@@ -43,7 +43,8 @@ def _scenes(args: argparse.Namespace) -> int:
 
     base = f"http://127.0.0.1:{args.overlay_port}"
     options = SceneOptions(overlay_url=f"{base}/chat", alerts_url=f"{base}/alerts", character_url=f"{base}/character", draw_url=f"{base}/draw",
-                           pick_url=f"{base}/pick", wall_url=f"{base}/wall", race_url=f"{base}/race",
+                           pick_url=f"{base}/pick", wall_url=f"{base}/wall", race_url=f"{base}/race", goal_url=f"{base}/wall/goal",
+                           rank_url=f"{base}/wall/rank",
                            avatar=args.avatar)
     if args.dry_run:
         kinds = default_kinds(options.os_name)

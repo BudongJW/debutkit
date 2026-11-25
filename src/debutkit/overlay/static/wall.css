@@ -12,11 +12,11 @@
   --ink-soft: #3a4249;
   --paper: #faf7f5;
   --paper-dim: #e6e1dc;
-  --pink: #ff4f8b;
-  --pink-deep: #bf3b68;
-  --pink-light: #ffb3cb;
-  --gold: #ffd84d;
-  --gold-deep: #c9971c;
+  --pink: var(--dk-primary, #ff4f8b);  /* 방송 색(/theme.css). 이름은 기본 색에서 온 것 */
+  --pink-deep: var(--dk-primary-deep, #bf3b68);
+  --pink-light: var(--dk-primary-light, #ffb3cb);
+  --gold: var(--dk-highlight, #ffd84d);
+  --gold-deep: var(--dk-highlight-deep, #c9971c);
   --muted: #5b6670;
   --hard: rgba(30, 35, 39, 0.88);
   --display: "Black Han Sans", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;

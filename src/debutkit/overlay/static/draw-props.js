@@ -6,7 +6,7 @@
 
 window.debutkitDrawProps = (kit) => {
   const { el, svgEl, beat, tone, emblemShapes, confetti, shake, nextFrame, revealOrder, INK, PAPER, GOLD, PINK } = kit;
-  const PINK_LIGHT = "#ffb3cb";
+  const PINK_LIGHT = kit.PINK_LIGHT || "#ffb3cb";
   const SLATE = "#3a4249";
   const ms = (value) => value * kit.pace();
   const tierOf = (item) => (item.rare ? "rare" : item.miss ? "miss" : "normal");

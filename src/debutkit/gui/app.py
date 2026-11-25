@@ -1077,6 +1077,7 @@ class Wizard(QMainWindow):
         base = f"http://127.0.0.1:{self.port.value()}"
         options = scenes.SceneOptions(overlay_url=f"{base}/chat", alerts_url=f"{base}/alerts", character_url=f"{base}/character",
                                        draw_url=f"{base}/draw", pick_url=f"{base}/pick", wall_url=f"{base}/wall", race_url=f"{base}/race",
+                                       goal_url=f"{base}/wall/goal", rank_url=f"{base}/wall/rank",
                                        avatar=str(self.avatar_app.currentData()))
         port, password, replay = self.obs_port.value(), self.obs_password.text() or None, 60 if self.replay.isChecked() else None
 
@@ -1542,16 +1543,16 @@ class Wizard(QMainWindow):
             self.motion_min.setValue(motion_rules[-1].min_won)
 
     #: 입력란이 없어 collect_settings가 모르는 저장값. 저장할 때 기존 값을 유지한다(캐릭터 단계의 사용 버튼이 따로 저장)
-    KEPT_SETTINGS = ("character", "idle_motion", "draw_enabled", "draw_prizes", "draw_rules", "draw_exact", "draw_members", "draw_style",
-                     "draw_seconds", "draw_title", "draw_position", "draw_scale", "draw_sound", "draw_show_percent", "raffle_command", "raffle_title",
-                     "raffle_donation_min", "phone_enabled", "phone_app", "phone_ip", "phone_mirror", "phone_flip_pitch", "phone_center_yaw",
-                     "phone_center_pitch", "phone_center_roll", "remote_enabled", "remote_address", "remote_port")
+    #: 설정 마법사가 입력 칸으로 다루는 항목. 그 밖의 저장 설정(추첨, 참여 추첨, 휴대폰, 캐릭터, 명령줄 --save 등)은 저장할 때 그대로 둔다
+    MANAGED_SETTINGS = ("chzzk", "soop", "twitch", "youtube", "chzzk_api", "chzzk_client_id", "demo", "clip", "clip_gif", "clip_shorts",
+                        "chat_commands", "overlay_port", "obs_port", "avatar_app", "replay_buffer", "avatar_path", "agency", "voice_threshold",
+                        "voice_input", "vts_reactions", "motion_reactions")
 
     def remember(self) -> None:
         try:
             values = self.collect_settings()
             saved = self.backend.load_settings()
-            values.update({key: saved[key] for key in self.KEPT_SETTINGS if key in saved})
+            values.update({key: value for key, value in saved.items() if key not in self.MANAGED_SETTINGS})
             self.backend.save_settings(values)
         except OSError as error:
             self._append_log(f"설정 저장 실패: {error}")
