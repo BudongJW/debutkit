@@ -1,5 +1,5 @@
-"""명령줄: debutkit gui | doctor | scenes | camera | overlay | draw | raffle | phone | remote | broadcast | logo | character | motion | vts | settings |
-setup | chzzk"""
+"""명령줄: debutkit gui | doctor | scenes | camera | overlay | draw | raffle | phone | remote | broadcast | launch | logo | character | motion | vts |
+settings | setup | chzzk"""
 
 from __future__ import annotations
 
@@ -854,6 +854,181 @@ def _post_overlay(port: int, path: str, body: dict[str, Any], describe: Callable
     return 0
 
 
+def _launch_profile_text(profile: Any, active: bool) -> list[str]:
+    from .launcher import KINDS
+
+    lines = [f"{'* ' if active else '  '}{profile.name}"]
+    for item in profile.start:
+        place = " [창 위치 기억]" if item.window else ""
+        lines.append(f"    켤 것 {KINDS[item.kind]}: {item.label}  (다음까지 {item.delay:g}초){place}")
+    for name in profile.stop:
+        lines.append(f"    끌 것: {name}")
+    flags = [("이미 켜진 것 건너뛰기", profile.skip_running), ("다시 켜지면 알림", profile.watch), ("다시 끄기", profile.rekill),
+             ("방송 끝에 다시 켜기", profile.restore), ("오버레이 시작", profile.overlay), ("OBS 연결 확인", profile.obs_check)]
+    lines.append("    " + ", ".join(f"{label} {'켬' if on else '끔'}" for label, on in flags))
+    return lines
+
+
+def _launch(args: argparse.Namespace) -> int:
+    """방송 시작 버튼: 세팅 켜기, 방송 끝, 목록, 항목 추가와 삭제, 옵션, 창 위치 기억, 감시, 백업."""
+    import time
+
+    from . import launcher
+
+    command = args.launch_command or "run"
+    for name, default in (("profile", None), ("overlay", False), ("obs_check", False), ("no_watch", False)):
+        if not hasattr(args, name):  # debutkit launch(하위 명령 없음)는 run과 같게
+            setattr(args, name, default)
+    try:
+        config = launcher.load()
+        if command == "list":
+            for profile in config.profiles:
+                print("\n".join(_launch_profile_text(profile, profile.name == config.active)))
+            if config.protect:
+                print("보호(끄지 않음): " + ", ".join(config.protect))
+            print(f"설정 파일: {launcher.settings.data_path(launcher.DATA)}")
+            return 0
+        if command == "add":
+            try:
+                profile = config.profile(args.profile)
+            except launcher.LauncherError:
+                launcher.put_profile(config, {"name": args.profile})
+                profile = config.profile(args.profile)
+            data = launcher.profile_dict(profile)
+            for target in args.targets:
+                if args.stop:
+                    data["stop"].append(target)
+                else:
+                    data["start"].append({"target": target, "delay": args.delay, "args": args.args or "", "name": args.name or ""})
+            launcher.save(launcher.put_profile(config, data, old_name=profile.name))
+            print("\n".join(_launch_profile_text(config.profile(args.profile), args.profile == config.active)))
+            return 0
+        if command == "remove":
+            profile = config.profile(args.profile)
+            before = len(profile.start) + len(profile.stop)
+            wanted = {target.casefold() for target in args.targets}
+            profile.start = [item for item in profile.start if item.target.casefold() not in wanted and item.label.casefold() not in wanted]
+            profile.stop = [name for name in profile.stop if name.casefold() not in wanted and launcher.process_key(name) not in
+                            {launcher.process_key(target) for target in args.targets}]
+            if len(profile.start) + len(profile.stop) == before:
+                print(f"지울 항목 없음: {', '.join(args.targets)}", file=sys.stderr)
+                return 1
+            launcher.save(config)
+            print("\n".join(_launch_profile_text(profile, profile.name == config.active)))
+            return 0
+        if command == "set":
+            profile = config.profile(args.profile)
+            data = launcher.profile_dict(profile)
+            for key in ("skip_running", "place_running", "watch", "rekill", "restore", "overlay", "obs_check"):
+                if getattr(args, key) is not None:
+                    data[key] = getattr(args, key)
+            if args.rename:
+                data["name"] = args.rename
+            launcher.put_profile(config, data, old_name=profile.name)
+            if args.use:
+                config.active = data["name"]
+            launcher.save(config)
+            print("\n".join(_launch_profile_text(config.profile(data["name"]), data["name"] == config.active)))
+            return 0
+        if command == "copy":
+            launcher.save(launcher.copy_profile(config, args.profile, args.new_name))
+            print(f"세팅 복제: {args.profile} -> {args.new_name}")
+            return 0
+        if command == "delete":
+            launcher.save(launcher.remove_profile(config, args.profile))
+            print(f"세팅 삭제: {args.profile}")
+            return 0
+        if command == "use":
+            config.active = config.profile(args.profile).name
+            launcher.save(config)
+            print(f"기본 세팅: {config.active}")
+            return 0
+        if command == "protect":
+            if args.remove:
+                keys = {launcher.process_key(name) for name in args.names}
+                config.protect = [name for name in config.protect if launcher.process_key(name) not in keys]
+            else:
+                config.protect += [name for name in args.names if launcher.process_key(name) not in {launcher.process_key(p) for p in config.protect}]
+            launcher.save(config)
+            print("보호(끄지 않음): " + (", ".join(config.protect) or "없음") + ". 운영체제, 보안 프로그램, debutkit은 항상 보호")
+            return 0
+        if command == "remember":
+            steps = launcher.remember_windows(config, args.profile)
+            launcher.save(config)
+            print(launcher.summary(steps))
+            return 0
+        if command == "export":
+            Path(args.file).write_text(launcher.export_text(config), encoding="utf-8")
+            print(f"백업 저장: {args.file}")
+            return 0
+        if command == "import":
+            launcher.save(launcher.import_text(Path(args.file).read_text(encoding="utf-8")))
+            print(f"백업 불러옴: {args.file}")
+            return 0
+        if command == "end":
+            steps = launcher.Launcher(config, report=lambda step: print(step.text(), flush=True)).end(args.profile, restore=False if args.no_restore else None)
+            if not steps:
+                print("다시 켤 프로그램 없음")
+            return 0
+        if command == "watch":
+            profile = config.profile(args.profile)
+            if not profile.stop:
+                print("끌 것이 없어 감시할 프로그램 없음", file=sys.stderr)
+                return 1
+            return _launch_watch(profile, config, until_interrupted=True)
+        # run
+        profile = config.profile(args.profile)
+        print(f"방송 시작 버튼: {profile.name}", flush=True)
+        steps = launcher.Launcher(config, report=lambda step: print("  " + step.text(), flush=True)).run(profile.name)
+        if not steps:
+            print("  " + launcher.summary([]))
+        if profile.obs_check or args.obs_check:
+            print("  OBS 연결 확인 중(최대 60초)", flush=True)
+            from .settings import load as load_settings
+
+            port = load_settings().get("obs_port", 4455)
+            ok = launcher.wait_for_port("127.0.0.1", port, 60.0)
+            print(f"  {'OBS 연결 가능' if ok else 'OBS WebSocket 응답 없음: OBS 도구 메뉴의 WebSocket 서버 설정에서 사용 체크'} (포트 {port})")
+        watcher = None
+        if profile.watch and profile.stop and not args.no_watch:
+            watcher = launcher.Watcher(profile, config, lambda text: print(f"[{time.strftime('%H:%M')}] {text}", flush=True)).start()
+        if profile.overlay or args.overlay:
+            print("저장한 설정으로 오버레이 시작(debutkit overlay --saved)", flush=True)
+            try:
+                return main(["overlay", "--saved"])
+            finally:
+                if watcher:
+                    watcher.stop()
+        if watcher:
+            print("꺼 둔 프로그램이 다시 켜지는지 감시 중. 방송이 끝나면 Ctrl+C 후 debutkit launch end", flush=True)
+            return _launch_watch(profile, config, until_interrupted=True, watcher=watcher)
+        return 1 if any(step.state == "failed" for step in steps) else 0
+    except launcher.LauncherError as error:
+        print(str(error), file=sys.stderr)
+        return 1
+    except OSError as error:
+        print(f"설정 파일 읽기, 쓰기 실패: {error}", file=sys.stderr)
+        return 1
+
+
+def _launch_watch(profile: Any, config: Any, *, until_interrupted: bool, watcher: Any = None) -> int:
+    import time
+
+    from . import launcher
+
+    watcher = watcher or launcher.Watcher(profile, config, lambda text: print(f"[{time.strftime('%H:%M')}] {text}", flush=True)).start()
+    if watcher is not None and until_interrupted:
+        print("감시 중: " + ", ".join(profile.stop) + " (끝: Ctrl+C)", flush=True)
+    try:
+        while until_interrupted:
+            time.sleep(0.5)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        watcher.stop()
+    return 0
+
+
 def _settings(args: argparse.Namespace) -> int:
     from . import settings
 
@@ -1099,6 +1274,52 @@ def build_parser() -> argparse.ArgumentParser:
     live_stop = live_sub.add_parser("stop", help="방송 끝내기")
     live_stop.add_argument("--close", action="store_true", help="송출 화면 창도 닫기")
     live.set_defaults(func=_broadcast)
+
+    starts = sub.add_parser("launch", help="방송 시작 버튼: 세팅에 넣은 프로그램, 폴더, 사이트를 차례로 켜고 방해되는 프로그램은 끔. 방송 끝에 다시 켬")
+    starts_sub = starts.add_subparsers(dest="launch_command")
+    launch_run = starts_sub.add_parser("run", help="세팅 켜기(기본): 끌 것을 먼저 끄고 켤 것을 차례로 켬. 꺼 둔 프로그램이 다시 켜지면 알림")
+    launch_run.add_argument("profile", nargs="?", metavar="세팅", help="세팅 이름(기본: launch use로 정한 세팅)")
+    launch_run.add_argument("--overlay", action="store_true", help="켠 뒤 저장한 설정으로 오버레이 시작(debutkit overlay --saved)")
+    launch_run.add_argument("--obs-check", action="store_true", help="켠 뒤 OBS WebSocket 연결 확인")
+    launch_run.add_argument("--no-watch", action="store_true", help="켠 뒤 바로 끝내기(다시 켜짐 감시 안 함)")
+    launch_end = starts_sub.add_parser("end", help="방송 끝: 이번에 꺼 둔 프로그램 다시 켜기")
+    launch_end.add_argument("profile", nargs="?", metavar="세팅")
+    launch_end.add_argument("--no-restore", action="store_true", help="다시 켜지 않고 기록만 지우기")
+    starts_sub.add_parser("list", help="세팅과 항목 보기(* 기본 세팅)")
+    launch_add = starts_sub.add_parser("add", help="켤 것(프로그램, 바로가기, 폴더, 사이트 주소) 또는 --stop 으로 끌 것 추가. 세팅이 없으면 만듦")
+    launch_add.add_argument("profile", metavar="세팅")
+    launch_add.add_argument("targets", nargs="+", metavar="경로나_주소")
+    launch_add.add_argument("--stop", action="store_true", help="끌 것(프로그램 이름 예: Discord.exe, KakaoTalk.exe)으로 추가")
+    launch_add.add_argument("--delay", type=float, default=2.0, metavar="초", help="켠 뒤 다음 항목까지 기다리는 시간(기본 %(default)s초, 무거운 프로그램은 넉넉하게)")
+    launch_add.add_argument("--args", metavar="옵션", help="프로그램 실행 옵션")
+    launch_add.add_argument("--name", metavar="이름", help="표시 이름")
+    launch_remove = starts_sub.add_parser("remove", help="켤 것, 끌 것 지우기(경로, 주소, 표시 이름, 프로그램 이름)")
+    launch_remove.add_argument("profile", metavar="세팅")
+    launch_remove.add_argument("targets", nargs="+", metavar="항목")
+    launch_set = starts_sub.add_parser("set", help="세팅 옵션 바꾸기(지정한 항목만)")
+    launch_set.add_argument("profile", metavar="세팅")
+    launch_set.add_argument("--skip-running", action=argparse.BooleanOptionalAction, default=None, help="이미 켜진 프로그램은 건너뛰기(기본 켬)")
+    launch_set.add_argument("--place-running", action=argparse.BooleanOptionalAction, default=None, help="이미 켜진 프로그램 창도 기억한 자리로 옮기기")
+    launch_set.add_argument("--watch", action=argparse.BooleanOptionalAction, default=None, help="꺼 둔 프로그램이 다시 켜지면 알림(기본 켬)")
+    launch_set.add_argument("--rekill", action=argparse.BooleanOptionalAction, default=None, help="다시 켜지면 다시 끄기")
+    launch_set.add_argument("--restore", action=argparse.BooleanOptionalAction, default=None, help="방송 끝에 꺼 둔 프로그램 다시 켜기(기본 켬)")
+    launch_set.add_argument("--overlay", action=argparse.BooleanOptionalAction, default=None, help="켠 뒤 오버레이 시작")
+    launch_set.add_argument("--obs-check", action=argparse.BooleanOptionalAction, default=None, help="켠 뒤 OBS 연결 확인")
+    launch_set.add_argument("--rename", metavar="새_이름", help="세팅 이름 바꾸기")
+    launch_set.add_argument("--use", action="store_true", help="기본 세팅으로 정하기")
+    launch_copy = starts_sub.add_parser("copy", help="세팅 복제(창 위치 포함)")
+    launch_copy.add_argument("profile", metavar="세팅")
+    launch_copy.add_argument("new_name", metavar="새_이름")
+    starts_sub.add_parser("delete", help="세팅 삭제").add_argument("profile", metavar="세팅")
+    starts_sub.add_parser("use", help="기본 세팅 정하기").add_argument("profile", metavar="세팅")
+    launch_protect = starts_sub.add_parser("protect", help="끄지 않을 프로그램(보호 목록) 추가, --remove 로 빼기")
+    launch_protect.add_argument("names", nargs="*", metavar="프로그램")
+    launch_protect.add_argument("--remove", action="store_true")
+    starts_sub.add_parser("remember", help="지금 켜진 창의 자리와 크기 기억(Windows, 듀얼 모니터 포함)").add_argument("profile", nargs="?", metavar="세팅")
+    starts_sub.add_parser("watch", help="꺼 둔 프로그램이 다시 켜지는지 감시(Ctrl+C까지)").add_argument("profile", nargs="?", metavar="세팅")
+    starts_sub.add_parser("export", help="설정 백업 파일 저장(다른 PC로 옮기기)").add_argument("file", metavar="파일")
+    starts_sub.add_parser("import", help="백업 파일 불러오기(지금 설정을 바꿈)").add_argument("file", metavar="파일")
+    starts.set_defaults(func=_launch)
 
     from .logo import FONTS, LAYOUTS, STYLES, TEMPLATES
     from .logo import PROVIDERS as LOGO_PROVIDERS
