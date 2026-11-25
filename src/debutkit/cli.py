@@ -1361,7 +1361,7 @@ def build_parser() -> argparse.ArgumentParser:
             command.add_argument("--focus", type=float, default=0.5, help="crop일 때 가로 위치 0(왼쪽)에서 1(오른쪽). 캐릭터가 오른쪽이면 0.8 등")
         command.add_argument("--watermark", metavar="그림", help="워터마크 그림(투명 PNG 권장, debutkit logo로 만든 로고 등)")
         command.add_argument("--watermark-position", choices=list(MARK_POSITIONS), default="bottom-right", help="워터마크 위치(기본 %(default)s)")
-        command.add_argument("--watermark-size", type=float, default=18.0, metavar="%", help="결과 폭에 대한 워터마크 폭(기본 %(default)s%%)")
+        command.add_argument("--watermark-size", type=float, default=18.0, metavar="%", help="워터마크 폭, 결과 폭의 %%(기본 %(default)s)")
         command.add_argument("--watermark-opacity", type=float, default=85.0, metavar="%", help="워터마크 불투명도(기본 %(default)s%%)")
         command.set_defaults(func=_clipfx)
 

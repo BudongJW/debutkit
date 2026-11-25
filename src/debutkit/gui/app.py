@@ -1381,7 +1381,7 @@ class Wizard(QMainWindow):
         self.launch_end_button.clicked.connect(self.end_launch)
         edit = QPushButton("세팅 편집")
         edit.clicked.connect(self.edit_launch)
-        self.launch_state = text("방송에 필요한 프로그램, 폴더, 사이트를 한 번에 켜고 메신저, 게임 런처처럼 방해되는 프로그램은 끕니다. "
+        self.launch_state = text("방송에 필요한 프로그램, 폴더, 사이트를 차례로 켜고 메신저, 게임 런처처럼 방해되는 프로그램은 끕니다. "
                                  "세팅 편집에서 목록에 끌어다 놓습니다.", muted=True)
         self._fill_launch_profiles()
         return card(row(self.launch_profiles, self.launch_button, self.launch_end_button, edit), self.launch_state, title="방송 시작 버튼")

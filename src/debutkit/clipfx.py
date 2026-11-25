@@ -36,7 +36,7 @@ class ClipFxError(RuntimeError):
 class Watermark:
     image: Path
     position: str = "bottom-right"
-    size: float = 0.18  # 결과 폭에 대한 그림 폭 비율
+    size: float = 0.18  # 그림 폭(결과 폭의 비율)
     opacity: float = 0.85
 
     def check(self) -> "Watermark":
