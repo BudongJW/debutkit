@@ -6,7 +6,12 @@
   금액이 가장 큰 규칙, ``exact`` 는 금액이 정확히 같은 규칙만. 원으로 환산할 수 없는 단위(Twitch bits, 외화)는 최소 금액 0 규칙만
 - 구독, 멤버십은 선택하면 1회 추첨
 - 추첨은 서버에서 운영체제 난수(``random.SystemRandom``)로 하고 모든 화면이 같은 결과를 표시
-- 결과는 메모리에만 최근 100개 보관(파일로 저장하지 않음). 조작 화면의 최근 결과와 읽을 문장(대본)에 사용
+- 결과는 메모리에만 최근 100개 보관(파일로 저장하지 않음). 조작 화면의 최근 결과와 읽을 문장(대본), 대본 창(``/draw/script``),
+  기록 창(``/draw/log``)에 사용
+- 연출 7가지(카드, 룰렛, 캡슐, 즉석 복권, 티켓, 추첨기, 타로)와 연출별 모양(DESIGNS), 결과 뒤 효과(EFFECTS),
+  상품 이름과 안내 글의 글꼴(FONTS, 함께 배포한 글꼴과 운영체제 기본 글꼴만)과 크기(SIZES)
+- 타로의 오늘의 한마디는 서버가 고른다(스트리머가 넣은 문장, 없으면 기본 문장 ADVICE). 화면은 받은 문장만 표시
+- 대기 중인 추첨이 많으면 방송 화면이 공개 시간을 줄인다(빠른 모드, draw.js의 FAST_QUEUE)
 """
 
 from __future__ import annotations
@@ -22,7 +27,30 @@ from typing import Any, Callable
 from . import settings
 from .vts import WON_PER_UNIT
 
-STYLES = {"card": "카드 뒤집기", "wheel": "룰렛"}
+STYLES = {"card": "카드 뒤집기", "wheel": "룰렛", "capsule": "캡슐 뽑기", "scratch": "즉석 복권", "ticket": "티켓 출력", "drum": "추첨기",
+          "tarot": "타로"}
+#: 연출별 모양. 첫 항목이 기본(저장한 모양이 연출에 없으면 기본)
+DESIGNS = {
+    "card": {"basic": "기본"},
+    "wheel": {"basic": "기본"},
+    "capsule": {"round": "둥근 유리 돔", "box": "네모 유리창", "night": "검정 머신"},
+    "scratch": {"classic": "은박, 깔끔하게", "rough": "은박, 거칠게", "night": "검정 복권"},
+    "ticket": {"stub": "입장권", "receipt": "영수증", "coupon": "교환권"},
+    "drum": {"classic": "핑크 팔각", "wood": "나무", "night": "검정"},
+    "tarot": {"night": "밤하늘", "sun": "해", "pink": "핑크 문양"},
+}
+#: 결과 판이 나올 때의 효과(모두 꽝이면 생략)
+EFFECTS = {"none": "없음", "confetti": "종이 조각", "streamers": "색 테이프", "fireworks": "불꽃놀이", "spotlight": "무대 조명", "hearts": "하트",
+           "stars": "반짝이는 별"}
+#: 상품 이름, 안내 글(하단 띠, 한마디) 글꼴. 함께 배포한 글꼴 2가지와 Windows 기본 글꼴(macOS는 비슷한 글꼴로 대신)
+FONTS = {"display": "Black Han Sans(굵은 제목)", "text": "Pretendard(본문)", "gothic": "맑은 고딕", "serif": "바탕(명조)", "gungsuh": "궁서"}
+SIZES = {"small": "작게", "medium": "보통", "large": "크게"}
+#: 타로 오늘의 한마디 기본 문장(스트리머가 문장을 넣지 않은 경우)
+ADVICE = ("작은 일부터 하나씩 해 보기 좋은 날", "물 한 잔 마시고 기지개 한 번", "오늘의 행운은 채팅창에 있음", "웃으면 반은 이미 성공",
+          "미뤄 둔 연락 하나 하기 좋은 날", "평소보다 조금 더 대담하게", "좋아하는 노래가 기분을 바꿔 줌", "천천히 가도 결국 도착함",
+          "오늘 고른 선택이 정답", "고맙다는 말이 두 배로 돌아오는 날", "충분히 잘하고 있음", "쉬는 것도 실력")
+MAX_ADVICE = 30
+MAX_ADVICE_LENGTH = 40
 POSITIONS = {"center": "아래 가운데", "left": "왼쪽 아래", "right": "오른쪽 아래"}
 DEFAULT_TITLE = "후원 추첨"
 MAX_TITLE = 20
@@ -70,6 +98,14 @@ class Config:
     scale: int = 100
     sound: bool = False  # 효과음(브라우저에서 합성, OBS 오디오 제어를 켠 경우 방송에 나감)
     show_percent: bool = False  # 방송 화면에 확률 표시
+    design: str = "basic"  # 연출별 모양(DESIGNS)
+    effect: str = "none"  # 결과 뒤 효과(EFFECTS)
+    name_font: str = "display"  # 상품 이름 글꼴(FONTS)
+    name_size: str = "medium"
+    caption_font: str = "display"  # 안내 글(하단 띠, 한마디) 글꼴
+    caption_size: str = "medium"
+    advice: bool = True  # 타로 오늘의 한마디
+    advice_lines: list[str] = field(default_factory=list)  # 스트리머가 넣은 한마디(비면 기본 문장)
 
     def percent(self, prize: Prize) -> float:
         total = sum(item.weight for item in self.prizes)
@@ -84,13 +120,19 @@ class Config:
         return {"enabled": self.enabled, "prizes": [self.entry(prize) for prize in self.prizes],
                 "rules": [{"min_won": rule.min_won, "draws": rule.draws} for rule in self.rules], "exact": self.exact,
                 "members": self.members, "style": self.style, "seconds": self.seconds, "title": self.title, "position": self.position,
-                "scale": self.scale, "sound": self.sound, "show_percent": self.show_percent, "styles": STYLES, "positions": POSITIONS}
+                "scale": self.scale, "sound": self.sound, "show_percent": self.show_percent, "design": self.design, "effect": self.effect,
+                "name_font": self.name_font, "name_size": self.name_size, "caption_font": self.caption_font, "caption_size": self.caption_size,
+                "advice": self.advice, "advice_lines": list(self.advice_lines), "advice_example": (self.advice_lines or list(ADVICE))[0],
+                "styles": STYLES, "positions": POSITIONS, "designs": DESIGNS, "effects": EFFECTS, "fonts": FONTS, "sizes": SIZES}
 
     def to_settings(self) -> dict[str, Any]:
         return {"draw_enabled": self.enabled, "draw_prizes": [f"{prize.weight:g}:{prize.name}" for prize in self.prizes],
                 "draw_rules": [f"{rule.min_won}:{rule.draws}" for rule in self.rules], "draw_exact": self.exact,
                 "draw_members": self.members, "draw_style": self.style, "draw_seconds": self.seconds, "draw_title": self.title,
-                "draw_position": self.position, "draw_scale": self.scale, "draw_sound": self.sound, "draw_show_percent": self.show_percent}
+                "draw_position": self.position, "draw_scale": self.scale, "draw_sound": self.sound, "draw_show_percent": self.show_percent,
+                "draw_design": self.design, "draw_effect": self.effect, "draw_name_font": self.name_font, "draw_name_size": self.name_size,
+                "draw_caption_font": self.caption_font, "draw_caption_size": self.caption_size, "draw_advice": self.advice,
+                "draw_advice_lines": list(self.advice_lines)}
 
 
 # --------------------------------------------------------------------------- 설정 읽기, 확인
@@ -127,20 +169,50 @@ def parse_rules(values: Any) -> list[Rule]:
     return [Rule(won, count) for won, count in sorted(found.items(), reverse=True)][:MAX_RULES]
 
 
+def parse_advice(values: Any) -> list[str]:
+    """저장 설정의 한마디 목록. 빈 줄, 너무 긴 줄, 겹친 줄은 건너뛴다."""
+    found: list[str] = []
+    for item in values or []:
+        line = item.strip() if isinstance(item, str) else ""
+        if line and len(line) <= MAX_ADVICE_LENGTH and line not in found:
+            found.append(line)
+    return found[:MAX_ADVICE]
+
+
+def design_for(style: str, value: Any) -> str:
+    """연출에 있는 모양이면 그대로, 아니면 그 연출의 기본 모양."""
+    designs = DESIGNS.get(style, DESIGNS["card"])
+    return value if isinstance(value, str) and value in designs else next(iter(designs))
+
+
+def _choice(value: Any, choices: dict[str, str], default: str) -> str:
+    return value if isinstance(value, str) and value in choices else default
+
+
+def _look(saved: dict[str, Any], style: str) -> dict[str, Any]:
+    """저장 설정의 모양, 효과, 글꼴, 한마디. 모르는 값은 기본값."""
+    return {"design": design_for(style, saved.get("draw_design")), "effect": _choice(saved.get("draw_effect"), EFFECTS, "none"),
+            "name_font": _choice(saved.get("draw_name_font"), FONTS, "display"), "name_size": _choice(saved.get("draw_name_size"), SIZES, "medium"),
+            "caption_font": _choice(saved.get("draw_caption_font"), FONTS, "display"),
+            "caption_size": _choice(saved.get("draw_caption_size"), SIZES, "medium"), "advice": bool(saved.get("draw_advice", True)),
+            "advice_lines": parse_advice(saved.get("draw_advice_lines"))}
+
+
 def load_config(saved: dict[str, Any] | None = None) -> Config:
     """저장한 추첨 설정. 상품, 규칙을 저장하지 않았으면 예시(사용 꺼짐)."""
     saved = settings.load() if saved is None else saved
+    style = saved.get("draw_style") if saved.get("draw_style") in STYLES else "card"
     prizes = parse_prizes(saved.get("draw_prizes")) or parse_prizes(DEFAULT_PRIZES)
     rules = parse_rules(saved.get("draw_rules")) or parse_rules(DEFAULT_RULES)
     seconds = saved.get("draw_seconds", 8)
     scale = saved.get("draw_scale", 100)
     title = str(saved.get("draw_title") or "").strip()[:MAX_TITLE] or DEFAULT_TITLE
     return Config(enabled=bool(saved.get("draw_enabled", False)), prizes=prizes, rules=rules, exact=bool(saved.get("draw_exact", False)),
-                  members=bool(saved.get("draw_members", False)), style=saved.get("draw_style") if saved.get("draw_style") in STYLES else "card",
+                  members=bool(saved.get("draw_members", False)), style=style,
                   seconds=seconds if isinstance(seconds, int) and SECONDS[0] <= seconds <= SECONDS[1] else 8, title=title,
                   position=saved.get("draw_position") if saved.get("draw_position") in POSITIONS else "center",
                   scale=scale if isinstance(scale, int) and SCALE[0] <= scale <= SCALE[1] else 100,
-                  sound=bool(saved.get("draw_sound", False)), show_percent=bool(saved.get("draw_show_percent", False)))
+                  sound=bool(saved.get("draw_sound", False)), show_percent=bool(saved.get("draw_show_percent", False)), **_look(saved, style))
 
 
 def _number(value: Any) -> float | None:
@@ -152,8 +224,15 @@ def _number(value: Any) -> float | None:
         return None
 
 
+def _listed(choices: dict[str, str]) -> str:
+    return ", ".join(f"{key}({label})" for key, label in choices.items())
+
+
 def from_request(data: Any) -> Config:
-    """조작 화면, 명령줄에서 받은 설정 확인. 틀리면 DrawError(한국어 안내)."""
+    """조작 화면, 명령줄에서 받은 설정 확인. 틀리면 DrawError(한국어 안내).
+
+    모양, 효과, 글꼴, 한마디 항목이 빠져 있으면 저장한 값을 유지한다(이 항목을 모르는 명령줄에서 다른 설정을 바꿔도 지워지지 않게).
+    """
     if not isinstance(data, dict):
         raise DrawError("설정 형식이 올바르지 않음")
     prizes: list[Prize] = []
@@ -191,8 +270,8 @@ def from_request(data: Any) -> Config:
             raise DrawError(f"같은 금액의 규칙이 2개: {int(won):,}원")
         rules.append(Rule(int(won), int(draws)))
     style = data.get("style", "card")
-    if style not in STYLES:
-        raise DrawError("연출은 card(카드 뒤집기) 또는 wheel(룰렛)")
+    if not isinstance(style, str) or style not in STYLES:
+        raise DrawError(f"연출은 {_listed(STYLES)}")
     seconds = _number(data.get("seconds", 8))
     if seconds is None or seconds != int(seconds) or not SECONDS[0] <= seconds <= SECONDS[1]:
         raise DrawError(f"표시 시간은 {SECONDS[0]}초에서 {SECONDS[1]}초 사이")
@@ -208,7 +287,49 @@ def from_request(data: Any) -> Config:
     return Config(enabled=bool(data.get("enabled", False)), prizes=prizes, rules=sorted(rules, key=lambda rule: rule.min_won, reverse=True),
                   exact=bool(data.get("exact", False)), members=bool(data.get("members", False)), style=style, seconds=int(seconds),
                   title=title, position=position, scale=int(scale), sound=bool(data.get("sound", False)),
-                  show_percent=bool(data.get("show_percent", False)))
+                  show_percent=bool(data.get("show_percent", False)), **_look_request(data, style))
+
+
+_LOOK_KEYS = ("design", "effect", "name_font", "name_size", "caption_font", "caption_size", "advice", "advice_lines")
+
+
+def _look_request(data: dict[str, Any], style: str) -> dict[str, Any]:
+    """모양, 효과, 글꼴, 한마디 확인. 빠진 항목은 저장한 값(모양은 연출에 없으면 그 연출의 기본 모양)."""
+    kept = _look(settings.load(), style) if any(key not in data for key in _LOOK_KEYS) else {}
+    designs = DESIGNS[style]
+    design = data.get("design", kept.get("design"))
+    if design in ("", None):
+        design = next(iter(designs))
+    if not isinstance(design, str) or design not in designs:
+        raise DrawError(f"{STYLES[style]} 모양은 {_listed(designs)}")
+    effect = data.get("effect", kept.get("effect"))
+    if not isinstance(effect, str) or effect not in EFFECTS:
+        raise DrawError(f"효과는 {_listed(EFFECTS)}")
+    found: dict[str, Any] = {"design": design, "effect": effect}
+    for key, label in (("name_font", "상품 이름 글꼴"), ("caption_font", "안내 글꼴")):
+        value = data.get(key, kept.get(key))
+        if not isinstance(value, str) or value not in FONTS:
+            raise DrawError(f"{label}은 {_listed(FONTS)}")
+        found[key] = value
+    for key, label in (("name_size", "상품 이름 크기"), ("caption_size", "안내 글 크기")):
+        value = data.get(key, kept.get(key))
+        if not isinstance(value, str) or value not in SIZES:
+            raise DrawError(f"{label}는 {_listed(SIZES)}")
+        found[key] = value
+    lines = data.get("advice_lines", kept.get("advice_lines"))
+    if isinstance(lines, str):
+        lines = lines.splitlines()
+    if not isinstance(lines, list) or not all(isinstance(line, str) for line in lines):
+        raise DrawError("한마디는 문장 목록")
+    lines = list(dict.fromkeys(line.strip() for line in lines if line.strip()))
+    if len(lines) > MAX_ADVICE:
+        raise DrawError(f"한마디는 {MAX_ADVICE}개까지")
+    for line in lines:
+        if len(line) > MAX_ADVICE_LENGTH:
+            raise DrawError(f"한마디는 한 줄에 {MAX_ADVICE_LENGTH}자 이내: {line[:10]}")
+    found["advice_lines"] = lines
+    found["advice"] = bool(data.get("advice", kept.get("advice", True)))
+    return found
 
 
 def save_config(config: Config) -> Config:
@@ -252,11 +373,19 @@ def amount_text(kind: str, amount: float, unit: str) -> str:
 
 
 def script(result: dict[str, Any]) -> str:
-    """읽을 문장(대본): 이름, 후원, 결과(같은 상품은 횟수로 묶음)."""
+    """읽을 문장(대본): 이름, 후원, 결과(같은 상품은 횟수로 묶음), 타로의 오늘의 한마디."""
     counts = Counter(item["name"] for item in result["draws"])
     summary = ", ".join(f"{name} {count}회" if count > 1 else name for name, count in counts.items())
     thanks = "구독 감사합니다" if result["kind"] == "member" else f"{amount_text(result['kind'], result['amount'], result['unit'])} 후원 감사합니다"
-    return f"{result['name']} 님 {thanks}. 추첨 결과 {summary}"
+    advice = f". 오늘의 한마디 {result['advice']}" if result.get("advice") else ""
+    return f"{result['name']} 님 {thanks}. 추첨 결과 {summary}{advice}"
+
+
+def pick_advice(config: Config, rng: random.Random) -> str:
+    """타로 연출의 오늘의 한마디. 한마디를 끄거나 다른 연출이면 빈 문자열."""
+    if config.style != "tarot" or not config.advice:
+        return ""
+    return rng.choice(config.advice_lines or list(ADVICE))
 
 
 class DrawState:
@@ -278,6 +407,8 @@ class DrawState:
                 "kind": kind, "amount": amount, "unit": unit, "count": count, "draws": pick(config, count, self._rng),
                 "prizes": [config.entry(prize) for prize in config.prizes], "style": config.style, "seconds": config.seconds,
                 "title": config.title, "position": config.position, "scale": config.scale, "sound": config.sound, "show_percent": config.show_percent,
+                "design": config.design, "effect": config.effect, "name_font": config.name_font, "name_size": config.name_size,
+                "caption_font": config.caption_font, "caption_size": config.caption_size, "advice": pick_advice(config, self._rng),
             }
             result["script"] = script(result)
             self.current = result

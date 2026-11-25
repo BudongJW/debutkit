@@ -8,7 +8,8 @@
 - ``/live``    캐릭터 화면, 설정 화면이 받는 말하기 상태, 얼굴 추적 값, 동작 실행 요청 (Server-Sent Events 하나, ``/voice`` 와 ``/tracking`` 은 각각)
 - ``/motion/list`` 등록한 동작(VRMA, FBX, GLB)과 기본 동작. ``POST /motion`` 으로 동작 실행(``{"id": 동작}``, 멈춤은 ``{"stop": true}``)
 - ``/draw``     후원 추첨 연출(평소 투명). ``/draw/control`` 조작 화면(설정, 시험 추첨, 최근 결과. OBS 독으로도 사용)
-  ``/draw/config``, ``/draw/history`` 조회, ``POST /draw/config`` 저장, ``POST /draw/test`` 시험 추첨, ``POST /draw/clear`` 최근 결과 비우기
+  ``/draw/config``, ``/draw/history`` 조회, ``POST /draw/config`` 저장, ``POST /draw/test`` 시험 추첨, ``POST /draw/clear`` 최근 결과 비우기.
+  ``/draw/script`` 대본 창(큰 글씨), ``/draw/log`` 기록 창(별도 창이나 OBS 독)
 - ``/raffle``   시청자 참여 추첨 상태와 명단. ``POST /raffle/start``, ``/raffle/stop``, ``/raffle/clear``, ``/raffle/add``, ``/raffle/remove``,
   ``/raffle/draw`` (``{"count": 3, "mode": "pick"}`` 또는 ``{"mode": "order"}``)
 - ``/live?feeds=voice,tracking,motion,draw,raffle`` 처럼 받을 항목을 고를 수 있다(기본은 draw, raffle 제외)
@@ -74,7 +75,8 @@ from .voice import VoiceState
 
 STATIC = {"/": "index.html", "/chat": "chat.html", "/alerts": "alerts.html", "/overlay.css": "overlay.css", "/overlay.js": "overlay.js",
           "/favicon.svg": "favicon.svg", "/character": "character.html", "/character.js": "character.js", "/tracker": "tracker.html", "/tracker.js": "tracker.js",
-          "/draw": "draw.html", "/draw.js": "draw.js", "/draw.css": "draw.css", "/draw/control": "draw-control.html", "/phone": "phone.html",
+          "/draw": "draw.html", "/draw.js": "draw.js", "/draw-props.js": "draw-props.js", "/draw.css": "draw.css", "/draw/control": "draw-control.html",
+          "/draw/script": "draw-script.html", "/draw/log": "draw-log.html", "/phone": "phone.html",
           "/camera/view": "camera-view.html", "/camera-view.js": "camera-view.js", "/program": "program.html", "/broadcast/control": "broadcast.html", "/logo": "logo.html"}
 #: 외부에서 받은 SVG를 직접 열 때도 스크립트, 외부 연결이 동작하지 않게(logo.py에서 이미 정리)
 SVG_POLICY = "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:"

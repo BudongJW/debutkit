@@ -53,6 +53,14 @@ FIELDS: dict[str, type] = {
     "draw_scale": int,
     "draw_sound": bool,
     "draw_show_percent": bool,
+    "draw_design": str,  # 연출별 모양
+    "draw_effect": str,  # 결과 뒤 효과
+    "draw_name_font": str,  # 상품 이름 글꼴, 크기
+    "draw_name_size": str,
+    "draw_caption_font": str,  # 안내 글(하단 띠, 한마디) 글꼴, 크기
+    "draw_caption_size": str,
+    "draw_advice": bool,  # 타로 오늘의 한마디
+    "draw_advice_lines": list,
     "chat_commands": bool,  # 스트리머, 매니저 채팅 명령(commands.py)
     "raffle_command": str,  # 시청자 참여 추첨 참가 명령
     "raffle_title": str,

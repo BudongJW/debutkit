@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>debutkit 추첨 기록</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <style>
+    /* 후원 추첨 기록 창(따로 띄우는 창이나 OBS 독). 결과는 오버레이 메모리의 최근 100개(파일로 저장하지 않음) */
+    :root { color-scheme: light; --bg: #ffffff; --panel: #faf7f5; --line: #e3dfdb; --text: #1e2327; --dim: #5b6670; --gold: #b58500; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; }
+    header { display: flex; align-items: center; gap: 10px; padding: 10px 18px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+    header img { width: 22px; height: 22px; }
+    header h1 { font-size: 15px; margin: 0 auto 0 0; }
+    label.check { display: flex; gap: 6px; align-items: center; font-weight: 600; font-size: 13px; }
+    button { background: #fff; color: var(--text); border: 1px solid #c9c3bd; border-radius: 3px; padding: 3px 9px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+    button:hover { border-color: var(--text); }
+    main { padding: 14px 18px 40px; }
+    h2 { font-size: 14px; margin: 0 0 6px; }
+    .state { color: var(--dim); font-size: 13px; }
+    .state.error { color: #b3261e; }
+    .totals { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 18px; }
+    .chip { background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 0 10px; font-size: 13px; white-space: nowrap; }
+    .chip.rare { border-color: #e8c34a; background: #fff6cc; font-weight: 700; }
+    .chip.miss { color: var(--dim); }
+    .chip b { margin-left: 4px; font-variant-numeric: tabular-nums; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 6px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { color: var(--dim); font-weight: 600; font-size: 12px; white-space: nowrap; position: sticky; top: 0; background: var(--bg); }
+    td.time, td.num { white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--dim); }
+    td.who { font-weight: 700; }
+    td.who small { display: block; font-weight: 400; color: var(--dim); }
+    td .chips { display: flex; flex-wrap: wrap; gap: 4px; }
+    tr.test td.who::after { content: " 시험"; color: var(--gold); font-size: 12px; }
+    .empty { color: var(--dim); padding: 18px 0; }
+  </style>
+</head>
+<body>
+<header>
+  <img src="/favicon.svg" alt="">
+  <h1>추첨 기록</h1>
+  <label class="check"><input type="checkbox" id="hide-test" checked> 시험 추첨 빼기</label>
+  <span class="state" id="state"></span>
+</header>
+<main>
+  <h2>상품별 합계</h2>
+  <div class="totals" id="totals"></div>
+  <table>
+    <thead><tr><th>시간</th><th>후원자</th><th>금액</th><th>횟수</th><th>결과</th><th></th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+  <p class="empty" id="empty" hidden>아직 추첨 결과가 없습니다.</p>
+</main>
+<script>
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const el = (tag, className, text) => {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  };
+  const PLATFORMS = { chzzk: "치지직", soop: "SOOP", twitch: "Twitch", youtube: "YouTube", demo: "시험" };
+  let results = [];
+
+  function amountText(result) {
+    if (result.kind === "member") return "구독";
+    const count = Number(result.amount).toLocaleString("ko-KR");
+    if (result.unit === "원") return `${count}원`;
+    if (result.unit === "별풍선" || result.unit === "애드벌룬") return `${result.unit} ${count}개`;
+    return `${count} ${result.unit}`.trim();
+  }
+
+  function counted(draws) {  // 같은 상품은 횟수로 묶고 희귀, 일반, 꽝 순서
+    const found = new Map();
+    for (const item of draws) {
+      const entry = found.get(item.name) || { name: item.name, rare: item.rare, miss: item.miss, count: 0 };
+      entry.count += 1;
+      found.set(item.name, entry);
+    }
+    const rank = (item) => (item.rare ? 0 : item.miss ? 2 : 1);
+    return [...found.values()].sort((a, b) => rank(a) - rank(b) || b.count - a.count);
+  }
+
+  function chip(item, always) {  // always: 합계는 1회도 표시
+    const node = el("span", `chip${item.rare ? " rare" : item.miss ? " miss" : ""}`, item.name);
+    if (always || item.count > 1) node.appendChild(el("b", "", `${item.count}회`));
+    return node;
+  }
+
+  async function copy(text, button) {
+    try { await navigator.clipboard.writeText(text); button.textContent = "복사됨"; }
+    catch { button.textContent = "복사 실패"; }
+    setTimeout(() => (button.textContent = "대본 복사"), 1500);
+  }
+
+  function render() {
+    const shown = $("hide-test").checked ? results.filter((result) => !result.test) : results;
+    $("totals").replaceChildren(...counted(shown.flatMap((result) => result.draws)).map((item) => chip(item, true)));
+    $("rows").replaceChildren(...shown.map((result) => {
+      const row = el("tr", result.test ? "test" : "");
+      const at = new Date(result.time * 1000);
+      const time = [at.getHours(), at.getMinutes(), at.getSeconds()].map((part) => String(part).padStart(2, "0")).join(":");
+      const who = el("td", "who", result.name);
+      who.appendChild(el("small", "", PLATFORMS[result.platform] || result.platform));
+      const chips = el("div", "chips");
+      chips.append(...counted(result.draws).map((item) => chip(item, false)));
+      const drawn = el("td");
+      drawn.appendChild(chips);
+      const action = el("td");
+      const button = el("button", "", "대본 복사");
+      button.addEventListener("click", () => copy(result.script, button));
+      action.appendChild(button);
+      row.append(el("td", "time", time), who, el("td", "num", amountText(result)), el("td", "num", `${result.count}회`), drawn, action);
+      return row;
+    }));
+    $("empty").hidden = shown.length > 0;
+    $("state").textContent = `${shown.length}건(최근 100건까지, 파일로 저장하지 않음)`;
+    $("state").classList.remove("error");
+  }
+
+  // 2초마다 확인(연결을 계속 열어 두지 않음). 바뀐 경우에만 다시 그림
+  let mark = "";
+  async function refresh() {
+    try {
+      const data = await (await fetch("/draw/history", { cache: "no-store" })).json();
+      const top = data.results[0];
+      const next = `${data.results.length}:${top ? `${top.seq}:${top.time}` : ""}`;
+      if (next !== mark) {
+        mark = next;
+        results = data.results;
+        render();
+      }
+    } catch (error) {
+      $("state").textContent = "오버레이에 연결하지 못함(오버레이 실행 확인)";
+      $("state").classList.add("error");
+    }
+  }
+  $("hide-test").addEventListener("change", render);
+  refresh();
+  setInterval(refresh, 2000);
+</script>
+</body>
+</html>

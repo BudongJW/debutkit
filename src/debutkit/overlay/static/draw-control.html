@@ -39,6 +39,7 @@
     td.act button { white-space: nowrap; }
     label.check { display: flex; gap: 8px; align-items: center; font-weight: 600; }
     select, input[type=number] { padding: 5px 7px; border: 1px solid #c9c3bd; border-radius: 3px; font: inherit; background: #fff; }
+    textarea { width: 100%; margin-top: 8px; padding: 6px 8px; border: 1px solid #c9c3bd; border-radius: 3px; font: inherit; font-size: 14px; resize: vertical; }
     .state { font-size: 13px; color: var(--dim); }
     .state.error { color: #b3261e; }
     .preview { position: relative; height: 0; padding-top: 56.25%; margin-top: 10px; border-radius: 3px; overflow: hidden;
@@ -69,7 +70,7 @@
   <a href="/">오버레이 설정 화면</a>
 </header>
 <main>
-  <p class="lead">후원 추첨은 후원이 오면 상품표에서 확률대로 뽑아 방송 화면에 카드 뒤집기 또는 룰렛으로 표시합니다. 시청자 참여 추첨은 채팅으로 참가자를 모아 당첨자를 뽑거나 순서를 정합니다. 두 추첨 모두 이 PC의 debutkit이 하며 결과와 명단은 파일로 저장하지 않습니다.</p>
+  <p class="lead">후원 추첨은 후원이 오면 상품표에서 확률대로 뽑아 방송 화면에 카드 뒤집기, 룰렛, 캡슐 뽑기, 즉석 복권, 티켓 출력, 추첨기, 타로 중 고른 연출로 표시합니다. 시청자 참여 추첨은 채팅으로 참가자를 모아 당첨자를 뽑거나 순서를 정합니다. 두 추첨 모두 이 PC의 debutkit이 하며 결과와 명단은 파일로 저장하지 않습니다.</p>
   <div class="grid">
     <section>
       <h2>방송 화면</h2>
@@ -77,6 +78,23 @@
       <p class="hint">OBS 브라우저 소스로 추가합니다. 권장 크기 1920x1080. 평소에는 투명하고 추첨할 때만 나타납니다. <code>debutkit scenes</code>로 만든 장면에는 포함되어 있습니다.</p>
       <div class="row"><button class="secondary small" id="preview-toggle">미리보기 켜기</button></div>
       <div class="preview" id="preview" hidden><iframe id="preview-frame" title="후원 추첨 미리보기"></iframe></div>
+      <h3>연출 미리보기</h3>
+      <div class="row">
+        <select id="sample-count" aria-label="미리보기 추첨 횟수">
+          <option value="1">1회</option><option value="3" selected>3회</option><option value="11">11회</option><option value="30">30회</option>
+        </select>
+        <select id="sample-result" aria-label="미리보기 결과">
+          <option value="">결과 섞어서</option><option value="rare">희귀만</option><option value="normal">일반만</option><option value="miss">꽝만</option>
+        </select>
+        <select id="sample-bg" aria-label="미리보기 배경"><option value="">어두운 배경</option><option value="light">밝은 배경</option></select>
+      </div>
+      <div class="row">
+        <button class="secondary small" id="sample-toggle">미리보기 켜기</button>
+        <button class="secondary small" id="sample-replay" hidden>다시 보기</button>
+        <a class="link" id="sample-open" href="/draw?sample=card" target="_blank" rel="noopener">새 창에서 보기</a>
+      </div>
+      <div class="preview" id="sample-preview" hidden><iframe id="sample-frame" title="연출 미리보기"></iframe></div>
+      <p class="hint">설정 칸에서 고른 연출, 모양, 효과, 글꼴을 저장하기 전에 이 PC에서만 보여 줍니다(방송에 나가지 않음). 상품표는 저장한 값을 사용합니다.</p>
       <h3>OBS 안에서 조작</h3>
       <div class="url"><input id="control-url" readonly aria-label="조작 화면 주소"><button data-copy="control-url">복사</button></div>
       <p class="hint">OBS 독 메뉴의 사용자 지정 브라우저 독에 이 주소를 넣으면 OBS 안에서 이 화면을 사용할 수 있습니다.</p>
@@ -109,8 +127,26 @@
       <h3>연출</h3>
       <div class="row">
         <select id="style" aria-label="연출"></select>
+        <select id="design" aria-label="모양"></select>
         <label>결과 표시 시간 <input id="seconds" type="number" min="3" max="60" step="1" style="width:72px">초</label>
       </div>
+      <div class="row">
+        <label>결과 뒤 효과 <select id="effect"></select></label>
+      </div>
+      <div class="row">
+        <label>상품 이름 <select id="name-font" aria-label="상품 이름 글꼴"></select></label>
+        <select id="name-size" aria-label="상품 이름 크기"></select>
+      </div>
+      <div class="row">
+        <label>안내 글 <select id="caption-font" aria-label="안내 글 글꼴"></select></label>
+        <select id="caption-size" aria-label="안내 글 크기"></select>
+      </div>
+      <p class="hint">모양은 연출마다 다릅니다. 효과는 결과 판이 나올 때 한 번 나오며 결과가 모두 꽝이면 생략합니다. 안내 글은 하단 띠의 추첨 이름과 후원자, 타로의 오늘의 한마디입니다. 맑은 고딕, 바탕, 궁서는 Windows 기본 글꼴입니다.</p>
+      <div class="row">
+        <label class="check"><input type="checkbox" id="advice"> 타로 오늘의 한마디</label>
+      </div>
+      <textarea id="advice-lines" rows="3" maxlength="1300" placeholder="한 줄에 한 문장(최대 30개, 40자 이내). 비우면 기본 문장" aria-label="오늘의 한마디 문장"></textarea>
+      <p class="hint">타로 연출에서 결과 판 아래에 한 문장을 골라 보여 주고 대본에도 넣습니다.</p>
       <div class="row">
         <label>추첨 이름 <input id="title" maxlength="20" style="width:170px" placeholder="후원 추첨"></label>
       </div>
@@ -123,11 +159,6 @@
         <label class="check"><input type="checkbox" id="show-percent"> 방송 화면에 확률 표시</label>
       </div>
       <p class="hint">추첨 이름은 하단 띠에 표시합니다(예: 벌칙 룰렛). 크기는 1920x1080 기준 100%입니다. 효과음은 OBS 브라우저 소스 속성의 OBS 오디오 제어를 켠 경우 방송에 나갑니다.</p>
-      <div class="row">
-        <a class="link" href="/draw?sample=card&amp;count=3" target="_blank" rel="noopener">카드 미리보기</a>
-        <a class="link" href="/draw?sample=wheel" target="_blank" rel="noopener">룰렛 미리보기</a>
-        <span class="hint" style="margin:0">저장한 설정으로 이 PC에서만 표시(방송에 나가지 않음)</span>
-      </div>
       <div class="row"><button id="save">저장</button><span class="state" id="save-state"></span></div>
     </section>
 
@@ -166,6 +197,17 @@
       <ol class="entries" id="raffle-entries"></ol>
     </section>
 
+    <section>
+      <h2>대본 창, 기록 창</h2>
+      <div class="url"><input id="script-url" readonly aria-label="대본 창 주소"><button data-copy="script-url">복사</button></div>
+      <div class="url"><input id="log-url" readonly aria-label="기록 창 주소"><button data-copy="log-url">복사</button></div>
+      <div class="row">
+        <button class="secondary" id="open-script">대본 창 열기</button>
+        <button class="secondary" id="open-log">기록 창 열기</button>
+      </div>
+      <p class="hint">대본 창은 최근 결과의 읽을 문장을 큰 글씨로, 기록 창은 최근 결과 목록과 상품별 합계를 보여 줍니다. 새 결과가 오면 바로 바뀝니다. OBS 사용자 지정 브라우저 독에도 넣을 수 있습니다.</p>
+    </section>
+
     <section class="wide">
       <h2>최근 결과</h2>
       <div class="row"><button class="secondary small" id="clear">목록 비우기</button><span class="state" id="results-state"></span></div>
@@ -188,6 +230,11 @@
 
   $("draw-url").value = `${location.origin}/draw`;
   $("control-url").value = `${location.origin}/draw/control`;
+  $("script-url").value = `${location.origin}/draw/script`;
+  $("log-url").value = `${location.origin}/draw/log`;
+  // 대본 창, 기록 창: 따로 띄우는 작은 창(창 이름이 같으면 이미 연 창을 다시 사용)
+  $("open-script").addEventListener("click", () => window.open("/draw/script", "debutkit-draw-script", "width=760,height=560"));
+  $("open-log").addEventListener("click", () => window.open("/draw/log", "debutkit-draw-log", "width=900,height=680"));
   // 미리보기는 필요할 때만 연다(방송 화면처럼 연결을 하나 쓰므로. 브라우저의 같은 주소 동시 연결 수 제한은 OBS 소스와 공유)
   const fit = () => ($("preview-frame").style.transform = `scale(${$("preview").clientWidth / 1920})`);
   window.addEventListener("resize", fit);
@@ -261,30 +308,46 @@
     return row;
   }
 
+  const options = (id, choices, value) => {
+    $(id).replaceChildren(...Object.entries(choices).map(([key, label]) => {
+      const option = el("option", "", label);
+      option.value = key;
+      return option;
+    }));
+    if (value in choices) $(id).value = value;
+  };
+  let designs = {};
+  // 연출을 바꾸면 그 연출의 모양 목록으로(같은 이름의 모양이 있으면 유지)
+  function designUpdate(value) {
+    const choices = designs[$("style").value] || {};
+    options("design", choices, value in choices ? value : Object.keys(choices)[0]);
+    $("design").disabled = Object.keys(choices).length < 2;
+  }
+
   function fill(config) {
     $("enabled").checked = config.enabled;
     $("prizes").replaceChildren(...config.prizes.map(prizeRow));
     $("rules").replaceChildren(...[...config.rules].reverse().map(ruleRow));
     $("exact").value = config.exact ? "1" : "";
     $("members").checked = config.members;
-    $("style").replaceChildren(...Object.entries(config.styles).map(([value, label]) => {
-      const option = el("option", "", label);
-      option.value = value;
-      return option;
-    }));
-    $("style").value = config.style;
+    designs = config.designs || {};
+    options("style", config.styles, config.style);
+    designUpdate(config.design);
     $("seconds").value = config.seconds;
     $("title").value = config.title;
-    $("position").replaceChildren(...Object.entries(config.positions).map(([value, label]) => {
-      const option = el("option", "", label);
-      option.value = value;
-      return option;
-    }));
-    $("position").value = config.position;
+    options("position", config.positions, config.position);
     $("scale").value = config.scale;
     $("sound").checked = config.sound;
     $("show-percent").checked = config.show_percent;
+    options("effect", config.effects, config.effect);
+    options("name-font", config.fonts, config.name_font);
+    options("caption-font", config.fonts, config.caption_font);
+    options("name-size", config.sizes, config.name_size);
+    options("caption-size", config.sizes, config.caption_size);
+    $("advice").checked = config.advice;
+    $("advice-lines").value = (config.advice_lines || []).join("\n");
     percentUpdate();
+    sampleUpdate();
   }
 
   function collect() {
@@ -301,8 +364,50 @@
       scale: Number($("scale").value),
       sound: $("sound").checked,
       show_percent: $("show-percent").checked,
+      design: $("design").value,
+      effect: $("effect").value,
+      name_font: $("name-font").value,
+      name_size: $("name-size").value,
+      caption_font: $("caption-font").value,
+      caption_size: $("caption-size").value,
+      advice: $("advice").checked,
+      advice_lines: $("advice-lines").value.split("\n").map((line) => line.trim()).filter(Boolean),
     };
   }
+
+  // ---------------------------------------------------------------- 연출 미리보기: 저장 전 표시 설정을 주소에 담아 예시 추첨(이 PC에서만)
+  function sampleUrl() {
+    const data = collect();
+    const query = new URLSearchParams({ sample: data.style, count: $("sample-count").value, design: data.design, effect: data.effect,
+      name_font: data.name_font, name_size: data.name_size, caption_font: data.caption_font, caption_size: data.caption_size, title: data.title,
+      position: data.position, scale: String(data.scale), percent: data.show_percent ? "1" : "0", advice: data.advice ? "1" : "0" });
+    if (data.advice_lines.length) query.set("advice_text", data.advice_lines[0]);
+    if ($("sample-result").value) query.set("result", $("sample-result").value);
+    if ($("sample-bg").value) query.set("bg", $("sample-bg").value);
+    return `/draw?${query}`;
+  }
+  const fitSample = () => ($("sample-frame").style.transform = `scale(${$("sample-preview").clientWidth / 1920})`);
+  window.addEventListener("resize", fitSample);
+  let sampleTimer = 0;
+  function sampleUpdate() {
+    $("sample-open").href = sampleUrl();
+    if ($("sample-preview").hidden) return;
+    clearTimeout(sampleTimer);
+    sampleTimer = setTimeout(() => { $("sample-frame").src = sampleUrl(); fitSample(); }, 350);
+  }
+  $("sample-toggle").addEventListener("click", () => {
+    const opening = $("sample-preview").hidden;
+    $("sample-preview").hidden = !opening;
+    $("sample-replay").hidden = !opening;
+    $("sample-toggle").textContent = opening ? "미리보기 끄기" : "미리보기 켜기";
+    if (opening) sampleUpdate();
+    else $("sample-frame").src = "about:blank";
+  });
+  $("sample-replay").addEventListener("click", () => { $("sample-frame").src = sampleUrl(); fitSample(); });
+  $("style").addEventListener("change", () => designUpdate($("design").value));
+  for (const id of ["style", "design", "effect", "name-font", "name-size", "caption-font", "caption-size", "position", "show-percent", "advice",
+                    "sample-count", "sample-result", "sample-bg"]) $(id).addEventListener("change", sampleUpdate);
+  for (const id of ["title", "scale", "advice-lines"]) $(id).addEventListener("change", sampleUpdate);
 
   function note(id, text, error) {
     $(id).textContent = text;
