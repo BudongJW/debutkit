@@ -171,7 +171,8 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
                  obs_target: Callable[[], tuple[str, int, str | None] | None] | None = None, remote: remotes.RemoteControl | None = None,
                  call: camcall.CameraCall | None = None, program: broadcasts.ProgramState | None = None,
                  broadcaster: broadcasts.Broadcaster | None = None, studio: logos.LogoStudio | None = None,
-                 stopping: threading.Event | None = None, features: Iterable[features_.Feature] = ()) -> type[BaseHTTPRequestHandler]:
+                 stopping: threading.Event | None = None, features: Iterable[features_.Feature] = (),
+                 sources: Callable[[], list[dict[str, Any]]] | None = None) -> type[BaseHTTPRequestHandler]:
     """``stopping`` 이 설정되면 열린 사건 흐름을 모두 끝낸다(화면은 새 서버에 다시 연결).
 
     ``features`` 는 등록할 방송 연출 기능(feature.py). 주소나 실시간 항목 이름이 겹치면 ValueError.
@@ -254,7 +255,9 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
                 wanted = urllib.parse.parse_qs(query).get("feeds", [""])[0].split(",")
                 return self._feeds({name: states[name] for name in live_feeds if name in wanted} or {name: states[name] for name in DEFAULT_FEEDS})
             if path == "/status":
-                return self._send(HTTPStatus.OK, json.dumps({"listeners": hub.listeners}).encode(), "application/json")
+                # 방송 화면 수와 채팅 연결 상태(시작하기 화면의 방송 직전 점검)
+                found = sources() if sources else []
+                return self._send(HTTPStatus.OK, json.dumps({"listeners": hub.listeners, "sources": found}, ensure_ascii=False).encode(), "application/json")
             if path in feature_get:
                 return self._feature(feature_get[path], urllib.parse.parse_qs(query))
             if path == "/character/humanoid.json":  # GLB, FBX의 뼈와 표정 이름 표(humanoid.py)
@@ -816,6 +819,9 @@ class OverlayServer:
         for part in self.features:
             self.hub.taps.extend(part.taps)
         self._sources = list(sources)
+        #: 채팅 수신기별 상태: 이름 -> {state: connecting|connected|error, error, events, last}. 방송 직전 점검이 읽음
+        self.source_state: dict[str, dict[str, Any]] = {label: {"label": label, "state": "connecting", "error": "", "events": 0, "last": 0.0,
+                                                                 "demo": label == "데모"} for label, _ in self._sources}
         self._poll = poll
         self._retry = retry
         self._stop = threading.Event()
@@ -825,7 +831,8 @@ class OverlayServer:
                                                                    motion=self.motion, draw=self.draw, raffle=self.raffle, phone=self.phone,
                                                                    obs_target=lambda: self.obs_target, remote=self.remote, call=self.camera_call,
                                                                    program=self.program, broadcaster=self.broadcast, studio=self.logo,
-                                                                   stopping=self._stop, features=self.features))
+                                                                   stopping=self._stop, features=self.features,
+                                                                   sources=lambda: [dict(item) for item in self.source_state.values()]))
         self._attached.append(self.commands)  # 단축키 실행 스레드 정리
         self._attached.append(_PhoneStopper(self.phone))
         self._attached.append(_RemoteStopper(self.remote))
@@ -842,21 +849,29 @@ class OverlayServer:
         return f"http://127.0.0.1:{self.port}"
 
     def _pump(self, label: str, factory: Callable[[], Any]) -> None:
-        """수신기 하나를 계속 읽는다. 끊기면 ``retry`` 초 뒤 새로 만든다."""
+        """수신기 하나를 계속 읽는다. 끊기면 ``retry`` 초 뒤 새로 만든다. 상태는 ``source_state`` 에 남긴다."""
+        state = self.source_state.setdefault(label, {"label": label, "state": "connecting", "error": "", "events": 0, "last": 0.0, "demo": False})
         while not self._stop.is_set():
             try:
                 source = factory()
             except Exception as error:  # 잘못된 주소, stream2clip 없음 ...
+                state.update(state="error", error=str(error))
                 self.hub.publish(system_event(f"{label}: {error}"))
                 return
+            state.update(state="connecting", error="")
             self.hub.publish(system_event(f"{label} 연결 시도"))
             try:
                 while not self._stop.is_set() and not getattr(source, "ended", False):
                     for event in source.read():
                         if isinstance(event, OverlayEvent):
                             self.hub.publish(event)
+                            if event.kind != "system":
+                                state["events"] += 1
+                                state["last"] = time.time()
+                    state["state"] = "connected"  # 읽기가 오류 없이 돌면 연결됨(채팅이 없어도)
                     self._stop.wait(self._poll)
             except Exception as error:
+                state.update(state="error", error=str(error))
                 self.hub.publish(system_event(f"{label} 연결 끊김: {error}. {self._retry:.0f}초 후 재연결"))
             finally:
                 try:

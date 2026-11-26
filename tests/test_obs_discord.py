@@ -83,7 +83,14 @@ def test_add_refuses_bad_input_and_explains_obs_errors():
     assert "WebSocket 서버 설정" in obs_add.explain(RuntimeError("Cannot reach OBS at ws://127.0.0.1:4455. Is OBS running"))
     assert "비밀번호" in obs_add.explain(RuntimeError("Authentication failed"))
     fake = FakeObs(items=[{"sourceName": "[DK] 채팅"}, {"sourceName": "[DK] 후원 알림"}])
-    assert obs_add.check(fake) == {"connected": True, "scene": "본방송", "inside": ["chat", "alerts"]}
+    assert obs_add.check(fake) == {"connected": True, "scene": "본방송", "inside": ["chat", "alerts"],
+                                   "alerts_sound": {"exists": False, "ok": False, "muted": False, "monitor": ""}}
+    # 알림 소스가 있으면 모니터링과 음소거 확인
+    sounding = FakeObs(inputs=["[DK] 후원 알림"], items=[{"sourceName": "[DK] 후원 알림"}])
+    sounding.request = (lambda original: lambda name, data=None: (
+        {"monitorType": "OBS_MONITORING_TYPE_MONITOR_AND_OUTPUT"} if name == "GetInputAudioMonitorType"
+        else {"inputMuted": False} if name == "GetInputMute" else original(name, data)))(sounding.request)
+    assert obs_add.check(sounding)["alerts_sound"] == {"exists": True, "monitor": "OBS_MONITORING_TYPE_MONITOR_AND_OUTPUT", "muted": False, "ok": True}
 
 
 def request(port, method, path, body=None):
@@ -103,7 +110,8 @@ def test_obs_routes_use_the_overlay_obs_target(monkeypatch):
         status, body = request(server.port, "GET", "/obs/status")
         assert json.loads(body)["ready"] is False and "설정 마법사" in json.loads(body)["error"]
         server.obs_target = ("127.0.0.1", 4455, None)
-        assert json.loads(request(server.port, "GET", "/obs/status?fresh=1")[1]) == {"ready": True, "connected": True, "scene": "본방송", "inside": []}
+        state = json.loads(request(server.port, "GET", "/obs/status?fresh=1")[1])
+        assert state["connected"] is True and state["scene"] == "본방송" and state["inside"] == [] and state["alerts_sound"]["exists"] is False
         status, body = request(server.port, "POST", "/obs/add", {"kind": "chat", "query": "theme=card"})
         answer = json.loads(body)
         assert status == 200 and answer["source"] == "[DK] 채팅" and "본방송 장면에 넣음" in answer["message"]
@@ -221,3 +229,61 @@ def test_beginner_pages_have_checklist_menu_and_help():
     stage = (STATIC / "stage.html").read_text(encoding="utf-8")
     assert stage.index("추천 조합") < stage.index("방송 화면에 놓을 것") and "COMBOS" in stage
     assert feature.Context(notify=print).obs() is None
+
+
+class Talky:
+    """채팅 하나를 주고 끝나지 않는 수신기."""
+
+    ended = False
+
+    def __init__(self):
+        self.sent = False
+
+    def read(self):
+        if self.sent:
+            return []
+        self.sent = True
+        return [OverlayEvent("chzzk", "chat", "치즈냥", (("text", "안녕"),), user="u1")]
+
+    def close(self):
+        pass
+
+
+def test_status_reports_chat_sources_for_the_pre_stream_check():
+    import time
+
+    def broken():
+        raise ValueError("치지직 채널을 찾지 못함")
+
+    server = OverlayServer([("치지직", Talky), ("SOOP", broken), ("데모", DemoChat)], port=0, poll=0.01).start()
+    try:
+        for _ in range(200):
+            sources = {item["label"]: item for item in json.loads(request(server.port, "GET", "/status")[1])["sources"]}
+            if sources["치지직"]["events"] and sources["SOOP"]["state"] == "error":
+                break
+            time.sleep(0.02)
+        assert sources["치지직"]["state"] == "connected" and sources["치지직"]["events"] == 1 and sources["치지직"]["demo"] is False
+        assert sources["SOOP"]["state"] == "error" and "찾지 못함" in sources["SOOP"]["error"]
+        assert sources["데모"]["demo"] is True
+    finally:
+        server.stop()
+
+
+def test_pre_stream_check_presets_and_unsaved_marks():
+    page = (STATIC / "index.html").read_text(encoding="utf-8")
+    for check in ("c-obs", "c-scene", "c-sound", "c-chat", "c-mic"):
+        assert f'id="{check}"' in page, check
+    assert "alerts_sound" in page and "checkChat(s.sources" in page
+    ui = (STATIC / "ui.js").read_text(encoding="utf-8")
+    assert "function unsaved" in ui and "beforeunload" in ui
+    alerts_page = (STATIC / "alerts-control.html").read_text(encoding="utf-8")
+    assert "PRESETS" in alerts_page and 'id="reset"' in alerts_page and "debutkitUi.unsaved" in alerts_page
+    assert 'id="tiers-empty"' in alerts_page and 'id="images-empty"' in alerts_page
+    from debutkit.overlay import alerts
+
+    server = OverlayServer([], port=0).start()
+    try:
+        info = json.loads(request(server.port, "GET", "/alerts/config")[1])
+        assert info["defaults"] == {key: value for key, value in alerts.DEFAULTS.items() if key != "images"}
+    finally:
+        server.stop()

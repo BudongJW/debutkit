@@ -194,7 +194,13 @@
         row.append(name, id, pics, remove);
         return row;
       }));
-      $("preview").srcdoc = config.css ? previewDoc(config) : previewDoc({ ...config, css: config.css || "" });
+      if (!config.people.length) {
+        const empty = document.createElement("p");
+        empty.className = "hint";
+        empty.textContent = "아직 등록한 참여자 없음: 그림 없이도 디스코드 프로필 사진으로 나옵니다.";
+        $("people").replaceChildren(empty);
+      }
+      $("preview").srcdoc = previewDoc(config);
     }
     const options = () => ({ widget: $("widget").value.trim(), layout: $("layout").value, size: Number($("size").value), names: $("names").checked,
       style: $("style").checked, speaking_only: $("speaking").checked });

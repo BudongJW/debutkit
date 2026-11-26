@@ -153,7 +153,8 @@ def make_feature(context: feature.Context) -> feature.Feature:
         return current
 
     def info(_: Any = None) -> dict[str, Any]:
-        return {**load(), "choices": {"styles": STYLES, "layouts": LAYOUTS, "positions": POSITIONS, "enters": ENTERS, "sounds": SOUNDS,
+        return {**load(), "defaults": {key: value for key, value in DEFAULTS.items() if key != "images"},
+                "choices": {"styles": STYLES, "layouts": LAYOUTS, "positions": POSITIONS, "enters": ENTERS, "sounds": SOUNDS,
                                       "emphasis": EMPHASIS}}
 
     def save(data: dict[str, Any]) -> dict[str, Any]:

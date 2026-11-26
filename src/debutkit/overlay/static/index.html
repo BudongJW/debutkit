@@ -68,6 +68,18 @@
     details.more summary { cursor: pointer; font-size: 13.5px; font-weight: 600; color: var(--dim); }
     details.more[open] summary { margin-bottom: 8px; }
     .obs-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 0 0 10px; }
+    /* 방송 직전 점검: 초록 준비됨, 주황 확인 필요, 회색 확인 중 */
+    .check { margin-bottom: 22px; border: 1px solid var(--line); border-radius: 8px; padding: 14px 20px; }
+    .checks { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; }
+    .checks li { display: grid; grid-template-columns: 14px 92px 1fr; gap: 2px 10px; align-items: start; padding: 7px 10px; border-radius: 6px; background: var(--panel); font-size: 14px; }
+    .checks .dot { width: 12px; height: 12px; margin-top: 5px; border-radius: 50%; background: #b9b2ab; }
+    .checks li.ok .dot { background: var(--ok); }
+    .checks li.warn .dot { background: #d9822b; }
+    .checks li.warn { background: #fff7ef; }
+    .checks .text { color: var(--dim); }
+    .checks .fix { grid-column: 3; display: flex; gap: 6px; flex-wrap: wrap; }
+    .checks .fix:empty { display: none; }
+    .checks button { padding: 3px 10px; font-size: 13px; }
   </style>
 </head>
 <body>
@@ -106,6 +118,19 @@
           <div class="row"><a class="button" href="/stage" id="step-look">방송 화면 꾸미기</a></div></div></li>
     </ol>
     <div class="start-foot"><span>방송 중에 쓰는 추첨, 뽑기판, 후원 벽, 참여 레이스는 위 메뉴의 방송 중 놀이에 있습니다.</span><span id="status"></span></div>
+  </section>
+
+  <section class="check" id="check">
+    <div class="start-head"><h2>방송 직전 점검</h2><span class="start-count" id="check-count"></span>
+      <button type="button" class="secondary" id="check-again">다시 점검</button></div>
+    <ul class="checks">
+      <li id="c-obs"><span class="dot"></span><b>OBS</b><span class="text">확인 중</span></li>
+      <li id="c-scene"><span class="dot"></span><b>방송 장면</b><span class="text">확인 중</span><span class="fix" id="c-scene-fix"></span></li>
+      <li id="c-sound"><span class="dot"></span><b>알림 소리</b><span class="text">확인 중</span><span class="fix" id="c-sound-fix"></span></li>
+      <li id="c-chat"><span class="dot"></span><b>채팅 연결</b><span class="text">확인 중</span></li>
+      <li id="c-mic"><span class="dot"></span><b>마이크</b><span class="text">확인 중</span></li>
+    </ul>
+    <p class="hint">방송을 켜기 전에 한 번 봅니다. 초록은 준비됨, 주황은 확인이 필요한 곳입니다. 단추가 있으면 눌러서 바로 고칩니다.</p>
   </section>
 
   <p class="lead">방송 화면마다 OBS에 넣기를 누르면 지금 OBS 장면에 들어갑니다. 직접 넣으려면 주소를 복사해 OBS의 <span data-help="브라우저 소스">브라우저 소스</span>에 붙여 넣습니다.</p>
@@ -304,6 +329,7 @@
     $("voice-state").textContent = voice.source
       ? `${voice.source}: ${voice.db} dB, ${voice.talking ? "말하는 중" : "조용함"}`
       : "OBS 마이크 음량 대기(오버레이의 캐릭터 음성 반응과 OBS 연결 확인)";
+    checkMic(voice);
   });
   const tracked = { time: 0, found: false };
   live.addEventListener("tracking", (message) => Object.assign(tracked, { found: false }, JSON.parse(message.data)));
@@ -341,6 +367,73 @@
     });
   }
   const send = (body) => fetch("/test", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  // 방송 직전 점검: OBS(연결, 장면, 알림 소리), 채팅 연결(/status), 마이크(/live의 voice)
+  const NAMES = { chat: "채팅창", alerts: "알림", character: "캐릭터" };
+  const PLATFORM_NAMES = { "데모": "데모 채팅" };
+  const checks = {};
+  function setCheck(id, state, text, fixes = []) {
+    checks[id] = state;
+    const item = $(id);
+    item.classList.toggle("ok", state === "ok");
+    item.classList.toggle("warn", state === "warn");
+    item.querySelector(".text").textContent = text;
+    const fix = item.querySelector(".fix");
+    if (fix) {
+      fix.replaceChildren(...fixes.map(([kind, label]) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "secondary";
+        button.dataset.obs = kind;
+        if (kind === "chat") button.dataset.obsFrom = "chat-url";
+        button.textContent = label;
+        return button;
+      }));
+    }
+    const values = Object.values(checks);
+    const ready = values.filter((value) => value === "ok").length;
+    $("check-count").textContent = values.length >= 5 ? (ready === values.length ? "준비됨" : `${ready}/${values.length} 준비됨`) : "";
+  }
+  function checkObs(state) {
+    if (!state.connected) {
+      setCheck("c-obs", "warn", `${(state.error || "OBS에 연결하지 못함").split(":")[0]}. 위 방송 준비의 OBS 연결 차례 확인`);
+      setCheck("c-scene", "warn", "OBS에 연결되면 확인합니다");
+      setCheck("c-sound", "warn", "OBS에 연결되면 확인합니다");
+      return;
+    }
+    setCheck("c-obs", "ok", `연결됨. 지금 장면: ${state.scene}`);
+    const inside = state.inside || [];
+    const missing = ["chat", "alerts"].filter((kind) => !inside.includes(kind));
+    setCheck("c-scene", missing.length ? "warn" : "ok",
+      missing.length ? `지금 장면에 없음: ${missing.map((kind) => NAMES[kind]).join(", ")}` : `지금 장면에 ${inside.filter((kind) => NAMES[kind]).map((kind) => NAMES[kind]).join(", ")} 있음`,
+      missing.map((kind) => [kind, `${NAMES[kind]} 넣기`]));
+    const sound = state.alerts_sound || {};
+    if (!sound.exists) setCheck("c-sound", "warn", "OBS에 알림이 없음", [["alerts", "알림 넣기"]]);
+    else if (sound.muted) setCheck("c-sound", "warn", "알림 소스가 음소거됨: OBS 오디오 믹서의 [DK] 후원 알림 스피커 단추로 음소거 해제");
+    else if (!sound.ok) setCheck("c-sound", "warn", "방송에는 나가지만 내 헤드폰으로는 안 들릴 수 있음", [["alerts", "알림 소리 맞추기"]]);
+    else setCheck("c-sound", "ok", "방송으로 나가고 내 헤드폰에도 들림");
+  }
+  function checkChat(sources) {
+    const real = sources.filter((item) => !item.demo);
+    if (!sources.length) return setCheck("c-chat", "warn", "연결한 채팅 채널 없음: 설정 마법사의 채팅과 알림 단계에서 내 채널 입력");
+    if (!real.length) return setCheck("c-chat", "warn", "데모 채팅만 나옴(실제 방송 아님): 설정 마법사의 채팅과 알림 단계에서 내 채널 입력");
+    const bad = real.filter((item) => item.state === "error");
+    const waiting = real.filter((item) => item.state === "connecting");
+    const words = real.map((item) => `${PLATFORM_NAMES[item.label] || item.label} ${item.state === "connected" ? `연결됨(채팅 ${item.events}개)` : item.state === "error" ? "끊김" : "연결 중"}`);
+    if (bad.length) return setCheck("c-chat", "warn", `${words.join(", ")}. ${bad[0].error || ""}`.trim());
+    setCheck("c-chat", waiting.length ? "warn" : "ok", words.join(", "));
+  }
+  let micTimer = 0;
+  function checkMic(voice) {
+    clearTimeout(micTimer);
+    if (!voice.source) setCheck("c-mic", "warn", "OBS 마이크 음량을 받지 못함: OBS 연결과 OBS의 마이크 소스 확인");
+    else if (voice.db !== undefined && voice.db < -60) setCheck("c-mic", "warn", `${voice.source}: 소리가 거의 없음(${voice.db} dB). 마이크 음소거와 OBS 마이크 소스 확인`);
+    else setCheck("c-mic", "ok", `${voice.source}: ${voice.db} dB${voice.talking ? ", 말하는 중" : ""}`);
+    micTimer = setTimeout(() => setCheck("c-mic", "warn", "OBS 마이크 음량을 받지 못함: OBS 연결과 OBS의 마이크 소스 확인"), 8000);
+  }
+  checkMic({});
+  debutkitUi.onObs(checkObs);
+  $("check-again").addEventListener("click", () => { debutkitUi.obsCheck(true); refresh(); });
+
   // 시작하기 목록: OBS 연결과 OBS에 넣은 화면은 자동 확인, 시험 후원과 모양 고르기는 누르면 끝(이 브라우저에 기억)
   const START = "debutkit-start";
   const remembered = (() => { try { return JSON.parse(localStorage.getItem(START) || "{}"); } catch (error) { return {}; } })();
@@ -388,6 +481,7 @@
   $("test-clip").addEventListener("click", () => send({ kind: "chat", role: "owner", text: "!clip" }));
   const refresh = () => fetch("/status").then((r) => r.json()).then((s) => {
     $("status").textContent = `켜져 있는 방송 화면 ${s.listeners}개`;
+    checkChat(s.sources || []);
   }).catch(() => {});
   refresh();
   setInterval(refresh, 3000);

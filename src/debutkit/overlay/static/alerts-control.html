@@ -8,6 +8,11 @@
   <link rel="stylesheet" href="/theme.css?fonts=0">
   <link rel="stylesheet" href="/ui.css">
   <style>
+    .presets { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+    .presets button { text-align: left; padding: 8px 10px; background: var(--panel); color: var(--text); border: 2px solid transparent; font-size: 13.5px; font-weight: 700; line-height: 1.35; }
+    .presets button small { display: block; font-weight: 400; color: var(--dim); font-size: 12px; }
+    .presets button:hover { border-color: #c9c3bd; }
+    .empty { color: var(--dim); font-size: 13px; padding: 6px 2px; }
     * { box-sizing: border-box; }
     body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.6 "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; }
     header { display: flex; align-items: center; gap: 12px; padding: 14px 24px; border-bottom: 1px solid var(--line); }
@@ -62,6 +67,12 @@
   <main>
     <div class="stack">
       <section>
+        <h2>추천 모양</h2>
+        <div class="presets" id="presets"></div>
+        <p class="hint">눌러서 시작한 뒤 아래에서 고치고 저장합니다. 올린 그림과 문구는 그대로 둡니다.</p>
+        <div class="row"><button type="button" class="secondary small" id="reset">처음 상태로</button></div>
+      </section>
+      <section>
         <h2>스타일</h2>
         <div class="styles" id="styles"></div>
         <p class="hint">방송 스타일 따르기는 방송 화면 미리보기에서 고른 스타일(채팅, 후원 벽과 같은 모양)을 씁니다. 다른 스타일을 고르면 알림만 그 모양입니다.</p>
@@ -102,6 +113,7 @@
           <thead><tr><th>최소 금액(원)</th><th>그림</th><th>강조</th><th>표시 시간</th><th>효과음</th><th></th></tr></thead>
           <tbody id="tiers"></tbody>
         </table>
+        <p class="empty" id="tiers-empty">금액 구간 없음: 모든 후원이 같은 모양으로 나옵니다. 큰 후원을 더 화려하게 하려면 구간 추가를 누르거나 추천 모양의 금액별로 다르게를 고릅니다.</p>
         <div class="row"><button class="secondary small" id="add-tier">구간 추가</button></div>
         <p class="hint">후원 금액 이상인 구간 중 가장 큰 구간을 씁니다(별풍선 1개 100원). Twitch 비트, 외화, 애드벌룬은 0원 구간만. 표시 시간 0은 기본 시간입니다.</p>
       </section>
@@ -112,6 +124,7 @@
           <label class="field" style="grid-auto-flow: column; align-items: center">구독 알림 그림<select id="member-image"></select></label>
         </div>
         <div class="images" id="images"></div>
+        <p class="empty" id="images-empty">올린 그림 없음: 금액 구간이나 구독에 넣을 그림(PNG, GIF, WebP, JPEG)을 올립니다.</p>
         <p class="hint">PNG, GIF(움직임 그대로), WebP, JPEG, 8 MB 이하. 그림은 이 PC의 설정 폴더에만 보관합니다.</p>
       </section>
       <div class="row"><button class="primary" id="save">저장</button><span class="hint" id="state"></span></div>
@@ -178,8 +191,8 @@
       const seconds = cell(el("input")); seconds.type = "number"; seconds.min = "0"; seconds.max = "30"; seconds.className = "seconds"; seconds.value = tier.seconds || 0;
       const sound = cell(el("select")); sound.className = "sound"; options(sound, { "": "기본", ...choices.sounds }, tier.sound || "");
       const remove = cell(el("button", "삭제")); remove.className = "secondary small"; remove.type = "button";
-      remove.addEventListener("click", () => { row.remove(); preview(); });
-      row.addEventListener("input", () => preview());
+      remove.addEventListener("click", () => { row.remove(); changes.touch(); preview(); });
+      row.addEventListener("input", () => { changes.touch(); preview(); });
       return row;
     }
 
@@ -195,7 +208,7 @@
         chip.className = "chip";
         Object.assign(chip.style, { background: style.surface, border: `2px solid ${style.line}`, borderRadius: style.radius, boxShadow: style.shadow });
         button.appendChild(chip);
-        button.addEventListener("click", () => { config.style = key; renderStyles(); preview(); });
+        button.addEventListener("click", () => { config.style = key; renderStyles(); changes.touch(); preview(); });
         return button;
       }));
     }
@@ -207,7 +220,7 @@
         button.type = "button";
         button.title = label;
         button.setAttribute("aria-pressed", String(config.position === key));
-        button.addEventListener("click", () => { config.position = key; renderPositions(); preview(); });
+        button.addEventListener("click", () => { config.position = key; renderPositions(); changes.touch(); preview(); });
         return button;
       }));
     }
@@ -228,6 +241,34 @@
       for (const select of $("tiers").querySelectorAll(".image")) imageOptions(select, select.value);
     }
 
+    //: 추천 모양: [이름, 설명, 바꿀 값]. 문구와 그림은 그대로
+    const PRESETS = [
+      ["기본 카드", "위 가운데, 차임", { layout: "card", position: "top", enter: "auto", seconds: 6, scale: 100, sound: "chime", tiers: [] }],
+      ["크게 가운데", "바탕 없는 큰 글자, 팡파르", { layout: "big", position: "center", enter: "auto", seconds: 6, scale: 110, sound: "fanfare", tiers: [] }],
+      ["아래 띠", "화면 아래 한 줄, 퐁", { layout: "banner", position: "bottom", enter: "slide", seconds: 5, scale: 100, sound: "pop", tiers: [] }],
+      ["말풍선", "왼쪽 아래, 방울", { layout: "bubble", position: "bottom-left", enter: "float", seconds: 6, scale: 100, sound: "bell", tiers: [] }],
+      ["금액별로 다르게", "1만 원 반짝이, 5만 원 종이 조각", { layout: "card", position: "top", enter: "auto", seconds: 6, scale: 100, sound: "chime",
+        tiers: [{ min: 50000, image: "", emphasis: "confetti", seconds: 10, sound: "fanfare" }, { min: 10000, image: "", emphasis: "sparkle", seconds: 8, sound: "" },
+          { min: 0, image: "", emphasis: "none", seconds: 0, sound: "" }] }],
+    ];
+    let changes = null;
+    // 받침이 있으면 으로, 없거나 ㄹ 받침이면 로
+    const ro = (word) => { const code = word.charCodeAt(word.length - 1) - 0xac00; const final = code >= 0 && code < 11172 ? code % 28 : 0; return final && final !== 8 ? "으로" : "로"; };
+    function apply(values, done) {
+      fill({ ...config, ...current(), ...values, images: config.images, choices });
+      changes.touch();
+      debutkitUi.toast(done);
+    }
+    function renderPresets() {
+      $("presets").replaceChildren(...PRESETS.map(([name, about, values]) => {
+        const button = el("button");
+        button.type = "button";
+        button.append(name, el("small", about));
+        button.addEventListener("click", () => apply(values, `${name}${ro(name)} 바꿈. 확인한 뒤 저장`));
+        return button;
+      }));
+    }
+
     function fill(data) {
       config = data;
       choices = data.choices || choices;
@@ -242,6 +283,8 @@
       $("message").checked = config.message;
       $("platform").checked = config.platform;
       $("tiers").replaceChildren(...config.tiers.map(tierRow));
+      $("tiers-empty").hidden = config.tiers.length > 0;
+      $("images-empty").hidden = config.images.length > 0;
       renderStyles();
       renderPositions();
       renderImages();
@@ -269,15 +312,22 @@
     }
     addEventListener("message", (message) => { if (message.origin === location.origin && message.data && message.data.ready) preview(); });
     for (const button of document.querySelectorAll("[data-sample]")) button.addEventListener("click", () => { sample = button.dataset.sample; preview(); });
+    changes = debutkitUi.unsaved($("save"), $("state"));
     for (const id of ["layout", "enter", "seconds", "scale", "title", "member-title", "message", "platform", "sound", "volume", "member-image"]) {
-      $(id).addEventListener("input", preview);
-      $(id).addEventListener("change", preview);
+      $(id).addEventListener("input", () => { changes.touch(); preview(); });
+      $(id).addEventListener("change", () => { changes.touch(); preview(); });
     }
+    $("reset").addEventListener("click", () => {
+      if (!config || !config.defaults) return;
+      apply({ ...config.defaults, member_image: "" }, "처음 상태로 돌림. 확인한 뒤 저장(올린 그림은 남음)");
+    });
     $("background").addEventListener("change", () => { $("screen").className = `screen ${$("background").value}`; });
     $("add-tier").addEventListener("click", () => {
       const used = [...$("tiers").querySelectorAll(".min")].map((input) => Number(input.value));
       const next = [1000, 10000, 50000, 100000, 0].find((value) => !used.includes(value)) ?? 0;
       $("tiers").appendChild(tierRow({ min: next, emphasis: next >= 50000 ? "confetti" : "sparkle" }));
+      $("tiers-empty").hidden = true;
+      changes.touch();
       preview();
     });
 
@@ -290,6 +340,7 @@
     $("save").addEventListener("click", async () => {
       try {
         fill(await post("/alerts/config", current()));
+        changes.clear();
         $("state").textContent = "저장함. 방송 화면에 바로 반영";
         debutkitUi.toast("알림 꾸미기를 저장함");
       } catch (error) {
@@ -326,6 +377,7 @@
     fit();
     Promise.all([fetch("/alerts/config").then((r) => r.json()), fetch("/theme").then((r) => r.json())]).then(([alerts, theme]) => {
       themeInfo = theme;
+      renderPresets();
       fill(alerts);
       fit();
     });

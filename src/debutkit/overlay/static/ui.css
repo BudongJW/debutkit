@@ -57,6 +57,10 @@ button.done::after { content: " (넣음)"; font-weight: 400; }
 .dk-help-pop b { display: block; margin-bottom: 2px; font-size: 13.5px; }
 .dk-help-pop p { margin: 0; color: var(--dim); }
 
+/* 저장하지 않은 변경이 있는 저장 단추 */
+button.dirty { box-shadow: 0 0 0 3px #f6c48f; }
+button.dirty::after { content: " (바뀐 내용 있음)"; font-weight: 400; }
+
 /* 방송 색 강조: 주요 버튼 */
 button.primary, .button.primary { background: var(--accent); border-color: var(--accent-deep); color: var(--on-accent); }
 

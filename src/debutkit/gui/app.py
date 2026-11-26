@@ -1352,6 +1352,14 @@ class Wizard(QMainWindow):
         page = QWidget()
         layout = QVBoxLayout(page)
         layout.addWidget(self._title("마무리", "방송 전 준비 상태를 확인합니다."))
+        # 설정 마법사 다음 차례: 오버레이의 시작하기 화면(방송 준비 목록과 방송 직전 점검)과 같은 이름으로 안내
+        self.next_state = text("오버레이를 켠 뒤 시작하기 화면에서 차례로 합니다: OBS 연결 확인, 채팅창과 알림과 캐릭터를 OBS에 넣기, "
+                               "시험 후원으로 확인, 방송 모양 고르기. 방송할 때마다 시작하기 화면의 방송 직전 점검(OBS, 방송 장면, 알림 소리, "
+                               "채팅 연결, 마이크)을 봅니다.", muted=True)
+        self.next_button = QPushButton("시작하기 화면 열기")
+        self.next_button.setObjectName("Primary")
+        self.next_button.clicked.connect(self.open_start_page)
+        layout.addWidget(card(self.next_state, self.next_button, title="다음 할 일"))
         layout.addWidget(self._launch_card())
         self.summary = text("", links=True)
         layout.addWidget(card(self.summary, title="준비 상태"))
@@ -1381,6 +1389,13 @@ class Wizard(QMainWindow):
                               muted=True, links=True))
         layout.addStretch(1)
         return page
+
+    def open_start_page(self) -> None:
+        """오버레이가 켜져 있으면 시작하기 화면을 열고, 꺼져 있으면 켜는 곳을 알려 준다."""
+        if self.server:
+            self.backend.open_url(self.server.url)
+            return
+        self.next_state.setText("오버레이가 꺼져 있습니다. 4단계 채팅과 알림에서 오버레이 시작을 누른 뒤 다시 누릅니다.")
 
     # ------------------------------------------------------------------ 방송 시작 버튼(launcher.py)
     def _launch_card(self) -> QWidget:

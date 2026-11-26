@@ -112,7 +112,17 @@ def check(client: Any) -> dict[str, Any]:
     inside = [kind for kind, (name, *_rest) in SOURCES.items() if PREFIX + name in names]
     if PREFIX + "채팅 (게임 배치)" in names and "chat" not in inside:
         inside.append("chat")
-    return {"connected": True, "scene": scene, "inside": inside}
+    # 알림 소리: OBS로 오디오 보내기를 켠 알림 소스가 음소거가 아니고 모니터링(모니터와 출력)인지
+    sound: dict[str, Any] = {"exists": False, "ok": False, "muted": False, "monitor": ""}
+    alerts = PREFIX + SOURCES["alerts"][0]
+    if alerts in {str(item.get("inputName")) for item in client.request("GetInputList").get("inputs", [])}:
+        try:
+            monitor = str(client.request("GetInputAudioMonitorType", {"inputName": alerts}).get("monitorType") or "")
+            muted = bool(client.request("GetInputMute", {"inputName": alerts}).get("inputMuted"))
+        except Exception:  # OBS로 오디오 보내기를 끈 브라우저 소스는 오디오 입력이 아님
+            monitor, muted = "", False
+        sound = {"exists": True, "monitor": monitor, "muted": muted, "ok": monitor == "OBS_MONITORING_TYPE_MONITOR_AND_OUTPUT" and not muted}
+    return {"connected": True, "scene": scene, "inside": inside, "alerts_sound": sound}
 
 
 def make_feature(context: feature.Context, *, connect: Callable[..., Any] | None = None) -> feature.Feature:

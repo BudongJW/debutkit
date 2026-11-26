@@ -223,6 +223,25 @@
     if (pop && !pop.contains(event.target)) pop.remove();
   });
 
+  // 저장하지 않은 변경: const changes = debutkitUi.unsaved($("save"), $("state")); 입력이 바뀌면 changes.touch(), 저장하면 changes.clear()
+  function unsaved(button, note) {
+    let dirty = false;
+    addEventListener("beforeunload", (event) => { if (dirty) { event.preventDefault(); event.returnValue = ""; } });
+    return {
+      touch() {
+        if (dirty) return;
+        dirty = true;
+        if (button) button.classList.add("dirty");
+        if (note) note.textContent = "저장하지 않은 변경이 있음";
+      },
+      clear() {
+        dirty = false;
+        if (button) button.classList.remove("dirty");
+      },
+      get dirty() { return dirty; },
+    };
+  }
+
   function dock() {
     document.body.classList.toggle("dock", docked());
   }
@@ -244,7 +263,7 @@
     timer = setTimeout(() => box.classList.remove("show"), bad ? 5000 : 2600);
   }
 
-  window.debutkitUi = { toast, pages: PAGES, groups: GROUPS, glossary: GLOSSARY, obsCheck, onObs: (listener) => obsListeners.push(listener), helpers, addToObs };
+  window.debutkitUi = { toast, pages: PAGES, groups: GROUPS, glossary: GLOSSARY, obsCheck, onObs: (listener) => obsListeners.push(listener), helpers, addToObs, unsaved };
   const start = () => { nav(); dock(); obsChip(); helpers(); };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
   else start();
