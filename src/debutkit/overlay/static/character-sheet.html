@@ -31,6 +31,13 @@
       background: repeating-conic-gradient(#e9e4dd 0% 25%, #f6f2ee 0% 50%) 0 0 / 20px 20px; }
     .state { font-size: 13px; color: var(--dim); }
     .state.error { color: #b3261e; }
+    .pose-grid { display: grid; grid-template-columns: minmax(220px, 360px) 1fr; gap: 18px; align-items: start; }
+    canvas.pose-shot { width: 100%; height: auto; border-radius: 4px; display: block;
+      background: repeating-conic-gradient(#e9e4dd 0% 25%, #f6f2ee 0% 50%) 0 0 / 20px 20px; }
+    .parts { display: grid; gap: 8px; }
+    .part { display: grid; grid-template-columns: 56px 1fr auto; gap: 8px; align-items: center; }
+    .part span { font-weight: 600; }
+    label.check { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: var(--dim); }
     ul.facts { margin: 0; padding-left: 18px; font-size: 14px; }
     ul.facts li.warn { color: #9a4a00; }
   </style>
@@ -42,7 +49,7 @@
       <h2>캐릭터 고르기</h2>
       <div class="row">
         <select id="pick" aria-label="VRM 캐릭터"></select>
-        <select id="pose" aria-label="자세"></select>
+        <select id="pose" aria-label="추천 자세"></select>
         <button type="button" id="draw">그리기</button>
         <span class="state" id="state"></span>
       </div>
@@ -50,7 +57,7 @@
       <ul class="tips">
         <li>등록한 VRM을 이 PC에서 그림(모델 파일은 밖으로 보내지 않음)</li>
         <li>시트: 정면, 3/4, 얼굴, 표정 7종(기본, 기쁨, 화남, 슬픔, 편안, 아, 눈 감음)</li>
-        <li>자세: 편하게 서기(짝다리, 고개 기울임), 손 인사, A 자세(정면 확인용). PNGTuber 4상태도 같은 자세</li>
+        <li>추천 자세: 편하게 서기, 손 인사, 허리에 손, 만세, A 자세(정면 확인용). 아래 포즈 그림에서 부위별로 바꾸기</li>
         <li>VRoid Studio로 만든 VRM이면 그 품질 그대로</li>
       </ul>
     </section>
@@ -71,6 +78,29 @@
       <h2>표정 시트</h2>
       <canvas class="sheet" id="sheet" width="1600" height="900"></canvas>
       <div class="row" style="margin-top: 8px"><button type="button" class="secondary" id="save-sheet" disabled>시트 그림 저장</button></div>
+    </section>
+    <section>
+      <h2>포즈 그림</h2>
+      <div class="pose-grid">
+        <canvas class="pose-shot" id="pose-shot" width="480" height="720"></canvas>
+        <div>
+          <div class="parts" id="parts"></div>
+          <div class="row" style="margin-top: 10px">
+            <button type="button" id="random">랜덤 포즈</button>
+            <label>표정 <select id="pose-face"></select></label>
+            <label>각도 <select id="pose-angle"></select></label>
+            <label class="check"><input type="checkbox" id="pose-bg" checked> 무대 배경</label>
+          </div>
+          <div class="row" style="margin-top: 10px"><button type="button" class="secondary" id="save-pose" disabled>PNG 저장(1024x1536)</button></div>
+          <ul class="tips">
+            <li>부위(몸, 머리, 왼팔, 오른팔, 다리)마다 골라 조합. 위의 추천 자세를 고르면 모든 부위가 그 자세로</li>
+            <li>잠금: 마음에 드는 부위는 두고 나머지만 랜덤</li>
+            <li>왼팔, 오른팔은 캐릭터 기준(정면 그림에서는 왼팔이 화면 오른쪽)</li>
+            <li>무대 배경을 끄면 투명 PNG(썸네일, 방송 화면 꾸미기에)</li>
+            <li>고른 자세는 표정 시트와 PNGTuber 4상태에도 같이 적용</li>
+          </ul>
+        </div>
+      </div>
     </section>
     <section>
       <h2>PNGTuber 4상태</h2>

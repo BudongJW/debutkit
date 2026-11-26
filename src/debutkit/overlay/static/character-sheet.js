@@ -11,20 +11,50 @@ const STATES = [["idle", "입 다묾", {}], ["talk", "입 벌림", { aa: 1 }], [
 const PNG_SIZE = 1024;
 //: 그릴 때 이 배수로 크게 그린 뒤 줄임(가장자리, 머리카락 끝이 매끄럽게)
 const SUPER = 2;
-//: 자세: 사람 모양 뼈(정규화) 회전 [x, y, z] 라디안, VRM 1.0 방향 기준(0.x는 x, z 부호를 바꿔 적용).
-// 편하게 서기: 몸을 살짝 돌리고 한쪽 무릎을 굽힌 짝다리, 팔꿈치를 굽혀 손을 앞으로, 고개를 기울임
-const RELAXED = {
-  hips: [0, 0.2, 0.02], spine: [0.03, -0.07, -0.03], chest: [0, -0.06, -0.02], neck: [0, -0.04, 0.04], head: [0.06, -0.1, 0.1],
-  leftUpperArm: [0, -0.25, -1.3], leftLowerArm: [0, -0.7, 0], leftHand: [0, 0, -0.2],
-  rightUpperArm: [0, 0.2, 1.33], rightLowerArm: [0, 0.5, 0], rightHand: [0, 0, 0.2],
-  leftUpperLeg: [0, 0, 0.04], rightUpperLeg: [-0.14, 0, -0.06], rightLowerLeg: [0.26, 0, 0], rightFoot: [-0.1, 0, 0],
+//: 부위별 자세(부위마다 골라 조합): 사람 모양 뼈(정규화) 회전 [x, y, z] 라디안, VRM 1.0 방향 기준(0.x는 x, z 부호를 바꿔 적용).
+// x: 앞뒤로 숙임(+ 앞), y: 돌기, z: 옆으로. 왼팔은 캐릭터의 왼쪽(정면 그림에서는 화면 오른쪽), 오른팔은 왼팔을 좌우 반전
+const LEFT_ARM = {
+  down: { name: "내림", bones: { leftUpperArm: [0, 0, -1.22], leftLowerArm: [0, 0, -0.12] } },
+  relaxed: { name: "편하게", bones: { leftUpperArm: [0, -0.25, -1.3], leftLowerArm: [0, -0.7, 0], leftHand: [0, 0, -0.2] } },
+  hip: { name: "허리에 손", bones: { leftUpperArm: [0, 0.25, -0.75], leftLowerArm: [0, -0.3, -1.75], leftHand: [0, 0, 0.45] } },  // 팔꿈치는 밖으로, 손은 허리로
+  wave: { name: "손 흔들기", bones: { leftUpperArm: [0, -0.35, -0.6], leftLowerArm: [0, 0, 2.05], leftHand: [0, 0, 0.2] } },
+  up: { name: "만세", bones: { leftUpperArm: [0, 0, 1.1], leftLowerArm: [0, 0, 0.15] } },
+  front: { name: "앞으로 모음", bones: { leftUpperArm: [0, -0.55, -1.15], leftLowerArm: [0, -1.25, 0], leftHand: [0, 0, -0.1] } },
 };
-const POSES = {
-  relaxed: { name: "편하게 서기", bones: RELAXED },
-  // 손 인사: 팔꿈치는 어깨 아래, 손은 얼굴 옆
-  wave: { name: "손 인사", bones: { ...RELAXED, head: [0.05, -0.08, -0.1], rightUpperArm: [0, 0.35, 0.6], rightLowerArm: [0, 0, -2.05], rightHand: [0, 0, -0.2] } },
-  a: { name: "A 자세(정면 확인용)", bones: { leftUpperArm: [0, 0, -1.2], rightUpperArm: [0, 0, 1.2], leftLowerArm: [0, 0, -0.12], rightLowerArm: [0, 0, 0.12] } },
+const mirrorArm = (options) => Object.fromEntries(Object.entries(options).map(([key, item]) => [key, { name: item.name,
+  bones: Object.fromEntries(Object.entries(item.bones).map(([bone, [x, y, z]]) => [bone.replace("left", "right"), [x, -y, -z]])) }]));
+const PARTS = {
+  body: { name: "몸", options: {
+    straight: { name: "바로", bones: {} },
+    turn: { name: "살짝 돌기", bones: { hips: [0, 0.2, 0.02], spine: [0.03, -0.07, -0.03], chest: [0, -0.06, -0.02] } },
+    lean: { name: "기울이기", bones: { hips: [0, 0.1, -0.04], spine: [0, 0, 0.07], chest: [0, 0, 0.05] } },
+    bow: { name: "살짝 숙이기", bones: { spine: [0.12, 0, 0], chest: [0.08, 0, 0] } },
+  } },
+  head: { name: "머리", options: {
+    front: { name: "정면", bones: {} },
+    tilt: { name: "갸웃", bones: { neck: [0, -0.04, 0.04], head: [0.06, -0.1, 0.1] } },
+    tiltOther: { name: "반대로 갸웃", bones: { neck: [0, 0.04, -0.04], head: [0.05, 0.08, -0.1] } },
+    down: { name: "내려다보기", bones: { neck: [0.08, 0, 0], head: [0.15, 0, 0] } },
+    up: { name: "올려다보기", bones: { neck: [-0.06, 0, 0], head: [-0.14, 0, 0] } },
+  } },
+  leftArm: { name: "왼팔", options: LEFT_ARM },
+  rightArm: { name: "오른팔", options: mirrorArm(LEFT_ARM) },
+  legs: { name: "다리", options: {
+    stand: { name: "차렷", bones: {} },
+    contra: { name: "짝다리", bones: { leftUpperLeg: [0, 0, 0.04], rightUpperLeg: [-0.14, 0, -0.06], rightLowerLeg: [0.26, 0, 0], rightFoot: [-0.1, 0, 0] } },
+    wide: { name: "벌리기", bones: { leftUpperLeg: [0, 0, 0.12], rightUpperLeg: [0, 0, -0.12], leftFoot: [0, 0, -0.1], rightFoot: [0, 0, 0.1] } },
+    step: { name: "한 발 앞으로", bones: { leftUpperLeg: [-0.3, 0, 0.02], leftLowerLeg: [0.18, 0, 0], leftFoot: [0.1, 0, 0], rightUpperLeg: [0.12, 0, 0] } },
+  } },
 };
+//: 추천 자세: 부위별 고른 값. 고른 뒤 부위를 바꾸면 직접 조합
+const PRESETS = {
+  relaxed: { name: "편하게 서기", parts: { body: "turn", head: "tilt", leftArm: "relaxed", rightArm: "relaxed", legs: "contra" } },
+  wave: { name: "손 인사", parts: { body: "turn", head: "tiltOther", leftArm: "relaxed", rightArm: "wave", legs: "contra" } },
+  hip: { name: "허리에 손", parts: { body: "lean", head: "tilt", leftArm: "hip", rightArm: "relaxed", legs: "contra" } },
+  cheer: { name: "만세", parts: { body: "straight", head: "up", leftArm: "up", rightArm: "up", legs: "wide" } },
+  a: { name: "A 자세(정면 확인용)", parts: { body: "straight", head: "front", leftArm: "down", rightArm: "down", legs: "stand" } },
+};
+const poseState = { ...PRESETS.relaxed.parts };
 
 let lib = null;
 let loaderClass = null;
@@ -71,17 +101,19 @@ async function load(id) {
   if (vrm.lookAt) vrm.lookAt.target = camera;
   // VRM 0.x는 모델 방향이 반대라 x, z 회전 부호도 반대(캐릭터 화면과 같음)
   current = { vrm, id, name: info.name, flip: vrm.meta && vrm.meta.metaVersion === "0" ? -1 : 1 };
-  pose($("pose").value);
+  applyPose();
   express({});
   return info;
 }
 
-// 자세 적용(T 자세 그대로면 시트가 넓어지고 어색함)
-function pose(key) {
+// 자세 적용: 부위별로 고른 뼈 회전을 모아서(T 자세 그대로면 시트가 넓어지고 어색함)
+function applyPose() {
   const { vrm, flip } = current;
   if (!vrm.humanoid) return;
   vrm.humanoid.resetNormalizedPose();
-  for (const [bone, [x, y, z]] of Object.entries((POSES[key] || POSES.relaxed).bones)) {
+  const bones = {};
+  for (const [part, key] of Object.entries(poseState)) Object.assign(bones, (PARTS[part].options[key] || {}).bones);
+  for (const [bone, [x, y, z]] of Object.entries(bones)) {
     const node = vrm.humanoid.getNormalizedBoneNode(bone);
     if (node) node.rotation.set(x * flip, y, z * flip);
   }
@@ -275,6 +307,7 @@ async function draw() {
     const info = await load(id);
     drawSheet(info.name);
     drawStates();
+    drawPose();
     note("그림 완료");
   } catch (error) {
     note(`그리지 못함: ${error.message}`, true);
@@ -316,12 +349,113 @@ async function checkModel() {
 }
 
 $("pick").addEventListener("change", checkModel);
-$("pose").replaceChildren(...Object.entries(POSES).map(([key, item]) => new Option(item.name, key)));
-$("pose").addEventListener("change", () => {
+// ---------------------------------------------------------------- 포즈 그림: 부위별로 고르기, 잠금, 랜덤, 표정, 각도, PNG 저장
+const FACES = [...EXPRESSIONS.filter(([name]) => name !== "aa" && name !== "blink"), ["surprised", "놀람"]];
+const ANGLES = [["정면", 0], ["살짝 옆", 0.3], ["3/4", 0.62]];
+const locks = {};
+
+// 포즈 그림 한 장: 온몸, 고른 표정과 각도. background가 거짓이면 투명
+function renderPose(width, height, background) {
+  express({ [$("pose-face").value]: $("pose-face").value === "neutral" ? 0 : 1 });
+  const body = bodyBox();
+  frame(body.center, body.height * 1.1, Number($("pose-angle").value), width, height);
+  const out = document.createElement("canvas");
+  out.width = width;
+  out.height = height;
+  const ctx = out.getContext("2d");
+  if (background) {
+    stage(ctx, 0, 0, width, height, 0.42, 18);
+    floorGlow(ctx, width / 2, height * (0.5 + 0.5 / 1.1), width * 0.36);
+  }
+  ctx.drawImage(shot(width, height), 0, 0);
+  express({});
+  return out;
+}
+
+function drawPose() {
   if (!current) return;
-  pose($("pose").value);
-  drawSheet(current.name);
-  drawStates();
+  const canvas = $("pose-shot");
+  const picture = renderPose(canvas.width, canvas.height, $("pose-bg").checked);
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(picture, 0, 0);
+  $("save-pose").disabled = false;
+}
+
+let redrawTimer = 0;
+function redraw(all = true) {  // 부위를 바꾸면 시트, 4상태, 포즈 그림을 다시(연속으로 바꿀 때는 마지막만)
+  if (!current) return;
+  clearTimeout(redrawTimer);
+  redrawTimer = setTimeout(() => {
+    applyPose();
+    if (all) {
+      drawSheet(current.name);
+      drawStates();
+    }
+    drawPose();
+  }, 120);
+}
+
+function syncParts() {
+  for (const part of Object.keys(PARTS)) $(`part-${part}`).value = poseState[part];
+  const preset = Object.entries(PRESETS).find(([, item]) => Object.entries(item.parts).every(([part, key]) => poseState[part] === key));
+  $("pose").value = preset ? preset[0] : "custom";
+}
+
+function buildPoseControls() {
+  $("pose").replaceChildren(...Object.entries(PRESETS).map(([key, item]) => new Option(item.name, key)), new Option("직접 조합", "custom"));
+  $("parts").replaceChildren(...Object.entries(PARTS).map(([part, item]) => {
+    const row = document.createElement("div");
+    row.className = "part";
+    const name = document.createElement("span");
+    name.textContent = item.name;
+    const select = document.createElement("select");
+    select.id = `part-${part}`;
+    select.setAttribute("aria-label", `${item.name} 자세`);
+    select.append(...Object.entries(item.options).map(([key, option]) => new Option(option.name, key)));
+    select.addEventListener("change", () => {
+      poseState[part] = select.value;
+      syncParts();
+      redraw();
+    });
+    const lock = document.createElement("label");
+    lock.className = "check";
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.addEventListener("change", () => (locks[part] = box.checked));
+    lock.append(box, document.createTextNode(" 잠금"));
+    row.append(name, select, lock);
+    return row;
+  }));
+  $("pose-face").replaceChildren(...FACES.map(([key, title]) => new Option(title, key)));
+  $("pose-angle").replaceChildren(...ANGLES.map(([title, yaw]) => new Option(title, String(yaw))));
+  syncParts();
+}
+
+buildPoseControls();
+$("pose").addEventListener("change", () => {
+  const preset = PRESETS[$("pose").value];
+  if (!preset) return;
+  Object.assign(poseState, preset.parts);
+  syncParts();
+  redraw();
+});
+$("random").addEventListener("click", () => {  // 잠그지 않은 부위만 무작위로
+  for (const [part, item] of Object.entries(PARTS)) {
+    if (locks[part]) continue;
+    const keys = Object.keys(item.options);
+    poseState[part] = keys[Math.floor(Math.random() * keys.length)];
+  }
+  syncParts();
+  redraw();
+});
+for (const id of ["pose-face", "pose-angle", "pose-bg"]) $(id).addEventListener("change", () => redraw(false));
+$("save-pose").addEventListener("click", () => {  // 1024x1536 PNG(무대 배경을 끄면 투명)
+  const link = document.createElement("a");
+  link.href = renderPose(1024, 1536, $("pose-bg").checked).toDataURL("image/png");
+  link.download = "pose.png";
+  link.click();
+  drawPose();
 });
 $("lighten").addEventListener("click", async () => {
   $("lighten").disabled = true;

@@ -221,3 +221,19 @@ def test_pages_use_side_blinks_when_there_is_no_both_eyes_blink():
     # VRM 0.x는 팔 회전 부호가 반대(VRoid 샘플에서 팔이 올라가던 문제), 얼굴 틀은 머리 크기에 맞춤(큰 머리 로우폴리)
     assert 'metaVersion === "0" ? -1 : 1' in sheet and "node.rotation.set(x * flip, y, z * flip)" in sheet and "function headSize()" in sheet
     assert "/character/sheet/check" in sheet and "/character/lighten" in sheet and "innerHTML" not in sheet
+
+
+def test_pose_maker_parts_presets_random_and_png():
+    """포즈 그림(미타포즈와 같은 쓰임): 부위별 자세(몸, 머리, 왼팔, 오른팔, 다리), 추천 자세, 잠금과 랜덤, 표정과 각도, 투명 PNG."""
+    import re
+
+    sheet = (STATIC / "character-sheet.js").read_text(encoding="utf-8")
+    page = (STATIC / "character-sheet.html").read_text(encoding="utf-8")
+    parts = re.search(r"const PARTS = \{(.*?)\n\};", sheet, re.S).group(1)
+    for part in ("body:", "head:", "leftArm:", "rightArm: { name: \"오른팔\", options: mirrorArm(LEFT_ARM) }", "legs:"):
+        assert part in parts, part
+    for preset in ("relaxed:", "wave:", "hip:", "cheer:", "a:"):
+        assert preset in sheet.split("const PRESETS = {")[1].split("};")[0], preset
+    assert "if (locks[part]) continue;" in sheet and 'toDataURL("image/png")' in sheet and "renderPose(1024, 1536" in sheet
+    for element in ('id="pose-shot"', 'id="parts"', 'id="random"', 'id="pose-face"', 'id="pose-angle"', 'id="pose-bg"', 'id="save-pose"'):
+        assert element in page, element
