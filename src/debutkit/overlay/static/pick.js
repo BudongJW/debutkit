@@ -211,13 +211,17 @@
     return `rgba(${(value >> 16) & 255}, ${(value >> 8) & 255}, ${value & 255}, ${alpha})`;
   }
 
-  // 고양이 귀 마이크 문양(debutkit 기호, 추첨 카드 뒷면과 같은 도형)
-  function emblem(body, eyes) {
+  // 마스코트 마이(리본 마이크) 문양: 꼭대기 불, 둥근 몸, 망 두 줄, 눈과 웃는 입, 아래 띠(추첨 카드 뒷면 draw.js와 같은 도형)
+  function emblem(body, ink) {
     const svg = svgEl("svg", { viewBox: "30 4 60 82", class: "pk-emblem", "aria-hidden": "true" });
-    svg.appendChild(svgEl("path", { d: "M38 32 L42 9 L56 21 Z M82 32 L78 9 L64 21 Z", fill: body, stroke: body, "stroke-width": 6, "stroke-linejoin": "round" }));
-    svg.appendChild(svgEl("rect", { x: 36, y: 18, width: 48, height: 64, rx: 24, fill: body }));
-    svg.appendChild(svgEl("rect", { x: 45.5, y: 40, width: 8, height: 13, rx: 4, fill: eyes }));
-    svg.appendChild(svgEl("rect", { x: 66.5, y: 40, width: 8, height: 13, rx: 4, fill: eyes }));
+    svg.appendChild(svgEl("circle", { cx: 60, cy: 9, r: 4, fill: body }));
+    svg.appendChild(svgEl("rect", { x: 36, y: 14, width: 48, height: 68, rx: 24, fill: body }));
+    svg.appendChild(svgEl("rect", { x: 43, y: 23, width: 34, height: 3.6, rx: 1.8, fill: ink }));
+    svg.appendChild(svgEl("rect", { x: 39.5, y: 30.5, width: 41, height: 3.6, rx: 1.8, fill: ink }));
+    svg.appendChild(svgEl("circle", { cx: 50.5, cy: 46, r: 4, fill: ink }));
+    svg.appendChild(svgEl("circle", { cx: 69.5, cy: 46, r: 4, fill: ink }));
+    svg.appendChild(svgEl("path", { d: "M54.5 53 Q60 59.5 65.5 53", fill: "none", stroke: ink, "stroke-width": 3.4, "stroke-linecap": "round" }));
+    svg.appendChild(svgEl("rect", { x: 40, y: 66, width: 40, height: 3.6, rx: 1.8, fill: ink }));
     return svg;
   }
 

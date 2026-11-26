@@ -68,6 +68,21 @@ def test_builtin_3d_debi_is_complete_and_recorded():
     assert record["tool"] == "packaging/build_debi3d.py" and record["changes"]
 
 
+def test_props_use_mai_not_the_old_cat_ear_emblem():
+    """추첨 카드와 소품(draw.js), 뽑기판 덮개(pick.js), 레이스 달리기(race.js)는 마스코트 마이(망 두 줄, 꼭대기 불, 띠)."""
+    from debutkit import pick
+
+    cat_ears = "M38 32 L42 9 L56 21 Z"
+    for name in ("draw.js", "pick.js"):
+        script = (STATIC / name).read_text(encoding="utf-8")
+        assert cat_ears not in script and "마이(리본 마이크) 문양" in script, name
+        assert 'cx: 60, cy: 9, r: 4' in script and 'x: 40, y: 66, width: 40' in script, name  # 꼭대기 불, 아래 띠
+    race = (STATIC / "race.js").read_text(encoding="utf-8")
+    assert "// 귀" not in race and "망 머리" in race and '"#ff6f6f"' in race
+    assert "고양이" not in (STATIC / "race-control.html").read_text(encoding="utf-8")
+    assert pick.COVERS["emblem"] == "마이 문양"
+
+
 @pytest.fixture
 def port():
     srv = OverlayServer([], port=0).start()

@@ -1732,7 +1732,7 @@
     return { drawStatic, draw, shake, events, end: heat.end, finishes: heat.order.map((lane) => profile.times[lane]), tick: "tick" };
   }
 
-  // ---------------------------------------------------------------- 달리기 경주: 고양이 귀 마이크 콩 캐릭터(원작 도형)
+  // ---------------------------------------------------------------- 달리기 경주: 마스코트 마이(리본 마이크, 은색 망 머리와 코랄 불)
   function drawRunner(g, P, x, y, S, color, phase, pose, t, number, font) {
     // x, y: 발 아래 땅, S: 키
     g.save();
@@ -1783,28 +1783,15 @@
     }
     g.translate(0, bodyY);
     g.rotate(tilt);
-    // 귀
-    g.fillStyle = color.fill;
+    // 꼭대기 불(마이의 코랄 불): 몸 뒤에서 위로 조금 나옴
+    g.fillStyle = "#ff6f6f";
     g.strokeStyle = outline;
     g.lineWidth = line;
-    for (const side of [-1, 1]) {
-      g.beginPath();
-      g.moveTo(side * bodyW * 0.42, -bodyH * 0.22);
-      g.lineTo(side * bodyW * 0.36, -bodyH * 0.72);
-      g.lineTo(side * bodyW * 0.06, -bodyH * 0.42);
-      g.closePath();
-      g.fill();
-      g.stroke();
-      g.fillStyle = color.light;
-      g.beginPath();
-      g.moveTo(side * bodyW * 0.34, -bodyH * 0.3);
-      g.lineTo(side * bodyW * 0.32, -bodyH * 0.6);
-      g.lineTo(side * bodyW * 0.14, -bodyH * 0.42);
-      g.closePath();
-      g.fill();
-      g.fillStyle = color.fill;
-    }
-    // 몸(마이크 머리 모양의 콩)
+    g.beginPath();
+    g.arc(0, -bodyH * 0.53, Math.max(2, bodyW * 0.1), 0, TAU);
+    g.fill();
+    g.stroke();
+    // 몸(마이: 리본 마이크 모양). 몸 색은 참가자마다 다름
     const shade = g.createLinearGradient(0, -bodyH / 2, 0, bodyH / 2);
     shade.addColorStop(0, P.design === "paper" ? color.fill : color.light);
     shade.addColorStop(0.45, color.fill);
@@ -1812,16 +1799,37 @@
     g.fillStyle = shade;
     roundRect(g, -bodyW / 2, -bodyH / 2, bodyW, bodyH, bodyW * 0.48);
     g.fill();
-    g.stroke();
-    // 마이크 망(이마 위 점무늬)
-    g.fillStyle = "rgba(255, 255, 255, 0.35)";
-    for (let k = -1; k <= 1; k++) {
+    // 망 머리: 몸 윗부분을 은색으로, 망 두 줄과 경계선. 눈과 겹치지 않도록 경계선은 눈 위쪽에 여유를 둠
+    const capBottom = -bodyH * 0.25;
+    g.save();
+    roundRect(g, -bodyW / 2, -bodyH / 2, bodyW, bodyH, bodyW * 0.48);
+    g.clip();
+    const metal = g.createLinearGradient(0, -bodyH / 2, 0, capBottom);
+    metal.addColorStop(0, "#f4f1fb");
+    metal.addColorStop(1, "#cfc8e6");
+    g.fillStyle = metal;
+    g.fillRect(-bodyW / 2, -bodyH / 2, bodyW, capBottom + bodyH / 2);
+    g.strokeStyle = "rgba(74, 60, 134, 0.7)";
+    g.lineWidth = Math.max(1, S * 0.02);
+    for (const k of [0.41, 0.33]) {
       g.beginPath();
-      g.arc(k * bodyW * 0.16, -bodyH * 0.3, Math.max(1, S * 0.022), 0, TAU);
-      g.fill();
+      g.moveTo(-bodyW / 2, -bodyH * k);
+      g.lineTo(bodyW / 2, -bodyH * k);
+      g.stroke();
     }
-    // 눈(오른쪽을 봄)
-    const eyeY = -bodyH * 0.08;
+    g.strokeStyle = outline;
+    g.lineWidth = line;
+    g.beginPath();
+    g.moveTo(-bodyW / 2, capBottom);
+    g.lineTo(bodyW / 2, capBottom);
+    g.stroke();
+    g.restore();
+    g.strokeStyle = outline;
+    g.lineWidth = line;
+    roundRect(g, -bodyW / 2, -bodyH / 2, bodyW, bodyH, bodyW * 0.48);
+    g.stroke();
+    // 눈(오른쪽을 봄). 망 머리 경계선 아래
+    const eyeY = -bodyH * 0.03;
     g.fillStyle = "#ffffff";
     g.beginPath();
     g.ellipse(bodyW * 0.2, eyeY, S * 0.07, S * 0.085, 0, 0, TAU);

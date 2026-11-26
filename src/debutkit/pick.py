@@ -80,7 +80,7 @@ COLORS = {"channel": ("방송 색", "#ff4f8b"), "pink": ("핑크", "#ff4f8b"), "
           "violet": ("보라", "#8a5cf5"), "lilac": ("라일락", "#c39bf0"), "cocoa": ("코코아", "#8a5a44"), "slate": ("먹", "#3a4249")}
 COLOR_PARTS = {"cover": "덮개", "board": "판 바탕", "text": "글자", "win": "당첨 띠"}
 COVERS = {"number": "큰 번호", "dots": "망점", "stripes": "사선", "check": "체크", "grid": "모눈", "stars": "별", "hearts": "하트",
-          "waves": "물결", "question": "물음표", "emblem": "고양이 문양", "gift": "선물 포장"}
+          "waves": "물결", "question": "물음표", "emblem": "마이 문양", "gift": "선물 포장"}
 #: 함께 배포한 글꼴(Black Han Sans, Pretendard)과 Windows 기본 글꼴
 FONTS = {"blackhan": "Black Han Sans", "pretendard": "Pretendard", "malgun": "맑은 고딕", "serif": "바탕(명조)"}
 EFFECTS = {"confetti": "종이 조각", "stars": "별 터짐", "ribbons": "리본", "rays": "집중선", "coins": "동전 비", "hearts": "하트",

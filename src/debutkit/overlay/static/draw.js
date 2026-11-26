@@ -1,5 +1,5 @@
 // debutkit 후원 추첨 연출(OBS 브라우저 소스, 권장 1920x1080). /live?feeds=draw 로 추첨 결과를 받아 차례로 연출한다.
-// 콘셉트 "방송 소품": 고양이 귀 마이크 문양을 찍은 실물 카드와 무대용 상품 룰렛. 소품과 하단 띠만 화면 아래쪽에 놓는다.
+// 콘셉트 "방송 소품": 마스코트 마이(리본 마이크) 문양을 찍은 실물 카드와 무대용 상품 룰렛. 소품과 하단 띠만 화면 아래쪽에 놓는다.
 // 연출 순서: 시작(띠, 소품 등장), 예고(희귀 카드만 금색 빛, 실제 결과와 같음), 공개(일반 카드 빠르게, 희귀 카드 마지막 천천히), 정리(결과 판), 퇴장.
 // 뽑기는 서버가 하고 이 화면은 받은 결과를 보여 주기만 한다(모든 화면이 같은 결과). 글은 textContent로만 넣는다.
 // 시청자 참여 추첨(/live의 raffle): 모집 중에는 하단 모집 띠와 참가자 이름, 결과는 당첨 카드나 순서표로 같은 차례 안에서 연출.
@@ -50,13 +50,18 @@
     ? Promise.all(['40px "Black Han Sans"', '600 20px "Pretendard"', '700 20px "Pretendard"'].map((font) => document.fonts.load(font))).catch(() => null)
     : Promise.resolve();
 
-  // 고양이 귀 마이크 문양(assets/brand의 기호와 같은 도형). 그룹으로 만들어 카드 뒷면과 룰렛 가운데에 사용
-  function emblemShapes(body, eyes) {
+  // 마스코트 마이(리본 마이크) 문양: 꼭대기 불, 둥근 몸, 위쪽 망 두 줄, 눈과 웃는 입, 아래 띠. 몸 색과 무늬 색 두 가지로
+  // (assets/brand의 마이를 줄인 모양, pick.js와 같은 도형). 그룹으로 만들어 카드 뒷면, 룰렛 가운데, 소품에 사용. 가운데는 (60, 45)
+  function emblemShapes(body, ink) {
     const group = svgEl("g");
-    group.appendChild(svgEl("path", { d: "M38 32 L42 9 L56 21 Z M82 32 L78 9 L64 21 Z", fill: body, stroke: body, "stroke-width": 6, "stroke-linejoin": "round" }));
-    group.appendChild(svgEl("rect", { x: 36, y: 18, width: 48, height: 64, rx: 24, fill: body }));
-    group.appendChild(svgEl("rect", { x: 45.5, y: 40, width: 8, height: 13, rx: 4, fill: eyes }));
-    group.appendChild(svgEl("rect", { x: 66.5, y: 40, width: 8, height: 13, rx: 4, fill: eyes }));
+    group.appendChild(svgEl("circle", { cx: 60, cy: 9, r: 4, fill: body }));
+    group.appendChild(svgEl("rect", { x: 36, y: 14, width: 48, height: 68, rx: 24, fill: body }));
+    group.appendChild(svgEl("rect", { x: 43, y: 23, width: 34, height: 3.6, rx: 1.8, fill: ink }));
+    group.appendChild(svgEl("rect", { x: 39.5, y: 30.5, width: 41, height: 3.6, rx: 1.8, fill: ink }));
+    group.appendChild(svgEl("circle", { cx: 50.5, cy: 46, r: 4, fill: ink }));
+    group.appendChild(svgEl("circle", { cx: 69.5, cy: 46, r: 4, fill: ink }));
+    group.appendChild(svgEl("path", { d: "M54.5 53 Q60 59.5 65.5 53", fill: "none", stroke: ink, "stroke-width": 3.4, "stroke-linecap": "round" }));
+    group.appendChild(svgEl("rect", { x: 40, y: 66, width: 40, height: 3.6, rx: 1.8, fill: ink }));
     return group;
   }
 
