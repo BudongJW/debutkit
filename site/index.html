@@ -40,75 +40,97 @@
   <div class="wrap product">
     <!-- 화면 모음: 스크립트 없이 라디오 버튼으로 넘김(왼쪽, 오른쪽 방향키도 사용 가능) -->
     <section class="gallery" aria-label="프로그램 화면">
-      <input class="vh" type="radio" name="shot" id="shot-1" checked aria-label="화면 1, PC 점검">
-      <input class="vh" type="radio" name="shot" id="shot-2" aria-label="화면 2, 캐릭터">
-      <input class="vh" type="radio" name="shot" id="shot-3" aria-label="화면 3, 채팅과 알림">
-      <input class="vh" type="radio" name="shot" id="shot-4" aria-label="화면 4, 채팅창 표시 형태">
-      <input class="vh" type="radio" name="shot" id="shot-5" aria-label="화면 5, 오버레이 설정">
-      <input class="vh" type="radio" name="shot" id="shot-6" aria-label="화면 6, 후원 추첨">
+      <input class="vh" type="radio" name="shot" id="shot-1" checked aria-label="화면 1, 3D 데비">
+      <input class="vh" type="radio" name="shot" id="shot-2" aria-label="화면 2, 표정 시트">
+      <input class="vh" type="radio" name="shot" id="shot-3" aria-label="화면 3, PC 점검">
+      <input class="vh" type="radio" name="shot" id="shot-4" aria-label="화면 4, 캐릭터">
+      <input class="vh" type="radio" name="shot" id="shot-5" aria-label="화면 5, 채팅과 알림">
+      <input class="vh" type="radio" name="shot" id="shot-6" aria-label="화면 6, 채팅창 표시 형태">
+      <input class="vh" type="radio" name="shot" id="shot-7" aria-label="화면 7, 시작하기 화면">
+      <input class="vh" type="radio" name="shot" id="shot-8" aria-label="화면 8, 후원 추첨">
       <div class="slides">
         <figure class="slide" id="slide-1">
           <div class="stage">
-            <img src="assets/shots/wizard-check.png" alt="설정 마법사 PC 점검 단계. 메모리, CPU, 그래픽카드, 마이크, 웹캠, OBS 등 항목별 점검 결과와 조치 안내" width="1200" height="965">
-            <label class="turn prev" for="shot-6"><span class="vh">이전 화면</span></label>
+            <img src="assets/shots/character-3d-debi.png" alt="기본 3D 캐릭터 데비. 허리에 손, 손 인사, 편하게 서기 자세를 무대 배경에 나란히" width="1200" height="640">
+            <label class="turn prev" for="shot-8"><span class="vh">이전 화면</span></label>
             <label class="turn next" for="shot-2"><span class="vh">다음 화면</span></label>
-            <span class="count">1/5</span>
+            <span class="count">1/8</span>
           </div>
-          <figcaption>설정 마법사 PC 점검 단계(예시 PC 기준)</figcaption>
+          <figcaption>기본 3D 캐릭터 데비(포즈 그림)</figcaption>
         </figure>
         <figure class="slide" id="slide-2">
           <div class="stage">
-            <img src="assets/shots/wizard-character.png" alt="설정 마법사 캐릭터 단계. 캐릭터 목록과 사용 조건, 3D 캐릭터 동작 등록" width="1200" height="965" loading="lazy">
+            <img src="assets/shots/character-sheet.png" alt="캐릭터 그림 만들기의 표정 시트. 정면, 3/4, 얼굴과 표정 7종" width="1200" height="675" loading="lazy">
             <label class="turn prev" for="shot-1"><span class="vh">이전 화면</span></label>
             <label class="turn next" for="shot-3"><span class="vh">다음 화면</span></label>
-            <span class="count">2/5</span>
+            <span class="count">2/8</span>
           </div>
-          <figcaption>설정 마법사 캐릭터 단계</figcaption>
+          <figcaption>캐릭터 그림 만들기의 표정 시트</figcaption>
         </figure>
         <figure class="slide" id="slide-3">
           <div class="stage">
-            <img src="assets/shots/wizard-chat.png" alt="설정 마법사 채팅과 알림 단계. 플랫폼별 채널 입력, 치지직 API 로그인, 자동 클립 선택" width="1200" height="965" loading="lazy">
+            <img src="assets/shots/wizard-check.png" alt="설정 마법사 PC 점검 단계. 메모리, CPU, 그래픽카드, 마이크, 웹캠, OBS 등 항목별 점검 결과와 조치 안내" width="1200" height="965" loading="lazy">
             <label class="turn prev" for="shot-2"><span class="vh">이전 화면</span></label>
             <label class="turn next" for="shot-4"><span class="vh">다음 화면</span></label>
-            <span class="count">3/5</span>
+            <span class="count">3/8</span>
           </div>
-          <figcaption>설정 마법사 채팅과 알림 단계</figcaption>
+          <figcaption>설정 마법사 PC 점검 단계(예시 PC 기준)</figcaption>
         </figure>
         <figure class="slide" id="slide-4">
           <div class="stage">
-            <img src="assets/shots/overlay-themes.png" alt="채팅창 표시 형태 3종(shadow, card, light)과 후원 알림" width="1200" height="600" loading="lazy">
+            <img src="assets/shots/wizard-character.png" alt="설정 마법사 캐릭터 단계. 캐릭터 목록과 사용 조건, 3D 캐릭터 동작 등록" width="1200" height="965" loading="lazy">
             <label class="turn prev" for="shot-3"><span class="vh">이전 화면</span></label>
             <label class="turn next" for="shot-5"><span class="vh">다음 화면</span></label>
-            <span class="count">4/5</span>
+            <span class="count">4/8</span>
           </div>
-          <figcaption>채팅창 표시 형태(shadow, card, light)와 후원 알림</figcaption>
+          <figcaption>설정 마법사 캐릭터 단계</figcaption>
         </figure>
         <figure class="slide" id="slide-5">
           <div class="stage">
-            <img src="assets/shots/overlay-settings.png" alt="시작하기 화면. 방송 준비 목록과 방송 직전 점검, OBS에 넣기 단추" width="1180" height="1340" loading="lazy">
+            <img src="assets/shots/wizard-chat.png" alt="설정 마법사 채팅과 알림 단계. 플랫폼별 채널 입력, 치지직 API 로그인, 자동 클립 선택" width="1200" height="965" loading="lazy">
             <label class="turn prev" for="shot-4"><span class="vh">이전 화면</span></label>
             <label class="turn next" for="shot-6"><span class="vh">다음 화면</span></label>
-            <span class="count">5/6</span>
+            <span class="count">5/8</span>
           </div>
-          <figcaption>시작하기 화면</figcaption>
+          <figcaption>설정 마법사 채팅과 알림 단계</figcaption>
         </figure>
         <figure class="slide" id="slide-6">
           <div class="stage">
-            <img src="assets/shots/overlay-draw.png" alt="후원 추첨 연출. 문양을 찍은 카드와 상품 룰렛, 희귀 상품 금색 강조, 결과 판과 후원자 띠" width="1200" height="500" loading="lazy">
+            <img src="assets/shots/overlay-themes.png" alt="채팅창 표시 형태 3종(shadow, card, light)과 후원 알림" width="1200" height="600" loading="lazy">
             <label class="turn prev" for="shot-5"><span class="vh">이전 화면</span></label>
+            <label class="turn next" for="shot-7"><span class="vh">다음 화면</span></label>
+            <span class="count">6/8</span>
+          </div>
+          <figcaption>채팅창 표시 형태(shadow, card, light)와 후원 알림</figcaption>
+        </figure>
+        <figure class="slide" id="slide-7">
+          <div class="stage">
+            <img src="assets/shots/overlay-settings.png" alt="시작하기 화면. 방송 준비 목록과 방송 직전 점검, OBS에 넣기 단추" width="1180" height="1340" loading="lazy">
+            <label class="turn prev" for="shot-6"><span class="vh">이전 화면</span></label>
+            <label class="turn next" for="shot-8"><span class="vh">다음 화면</span></label>
+            <span class="count">7/8</span>
+          </div>
+          <figcaption>시작하기 화면</figcaption>
+        </figure>
+        <figure class="slide" id="slide-8">
+          <div class="stage">
+            <img src="assets/shots/overlay-draw.png" alt="후원 추첨 연출. 마스코트 마이 문양을 찍은 카드와 상품 룰렛, 희귀 상품 금색 강조, 결과 판과 후원자 띠" width="1200" height="500" loading="lazy">
+            <label class="turn prev" for="shot-7"><span class="vh">이전 화면</span></label>
             <label class="turn next" for="shot-1"><span class="vh">다음 화면</span></label>
-            <span class="count">6/6</span>
+            <span class="count">8/8</span>
           </div>
           <figcaption>후원 추첨 연출(카드 뒤집기, 룰렛)</figcaption>
         </figure>
       </div>
       <div class="thumbs">
-        <label for="shot-1"><img src="assets/shots/wizard-check.png" alt="" width="1200" height="965"></label>
-        <label for="shot-2"><img src="assets/shots/wizard-character.png" alt="" width="1200" height="965"></label>
-        <label for="shot-3"><img src="assets/shots/wizard-chat.png" alt="" width="1200" height="965"></label>
-        <label for="shot-4"><img src="assets/shots/overlay-themes.png" alt="" width="1200" height="600"></label>
-        <label for="shot-5"><img src="assets/shots/overlay-settings.png" alt="" width="1180" height="1340"></label>
-        <label for="shot-6"><img src="assets/shots/overlay-draw.png" alt="" width="1200" height="500"></label>
+        <label for="shot-1"><img src="assets/shots/character-3d-debi.png" alt="" width="1200" height="640"></label>
+        <label for="shot-2"><img src="assets/shots/character-sheet.png" alt="" width="1200" height="675"></label>
+        <label for="shot-3"><img src="assets/shots/wizard-check.png" alt="" width="1200" height="965"></label>
+        <label for="shot-4"><img src="assets/shots/wizard-character.png" alt="" width="1200" height="965"></label>
+        <label for="shot-5"><img src="assets/shots/wizard-chat.png" alt="" width="1200" height="965"></label>
+        <label for="shot-6"><img src="assets/shots/overlay-themes.png" alt="" width="1200" height="600"></label>
+        <label for="shot-7"><img src="assets/shots/overlay-settings.png" alt="" width="1180" height="1340"></label>
+        <label for="shot-8"><img src="assets/shots/overlay-draw.png" alt="" width="1200" height="500"></label>
       </div>
     </section>
 
@@ -182,7 +204,8 @@
           <li><b>OBS에 넣기</b> 시작하기 화면의 방송 준비 목록과 방송 화면마다 단추 하나로 OBS 장면에 넣기(크기, 자리, 알림 소리까지). 주소를 복사해 크기를 입력할 필요 없음</li>
           <li><b>디스코드 합방</b> 디스코드 음성 위젯을 방송 스타일로 꾸미고 참여자별 캐릭터 그림으로, 웹훅 방송 알림</li>
           <li><b>팬 커뮤니티</b> 트게더처럼 스트리머마다 자기 커뮤니티(공지, 방송 일정, 게시판, 팬아트, 출석과 포인트). 내 Cloudflare 무료 계정에 올리고 방송 채팅 <code>!인증</code>으로 가입, <code>!출석</code>, 방송에 띄우기 <code>community</code></li>
-          <li><b>캐릭터</b> PNGTuber, 3D(VRM, GLB, FBX), Live2D 등록과 사용 조건 확인. debutkit 캐릭터 화면으로 방송(마이크 음량으로 입 움직임, 눈 깜빡임, 웹캠 얼굴 추적). 기본 캐릭터 포함 <code>character</code></li>
+          <li><b>캐릭터</b> PNGTuber, 3D(VRM, GLB, FBX), Live2D 등록과 사용 조건 확인. debutkit 캐릭터 화면으로 방송(마이크 음량으로 입 움직임, 눈 깜빡임, 웹캠 얼굴 추적). 기본 캐릭터 데비를 PNGTuber와 3D(VRM, CC0, 표정 18종) 두 가지로 포함 <code>character</code></li>
+          <li><b>캐릭터 그림 만들기</b> VRM을 이 PC에서 그려 표정 시트, PNGTuber 4상태, 포즈 그림(몸, 머리, 팔, 다리 조합, 랜덤, 투명 PNG). 모델 점검(표정, 텍스처 무게)과 텍스처를 줄인 가벼운 사본 <code>/character/sheet</code></li>
           <li><b>방송 로고 만들기</b> 함께 배포하는 아이콘(Fluent Emoji, Phosphor, MIT, 한국어 검색, 채널 색)과 기본 도형, 계정 없는 공개 모델 AI Horde, 공개 이미지 모델 Qwen-Image(ComfyUI 또는 Hugging Face) 또는 본인 API 키의 생성형 AI(Claude, OpenAI, Recraft) 심볼과 채널 이름(글꼴 윤곽선)으로 SVG, 투명 PNG 로고. 외곽선과 스티커 마감, 아이콘 출처와 AI 생성 표시, API 키 암호화 저장 <code>logo</code></li>
           <li><b>휴대폰 앱</b> 안드로이드, 아이폰 앞면 카메라로 얼굴 추적(MediaPipe, ARKit)해 표정 52개와 머리 움직임을 PC로 전송. 카메라 영상 모드는 WebRTC로 OBS에 직접 전송. QR 등록과 PC 승인. 안드로이드는 PC 없이 바로 방송(캐릭터 화면 또는 카메라 영상) <code>mobile</code></li>
           <li><b>휴대폰 조작 화면</b> 같은 Wi-Fi의 휴대폰 브라우저로 참여 추첨과 3D 캐릭터 동작 조작, 후원 추첨 결과 확인. QR 등록과 PC 승인, 요청 서명 <code>remote</code></li>
@@ -288,11 +311,11 @@ debutkit-gui</code></pre>
       <h2 id="more-title">관련 페이지</h2>
       <ul class="cards">
         <li>
-          <a href="guide.html">
-            <img src="assets/shots/wizard-character.png" alt="" width="1200" height="965" loading="lazy">
+          <a href="guide.html#character-3d">
+            <img src="assets/shots/character-3d-debi.png" alt="" width="1200" height="640" loading="lazy">
             <span class="label">문서</span>
             <strong>사용 설명서</strong>
-            <span class="desc">설치, 설정 마법사, 캐릭터, OBS 장면, 채팅과 알림, 자동 클립 사용 방법</span>
+            <span class="desc">설치, 설정 마법사, 캐릭터(기본 3D 캐릭터 데비와 공개 3D 모델), OBS 장면, 채팅과 알림, 자동 클립 사용 방법</span>
           </a>
         </li>
         <li>

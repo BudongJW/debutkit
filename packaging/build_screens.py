@@ -144,6 +144,18 @@ def _devtools_capture(browser: str, url: str, out: Path, size: tuple[int, int], 
     (채팅 줄 등장 효과 중간, 캐릭터 이미지를 불러오기 전에 찍힘). 실제 시간으로 기다린 뒤 촬영한다.
     """
     import base64
+
+    def work(call) -> None:
+        if transparent:  # 투명 배경 PNG(브랜드 파일): 페이지 배경을 투명하게
+            call("Emulation.setDefaultBackgroundColorOverride", color={"r": 0, "g": 0, "b": 0, "a": 0})
+        call("Page.navigate", url=url)
+        time.sleep(wait)
+        out.write_bytes(base64.b64decode(call("Page.captureScreenshot", format="png")["data"]))
+    return _devtools(browser, size, work)
+
+
+def _devtools(browser: str, size: tuple[int, int], work) -> bool:
+    """헤드리스 브라우저를 원격 디버깅으로 열고 ``work(call)`` 실행(call(메서드, **값) -> 결과). 실행하지 못하면 False."""
     import itertools
     import json
     import urllib.request
@@ -183,11 +195,7 @@ def _devtools_capture(browser: str, url: str, out: Path, size: tuple[int, int], 
 
             try:
                 call("Emulation.setDeviceMetricsOverride", width=size[0], height=size[1], deviceScaleFactor=1, mobile=False)
-                if transparent:  # 투명 배경 PNG(브랜드 파일): 페이지 배경을 투명하게
-                    call("Emulation.setDefaultBackgroundColorOverride", color={"r": 0, "g": 0, "b": 0, "a": 0})
-                call("Page.navigate", url=url)
-                time.sleep(wait)
-                out.write_bytes(base64.b64decode(call("Page.captureScreenshot", format="png")["data"]))
+                work(call)
             finally:
                 socket_.close()
             return True
@@ -273,6 +281,81 @@ def draw_shot(browser: list[str], base: str, out: Path = OUT / "overlay-draw.png
     return out
 
 
+#: 3D 데비 쇼케이스: (추천 자세, 각도, 표정). 가운데가 대표
+SHOWCASE = (("hip", 0.3, "neutral"), ("wave", 0, "happy"), ("relaxed", 0.62, "relaxed"))
+
+
+def character_shots(browsers: list[str], base: str) -> list[Path]:
+    """기본 3D 캐릭터 데비: 캐릭터 그림 만들기 화면(헤드리스 브라우저, 소프트웨어 WebGL)에서 투명 포즈 그림 3장과 표정 시트를 받아
+    무대 배경 위 쇼케이스(character-3d-debi.png)와 시트(character-sheet.png)로 저장."""
+    import base64
+    import json
+
+    from PIL import Image
+
+    pictures: dict[str, bytes] = {}
+
+    def work(call) -> None:
+        call("Page.navigate", url=f"{base}/character/sheet?id=debutkit-3d")
+        evaluate = lambda expression: call("Runtime.evaluate", expression=expression, returnByValue=True, awaitPromise=True).get("result", {}).get("value")  # noqa: E731
+        end = time.monotonic() + 180  # 소프트웨어 WebGL은 모델을 그리는 데 오래 걸림
+        while not evaluate("Boolean(window.debutkitSheet && window.debutkitSheet.ready())"):
+            if time.monotonic() > end:
+                raise SystemExit("캐릭터 그림 만들기 화면이 그림을 끝내지 못함")
+            time.sleep(1)
+        for index, (preset, angle, face) in enumerate(SHOWCASE):
+            url = evaluate(f"window.debutkitSheet.pose({json.dumps(preset)}, {angle}, {json.dumps(face)}, 600, 900, false)")
+            pictures[f"pose{index}"] = base64.b64decode(url.split(",", 1)[1])
+        pictures["sheet"] = base64.b64decode(evaluate('window.debutkitSheet.sheet("wave")').split(",", 1)[1])
+
+    if not any(_devtools(browser, (1280, 900), work) and pictures for browser in browsers):
+        raise SystemExit("캐릭터 그림 촬영 실패")
+    import io
+
+    poses = [Image.open(io.BytesIO(pictures[f"pose{index}"])).convert("RGBA") for index in range(len(SHOWCASE))]
+    showcase = OUT / "character-3d-debi.png"
+    stage_picture(poses, (1200, 640)).save(showcase, optimize=True)
+    sheet = OUT / "character-sheet.png"
+    Image.open(io.BytesIO(pictures["sheet"])).convert("RGB").resize((1200, 675), Image.Resampling.LANCZOS).save(sheet, optimize=True)
+    return [showcase, sheet]
+
+
+def stage_picture(poses: list, size: tuple[int, int]):
+    """무대 배경(캐릭터 그림 만들기 화면과 같은 남보라 그라데이션, 라벤더 빛, 작은 별, 민트 바닥 빛) 위에 투명 포즈 그림을 나란히."""
+    import random
+
+    from PIL import Image, ImageDraw, ImageFilter
+
+    width, height = size
+    picture = Image.new("RGB", size)
+    draw = ImageDraw.Draw(picture)
+    top, bottom = (43, 34, 73), (17, 14, 29)
+    for y in range(height):
+        t = y / (height - 1)
+        draw.line([(0, y), (width, y)], fill=tuple(round(a + (b - a) * t) for a, b in zip(top, bottom, strict=True)))
+    glow = Image.new("L", size, 0)
+    ImageDraw.Draw(glow).ellipse((width * 0.12, -height * 0.1, width * 0.88, height * 0.9), fill=120)
+    picture = Image.composite(Image.new("RGB", size, (169, 139, 247)), picture, glow.filter(ImageFilter.GaussianBlur(140)))
+    picture = picture.convert("RGBA")
+    stars = ImageDraw.Draw(picture)
+    chance = random.Random(7)
+    for _ in range(40):
+        x, y, r = chance.uniform(0, width), chance.uniform(0, height * 0.7), chance.uniform(0.6, 1.8)
+        stars.ellipse((x - r, y - r, x + r, y + r), fill=(255, 255, 255, round(chance.uniform(70, 200))))
+    floor = height * 0.95
+    for index, pose in enumerate(poses):
+        figure = pose.crop(pose.getbbox())
+        tall = height * (0.9 if index == len(poses) // 2 else 0.8)
+        figure = figure.resize((round(figure.width * tall / figure.height), round(tall)), Image.Resampling.LANCZOS)
+        center = width * (index + 0.5) / len(poses)
+        shine = Image.new("L", size, 0)
+        ImageDraw.Draw(shine).ellipse((center - figure.width * 0.75, floor - 16, center + figure.width * 0.75, floor + 16), fill=150)
+        picture.alpha_composite(Image.composite(Image.new("RGBA", size, (69, 214, 184, 255)), Image.new("RGBA", size, (0, 0, 0, 0)),
+                                                shine.filter(ImageFilter.GaussianBlur(14))))
+        picture.alpha_composite(figure, (round(center - figure.width / 2), round(floor - figure.height)))
+    return picture.convert("RGB")
+
+
 def overlay_shots(browser: list[str]) -> list[Path]:
     server = overlay_server()
     try:
@@ -281,13 +364,14 @@ def overlay_shots(browser: list[str]) -> list[Path]:
         looks = capture(browser, server.url + "/alerts/control", OUT / "overlay-alerts-looks.png", (1200, 1180), wait=10.0)
         draws = draw_shot(browser, server.url)
         raffles = draw_shot(browser, server.url, OUT / "overlay-raffle.png", (("pick", "sample=raffle", 7.0), ("order", "sample=order", 5.0)))
+        characters = character_shots(browser, server.url)
     finally:
         server.stop()
     with tempfile.TemporaryDirectory() as folder:
         page = Path(folder) / "themes.html"
         page.write_text(themes_page(), encoding="utf-8")
         themes = capture(browser, page.as_uri(), OUT / "overlay-themes.png", (1200, 600))
-    return [settings, looks, draws, raffles, themes]
+    return [settings, looks, draws, raffles, *characters, themes]
 
 
 def shrink(path: Path, width: int = 1200) -> None:

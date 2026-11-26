@@ -433,6 +433,26 @@ function buildPoseControls() {
 }
 
 buildPoseControls();
+
+// 문서 그림용(packaging/build_screens.py가 헤드리스 브라우저로 부름): 추천 자세, 각도(0, 0.3, 0.62), 표정을 정해 그림을 PNG 주소로
+window.debutkitSheet = {
+  ready: () => Boolean(current) && $("state").textContent === "그림 완료",
+  pose(preset, angle = 0, face = "neutral", width = 600, height = 900, background = false) {
+    Object.assign(poseState, PRESETS[preset].parts);
+    syncParts();
+    $("pose-angle").value = String(angle);
+    $("pose-face").value = face;
+    applyPose();
+    return renderPose(width, height, background).toDataURL("image/png");
+  },
+  sheet(preset) {
+    Object.assign(poseState, PRESETS[preset].parts);
+    syncParts();
+    applyPose();
+    drawSheet(current.name);
+    return $("sheet").toDataURL("image/png");
+  },
+};
 $("pose").addEventListener("change", () => {
   const preset = PRESETS[$("pose").value];
   if (!preset) return;
