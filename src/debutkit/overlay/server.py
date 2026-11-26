@@ -87,7 +87,7 @@ MISSING_PAGE = """<!doctype html><html lang="ko"><head><meta charset="utf-8"><ti
 <style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#faf7f5;color:#231b3d;font:16px/1.6 "Pretendard","Malgun Gothic",sans-serif}
 main{display:flex;gap:20px;align-items:center;padding:24px;max-width:560px}img{width:132px;height:132px;object-fit:contain;flex:none}
 h1{margin:0 0 4px;font-size:22px}p{margin:0 0 12px;color:#5b6670}a{color:#5b3fc4;font-weight:700}</style></head>
-<body><main><img src="/mascot/cue.png" alt="무대 감독 큐"><div><h1>NG! 대본에 없는 장면</h1>
+<body><main><img src="/mascot/cue.png" alt="무대 감독 큐"><div><h1>NG: 대본에 없는 장면</h1>
 <p>이 주소의 화면은 없음. 주소를 다시 확인하거나 시작하기 화면에서 고르기</p><a href="/">시작하기 화면으로</a></div></main></body></html>
 """.encode("utf-8")
 #: 외부에서 받은 SVG를 직접 열 때도 스크립트, 외부 연결이 동작하지 않게(logo.py에서 이미 정리)
