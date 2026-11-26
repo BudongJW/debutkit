@@ -445,6 +445,29 @@ debutkit logo key huggingface                   # Hugging Face Read 토큰 저�
 debutkit logo make --name 채널 --ai huggingface --describe "고양이 귀 헤드폰을 쓴 마이크" --out 로고.svg
 debutkit logo list                              # 기본 도형과 최근 AI 심볼</code></pre>
 
+        <h2 id="decor">방송 이미지 만들기(프사, 배너, 썸네일)</h2>
+        <p>오버레이를 시작한 뒤 위쪽 메뉴의 꾸미기, 방송 이미지(주소 <code>/decor</code>)에서 만듭니다.</p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>그림</th><th>크기</th><th>참고</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">프사</th><td>1024x1024</td><td>원형으로 잘려도 보이게 가운데에 캐릭터. 안내선으로 잘리는 바깥 표시</td></tr>
+              <tr><th scope="row">다시보기 썸네일</th><td>1280x720</td><td>YouTube, 치지직, SOOP 다시보기(16:9)</td></tr>
+              <tr><th scope="row">YouTube 채널 배너</th><td>2560x1440</td><td>모든 기기에 보이는 가운데 1546x423 안에 글자와 캐릭터(안내선 표시)</td></tr>
+              <tr><th scope="row">Twitch 프로필 배너</th><td>1200x480</td><td>채널 위쪽 배너</td></tr>
+              <tr><th scope="row">SOOP 방송국 배너</th><td>720x150</td><td>JPEG 200KB 이하로 저장</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ul>
+          <li>캐릭터: 등록한 캐릭터(PNGTuber는 입 다문 그림, 3D는 미리보기 그림) 또는 내 그림 올리기(투명 PNG 권장)</li>
+          <li>3D 캐릭터를 온몸 자세로: 캐릭터 그림 만들기의 포즈 그림을 투명 PNG로 저장한 뒤 올리기</li>
+          <li>글자: 채널 이름(Black Han Sans)과 한 줄 소개, 방송 제목(Pretendard). 색은 방송 색</li>
+          <li>배경 무늬(별, 망점, 사선, 없음), 캐릭터 크기와 위치(왼쪽, 가운데, 오른쪽)</li>
+          <li>올린 그림은 이 브라우저 안에서만 사용하고 서버로 보내지 않음</li>
+          <li>규격은 플랫폼 안내 기준. 올리기 전에 플랫폼 화면에서 다시 확인</li>
+        </ul>
+
         <h2 id="doctor">PC 점검</h2>
         <pre><code>debutkit doctor
 debutkit doctor --avatar model.vrm --agency

@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>debutkit 방송 이미지 만들기</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/theme.css?fonts=0">
+  <link rel="stylesheet" href="/ui.css">
+  <style>
+    @font-face { font-family: "Black Han Sans"; src: url("/vendor/fonts/BlackHanSans-Regular.woff2") format("woff2"); font-display: block; }
+    @font-face { font-family: "Pretendard"; src: url("/vendor/fonts/Pretendard-Bold.subset.woff2") format("woff2"); font-weight: 700; font-display: block; }
+    :root { color-scheme: light; --bg: #ffffff; --panel: #faf7f5; --line: #e3dfdb; --text: #1e2327; --dim: #5b6670; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.6 "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; }
+    header { display: flex; align-items: center; gap: 12px; padding: 14px 24px; border-bottom: 1px solid var(--line); }
+    header img { width: 28px; height: 28px; }
+    header h1 { font-size: 17px; margin: 0; }
+    main { max-width: 1240px; margin: 0 auto; padding: 18px 24px 48px; display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 18px; align-items: start; }
+    section { border: 1px solid var(--line); border-radius: 6px; padding: 14px 18px; }
+    h2 { font-size: 16px; margin: 0 0 8px; }
+    .preview { position: relative; background: repeating-conic-gradient(#e9e4dd 0% 25%, #f6f2ee 0% 50%) 0 0 / 20px 20px; border-radius: 4px; overflow: hidden; }
+    .preview canvas { width: 100%; height: auto; display: block; }
+    .formats { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+    .formats button { background: #fff; color: var(--text); border: 1px solid #c9c3bd; border-radius: 3px; padding: 5px 10px; font: inherit; cursor: pointer; }
+    .formats button[aria-pressed="true"] { background: var(--text); color: #fff; border-color: var(--text); }
+    .field { display: grid; gap: 4px; margin-bottom: 10px; font-size: 14px; }
+    .field > span { font-weight: 600; }
+    select, input[type=text] { padding: 6px 8px; border: 1px solid #c9c3bd; border-radius: 3px; font: inherit; background: #fff; width: 100%; }
+    input[type=range] { width: 100%; }
+    label.check { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; }
+    button.primary { background: var(--text); color: #fff; border: 1px solid var(--text); border-radius: 3px; padding: 7px 14px; font: inherit; font-weight: 600; cursor: pointer; }
+    .state { font-size: 13px; color: var(--dim); }
+    ul.tips { margin: 8px 0 0; padding-left: 18px; color: var(--dim); font-size: 13px; }
+    @media (max-width: 860px) { main { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header><img src="/favicon.svg" alt=""><h1>방송 이미지 만들기</h1></header>
+  <main>
+    <section>
+      <div class="formats" id="formats" role="group" aria-label="그림 종류"></div>
+      <div class="preview"><canvas id="canvas" width="1024" height="1024"></canvas></div>
+      <p class="state" id="format-note"></p>
+    </section>
+    <section>
+      <h2>꾸미기</h2>
+      <label class="field"><span>캐릭터</span><select id="character"></select></label>
+      <label class="field"><span>내 그림 올리기(투명 PNG 권장)</span><input type="file" id="upload" accept="image/png,image/jpeg,image/webp"></label>
+      <label class="field"><span>채널 이름</span><input type="text" id="name" maxlength="24" value="데비 채널"></label>
+      <label class="field"><span>한 줄 소개, 방송 제목</span><input type="text" id="line" maxlength="40" value="매일 밤 9시 노래 방송"></label>
+      <label class="field"><span>배경 무늬</span><select id="pattern"><option value="stars">별</option><option value="dots">망점</option><option value="stripes">사선</option><option value="none">없음</option></select></label>
+      <label class="field"><span>캐릭터 크기</span><input type="range" id="scale" min="60" max="150" value="100"></label>
+      <label class="field"><span>캐릭터 위치</span><select id="side"><option value="right">오른쪽</option><option value="center">가운데</option><option value="left">왼쪽</option></select></label>
+      <label class="check"><input type="checkbox" id="guide" checked> 안내선 보기(저장 그림에는 없음)</label>
+      <div style="margin-top: 12px"><button type="button" class="primary" id="save">저장</button> <span class="state" id="save-state"></span></div>
+      <ul class="tips">
+        <li>색은 방송 색(방송 화면 꾸미기에서 바꿈)</li>
+        <li>올린 그림은 이 브라우저 안에서만 사용(서버로 보내지 않음)</li>
+        <li>3D 캐릭터는 캐릭터 그림 만들기의 포즈 그림(투명 PNG)을 올리면 온몸 자세로</li>
+        <li>규격은 각 플랫폼 안내 기준. 올리기 전에 플랫폼 화면에서 다시 확인</li>
+      </ul>
+    </section>
+  </main>
+  <script src="/theme.js"></script>
+  <script src="/ui.js"></script>
+  <script src="/decor.js"></script>
+</body>
+</html>

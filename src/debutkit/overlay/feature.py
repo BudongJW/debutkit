@@ -119,7 +119,7 @@ def default_features(context: Context) -> list[Feature]:
     from .. import wall
     from ..pick import pick_feature
     from ..race import feature as race_feature
-    from . import alerts, character_sheet, community, discord, games, obs_add, stage, theme, vmc
+    from . import alerts, character_sheet, community, decor, discord, games, obs_add, stage, theme, vmc
 
     theme_part, alerts_part = theme.make_feature(context), alerts.make_feature(context)
     found: list[Feature] = [theme_part, alerts_part, games.make_feature(context, theme_part, alerts_part), stage.make_feature(context),
@@ -131,4 +131,5 @@ def default_features(context: Context) -> list[Feature]:
     found.append(discord.make_feature(context))  # 디스코드 음성 위젯 꾸미기, 웹훅 알림
     found.append(obs_add.make_feature(context))  # OBS에 넣기(주소 복사 대신 단추 하나로)
     found.append(character_sheet.make_feature(context))  # 캐릭터 그림 만들기(VRM에서 표정 시트, PNGTuber 4상태)
+    found.append(decor.make_feature(context))  # 방송 이미지 만들기(프사, 배너, 썸네일)
     return found
