@@ -1096,8 +1096,7 @@ def _launch(args: argparse.Namespace) -> int:
             return 0
         if command == "protect":
             if args.remove:
-                keys = {launcher.process_key(name) for name in args.names}
-                config.protect = [name for name in config.protect if launcher.process_key(name) not in keys]
+                config.protect = [name for name in config.protect if not any(launcher.same_program(name, typed) for typed in args.names)]
             else:
                 config.protect += [name for name in args.names if launcher.process_key(name) not in {launcher.process_key(p) for p in config.protect}]
             launcher.save(config)

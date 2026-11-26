@@ -87,6 +87,10 @@ def test_defaults_validation_and_round_trip(tmp_path):
     item = launcher.check_item({"target": " \"C:\\OBS\\obs64.exe\" ", "delay": "5", "window": {"x": -1920, "y": 0, "width": 1280, "height": 720, "maximized": True}})
     assert item.target == "C:\\OBS\\obs64.exe" and item.delay == 5.0 and item.window["maximized"] == 1 and item.label == "obs64.exe"
     assert launcher.check_item({"target": "a.exe", "window": {"x": 0, "y": 0, "width": 5, "height": 5}}).window is None
+    # 운영체제와 관계없이 Windows 경로도 파일 이름으로, .exe 를 붙이든 빼든 같은 프로그램
+    assert launcher.file_name("C:\\OBS\\obs64.exe") == launcher.file_name("/opt/obs/obs64.exe") == "obs64.exe"
+    assert launcher.same_program("obs64", "OBS64.exe") and launcher.same_program("C:\\Apps\\Discord.exe", "discord")
+    assert not launcher.same_program("obs64", "obs32.exe")
     config = launcher.put_profile(config, {"name": "방송", "start": [asdict_item(item), "https://studio.chzzk.naver.com"], "stop": ["Discord", "discord.exe", "KakaoTalk.exe"]})
     # Windows는 .exe를 생략해도 같은 프로그램(Discord와 discord.exe 중복 제거)
     assert config.profile().start[1].kind == "url" and len(config.profile().stop) == (2 if sys.platform == "win32" else 3)

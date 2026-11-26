@@ -110,8 +110,13 @@ class Config:
 def display_name(target: str, kind: str) -> str:
     if kind == "url":
         return re.sub(r"^https?://(www\.)?", "", target).split("/")[0] or target
-    name = Path(target).name or target
+    name = file_name(target) or target
     return name[:-4] if kind == "shortcut" and name.lower().endswith(".lnk") else name
+
+
+def file_name(path: str) -> str:
+    """경로의 파일 이름. 운영체제와 관계없이 슬래시와 역슬래시 둘 다 구분자(Windows 경로를 다른 운영체제에서 읽어도 같은 이름)."""
+    return re.split(r"[\\/]", path.strip().strip('"').rstrip("\\/"))[-1]
 
 
 def guess_kind(target: str, is_dir: Callable[[str], bool] = os.path.isdir) -> str:
@@ -131,10 +136,19 @@ def guess_kind(target: str, is_dir: Callable[[str], bool] = os.path.isdir) -> st
 
 def process_key(value: str) -> str:
     """끌 것, 보호 목록의 비교 이름: 경로면 파일 이름만, 소문자. Windows는 .exe가 없으면 붙인다."""
-    name = Path(value.strip().strip('"')).name.lower()
+    name = file_name(value).lower()
     if sys.platform == "win32" and name and "." not in name:
         name += ".exe"
     return name
+
+
+def same_program(first: str, second: str) -> bool:
+    """두 이름이 같은 프로그램인지: .exe 를 붙이든 빼든 같음(보호 목록에서 빼기 등 사람이 입력한 이름)."""
+    def loose(value: str) -> str:
+        key = process_key(value)
+        return key[:-4] if key.endswith(".exe") else key
+
+    return loose(first) == loose(second)
 
 
 def _number(value: Any, default: float) -> float:
