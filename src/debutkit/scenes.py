@@ -164,7 +164,10 @@ def build_scenes(width: int, height: int, kinds: dict[str, str], options: SceneO
             return None
         placed = spot("chat") if in_game else None
         box = placed or _bounds(W - chat_w - margin, margin, chat_w, H - 2 * margin)
-        settings = {"url": options.overlay_url, "width": round(box["boundsWidth"]), "height": round(box["boundsHeight"]), "fps_custom": False,
+        url = options.overlay_url
+        if placed and "theme=" not in url:  # 게임 배치: 방송 스타일 카드(게임 패키지의 스타일을 따름)
+            url += ("&" if "?" in url else "?") + "theme=style"
+        settings = {"url": url, "width": round(box["boundsWidth"]), "height": round(box["boundsHeight"]), "fps_custom": False,
                     "reroute_audio": False, "shutdown": False, "restart_when_active": False}
         # 브라우저 소스의 화면 크기는 소스마다 하나: 게임 배치의 채팅은 크기가 달라 따로 만든다
         return Item(f"{PREFIX}채팅 (게임 배치)" if placed else f"{PREFIX}채팅", "browser", settings, box)

@@ -146,6 +146,10 @@ _GRAIN = ("url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg'
           "0 0 0 0.09 0'/></filter><rect width='120' height='120' filter='url(%23n)'/></svg>\")")
 _PIXEL_FONT = f'"Galmuri11", "Galmuri9", "DungGeunMo", "Neo둥근모", "Black Han Sans", {FALLBACK}'
 _HAND_FONT = f'"Gaegu", "Nanum Pen Script", "나눔손글씨 펜", "Pretendard", {FALLBACK}'
+#: 게임별 스타일 글꼴. 영문, 숫자는 Windows 기본 글꼴(Bahnschrift 좁은 꼴, Palatino), 한글은 함께 배포한 글꼴. 게임 공식 글꼴은 쓰지 않음
+_CONDENSED = f'"Bahnschrift SemiBold Condensed", "Bahnschrift", "DIN Condensed", "Arial Narrow", "Black Han Sans", {FALLBACK}'
+_CLASSIC = f'"Palatino Linotype", "Book Antiqua", Palatino, Georgia, "Noto Serif KR", "Batang", "바탕", "AppleMyungjo", "Black Han Sans", {FALLBACK}'
+_ROUND = f'"Maplestory", "Maplestory OTF", "Jua", "Black Han Sans", {FALLBACK}'  # 메이플스토리체는 설치한 경우만(함께 배포하지 않음)
 #: 등장 움직임: 이름 -> (키프레임 내용, 시간, 속도 곡선)
 ENTERS: dict[str, tuple[str, str, str]] = {
     "stamp": ("0% { opacity: 0; transform: translateY(-28px) scale(1.04); } 60% { opacity: 1; } 100% { opacity: 1; transform: none; }",
@@ -250,7 +254,79 @@ def _style_tokens(key: str, colors: dict[str, str]) -> dict[str, str]:
                    "on-surface": "#ffffff", "muted": "#b9c9de", "line": "transparent", "line-width": "0px", "radius": "4px",
                    "shadow": "0 8px 18px rgba(0, 0, 0, 0.35)", "tag-bg": h, "tag-text": colors["on-highlight"], "enter": "wipe", "tone": "dark"},
     }
+    styles.update(_game_tokens())
     return {**base, **styles.get(key, styles["prop"])}
+
+
+def _cut(color: str, size: int = 16) -> str:
+    """오른쪽 위, 왼쪽 아래 모서리를 비스듬히 자른 판(그라데이션 한 층)."""
+    return f"linear-gradient(225deg, transparent {size}px, {color} {size}px, {color} calc(100% - {size}px), transparent calc(100% - {size}px))"
+
+
+def _game_tokens() -> dict[str, dict[str, str]]:
+    """게임별 스타일(게임 패키지가 고름): 그 게임의 고유 색과 모양 언어. 장식(금장, 보석, 꺾쇠)은 games/look.css가 더한다.
+
+    색은 방송 색과 관계없이 고정(어느 방송 색에서도 그 게임 느낌이 나도록). 공식 로고, 그림, 글꼴은 쓰지 않는다.
+    """
+    navy = "rgba(15, 25, 35, 0.95)"
+    return {
+        # 발로란트: 짙은 남색 판, 붉은 막대, 비스듬히 자른 모서리, 좁고 굵은 대문자
+        "valorant": {"surface": f"linear-gradient(90deg, #ff4655 0 7px, transparent 7px), {_cut(navy, 18)}", "on-surface": "#ece8e1",
+                     "muted": "#a7b0b8", "line": "transparent", "line-width": "0px", "radius": "0px", "shadow": "none",
+                     "tag-bg": "#ff4655", "tag-text": "#ffffff", "display": _CONDENSED, "enter": "wipe", "tone": "dark"},
+        # 리그 오브 레전드: 짙은 남색에 청록 빛, 금빛 테두리와 이중선, 고전 세리프
+        "lol": {"surface": "radial-gradient(ellipse at 50% -30%, rgba(10, 200, 185, 0.22), transparent 62%), "
+                           "linear-gradient(180deg, rgba(10, 20, 40, 0.96), rgba(1, 10, 19, 0.96))",
+                "on-surface": "#f0e6d2", "muted": "#a09b8c", "line": "#c8aa6e", "line-width": "2px", "radius": "0px",
+                "shadow": "0 0 0 3px rgba(1, 10, 19, 0.95), 0 0 0 4px #785a28, 0 12px 28px rgba(0, 0, 0, 0.6)",
+                "glow": "0 0 8px rgba(200, 170, 110, 0.45)", "tag-bg": "#c8aa6e", "tag-text": "#010a13", "display": _CLASSIC, "enter": "unveil",
+                "tone": "dark"},
+        # 오버워치: 밝은 흰 판, 주황 사선 띠, 기울인 굵은 글자, 튀어나오는 등장
+        "overwatch": {"surface": "linear-gradient(105deg, #f99e1a 0 12px, transparent 12px), linear-gradient(180deg, rgba(255, 255, 255, 0.97), "
+                                 "rgba(229, 235, 243, 0.97))",
+                      "on-surface": "#1f2a37", "muted": "#566577", "line": "transparent", "line-width": "0px", "radius": "4px",
+                      "shadow": "0 10px 22px rgba(20, 30, 50, 0.32)", "tag-bg": "#f99e1a", "tag-text": "#1f2a37", "display": _CONDENSED,
+                      "enter": "punch"},
+        # 하스스톤: 양피지 카드, 나무 테두리와 금테, 파란 보석
+        "hearthstone": {"surface": "radial-gradient(ellipse at 50% 0%, rgba(255, 255, 255, 0.55), transparent 65%), "
+                                   "linear-gradient(180deg, #f6e7c4, #e5c78c)",
+                        "on-surface": "#3a2513", "muted": "#6e5235", "line": "#5b3a1e", "line-width": "3px", "radius": "16px",
+                        "shadow": "inset 0 0 0 2px #d4a84b, 0 0 0 5px #5b3a1e, 0 0 0 7px #2a190b, 0 12px 24px rgba(0, 0, 0, 0.45)",
+                        "tag-bg": "#2f7bd8", "tag-text": "#ffffff", "enter": "flip"},
+        # 배틀그라운드: 군용 올리브 판, 노란 막대, 좁은 대문자, 찍히듯 등장
+        "pubg": {"surface": "linear-gradient(90deg, #f2a900 0 8px, transparent 8px), linear-gradient(180deg, rgba(38, 42, 32, 0.95), rgba(22, 25, 19, 0.95))",
+                 "on-surface": "#ede6d3", "muted": "#b9b29a", "line": "rgba(237, 230, 211, 0.22)", "line-width": "1px", "radius": "2px",
+                 "shadow": "5px 5px 0 rgba(0, 0, 0, 0.45)", "tag-bg": "#f2a900", "tag-text": "#1c1f18", "display": _CONDENSED, "enter": "stamp",
+                 "tone": "dark"},
+        # 메이플스토리: 흰 둥근 창, 주황 머리띠, 귀여운 둥근 글자, 말랑한 등장
+        "maplestory": {"surface": "linear-gradient(180deg, #ffb547 0 9px, transparent 9px), linear-gradient(180deg, #ffffff, #fff3dc)",
+                       "on-surface": "#4a3220", "muted": "#8a6a4a", "line": "#f29a2e", "line-width": "3px", "radius": "16px",
+                       "shadow": "0 0 0 3px #ffffff, 0 0 0 6px #c97a1e, 0 8px 0 4px rgba(120, 70, 20, 0.25)", "tag-bg": "#f29a2e",
+                       "tag-text": "#ffffff", "display": _ROUND, "enter": "float"},
+        # 로스트아크: 푸른 검정 판, 금빛 가는 선과 L자 모서리 장식, 아래쪽 금빛, 고전 세리프
+        "lostark": {"surface": "radial-gradient(ellipse at 50% 125%, rgba(201, 160, 99, 0.3), transparent 62%), "
+                               "linear-gradient(180deg, rgba(22, 26, 33, 0.96), rgba(11, 13, 18, 0.96))",
+                    "on-surface": "#f3ead3", "muted": "#b3a88f", "line": "#c9a063", "line-width": "1px", "radius": "0px",
+                    "shadow": "0 0 0 1px #000000, 0 0 0 4px rgba(11, 13, 18, 0.95), 0 0 0 5px rgba(201, 160, 99, 0.65), 0 14px 30px rgba(0, 0, 0, 0.6)",
+                    "glow": "0 0 10px rgba(249, 146, 0, 0.45)", "tag-bg": "#c9a063", "tag-text": "#0b0d12", "display": _CLASSIC, "enter": "unveil",
+                    "tone": "dark"},
+        # FC 온라인: 중계 자막(남색 판, 형광 연두와 초록 막대), 좁은 대문자
+        "fconline": {"surface": "linear-gradient(90deg, #3ba55c 0 6px, #f4f2ec 6px 9px, transparent 9px), linear-gradient(180deg, #171717, #0b0b0b)",
+                     "on-surface": "#f4f2ec", "muted": "#b9c2b9", "line": "transparent", "line-width": "0px", "radius": "2px",
+                     "shadow": "0 8px 18px rgba(0, 0, 0, 0.4)", "tag-bg": "#3ba55c", "tag-text": "#0b0b0b", "display": _CONDENSED, "enter": "wipe",
+                     "tone": "dark"},
+        # 전략적 팀 전투: 보랏빛 밤 판, 금빛 테두리, 육각 장식, 반짝 등장
+        "tft": {"surface": "radial-gradient(ellipse at 50% -20%, rgba(150, 110, 255, 0.38), transparent 62%), "
+                           "linear-gradient(180deg, rgba(30, 22, 62, 0.96), rgba(12, 10, 30, 0.96))",
+                "on-surface": "#f3ead8", "muted": "#b9aecf", "line": "#d9b25f", "line-width": "2px", "radius": "6px",
+                "shadow": "0 0 0 3px rgba(12, 10, 30, 0.95), 0 0 0 4px rgba(217, 178, 95, 0.7), 0 10px 24px rgba(0, 0, 0, 0.55)",
+                "glow": "0 0 8px rgba(217, 178, 95, 0.55)", "tag-bg": "#d9b25f", "tag-text": "#1c143a", "display": _CLASSIC, "enter": "twinkle",
+                "tone": "dark"},
+        # 마인크래프트: 업적 알림 같은 어두운 베벨 판, 도트 글꼴, 회색 글자 그림자, 계단 등장
+        "minecraft": {"surface": "#212121", "on-surface": "#ffffff", "muted": "#c6c6c6", "line": "#000000", "line-width": "3px",
+                      "radius": "0px", "shadow": "inset 4px 4px 0 #5a5a5a, inset -4px -4px 0 #0e0e0e, 6px 6px 0 rgba(0, 0, 0, 0.35)", "glow": "3px 3px 0 #3f3f3f",
+                      "tag-bg": "#5d9c3a", "tag-text": "#ffffff", "display": _PIXEL_FONT, "text": _PIXEL_FONT, "enter": "steps", "tone": "dark"},
+    }
 
 
 #: 방송 스타일: 이름 -> (표시 이름, 설명). 미리보기 색은 info()가 방송 색으로 만든다
@@ -271,9 +347,22 @@ STYLES: dict[str, tuple[str, str]] = {
     "adventure": ("모험 동화", "캐주얼 RPG: 크림 판, 둥근 나무 테두리, 말랑한 등장"),
     "gothic": ("다크 판타지", "다크 판타지 RPG: 검붉은 판, 낡은 금 테두리"),
     "sports": ("스포츠 중계", "축구, 야구 게임: 중계 자막 띠, 남색 판"),
+    # ---- 게임별(게임 패키지). 게임 이름은 어떤 게임에 맞춘 모양인지 알리는 데만 씀
+    "valorant": ("발로란트", "짙은 남색, 붉은 막대, 비스듬히 자른 모서리, 좁은 대문자"),
+    "lol": ("리그 오브 레전드", "남색에 청록 빛, 금빛 이중 테두리와 장식, 고전 세리프"),
+    "overwatch": ("오버워치", "흰 판, 주황 사선, 기울인 굵은 글자"),
+    "hearthstone": ("하스스톤", "양피지 카드, 나무 테두리와 금테, 파란 보석"),
+    "pubg": ("배틀그라운드", "올리브 판, 노란 막대와 경고 줄무늬, 좁은 대문자"),
+    "maplestory": ("메이플스토리", "흰 둥근 창, 주황 머리띠, 둥근 글자"),
+    "lostark": ("로스트아크", "푸른 검정 판, 금빛 가는 선과 모서리 장식"),
+    "fconline": ("FC 온라인", "중계 점수판: 검정 판, 잔디 초록과 분필 흰 막대"),
+    "tft": ("전략적 팀 전투", "보랏빛 밤 판, 금빛 테두리, 육각 장식"),
+    "minecraft": ("마인크래프트", "업적 알림 같은 베벨 판, 도트 글자, 글자 그림자"),
 }
 #: 게임 장르 스타일(미리보기에서 따로 묶어 보여 줌). 나머지는 일반 스타일
 GENRE_STYLES = ("tactical", "arcane", "hero", "tavern", "survival", "adventure", "gothic", "sports")
+#: 게임별 스타일(게임 패키지와 같은 이름, 미리보기에서 따로 묶음)
+GAME_LOOKS = ("valorant", "lol", "overwatch", "hearthstone", "pubg", "maplestory", "lostark", "fconline", "tft", "minecraft")
 
 
 # --------------------------------------------------------------------------- 글꼴
@@ -425,7 +514,7 @@ def make_feature(context: feature.Context) -> feature.Feature:
             values = _style_tokens(key, colors)
             styles[key] = {"name": name, "about": about, "surface": values["surface"], "on": values["on-surface"], "line": values["line"],
                            "radius": values["radius"], "shadow": values["shadow"], "tag": values["tag-bg"], "font": values["display"],
-                           "tone": values["tone"], "group": "game" if key in GENRE_STYLES else "basic"}
+                           "tone": values["tone"], "group": "title" if key in GAME_LOOKS else "game" if key in GENRE_STYLES else "basic"}
         return {**current, "palette": colors, "tokens": tokens(current),
                 "presets": {key: {"name": name, "primary": primary, "highlight": highlight} for key, (name, primary, highlight) in PRESETS.items()},
                 "styles": styles, "font_choices": {key: {"name": name, "about": about} for key, (name, _, about) in FONT_CHOICES.items()},

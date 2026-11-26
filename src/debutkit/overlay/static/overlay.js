@@ -121,7 +121,7 @@ function startChat(root) {
   document.documentElement.style.setProperty("--emote", `${Math.min(4, Math.max(1, number("emote", 1.4)))}em`);
   if (theme === "style") useLook(option("look", "auto"), true);  // 방송 스타일 카드: 스타일 글꼴까지
 
-  connect((event) => {
+  const show = (event) => {
     if (hidden.has(event.kind) || hidden.has(event.platform)) return;
     const line = document.createElement("div");
     line.className = `line ${event.kind}${event.role ? " " + event.role : ""}`;
@@ -148,8 +148,25 @@ function startChat(root) {
     root.appendChild(line);
     while (root.children.length > max) root.firstElementChild.remove();
     if (fade > 0) setTimeout(() => line.classList.add("gone"), fade * 1000);
-  });
+  };
+  if (params.has("sample")) {
+    // 그림 견본(?sample): 예시 채팅(연결하지 않음, 이 화면에서만). 게임 패키지 미리보기가 씀
+    document.body.classList.add("still");
+    for (const [platform, name, text, extra] of CHAT_SAMPLES) show({ platform, kind: "chat", name, parts: [{ type: "text", value: text }], ...extra });
+    return;
+  }
+  connect(show);
 }
+
+//: 채팅창 그림 견본의 예시 줄: [플랫폼, 이름, 글, 덧붙일 값]
+const CHAT_SAMPLES = [
+  ["chzzk", "치즈냥", "오늘 컨디션 최고"],
+  ["soop", "별빛구름", "방금 그거 진짜 잘했다"],
+  ["youtube", "새벽감성", "처음 왔습니다 반갑습니다"],
+  ["chzzk", "도토리", "응원합니다", { kind: "donation", amount: 5000, unit: "원" }],
+  ["twitch", "debut_fan", "GG"],
+  ["soop", "고양이집사", "다음 판도 화이팅"],
+];
 
 // ---------------------------------------------------------------- 후원, 구독 알림
 //: 알림 꾸미기(/alerts/control)의 기본값. 서버 설정(/alerts/config)과 주소 뒤 ?style=&layout=&position=&enter=&seconds=&scale= 가 덮어씀

@@ -42,12 +42,16 @@
       font-size: 13px; font-weight: 700; line-height: 1.3; }
     .combos button[aria-pressed="true"] { border-color: var(--text); }
     .styles h3 { grid-column: 1 / -1; margin: 4px 0 0; font-size: 13px; color: var(--dim); font-weight: 700; }
-    .games { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+    .games { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin-top: 8px; }
     .games button { position: relative; text-align: left; padding: 7px 10px; background: var(--panel); color: var(--text); border: 2px solid transparent;
       font-size: 13px; font-weight: 700; line-height: 1.3; }
     .games button small { display: block; font-weight: 400; color: var(--dim); font-size: 11.5px; }
     /* 게임 패키지 배치 그림: 회색 점선은 게임 HUD, 색 상자는 캐릭터(강조 색), 채팅(주 색), 목표와 순위(옅은 주 색) */
     .games .dk-thumb { margin-bottom: 5px; background: linear-gradient(160deg, #39414a, #1f252b); }
+    .games img.shot { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 4px; margin-bottom: 5px; background: #1f252b; }
+    ul.tips { margin: 8px 0 0; padding-left: 18px; color: var(--dim); font-size: 13px; line-height: 1.5; }
+    ul.tips:empty { display: none; }
+    .bg.scene { background-size: cover; background-position: center; }
     .games .dk-thumb i { position: absolute; box-sizing: border-box; border-radius: 2px; }
     .games .dk-thumb i.hud { border: 1px dashed rgba(255, 255, 255, 0.75); background: rgba(255, 255, 255, 0.12); }
     .games button[aria-pressed="true"] { border-color: var(--text); }
@@ -114,9 +118,13 @@
       </section>
       <section>
         <h2>게임 패키지</h2>
+        <ul class="tips">
+          <li>패키지 = 그 게임 느낌의 방송 스타일 + 색 + HUD를 피한 배치 + 프레임과 대기 화면</li>
+          <li>그림은 실제 캐릭터 프레임, 채팅창, 알림을 게임 느낌 배경에 놓은 모습</li>
+          <li>고르면 오른쪽 미리보기가 그 게임 모습으로 바뀜(적용 전까지 저장 안 함)</li>
+        </ul>
         <div class="games" id="games"></div>
-        <p class="hint">그림의 점선은 게임 HUD 자리, 색 상자는 피해서 놓는 캐릭터(강조 색), 채팅(주 색), 목표와 순위(옅은 색)입니다.</p>
-        <p class="hint" id="game-tip">게임을 고르면 미리보기에 그 게임의 HUD 자리(점선)와 피한 배치가 나옵니다.</p>
+        <ul class="tips" id="game-tip"></ul>
         <div class="parts">
           <label class="check"><input type="checkbox" id="part-style" checked> 방송 스타일과 색</label>
           <label class="check"><input type="checkbox" id="part-alerts" checked> 알림 위치</label>
@@ -125,9 +133,14 @@
         <div class="row">
           <button id="apply-game" type="button">패키지 적용</button>
           <button class="secondary" id="clear-game" type="button">기본 배치로</button>
-          <label class="check"><input type="checkbox" id="show-hud" checked> HUD 자리 보기</label>
+          <label class="check"><input type="checkbox" id="show-hud"> HUD 자리 점선</label>
         </div>
-        <p class="hint">게임 이름은 어떤 게임 화면에 맞춘 배치인지 알리는 데만 씁니다. 게임 회사의 로고, 글꼴, 그림은 쓰지 않으며 debutkit은 게임 회사와 관계없습니다. HUD 자리는 기본 HUD 설정 기준의 대략적인 자리라 게임에서 HUD 크기를 바꿨다면 OBS에서 소스를 옮깁니다. 장면 배치는 <code>debutkit scenes --game 이름</code> 또는 설정 마법사의 장면 만들기에 쓰입니다.</p>
+        <ul class="tips">
+          <li>장면 배치: 설정 마법사의 장면 만들기에서 씀</li>
+          <li>HUD 자리: 기본 HUD 설정 기준. 게임에서 HUD를 옮겼다면 OBS에서 소스도 옮기기</li>
+          <li>그림과 장식은 모두 debutkit에서 그린 것(게임 회사의 로고, 그림, 글꼴 없음)</li>
+          <li>팬이 만든 꾸미기이며 게임 회사와 관계없음. 게임 이름은 각 회사의 상표</li>
+        </ul>
       </section>
       <section>
         <h2>프레임</h2>
@@ -214,7 +227,7 @@
     const STORE = "debutkit-stage";
     const saved = (() => { try { return JSON.parse(localStorage.getItem(STORE) || "{}"); } catch (error) { return {}; } })();
     const state = { layers: { ...Object.fromEntries(LAYERS.map(([id, , , , on]) => [id, on])), ...(saved.layers || {}) }, background: saved.background || "game",
-      game: saved.game || "", hud: saved.hud !== false };
+      game: saved.game || "", hud: saved.hud === true };
     // 게임 패키지: 고른 게임의 자리(캐릭터, 채팅, 목표 게이지, 순위)로 옮겨 보고 HUD 자리를 점선 상자로
     let games = {};
     let applied = "";
@@ -228,11 +241,24 @@
     const canvas = $("canvas");
     const frames = {};
 
+    // 게임을 골랐고 아직 적용하지 않았으면 알림, 채팅, 프레임을 그 게임 스타일과 색으로 보여 줌(이 미리보기에서만, 저장 안 함)
+    function srcOf(id) {
+      const src = LAYERS.find((layer) => layer[0] === id)[2];
+      const game = games[state.game];
+      if (!game || state.game === applied || !["alerts", "chat", "frame", "starting"].includes(id)) return src;
+      const url = new URL(src, location.origin);
+      const look = { primary: game.primary.slice(1), highlight: game.highlight.slice(1) };
+      if (id === "alerts") Object.assign(look, { style: game.look, position: game.alert });
+      else if (id === "chat") Object.assign(look, { theme: "style", look: game.look });
+      else Object.assign(look, { look: game.look });
+      for (const [name, value] of Object.entries(look)) url.searchParams.set(name, value);
+      return url.pathname + url.search;
+    }
     function frame(id) {
-      const [, label, src] = LAYERS.find((layer) => layer[0] === id);
+      const [, label] = LAYERS.find((layer) => layer[0] === id);
       const node = document.createElement("iframe");
       node.title = label;
-      node.src = src;
+      node.src = srcOf(id);
       node.allow = "autoplay";
       return node;
     }
@@ -264,10 +290,17 @@
           frames[id].remove();
           delete frames[id];
         }
-        if (frames[id]) place(id, frames[id]);
+        if (frames[id]) {
+          place(id, frames[id]);
+          const src = srcOf(id);
+          if (frames[id].getAttribute("src") !== src) frames[id].src = src;
+        }
       }
       showHud();
-      $("bg").className = `bg ${state.background}`;
+      // 배경: 게임 화면 흉내를 고르고 게임 패키지를 골랐으면 그 게임 느낌의 배경 그림
+      const scene = state.background === "game" && games[state.game];
+      $("bg").className = `bg ${scene ? "scene" : state.background}`;
+      $("bg").style.backgroundImage = scene ? `url("/games/scene/${state.game}.svg")` : "";
       $("legend").replaceChildren(...LAYERS.filter(([id]) => state.layers[id]).map(([, label, src]) => {
         const item = document.createElement("span");
         const name = document.createElement("b");
@@ -483,12 +516,23 @@
         button.dataset.applied = String(applied === key);
         const genre = document.createElement("small");
         genre.textContent = game.genre;
-        button.append(layoutThumb(game), game.name, genre);
+        // 그림 견본: 그 게임 느낌 배경 + 실제 프레임, 채팅, 알림(찍어 둔 그림). 그림이 없으면 배치 그림
+        const shot = document.createElement("img");
+        shot.className = "shot";
+        shot.src = `/games/thumb/${key}.jpg`;
+        shot.alt = "";
+        shot.loading = "lazy";
+        shot.addEventListener("error", () => shot.replaceWith(layoutThumb(game)));
+        button.append(shot, game.name, genre);
         button.addEventListener("click", () => { state.game = key; store(); showGames(); render(); });
         return button;
       }));
       const game = games[state.game];
-      $("game-tip").textContent = game ? game.tip : "게임을 고르면 미리보기에 그 게임의 HUD 자리(점선)와 피한 배치가 나옵니다.";
+      $("game-tip").replaceChildren(...(game ? [`${game.name}${applied === state.game ? " (적용됨)" : " (미리보기 중, 적용 전)"}`, ...game.tips] : []).map((text) => {
+        const item = document.createElement("li");
+        item.textContent = text;
+        return item;
+      }));
     }
     const FRAME_FIELDS = ["name", "starting", "brb", "ending", "note"];
     function showGameInfo(info) {

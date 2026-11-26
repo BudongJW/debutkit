@@ -50,7 +50,11 @@ def test_every_style_has_all_tokens_and_an_entrance():
         assert (bright > 0.7) if values["tone"] == "dark" else (bright < 0.1), key
         assert values["enter"] in theme.ENTERS, key
     assert {theme._style_tokens(key, colors)["tone"] for key in theme.GENRE_STYLES} == {"dark", "light"}
-    assert set(theme.GENRE_STYLES) < set(theme.STYLES) and len(theme.STYLES) == 16
+    assert set(theme.GENRE_STYLES) < set(theme.STYLES) and set(theme.GAME_LOOKS) < set(theme.STYLES) and len(theme.STYLES) == 26
+    # 게임별 스타일은 방송 색과 관계없이 그 게임의 고정 색(어떤 방송 색에서도 같은 모양)
+    other = theme.palette("#3ba7f0", "#7cb342")
+    for key in theme.GAME_LOOKS:
+        assert theme._style_tokens(key, colors)["surface"] == theme._style_tokens(key, other)["surface"], key
 
 
 def test_font_choices_and_local_names():

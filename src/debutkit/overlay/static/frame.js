@@ -29,9 +29,13 @@
   // 이 화면만 다른 방송 스타일(?look=neon): /theme.css 주소에 style을 붙여 다시 읽음
   function useLook(look) {
     const link = document.querySelector('link[rel="stylesheet"][href^="/theme.css"]');
-    if (!link || !look || look === "auto") return;
+    const colors = ["primary", "highlight"].filter((name) => /^[0-9a-f]{6}$/i.test(params.get(name) || ""));
+    if (!link || ((!look || look === "auto") && !colors.length)) return;
+    const query = new URLSearchParams();
+    if (look && look !== "auto") query.set("style", look);
+    for (const name of colors) query.set(name, params.get(name));
     const next = link.cloneNode();
-    next.href = `/theme.css?style=${encodeURIComponent(look)}`;
+    next.href = `/theme.css?${query}`;
     next.addEventListener("load", () => { link.remove(); if (window.debutkitTheme) window.debutkitTheme.mark(); });
     link.after(next);
   }

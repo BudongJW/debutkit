@@ -162,7 +162,8 @@ class Hub:
 
 
 def _static(name: str) -> bytes:
-    return resources.files("debutkit.overlay").joinpath("static", name).read_bytes()
+    """함께 배포한 화면 파일. ``games/look.css`` 처럼 하위 폴더도(경로 조각을 나눠 이어 붙임)."""
+    return resources.files("debutkit.overlay").joinpath("static", *name.split("/")).read_bytes()
 
 
 def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.0, voice: VoiceState | None = None,
