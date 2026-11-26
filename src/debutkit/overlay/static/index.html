@@ -63,19 +63,47 @@
           <option value="card">카드(이름 줄 분리)</option>
           <option value="outline">외곽선 글자</option>
           <option value="light">밝은 말풍선</option>
+          <option value="style">방송 스타일 카드</option>
+        </select></label>
+        <label>카드 스타일 <select id="opt-look" disabled>
+          <option value="auto">방송 스타일 따르기</option>
+        </select></label>
+        <label>이름 색 <select id="opt-names">
+          <option value="user">시청자가 고른 색</option>
+          <option value="viewer">시청자마다 다른 색</option>
+          <option value="theme">방송 색</option>
+          <option value="platform">플랫폼 색</option>
+        </select></label>
+        <label>등장 움직임 <select id="opt-enter">
+          <option value="rise">아래에서 올라옴</option>
+          <option value="slide">옆에서 밀려옴</option>
+          <option value="pop">톡 튀어나옴</option>
+          <option value="style">방송 스타일 움직임</option>
+          <option value="none">움직임 없음</option>
+        </select></label>
+        <label>정렬 <select id="opt-align">
+          <option value="left">왼쪽</option>
+          <option value="right">오른쪽</option>
+        </select></label>
+        <label>쌓이는 방향 <select id="opt-direction">
+          <option value="up">아래부터 위로</option>
+          <option value="down">위부터 아래로</option>
         </select></label>
         <label>글자 크기(px) <input id="opt-font" type="number" min="12" max="64" value="22"></label>
         <label>표시 줄 수 <input id="opt-max" type="number" min="1" max="50" value="12"></label>
         <label>사라짐 시간(초) <input id="opt-fade" type="number" min="0" max="600" value="0"></label>
+        <label>이모티콘 크기(배) <input id="opt-emote" type="number" min="1" max="4" step="0.1" value="1.4"></label>
         <label class="check"><input id="opt-platform" type="checkbox" checked> 플랫폼 표시</label>
+        <label class="check"><input id="opt-roles" type="checkbox" checked> 스트리머, 매니저 표시</label>
       </div>
-      <p class="hint">권장 크기 420x1000. 선택 내용은 위 주소에 반영되며, 사라짐 시간 0은 계속 표시를 의미합니다.</p>
+      <p class="hint">권장 크기 420x1000. 선택 내용은 위 주소에 반영되며, 사라짐 시간 0은 계속 표시를 의미합니다. 방송 스타일 카드는 방송 화면 미리보기에서 고른 방송 스타일(모양, 바탕, 글꼴)을 따르고, 카드 스타일을 고르면 채팅창만 다른 스타일로 표시합니다.</p>
       <div class="preview"><iframe id="chat-preview" title="채팅창 미리보기"></iframe></div>
     </section>
     <section>
       <h2>후원, 구독 알림</h2>
       <div class="url"><input id="alerts-url" readonly aria-label="알림 주소"><button data-copy="alerts-url">복사</button></div>
-      <p class="hint">권장 크기 1920x1080(방송 화면 전체). 알림 소리를 내보내려면 브라우저 소스 속성의 OBS 오디오 제어 항목을 체크합니다. 표시 시간은 주소에 <code>?seconds=8</code> 형식으로 지정합니다.</p>
+      <p class="hint">권장 크기 1920x1080(방송 화면 전체). 알림 소리를 내보내려면 브라우저 소스 속성의 OBS 오디오 제어 항목을 체크합니다. 스타일, 배치, 위치, 문구, 효과음, 금액별 이미지와 효과는 알림 꾸미기 화면에서 정합니다.</p>
+      <div class="row"><a class="button" href="/alerts/control" target="_blank" rel="noopener">알림 꾸미기</a></div>
       <div class="preview"><iframe id="alerts-preview" title="알림 미리보기"></iframe></div>
     </section>
     <section>
@@ -145,14 +173,22 @@
     const query = new URLSearchParams();
     const theme = $("opt-theme").value;
     if (theme !== "shadow") query.set("theme", theme);
+    $("opt-look").disabled = theme !== "style";
+    if (theme === "style" && $("opt-look").value !== "auto") query.set("look", $("opt-look").value);
+    // 고른 값이 기본값과 다를 때만 주소에 넣음
+    for (const [name, fallback] of [["names", "user"], ["enter", "rise"], ["align", "left"], ["direction", "up"]]) {
+      const value = $(`opt-${name}`).value;
+      if (value !== fallback) query.set(name, value);
+    }
     // 이름, 기본값, 최솟값, 최댓값
-    for (const [name, fallback, low, high] of [["font", 22, 12, 64], ["max", 12, 1, 50], ["fade", 0, 0, 600]]) {
-      const typed = Math.round(Number($(`opt-${name}`).value));
+    for (const [name, fallback, low, high, step] of [["font", 22, 12, 64, 1], ["max", 12, 1, 50, 1], ["fade", 0, 0, 600, 1], ["emote", 1.4, 1, 4, 10]]) {
+      const typed = Math.round(Number($(`opt-${name}`).value) * step) / step;
       const value = Number.isFinite(typed) ? Math.min(high, Math.max(low, typed)) : fallback;
       $(`opt-${name}`).value = value;
       if (value !== fallback) query.set(name, String(value));
     }
     if (!$("opt-platform").checked) query.set("platform", "0");
+    if (!$("opt-roles").checked) query.set("roles", "0");
     return query;
   };
   const updateChat = () => {
@@ -162,8 +198,14 @@
     query.set("hide", "");  // 미리보기에는 연결 상태, 클립 저장 결과도 표시
     $("chat-preview").src = `/chat?${query.toString()}`;
   };
-  for (const id of ["opt-theme", "opt-font", "opt-max", "opt-fade", "opt-platform"]) $(id).addEventListener("change", updateChat);
+  for (const id of ["opt-theme", "opt-look", "opt-names", "opt-enter", "opt-align", "opt-direction", "opt-font", "opt-max", "opt-fade", "opt-emote", "opt-platform", "opt-roles"]) {
+    $(id).addEventListener("change", updateChat);
+  }
   updateChat();
+  // 카드 스타일 목록은 방송 스타일 묶음(/theme)에서
+  fetch("/theme").then((r) => r.json()).then((theme) => {
+    for (const [key, style] of Object.entries(theme.styles || {})) $("opt-look").append(new Option(style.name, key));
+  }).catch(() => {});
   $("alerts-url").value = `${base}/alerts`;
   $("alerts-preview").src = "/alerts?seconds=4";
   $("draw-url").value = `${base}/draw`;

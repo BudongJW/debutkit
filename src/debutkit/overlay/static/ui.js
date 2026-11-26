@@ -6,6 +6,7 @@
   const PAGES = [
     ["/", "설정 화면"],
     ["/stage", "방송 화면 미리보기"],
+    ["/alerts/control", "알림"],
     ["/draw/control", "추첨"],
     ["/pick/control", "뽑기판"],
     ["/wall/control", "후원 벽"],
