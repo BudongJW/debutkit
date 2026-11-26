@@ -223,6 +223,62 @@
     if (pop && !pop.contains(event.target)) pop.remove();
   });
 
+  // 그림 견본: 방송 화면을 1920x1080으로 그려 작게 줄인 그림(모양 고르기 단추에). debutkitUi.thumb("/alerts?still=1&layout=big")
+  // view를 작게 주면(예: 800) 화면 가운데만 잘라 크게 보인다(좁은 칸에서 색과 모양 보기).
+  // 화면에 보일 때만 불러오고(loading=lazy), 누르는 것은 바깥 단추가 받는다
+  const thumbs = typeof ResizeObserver === "function" ? new ResizeObserver((entries) => {
+    for (const entry of entries) {
+      const frame = entry.target.querySelector("iframe");
+      if (frame) frame.style.transform = `scale(${entry.contentRect.width / (Number(frame.dataset.view) || 1920)})`;
+    }
+  }) : null;
+  function thumb(src, label = "", view = 1920) {
+    const box = document.createElement("span");
+    box.className = "dk-thumb";
+    const frame = document.createElement("iframe");
+    frame.src = src;
+    if (view !== 1920) {
+      frame.dataset.view = String(view);
+      frame.style.width = `${view}px`;
+      frame.style.height = `${Math.round(view * 9 / 16)}px`;
+    }
+    frame.loading = "lazy";
+    frame.tabIndex = -1;
+    frame.title = label || "모양 그림";
+    frame.setAttribute("aria-hidden", "true");
+    box.appendChild(frame);
+    if (thumbs) thumbs.observe(box);
+    return box;
+  }
+
+  // 모양 고르기 단추 묶음(그림 견본 + 이름 + 설명): debutkitUi.looks($("box"), [{ key, label, about, src, view }], 지금 값, (key) => ...)
+  // 같은 목록이면 그림을 다시 부르지 않고 눌린 표시만 바꾼다
+  function looks(box, items, value, pick) {
+    const drawn = items.map((item) => `${item.key}|${item.src || ""}`).join(" ");
+    if (box.dataset.drawn !== drawn) {
+      box.dataset.drawn = drawn;
+      box.classList.add("dk-looks");
+      box.replaceChildren(...items.map((item) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.dataset.key = item.key;
+        if (item.src) button.appendChild(thumb(item.src, `${item.label} 그림`, item.view || 1920));
+        const name = document.createElement("b");
+        name.textContent = item.label;
+        button.appendChild(name);
+        if (item.about) {
+          const about = document.createElement("small");
+          about.textContent = item.about;
+          button.appendChild(about);
+        }
+        button.addEventListener("click", () => box.dkPick && box.dkPick(item.key));
+        return button;
+      }));
+    }
+    box.dkPick = pick;
+    for (const button of box.children) button.setAttribute("aria-pressed", String(button.dataset.key === value));
+  }
+
   // 저장하지 않은 변경: const changes = debutkitUi.unsaved($("save"), $("state")); 입력이 바뀌면 changes.touch(), 저장하면 changes.clear()
   function unsaved(button, note) {
     let dirty = false;
@@ -263,7 +319,7 @@
     timer = setTimeout(() => box.classList.remove("show"), bad ? 5000 : 2600);
   }
 
-  window.debutkitUi = { toast, pages: PAGES, groups: GROUPS, glossary: GLOSSARY, obsCheck, onObs: (listener) => obsListeners.push(listener), helpers, addToObs, unsaved };
+  window.debutkitUi = { toast, pages: PAGES, groups: GROUPS, glossary: GLOSSARY, obsCheck, onObs: (listener) => obsListeners.push(listener), helpers, addToObs, unsaved, thumb, looks };
   const start = () => { nav(); dock(); obsChip(); helpers(); };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
   else start();

@@ -881,7 +881,8 @@
       const scale = Number(params.get("scale"));
       accept({ seq: 1, time: Date.now() / 1000, test: false, name: "고양이집사", platform: "chzzk", kind: "donation", amount: count === 1 ? 1000 : 5000,
                unit: "원", count, draws, prizes, style: sample, seconds: 600, title: title || config.title,
-               position: pick("position", config.positions), scale: scale >= 60 && scale <= 140 ? scale : config.scale, sound: config.sound,
+               position: pick("position", config.positions), scale: scale >= 60 && scale <= 140 ? scale : config.scale,
+               sound: params.has("mute") ? false : config.sound,  // 그림 견본(mute)은 소리 없이
                show_percent: percent === null ? config.show_percent : percent === "1", design: pick("design", (config.designs || {})[sample]),
                effect: pick("effect", config.effects), name_font: pick("name_font", config.fonts), name_size: pick("name_size", config.sizes),
                caption_font: pick("caption_font", config.fonts), caption_size: pick("caption_size", config.sizes),

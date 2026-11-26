@@ -665,7 +665,8 @@ class PickBoard:
             return {"version": self._version, "board": {"id": board.id, "name": board.name}, "boards": boards, "config": config.to_dict(),
                     "layout": layout, "opened": len(board.opened), "total": config.cells, "visible": board.visible, "finished": board.finished,
                     "commit": self._commit(board), "rounds": list(board.rounds), "remaining": self._remaining(board),
-                    "log": list(reversed(board.log)), "help": self._help(config), "stored": self._stored, "options": options()}
+                    "log": list(reversed(board.log)), "help": self._help(config), "stored": self._stored, "options": options(),
+                    "defaults": Config().to_dict()}
 
     def proof(self) -> dict[str, Any]:
         """공개해도 되는 공정성 확인 정보: 지금 배치의 값(끝난 판은 확인 문자열 포함)과 지난 배치들."""

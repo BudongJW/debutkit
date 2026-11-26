@@ -813,12 +813,28 @@
   }
 
   let chain = Promise.resolve();  // 받은 순서대로 처리(글꼴 기다림 포함)
-  // 공유 연결(live.js): 연결(다시 연결 포함) 직후의 값(initial)은 지금 상태라 연출 없이 그린다
-  window.debutkitLive.subscribe(["pick", "theme"], (feed, data, initial) => {
-    if (feed === "theme" && !initial && !busy) location.reload();  // 방송 색을 쓰는 판의 색은 서버가 정해서 새로 불러옴
-    if (feed !== "pick" || !data || !data.display) return;
-    if (initial) first = true;
-    chain = chain.then(() => accept(data)).catch((error) => console.warn("debutkit 뽑기판", error));
-  });
+  if (params.has("sample")) {
+    // 그림 견본(?sample&theme=ticket&cover=stars): 지금 판의 색과 글꼴로 디자인과 덮개 무늬만 바꿔 12칸을 그린다
+    // (3번은 당첨, 8번은 꽝으로 열린 모습. 이 화면에서만, 실제 판의 상품은 쓰지 않음)
+    fontsReady.then(() => fetch("/pick/state", { cache: "no-store" })).then((response) => response.json()).then((snapshot) => {
+      const display = { ...snapshot.display, columns: 0, show_remaining: false };
+      if (OPEN_MS[params.get("theme")]) display.theme = params.get("theme");
+      if (/^[a-z]{1,20}$/.test(params.get("cover") || "")) display.cover = params.get("cover");
+      const cells = Array.from({ length: 12 }, (_, index) => ({ n: index + 1, open: false }));
+      cells[2] = { n: 3, open: true, prize: "노래 한 곡", tier: "win" };
+      cells[7] = { n: 8, open: true, prize: "꽝", tier: "miss" };
+      first = false;
+      state = { ...snapshot, display, visible: true, finished: false, opened: 2, total: 12, cells, event: null };
+      render(state, new Set(), false);
+    }).catch((error) => console.warn("debutkit 뽑기판 그림 견본", error));
+  } else {
+    // 공유 연결(live.js): 연결(다시 연결 포함) 직후의 값(initial)은 지금 상태라 연출 없이 그린다
+    window.debutkitLive.subscribe(["pick", "theme"], (feed, data, initial) => {
+      if (feed === "theme" && !initial && !busy) location.reload();  // 방송 색을 쓰는 판의 색은 서버가 정해서 새로 불러옴
+      if (feed !== "pick" || !data || !data.display) return;
+      if (initial) first = true;
+      chain = chain.then(() => accept(data)).catch((error) => console.warn("debutkit 뽑기판", error));
+    });
+  }
   window.debutkitPick.overlay = { render, grid, fitSize, get state() { return state; }, pending };  // 시험용
 })();

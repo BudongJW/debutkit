@@ -88,6 +88,8 @@ function useLook(look, fonts) {
   const url = new URL(link.href);
   if (look && look !== "auto") url.searchParams.set("style", look);
   else url.searchParams.delete("style");
+  // 그림 견본(?still)이 다른 색 조합을 보여 줄 때: 주 색과 강조 색도 이 화면만
+  for (const name of ["primary", "highlight"]) if (/^[0-9a-f]{6}$/i.test(params.get(name) || "")) url.searchParams.set(name, params.get(name));
   if (fonts !== undefined) {
     if (fonts) url.searchParams.delete("fonts");
     else url.searchParams.set("fonts", "0");
@@ -307,6 +309,20 @@ function startAlerts(root) {
     const seconds = renderAlert(root, event, settings());
     timer = setTimeout(next, (seconds + (preview ? 1.2 : 0)) * 1000);
   };
+  // 그림 견본(?still): 모양 고르기 단추의 작은 그림. 예시 알림 하나를 움직임과 소리 없이 계속 보여 준다(방송 사건은 받지 않음).
+  // 주소의 style, layout, position, scale 과 emphasis(강조 효과), amount(원)로 모양을 정한다
+  if (params.has("still")) {
+    document.documentElement.classList.add("still");
+    const amount = Math.max(1, number("amount", 10000));
+    const event = { platform: "chzzk", kind: "donation", name: "치즈냥", amount, unit: "원", parts: [{ type: "text", value: "데뷔 축하해요" }] };
+    const emphasis = params.get("emphasis") || "none";
+    const image = /^[0-9a-f]{24}$/.test(params.get("image") || "") ? params.get("image") : "";  // 그림 옆, 그림 위 배치의 견본
+    const show = () => renderAlert(root, event, { ...settings(), sound: "none", seconds: 86400, tiers: [{ min: 0, image, emphasis, seconds: 0, sound: "" }] });
+    fetch("/alerts/config").then((response) => response.json()).then((saved) => {
+      config = { ...config, title: saved.title || config.title, message: saved.message !== false, platform: saved.platform !== false };
+    }).catch(() => {}).finally(() => { look(); show(); });
+    return;
+  }
   // 알림 꾸미기 화면의 미리보기(?preview): 부모 창이 보낸 저장 전 설정과 예시 알림만 그린다(방송 사건은 받지 않음)
   if (preview) {
     addEventListener("message", (message) => {

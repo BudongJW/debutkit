@@ -269,7 +269,7 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
             if path.startswith("/character/files/"):
                 return self._character_file(path.removeprefix("/character/files/"))
             if path == "/draw/config":
-                return self._json(drawing.load_config().to_dict())
+                return self._json({**drawing.load_config().to_dict(), "defaults": drawing.defaults()})
             if path == "/draw/history":
                 return self._json({"results": draw.recent()})
             if path == "/raffle":

@@ -194,12 +194,16 @@
         </details>
         <details>
           <summary>디자인</summary>
-          <div class="field"><span>디자인</span><select id="theme"></select></div>
+          <div id="theme-tiles"></div>
+          <select id="theme" aria-label="디자인" hidden></select>
           <div class="field"><span>테마 색</span><div><div class="swatches" id="swatches"></div>
             <div class="row tight"><label class="check"><input type="checkbox" id="color-custom"> 직접</label><input type="color" id="color-hex" value="#ff4f8b" aria-label="테마 색 직접 지정"></div></div></div>
           <h3>색 직접 지정(선택하지 않으면 테마 색에 맞춤)</h3>
           <div class="parts" id="color-parts"></div>
-          <div class="field"><span>덮개 무늬</span><select id="cover"></select></div>
+          <h3>덮개 무늬</h3>
+          <div id="cover-tiles"></div>
+          <select id="cover" aria-label="덮개 무늬" hidden></select>
+          <p class="hint">그림은 저장한 색과 글꼴로 그린 예시 판입니다(3번 당첨, 8번 꽝이 열린 모습).</p>
           <div class="field"><span>글꼴</span><select id="font"></select></div>
           <div class="field"><span>위치</span><div><select id="position"></select> <span class="state">크기</span> <input id="scale" type="number" min="40" max="130" step="5">%</div></div>
           <div class="row"><label class="check"><input type="checkbox" id="frame"> 판 바탕</label><label class="check"><input type="checkbox" id="show-numbers"> 칸 번호</label></div>
@@ -248,7 +252,7 @@
           </div>
           <p class="state" id="test-state"></p>
         </details>
-        <div class="savebar" id="savebar"><button id="save">저장</button><button class="secondary" id="revert">되돌리기</button><span class="state" id="save-state"></span></div>
+        <div class="savebar" id="savebar"><button id="save">저장</button><button class="secondary" id="revert">되돌리기</button><button type="button" class="secondary" id="reset">처음 상태로</button><span class="state" id="save-state"></span></div>
       </section>
 
       <section>
@@ -275,6 +279,8 @@
   </div>
 </main>
 <script src="/pick.js"></script>
+<script src="/theme.js"></script>
+<script src="/ui.js"></script>
 <script>
   "use strict";
   const $ = (id) => document.getElementById(id);
@@ -556,6 +562,7 @@
       return row;
     }));
     fillSelect("cover", options.covers, config.cover);
+    lookTiles();
     fillSelect("font", options.fonts, config.font);
     fillSelect("position", options.positions, config.position);
     $("scale").value = config.scale;
@@ -694,6 +701,28 @@
     refresh(true);
   });
   $("revert").addEventListener("click", () => { fill(data.config); note("save-state", "저장한 설정으로 되돌림"); });
+  // 디자인과 덮개 무늬 그림: 예시 판(?sample)
+  const sampleSrc = (theme, cover) => `/pick?${new URLSearchParams({ sample: "1", theme, cover, mute: "1" })}`;
+  const choose = (id, key) => { $(id).value = key; $(id).dispatchEvent(new Event("change", { bubbles: true })); };
+  function lookTiles() {
+    const options = data.options;
+    debutkitUi.looks($("theme-tiles"), Object.entries(options.themes).map(([key, label]) => ({ key, label, src: sampleSrc(key, $("cover").value) })),
+      $("theme").value, (key) => choose("theme", key));
+    debutkitUi.looks($("cover-tiles"), Object.entries(options.covers).map(([key, label]) => ({ key, label, src: sampleSrc($("theme").value, key) })),
+      $("cover").value, (key) => choose("cover", key));
+  }
+  $("theme").addEventListener("change", lookTiles);
+  $("cover").addEventListener("change", lookTiles);
+  // 처음 상태로: 디자인, 글자, 연출과 소리, 방송 화면 표시만(판과 상품, 시청자 참여는 그대로). 저장해야 반영
+  const LOOK_KEYS = ["theme", "color", "colors", "cover", "font", "styles", "effect", "miss_effect", "sound", "volume", "win_sound", "miss_sound", "seconds",
+                     "position", "scale", "frame", "show_numbers", "show_remaining", "show_hash"];
+  $("reset").addEventListener("click", () => {
+    if (!data || !data.defaults) return;
+    const base = Object.fromEntries(LOOK_KEYS.map((key) => [key, data.defaults[key]]));
+    fill({ ...data.config, ...collect(), ...base, palette: data.defaults.palette });
+    changed();
+    note("save-state", "처음 상태로 채움(판과 상품, 시청자 참여는 그대로). 확인한 뒤 저장");
+  });
   $("hear-win").addEventListener("click", () => window.debutkitPick && window.debutkitPick.preview($("win-sound").value, $("volume").value));
   $("hear-miss").addEventListener("click", () => window.debutkitPick && window.debutkitPick.preview($("miss-sound").value, $("volume").value));
 
@@ -766,7 +795,5 @@
   refresh(true);
   setInterval(() => refresh(false), 1200);
 </script>
-<script src="/theme.js"></script>
-<script src="/ui.js"></script>
 </body>
 </html>

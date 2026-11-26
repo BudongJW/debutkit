@@ -487,7 +487,7 @@ class RaceState:
 
     # ------------------------------------------------------------------ 설정
     def config(self, query: Any = None) -> dict[str, Any]:
-        return {"options": copy.deepcopy(self.options), "choices": choices()}
+        return {"options": copy.deepcopy(self.options), "choices": choices(), "defaults": copy.deepcopy(DEFAULTS)}
 
     def save(self, data: dict[str, Any]) -> dict[str, Any]:
         """설정 저장. 소리 설정은 진행 중인 레이스에도 바로 적용."""

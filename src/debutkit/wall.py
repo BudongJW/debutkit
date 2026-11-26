@@ -82,6 +82,11 @@ DEFAULT_AURAS = [
     {"unit": "애드벌룬", "min": 1000, "effect": "glow", "strength": 100}, {"unit": "애드벌룬", "min": 10000, "effect": "stardust", "strength": 150},
     {"unit": "bits", "min": 1000, "effect": "glow", "strength": 100}, {"unit": "bits", "min": 10000, "effect": "stardust", "strength": 150},
 ]
+#: 그림 견본(/wall/sample)의 예시 카드: (이름, 금액, 단위, 플랫폼)
+SAMPLE_CARDS = (("치즈냥", 1000, "원", "chzzk"), ("별빛", 100, "별풍선", "soop"), ("구름", 5000, "원", "chzzk"), ("하늘", 34, "별풍선", "soop"),
+                ("달님", 10000, "원", "chzzk"), ("두부", 50000, "원", "chzzk"), ("호박", 300, "별풍선", "soop"))
+#: 조작 화면의 처음 상태로(연출 칸)가 쓰는 항목
+LOOK_KEYS = ("entrance", "idle", "fast_after", "sound", "names", "auto_clear", "empty_signatures", "avoid_chat")
 DEFAULT_CONFIG: dict[str, Any] = {
     "buckets": dict(DEFAULT_BUCKETS), "auras": DEFAULT_AURAS, "entrance": "pop", "idle": "float", "fast_after": 6, "sound": False,
     "names": True, "auto_clear": False, "empty_signatures": False, "avoid_chat": True,
@@ -897,6 +902,7 @@ class Wall:
                                       for entry in sorted(units.values(), key=lambda entry: _unit_rank(entry["unit"]))]},
                 "undo": round(undo, 1), "undo_count": len(self._undo[0]) if self._undo and undo > 0 else 0, "last": self._last,
                 "goal": goal_progress(self.cards, self.config["goal"]), "rank": self._rank(True),
+                "defaults": {key: copy.deepcopy(DEFAULT_CONFIG[key]) for key in LOOK_KEYS},
                 "choices": {"units": unit_names, "buckets": {unit: modes_for(unit) for unit in [*UNIT_ORDER, FOREIGN]}, "entrances": ENTRANCES,
                             "idles": IDLES, "auras": AURAS, "goal_bases": GOAL_BASES, "others": OTHERS, "platforms": PLATFORMS},
                 "file": str(settings.data_path(FILE)),
@@ -1168,6 +1174,25 @@ class Wall:
             text = export_text(self.cards, columns)
         return Raw(text.encode("utf-8"), "text/plain; charset=utf-8", "default-src 'none'")
 
+    def sample(self, query: dict[str, list[str]]) -> dict[str, Any]:
+        """그림 견본(/wall?sample): 지금 설정과 칸 배치에 예시 카드를 붙인 화면 값. 등장(entrance), 대기 효과(idle)는 주소로 바꿔 본다.
+
+        저장하지 않고 방송 화면에도 보내지 않는다(소리 없음).
+        """
+        demo = copy.copy(self)
+        with self._lock:
+            demo.config = copy.deepcopy(self.config)
+            demo.layout = copy.deepcopy(self.layout)
+        demo._lock = threading.RLock()
+        for key, table in (("entrance", ENTRANCES), ("idle", IDLES)):
+            value = (query.get(key) or [""])[0]
+            if value in table:
+                demo.config[key] = value
+        demo.config.update(names=True, sound=False)
+        demo.cards = [{"id": index + 1, "name": name, "amount": amount, "unit": unit, "platform": platform, "time": 0.0}
+                      for index, (name, amount, unit, platform) in enumerate(SAMPLE_CARDS)]
+        return demo.view()
+
     def public_view(self, query: dict[str, list[str]]) -> dict[str, Any]:
         part = (query.get("part") or [""])[0]
         return self.view(part=part if part in ("goal", "rank") else "")
@@ -1181,7 +1206,7 @@ class Wall:
             name="wall",
             static={"/wall": "wall.html", "/wall/goal": "wall.html", "/wall/rank": "wall.html", "/wall.js": "wall.js", "/wall.css": "wall.css",
                     "/wall/control": "wall-control.html"},
-            get={"/wall/state": lambda query: self.status(), "/wall/view": self.public_view, "/wall/image": self.image, "/wall/export": self.export},
+            get={"/wall/state": lambda query: self.status(), "/wall/view": self.public_view, "/wall/sample": self.sample, "/wall/image": self.image, "/wall/export": self.export},
             post={"/wall/config": self.update, "/wall/signature": self.save_signature, "/wall/signature/remove": self.remove_signature,
                   "/wall/column": self.set_column, "/wall/layout": self.set_layout, "/wall/test": self.test, "/wall/clear": lambda data: self.clear(),
                   "/wall/undo": lambda data: self.undo(), "/wall/detach": self.detach, "/wall/restore": self.restore, "/wall/remove": self.remove,

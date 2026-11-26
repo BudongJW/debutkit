@@ -44,12 +44,7 @@
     .preview { position: relative; height: 0; padding-top: 56.25%; margin-top: 10px; border-radius: 3px; overflow: hidden;
       background: repeating-conic-gradient(#30373c 0% 25%, #2a3035 0% 50%) 0 0 / 20px 20px; }
     .preview iframe { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; border: 0; transform-origin: 0 0; color-scheme: normal; }
-    .games { display: grid; grid-template-columns: 1fr; gap: 6px; }
-    .games label { display: flex; align-items: baseline; gap: 10px; border: 2px solid var(--line); border-radius: 6px; padding: 7px 12px; cursor: pointer; font-size: 13px; color: var(--dim); }
-    .games label b { font-size: 15px; color: var(--text); white-space: nowrap; }
-    .games input { position: absolute; opacity: 0; pointer-events: none; }
-    .games label:has(input:checked) { border-color: var(--link); background: #fff4f7; }
-    .games label:has(input:focus-visible) { outline: 2px solid var(--link); outline-offset: 2px; }
+    .presets { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin: 0 0 4px; font-size: 13px; color: var(--dim); }
     .swatches { display: flex; flex-wrap: wrap; gap: 6px; }
     .swatches button { width: 30px; height: 30px; padding: 0; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px #c9c3bd; }
     .swatches button[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--text); }
@@ -101,8 +96,9 @@
 
     <section>
       <h2>게임</h2>
-      <div class="games" id="games"></div>
-      <div class="row" id="course-row"><label>코스 <select id="course" aria-label="구슬 코스"></select></label></div>
+      <div class="presets" id="presets">추천:</div>
+      <div id="games"></div>
+      <div id="course-row"><h3>코스</h3><div id="course-tiles"></div><select id="course" aria-label="구슬 코스" hidden></select></div>
       <div class="row" id="format-row"><label>경기 방식 <select id="format" aria-label="경기 방식"></select></label></div>
       <p class="hint" id="game-hint"></p>
       <h3>당첨과 길이</h3>
@@ -111,17 +107,23 @@
         <label id="custom-wrap"><input id="custom-rank" type="number" min="1" max="100" step="1" style="width:64px" aria-label="지정 순위">등</label>
         <label>길이 <select id="length" aria-label="경주 길이"></select></label>
       </div>
+      <details class="dk-more">
+      <summary>자세히: 재생 속도, 깜짝 요소</summary>
       <div class="row">
         <label>재생 속도 <input id="speed" type="range" min="0.7" max="2.2" step="0.1" aria-label="재생 속도"> <b id="speed-value"></b></label>
       </div>
       <h3>깜짝 요소</h3>
       <div class="row"><select id="surprise" aria-label="깜짝 요소 정도"></select><span class="hint" style="margin:0">순위는 시작할 때 정해지며 깜짝 요소는 중간 장면만 바꿉니다.</span></div>
       <div class="events" id="events"></div>
+      </details>
+      <div class="row"><button type="button" class="secondary small" id="reset">처음 상태로</button></div>
+      <p class="hint">바꾸면 바로 저장합니다. 처음 상태로는 게임과 꾸미기를 처음 값으로 돌립니다(참가자 설정은 그대로).</p>
     </section>
 
     <section>
       <h2>꾸미기</h2>
-      <div class="row"><label>디자인 <select id="design" aria-label="디자인"></select></label></div>
+      <div id="design-tiles"></div>
+      <select id="design" aria-label="디자인" hidden></select>
       <h3>색</h3>
       <div class="swatches" id="colors"></div>
       <p class="hint">고른 색 하나에서 테두리, 강조, 참가자 색을 만듭니다.</p>
@@ -177,6 +179,8 @@
     </section>
   </div>
 </main>
+<script src="/theme.js"></script>
+<script src="/ui.js"></script>
 <script>
   "use strict";
   const $ = (id) => document.getElementById(id);
@@ -231,19 +235,50 @@
     }));
     $(id).value = value;
   }
+  // 그림 견본: 저장한 설정의 예시 장면을 경주 중간에 멈춰 그린다(?sample&still, 소리 없음)
+  const STILL_AT = { marble: 10, run: 6, survival: 14 };
+  const sampleSrc = (values) => {
+    const merged = { ...options, ...values };
+    return `/race?${new URLSearchParams({ sample: merged.game, still: "1", mute: "1", t: String(STILL_AT[merged.game] || 8), n: "12",
+      course: merged.course, design: merged.design, color: merged.color, format: merged.format })}`;
+  };
   function renderGames() {
-    $("games").replaceChildren(...Object.entries(choices.games).map(([key, label]) => {
-      const item = el("label");
-      const input = el("input");
-      input.type = "radio";
-      input.name = "game";
-      input.value = key;
-      input.checked = options.game === key;
-      input.addEventListener("change", () => { options.game = key; renderGameParts(); changed(); });
-      item.append(input, el("b", "", label), el("span", "", { marble: "핀과 레일", run: "줄 달리기", survival: "마지막 한 명" }[key] || ""));
-      return item;
-    }));
+    debutkitUi.looks($("games"), Object.entries(choices.games).map(([key, label]) => ({ key, label, src: sampleSrc({ game: key }),
+      about: { marble: "핀과 레일", run: "줄 달리기", survival: "마지막 한 명" }[key] || "" })), options.game,
+    (key) => { options.game = key; renderGames(); renderGameParts(); changed(); });
+    debutkitUi.looks($("course-tiles"), Object.entries(choices.courses).map(([key, label]) => ({ key, label, src: sampleSrc({ game: "marble", course: key }) })),
+      options.course, (key) => { options.course = key; $("course").value = key; renderGames(); changed(); });
+    debutkitUi.looks($("design-tiles"), Object.entries(choices.designs).map(([key, label]) => ({ key, label, src: sampleSrc({ design: key }) })),
+      options.design, (key) => { options.design = key; $("design").value = key; renderGames(); changed(); });
   }
+  //: 추천 설정: [이름, 바꿀 값]. 참가자 설정은 그대로
+  const PRESETS = [
+    ["가볍게 한 판", { game: "marble", course: "zigzag", length: "short", surprise: "some", speed: 1.0, design: "wood" }],
+    ["빠른 달리기", { game: "run", format: "all", length: "short", surprise: "some", speed: 1.3, design: "metal" }],
+    ["끝까지 긴장", { game: "survival", length: "long", surprise: "many", speed: 1.0, design: "paper" }],
+  ];
+  $("presets").append(...PRESETS.map(([name, values]) => {
+    const button = el("button", "secondary small", name);
+    button.type = "button";
+    button.addEventListener("click", () => {
+      if (!options) return;
+      Object.assign(options, values);
+      fill();
+      changed();
+      debutkitUi.toast(`${name}으로 바꿈`);
+    });
+    return button;
+  }));
+  const LOOK_KEYS = ["game", "course", "format", "surprise", "events", "rank", "custom_rank", "length", "speed", "design", "color", "font", "sound", "volume"];
+  let defaults = null;
+  $("reset").addEventListener("click", () => {
+    if (!options || !defaults) return;
+    if (!confirm("게임과 꾸미기 설정을 처음 값으로 돌립니다(참가자 설정은 그대로).")) return;
+    for (const key of LOOK_KEYS) options[key] = JSON.parse(JSON.stringify(defaults[key]));
+    fill();
+    changed();
+    debutkitUi.toast("처음 상태로 돌림");
+  });
   function renderGameParts() {
     const game = options.game;
     $("course-row").hidden = game !== "marble";
@@ -274,7 +309,7 @@
       button.title = color.label;
       button.setAttribute("aria-label", color.label);
       button.setAttribute("aria-pressed", String(options.color === key));
-      button.addEventListener("click", () => { options.color = key; renderColors(); changed(); });
+      button.addEventListener("click", () => { options.color = key; renderColors(); renderGames(); changed(); });
       return button;
     }));
   }
@@ -514,6 +549,7 @@
   fetch("/race/config").then((response) => response.json()).then((data) => {
     choices = data.choices;
     options = data.options;
+    defaults = data.defaults;
     fill();
     checkEntries();
   }).catch(() => note("save-state", "설정을 불러오지 못함", "error"));
@@ -522,7 +558,5 @@
   setInterval(refresh, 1000);
   setInterval(() => { raffleRefresh(); if ($("use-raffle").checked) checkEntries(); }, 3000);
 </script>
-<script src="/theme.js"></script>
-<script src="/ui.js"></script>
 </body>
 </html>

@@ -630,6 +630,17 @@
 
     // ---------------------------------------------------------- 연결
     fontsReady.then(() => {
+      if (params.has("sample")) {
+        // 그림 견본(?sample&entrance=jelly&idle=bob): 예시 카드를 붙이고 마지막 카드의 등장을 되풀이(이 화면에서만, 소리 없음)
+        const query = new URLSearchParams();
+        for (const name of ["entrance", "idle"]) if (params.has(name)) query.set(name, params.get(name));
+        fetch(`/wall/sample?${query}`).then((response) => response.json()).then((state) => {
+          receive(state, true);
+          const last = (state.cards || []).reduce((top, card) => Math.max(top, card.id), 0);
+          if (last) setInterval(() => { if (!pending.length) { pending.push({ type: "replay", id: last }); drain(); } }, 2600);
+        }).catch((error) => console.warn("debutkit 후원 벽 그림 견본", error));
+        return;
+      }
       // 공유 연결(live.js): 연결(다시 연결 포함) 직후의 값(initial)은 지금 상태
       window.debutkitLive.subscribe(["wall", "theme"], (feed, message, initial) => {
         if (feed === "wall" && message) receive(message, initial);

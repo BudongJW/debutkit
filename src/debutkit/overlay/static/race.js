@@ -5,6 +5,7 @@
 // 이름은 캔버스 fillText와 textContent로만 넣는다. 효과음은 브라우저에서 합성(음원 파일 없음).
 // 주소: ?preview=1 조작 화면 미리보기(연습 경기 표시, 효과음은 '조작 화면에서 듣기'를 켠 경우만), ?practice=1 연습 경기도 표시, ?mute 소리 끔
 //      ?sample=marble|run|survival 예시 장면(이 화면에서만): &t=12(경주 초에 멈춤, t=end 끝 장면, 음수는 출발 전) &n=24 &heat=0
+//      &still(그림 견본: 멈춘 장면을 그린 뒤 그리기 멈춤)
 //      &course= &design= &color= &font= &format= &surprise= &rank= &seed=
 "use strict";
 
@@ -2919,9 +2920,13 @@
       }
     }
   }
+  // 그림 견본(?still&t=8): 멈춘 장면을 1초쯤 그린 뒤 그리기를 멈춘다(작은 그림 여러 개가 계속 그리지 않게)
+  const still = params.has("still");
+  let stillFrames = 0;
   function frame() {
-    requestAnimationFrame(frame);
     const cur = current;
+    if (still && cur && fixedT !== null && ++stillFrames > 60) return;
+    requestAnimationFrame(frame);
     if (!cur) return;
     const t = fixedT !== null ? fixedT : (Date.now() / 1000 - cur.started - cur.countdown) * cur.speed;
     render(cur, t);

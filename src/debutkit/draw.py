@@ -215,6 +215,16 @@ def load_config(saved: dict[str, Any] | None = None) -> Config:
                   sound=bool(saved.get("draw_sound", False)), show_percent=bool(saved.get("draw_show_percent", False)), **_look(saved, style))
 
 
+#: 조작 화면의 고르기 목록(기본값에서는 뺀다)
+CHOICE_KEYS = ("styles", "positions", "designs", "effects", "fonts", "sizes", "advice_example")
+
+
+def defaults() -> dict[str, Any]:
+    """처음 상태(아무것도 저장하지 않았을 때)의 설정. 조작 화면의 처음 상태로 단추가 쓴다. 사용 여부는 넣지 않는다."""
+    data = load_config({}).to_dict()
+    return {key: value for key, value in data.items() if key not in CHOICE_KEYS and key != "enabled"}
+
+
 def _number(value: Any) -> float | None:
     if isinstance(value, bool) or not isinstance(value, (int, float, str)):
         return None

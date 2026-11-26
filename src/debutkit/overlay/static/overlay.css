@@ -287,3 +287,7 @@ body[data-roles="0"] .line.owner .name::before, body[data-roles="0"] .line.moder
 @keyframes chat-slide-right { from { transform: translateX(24px); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes chat-pop { 0% { transform: scale(0.7); opacity: 0; } 70% { transform: scale(1.05); opacity: 1; } 100% { transform: none; } }
 @media (prefers-reduced-motion: reduce) { .alert, .line, .alert-scene, .alert-scene > .alert-image { animation: none !important; } }
+
+/* 그림 견본(?still): 움직임 없이 끝난 모습 그대로 */
+html.still *, html.still *::before, html.still *::after { animation: none !important; transition: none !important; }
+html.still .alert-fx { display: none; }

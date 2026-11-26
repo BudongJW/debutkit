@@ -515,6 +515,10 @@ def make_feature(context: feature.Context) -> feature.Feature:
         style = query.get("style", [""])[0]
         if style in STYLES:
             current = {**current, "style": style}
+        for name in ("primary", "highlight"):  # 그림 견본이 다른 색 조합을 보여 줄 때(이 화면만)
+            value = "#" + query.get(name, [""])[0].lower()
+            if _HEX.match(value):
+                current = {**current, name: value}
         return feature.Raw(css(current, fonts=query.get("fonts", ["1"])[0] != "0").encode("utf-8"), "text/css; charset=utf-8")
 
     handlers: dict[str, Callable[[Any], Any]] = {"/theme": info, "/theme.css": stylesheet, "/theme/font": font_file}

@@ -8,10 +8,13 @@
   <link rel="stylesheet" href="/theme.css?fonts=0">
   <link rel="stylesheet" href="/ui.css">
   <style>
-    .presets { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
-    .presets button { text-align: left; padding: 8px 10px; background: var(--panel); color: var(--text); border: 2px solid transparent; font-size: 13.5px; font-weight: 700; line-height: 1.35; }
+    .presets, .layouts { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px; }
+    .presets button, .layouts button { display: grid; gap: 6px; align-content: start; text-align: left; padding: 6px 6px 8px; background: var(--panel); color: var(--text);
+      border: 2px solid transparent; font-size: 13.5px; font-weight: 700; line-height: 1.35; }
     .presets button small { display: block; font-weight: 400; color: var(--dim); font-size: 12px; }
-    .presets button:hover { border-color: #c9c3bd; }
+    .presets button:hover, .layouts button:hover { border-color: #c9c3bd; }
+    .layouts button[aria-pressed="true"] { border-color: var(--text); }
+    .presets b, .layouts b { padding: 0 4px; }
     .empty { color: var(--dim); font-size: 13px; padding: 6px 2px; }
     * { box-sizing: border-box; }
     body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.6 "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; }
@@ -44,11 +47,6 @@
     .positions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; width: 210px; }
     .positions button { height: 28px; padding: 0; font-size: 12px; background: #fff; color: var(--dim); border-color: #c9c3bd; white-space: nowrap; }
     .positions button[aria-pressed="true"] { background: var(--text); color: #fff; border-color: var(--text); }
-    .styles { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; }
-    .styles button { position: relative; min-height: 62px; padding: 7px 10px 30px; text-align: left; font-size: 13px; font-weight: 700; border: 2px solid transparent;
-      background: var(--panel); color: var(--text); line-height: 1.3; }
-    .styles button .chip { position: absolute; left: 10px; right: 10px; bottom: 8px; height: 16px; }
-    .styles button[aria-pressed="true"] { border-color: var(--text); }
     table { width: 100%; border-collapse: collapse; font-size: 14px; }
     th, td { text-align: left; padding: 4px; border-bottom: 1px solid var(--line); vertical-align: middle; }
     th { color: var(--dim); font-weight: 600; font-size: 12px; }
@@ -79,8 +77,9 @@
       </section>
       <section>
         <h2>배치와 움직임</h2>
-        <div class="fields">
-          <label class="field">배치<select id="layout"></select></label>
+        <div class="layouts" id="layouts"></div>
+        <div class="fields" style="margin-top:10px">
+          <label class="field" hidden>배치<select id="layout"></select></label>
           <label class="field">등장<select id="enter"></select></label>
           <label class="field">표시 시간(초)<input type="number" id="seconds" min="3" max="30"></label>
           <label class="field">크기 <span id="scale-label"></span><input type="range" id="scale" min="60" max="160" step="5"></label>
@@ -199,18 +198,12 @@
     function renderStyles() {
       const list = { auto: { name: "방송 스타일 따르기", surface: "var(--panel)", line: "#c9c3bd", radius: "6px", shadow: "none", tag: "transparent" },
                      ...(themeInfo ? themeInfo.styles : {}) };
-      $("styles").replaceChildren(...Object.entries(list).map(([key, style]) => {
-        const button = el("button");
-        button.type = "button";
-        button.setAttribute("aria-pressed", String(config.style === key));
-        button.append(el("span", style.name));
-        const chip = el("span");
-        chip.className = "chip";
-        Object.assign(chip.style, { background: style.surface, border: `2px solid ${style.line}`, borderRadius: style.radius, boxShadow: style.shadow });
-        button.appendChild(chip);
-        button.addEventListener("click", () => { config.style = key; renderStyles(); changes.touch(); preview(); });
-        return button;
-      }));
+      // 그림 견본: 그 스타일의 카드 알림(가운데만 잘라 크게). 방송 스타일 따르기는 저장한 방송 스타일
+      debutkitUi.looks($("styles"), Object.entries(list).map(([key, style]) => {
+        const query = new URLSearchParams({ still: "1", layout: "card", position: "center", scale: "100" });
+        if (key !== "auto") query.set("style", key);
+        return { key, label: style.name, src: `/alerts?${query}`, view: 760 };
+      }), config.style, (key) => { config.style = key; renderStyles(); refreshThumbs(); changes.touch(); preview(); });
     }
 
     function renderPositions() {
@@ -220,7 +213,7 @@
         button.type = "button";
         button.title = label;
         button.setAttribute("aria-pressed", String(config.position === key));
-        button.addEventListener("click", () => { config.position = key; renderPositions(); changes.touch(); preview(); });
+        button.addEventListener("click", () => { config.position = key; renderPositions(); refreshThumbs(); changes.touch(); preview(); });
         return button;
       }));
     }
@@ -259,14 +252,56 @@
       changes.touch();
       debutkitUi.toast(done);
     }
+    // 그림 견본 주소: 지금 고른 알림 스타일로 그 모양을 그린 알림(움직임, 소리 없음)
+    function thumbSrc(values, extra = {}) {
+      // 크기는 1.5배: 실제 비율이면 작은 그림에서 모양이 안 보여 위치는 그대로 두고 알림만 크게
+      const query = new URLSearchParams({ still: "1", layout: values.layout, position: values.position || config.position,
+        scale: String(Math.min(160, Math.round((values.scale || config.scale) * 1.5))) });
+      if (config.style && config.style !== "auto") query.set("style", config.style);
+      if (["side", "stack"].includes(values.layout) && config.images.length) query.set("image", config.images[0].id);
+      for (const [key, value] of Object.entries(extra)) query.set(key, value);
+      return `/alerts?${query}`;
+    }
+    let shownThumbs = "";
     function renderPresets() {
       $("presets").replaceChildren(...PRESETS.map(([name, about, values]) => {
         const button = el("button");
         button.type = "button";
-        button.append(name, el("small", about));
+        const rich = values.tiers && values.tiers.length ? { emphasis: "glow", amount: "50000" } : {};
+        const title = el("b", name);
+        title.appendChild(el("small", about));
+        button.append(debutkitUi.thumb(thumbSrc(values, rich), name), title);
         button.addEventListener("click", () => apply(values, `${name}${ro(name)} 바꿈. 확인한 뒤 저장`));
         return button;
       }));
+    }
+
+    function renderLayouts() {
+      $("layouts").replaceChildren(...Object.entries(choices.layouts || {}).map(([key, label]) => {
+        const button = el("button");
+        button.type = "button";
+        button.setAttribute("aria-pressed", String($("layout").value === key));
+        button.append(debutkitUi.thumb(thumbSrc({ layout: key }), label), el("b", label));
+        button.addEventListener("click", () => {
+          $("layout").value = key;
+          $("layout").dispatchEvent(new Event("change"));
+          for (const other of $("layouts").children) other.setAttribute("aria-pressed", String(other === button));
+        });
+        return button;
+      }));
+    }
+    // 그림은 알림 스타일, 위치, 첫 그림이 바뀔 때만 다시 그림(누를 때마다 다시 불러오지 않게)
+    function refreshThumbs() {
+      const key = JSON.stringify([config.style, config.position, config.images.length ? config.images[0].id : ""]);
+      if (key === shownThumbs) {
+        for (const button of $("layouts").children) button.setAttribute("aria-pressed", "false");
+        const index = Object.keys(choices.layouts || {}).indexOf($("layout").value);
+        if (index >= 0 && $("layouts").children[index]) $("layouts").children[index].setAttribute("aria-pressed", "true");
+        return;
+      }
+      shownThumbs = key;
+      renderPresets();
+      renderLayouts();
     }
 
     function fill(data) {
@@ -289,6 +324,7 @@
       renderPositions();
       renderImages();
       labels();
+      refreshThumbs();
       preview();
     }
 
@@ -377,7 +413,6 @@
     fit();
     Promise.all([fetch("/alerts/config").then((r) => r.json()), fetch("/theme").then((r) => r.json())]).then(([alerts, theme]) => {
       themeInfo = theme;
-      renderPresets();
       fill(alerts);
       fit();
     });

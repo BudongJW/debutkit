@@ -55,6 +55,9 @@
     .preview { position: relative; height: 0; padding-top: 56.25%; margin-top: 10px; border-radius: 3px; overflow: hidden;
       background: repeating-conic-gradient(#30373c 0% 25%, #2a3035 0% 50%) 0 0 / 20px 20px; }
     .preview.light { background: repeating-conic-gradient(#e9e4dd 0% 25%, #dcd6ce 0% 50%) 0 0 / 20px 20px; }
+    .presets { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin: 0 0 4px; font-size: 13px; color: var(--dim); }
+    #look-preview { margin-top: 10px; max-width: 420px; }
+    #look-preview .dk-thumb { background: repeating-conic-gradient(#30373c 0% 25%, #2a3035 0% 50%) 0 0 / 20px 20px; }
     .preview iframe { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; border: 0; transform-origin: 0 0; color-scheme: normal; }
     .summary { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 0; }
     .summary span { background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 0 10px; font-size: 13px; }
@@ -163,14 +166,20 @@
 
     <section>
       <h2>연출</h2>
+      <div class="presets" id="presets">추천:</div>
       <div class="row"><label>등장 <select id="entrance" aria-label="등장 연출"></select></label><label>대기 효과 <select id="idle" aria-label="대기 효과"></select></label></div>
-      <div class="row"><label>빠른 진행: 대기 카드 <input id="fast-after" type="number" min="2" max="50" style="width:64px">장 이상</label></div>
+      <div id="look-preview"></div>
+      <p class="hint">그림은 예시 카드에 고른 등장과 대기 효과를 붙인 모습입니다. 마지막 카드의 등장을 되풀이합니다(소리 없음, 방송에 나가지 않음).</p>
       <div class="row"><label class="check"><input type="checkbox" id="names"> 방송에 닉네임 표시</label><label class="check"><input type="checkbox" id="sound"> 효과음</label></div>
+      <p class="hint">닉네임 표시를 끄면 방송 화면과 순위에 금액만 나옵니다(이 화면에는 그대로). 효과음은 OBS 브라우저 소스 속성의 OBS 오디오 제어를 켠 경우 방송에 나갑니다.</p>
+      <details class="dk-more">
+      <summary>자세히: 빠른 진행, 시작할 때 비우기, 시그니처 칸, 채팅 자리</summary>
+      <div class="row"><label>빠른 진행: 대기 카드 <input id="fast-after" type="number" min="2" max="50" style="width:64px">장 이상</label></div>
       <div class="row"><label class="check"><input type="checkbox" id="auto-clear"> 오버레이를 시작할 때 벽 비우기</label></div>
       <div class="row"><label class="check"><input type="checkbox" id="empty-signatures"> 후원 전에도 시그니처 칸 세우기</label></div>
       <div class="row"><label class="check"><input type="checkbox" id="avoid-chat"> 자동 배치에서 오른쪽 채팅 자리 비우기</label></div>
-      <p class="hint">닉네임 표시를 끄면 방송 화면과 순위에 금액만 나옵니다(이 화면에는 그대로). 효과음은 OBS 브라우저 소스 속성의 OBS 오디오 제어를 켠 경우 방송에 나갑니다.</p>
-      <div class="row"><button data-save>저장</button><span class="state" data-save-state></span></div>
+      </details>
+      <div class="row"><button data-save>저장</button><button type="button" class="secondary small" id="reset">처음 상태로</button><span class="state" data-save-state></span></div>
     </section>
 
     <section class="wide">
@@ -238,6 +247,8 @@
     </section>
   </div>
 </main>
+<script src="/theme.js"></script>
+<script src="/ui.js"></script>
 <script>
   "use strict";
   const $ = (id) => document.getElementById(id);
@@ -363,6 +374,7 @@
     $("auto-clear").checked = config.auto_clear;
     $("empty-signatures").checked = config.empty_signatures;
     $("avoid-chat").checked = config.avoid_chat !== false;
+    lookPreview();
     $("auras").replaceChildren(...config.auras.map(auraRow));
     $("goal-title").value = config.goal.title;
     $("goal-target").value = config.goal.target;
@@ -387,6 +399,52 @@
     };
   }
 
+  // 저장하지 않은 변경 표시: 저장 단추가 있는 칸마다(저장은 모든 칸을 함께 저장하므로 저장하면 모두 해제)
+  const sectionChanges = [...document.querySelectorAll("[data-save]")].map((button) => {
+    const changes = debutkitUi.unsaved(button, button.parentElement.querySelector("[data-save-state]"));
+    const section = button.closest("section");
+    section.addEventListener("input", () => changes.touch());
+    section.addEventListener("change", () => changes.touch());
+    section.addEventListener("click", (event) => { if (event.target.closest("button.secondary.small")) changes.touch(); });
+    return changes;
+  });
+  // 연출 그림 견본: 고른 등장과 대기 효과
+  function lookPreview() {
+    const query = new URLSearchParams({ sample: "1", entrance: $("entrance").value, idle: $("idle").value, bg: "dark" });
+    const src = `/wall?${query}`;
+    const box = $("look-preview");
+    if (box.dataset.src === src) return;
+    box.dataset.src = src;
+    box.replaceChildren(debutkitUi.thumb(src, "후원 벽 연출 그림"));
+  }
+  for (const id of ["entrance", "idle"]) $(id).addEventListener("change", lookPreview);
+  //: 추천 연출: [이름, 등장, 대기 효과, 효과음]
+  const PRESETS = [["차분하게", "unfold", "none", false], ["귀엽게", "jelly", "bob", true], ["화려하게", "sparkle", "pulse", true], ["매번 다르게", "random", "float", true]];
+  $("presets").append(...PRESETS.map(([name, entrance, idle, sound]) => {
+    const button = el("button", "secondary small", name);
+    button.type = "button";
+    button.addEventListener("click", () => {
+      $("entrance").value = entrance;
+      $("idle").value = idle;
+      $("sound").checked = sound;
+      lookPreview();
+      debutkitUi.toast(`${name}으로 바꿈. 확인한 뒤 저장`);
+    });
+    return button;
+  }));
+  $("reset").addEventListener("click", () => {
+    const base = status && status.defaults;
+    if (!base) return;
+    $("entrance").value = base.entrance;
+    $("idle").value = base.idle;
+    $("fast-after").value = base.fast_after;
+    for (const [id, key] of [["names", "names"], ["sound", "sound"], ["auto-clear", "auto_clear"], ["empty-signatures", "empty_signatures"], ["avoid-chat", "avoid_chat"]]) {
+      $(id).checked = base[key];
+    }
+    lookPreview();
+    debutkitUi.toast("처음 상태로 채움. 확인한 뒤 저장");
+  });
+
   for (const button of document.querySelectorAll("[data-save]")) {
     const state = button.parentElement.querySelector("[data-save-state]");
     button.addEventListener("click", async () => {
@@ -397,6 +455,7 @@
       config = data.config;
       fill();
       render(true);
+      for (const changes of sectionChanges) changes.clear();
       state.textContent = "저장했습니다. 방송 화면에 바로 적용됩니다.";
       setTimeout(() => (state.textContent = ""), 4000);
     });
@@ -723,7 +782,5 @@
   refresh();
   setInterval(refresh, 2000);
 </script>
-<script src="/theme.js"></script>
-<script src="/ui.js"></script>
 </body>
 </html>

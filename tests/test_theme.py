@@ -150,3 +150,12 @@ def test_bundled_style_fonts_are_listed_with_hashes():
             assert data[:4] == b"wOF2" and f"/vendor/fonts/{name}" in theme.FONTS, name
     assert theme._PIXEL_FONT.startswith('"Galmuri11"') and theme._HAND_FONT.startswith('"Gaegu"')
     assert {"galmuri", "gaegu"} <= set(theme.FONT_CHOICES)
+
+
+def test_one_screen_can_preview_other_colors(port):
+    # 그림 견본(?primary=&highlight=)은 이 화면만 다른 색. 저장한 색은 그대로, 잘못된 값은 무시
+    sheet = request(port, "GET", "/theme.css?fonts=0&style=neon&primary=3BA7F0&highlight=f6c48f")[2].decode()
+    assert "--dk-primary: #3ba7f0;" in sheet and "--dk-highlight: #f6c48f;" in sheet and "--dk-style: neon;" in sheet
+    assert json.loads(request(port, "GET", "/theme")[2])["primary"] == theme.load()["primary"]
+    plain = request(port, "GET", "/theme.css?fonts=0&primary=red;}&highlight=12345")[2].decode()
+    assert f"--dk-primary: {theme.load()['primary']};" in plain and "red" not in plain
