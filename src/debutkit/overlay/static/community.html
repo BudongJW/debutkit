@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <title>debutkit 커뮤니티 방송 화면</title>
+  <link rel="stylesheet" href="/theme.css">
+  <style>
+    /* 커뮤니티에서 고른 글, 팬아트, 출석을 방송 화면에 차례로. 모양은 방송 스타일(--dk-*). 권장 크기 1920x1080, 주소 뒤 ?position=left|right|center */
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; }
+    #stage { position: fixed; inset: 0; display: flex; align-items: flex-end; justify-content: flex-end; padding: 0 3vw 18vh; box-sizing: border-box; pointer-events: none; }
+    body[data-position="left"] #stage { justify-content: flex-start; }
+    body[data-position="center"] #stage { justify-content: center; align-items: center; padding: 0; }
+    .cm { position: relative; width: min(32vw, 620px); padding: 18px 22px 16px; background: var(--dk-surface, #faf7f5); color: var(--dk-on-surface, #1e2327);
+      border: var(--dk-line-width, 3px) var(--dk-line-style, solid) var(--dk-line, #1e2327); border-radius: var(--dk-radius, 10px); box-shadow: var(--dk-shadow, none);
+      font-family: var(--dk-text, "Pretendard", "Malgun Gothic", sans-serif); animation: dk-enter var(--dk-enter-time, 0.45s) var(--dk-enter-ease, ease-out) both; }
+    .cm.gone { opacity: 0; transform: translateY(16px); transition: opacity 0.4s ease-in, transform 0.4s ease-in; }
+    .cm-tag { position: absolute; left: 18px; top: -0.9em; padding: 3px 12px 4px; background: var(--dk-tag-bg, var(--dk-primary, #ff4f8b)); color: var(--dk-tag-text, #1e2327);
+      border-radius: calc(var(--dk-radius, 10px) * 0.6); font: 18px/1.2 var(--dk-display, "Black Han Sans", sans-serif); letter-spacing: 0.02em; }
+    .cm img { display: block; width: 100%; max-height: 46vh; object-fit: contain; border-radius: calc(var(--dk-radius, 10px) * 0.6); margin: 8px 0 10px; background: rgba(0, 0, 0, 0.06); }
+    .cm h1 { margin: 6px 0 4px; font: 30px/1.25 var(--dk-display, "Black Han Sans", sans-serif); text-shadow: var(--dk-glow, none); word-break: keep-all; overflow-wrap: anywhere; }
+    .cm p { margin: 0; font-size: 20px; font-weight: 600; color: var(--dk-muted, #4a535b); word-break: keep-all; overflow-wrap: anywhere;
+      display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+    .cm .by { margin-top: 8px; font-size: 17px; font-weight: 700; color: var(--dk-primary, #ff4f8b); }
+    html[data-dk-tone="dark"] .cm .by { color: var(--dk-primary-light, #ffb3cb); }
+    .cm.attend { width: auto; min-width: 18vw; padding: 12px 18px 10px; }
+    .cm.attend h1 { font-size: 24px; }
+  </style>
+</head>
+<body>
+  <div id="stage" aria-live="polite"></div>
+  <script src="/theme.js"></script>
+  <script src="/live.js"></script>
+  <script>
+    "use strict";
+    // 글은 textContent로만 넣는다. 그림은 커뮤니티 주소(https)만
+    const params = new URLSearchParams(location.search);
+    document.body.dataset.position = ["left", "right", "center"].includes(params.get("position")) ? params.get("position") : "right";
+    const BOARDS = { notice: "공지", free: "자유", fanart: "팬아트", qna: "질문", clips: "클립", attend: "출석" };
+    const queue = [];
+    let busy = false;
+    const el = (tag, className, text) => { const node = document.createElement(tag); if (className) node.className = className; if (text) node.textContent = text; return node; };
+
+    function next() {
+      if (busy || !queue.length) return;
+      busy = true;
+      const { item, seconds } = queue.shift();
+      const card = el("div", `cm${item.kind === "attend" ? " attend" : ""}`);
+      card.appendChild(el("span", "cm-tag", `커뮤니티 ${BOARDS[item.board] || ""}`.trim()));
+      if (typeof item.image === "string" && /^https?:\/\//.test(item.image)) {
+        const img = el("img");
+        img.src = item.image;
+        img.alt = "";
+        img.referrerPolicy = "no-referrer";
+        card.appendChild(img);
+      }
+      card.appendChild(el("h1", "", item.title || ""));
+      if (item.body && item.board !== "fanart") card.appendChild(el("p", "", item.body));
+      if (item.author) card.appendChild(el("div", "by", item.author));
+      document.getElementById("stage").replaceChildren(card);
+      const shown = (item.kind === "attend" ? 4 : Math.max(4, Math.min(60, Number(seconds) || 12))) * 1000;
+      setTimeout(() => { card.classList.add("gone"); setTimeout(() => { card.remove(); busy = false; next(); }, 450); }, shown);
+    }
+
+    window.debutkitLive.subscribe(["community", "theme"], (feed, data, initial) => {
+      if (feed !== "community" || initial || !data || !data.item) return;
+      if (queue.length < 30) queue.push(data);
+      next();
+    });
+  </script>
+</body>
+</html>

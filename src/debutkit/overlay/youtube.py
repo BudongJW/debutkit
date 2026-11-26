@@ -88,9 +88,10 @@ def youtube_event(item: dict[str, Any]) -> OverlayEvent | None:
     name = str(author.get("displayName") or "익명")
     role = "owner" if author.get("isChatOwner") else "moderator" if author.get("isChatModerator") else ""
     stamp = _stamp(snippet.get("publishedAt"))
+    viewer = str(author.get("channelId") or "")[:64]  # 바뀌지 않는 시청자 채널 ID(커뮤니티 연결, 출석)
     if kind == "textMessageEvent":
         text = str((snippet.get("textMessageDetails") or {}).get("messageText") or snippet.get("displayMessage") or "")
-        return OverlayEvent("youtube", "chat", name, (("text", text),), role=role, time=stamp)
+        return OverlayEvent("youtube", "chat", name, (("text", text),), role=role, time=stamp, user=viewer)
     if kind in ("superChatEvent", "superStickerEvent"):
         details = snippet.get("superChatDetails") or snippet.get("superStickerDetails") or {}
         try:
@@ -100,19 +101,19 @@ def youtube_event(item: dict[str, Any]) -> OverlayEvent | None:
         currency = str(details.get("currency") or "")
         comment = str(details.get("userComment") or "")
         return OverlayEvent("youtube", "donation", name, (("text", comment),) if comment else (), amount=amount,
-                            unit="원" if currency == "KRW" else currency, role=role, time=stamp)
+                            unit="원" if currency == "KRW" else currency, role=role, time=stamp, user=viewer)
     if kind == "newSponsorEvent":
         level = str((snippet.get("newSponsorDetails") or {}).get("memberLevelName") or "")
-        return OverlayEvent("youtube", "member", name, (("text", "멤버십 가입" + (f" ({level})" if level else "")),), role=role, time=stamp)
+        return OverlayEvent("youtube", "member", name, (("text", "멤버십 가입" + (f" ({level})" if level else "")),), role=role, time=stamp, user=viewer)
     if kind == "memberMilestoneChatEvent":
         details = snippet.get("memberMilestoneChatDetails") or {}
         months = details.get("memberMonth")
         comment = str(details.get("userComment") or "")
         notice = f"멤버십 {months}개월" if months else "멤버십 기념일"
-        return OverlayEvent("youtube", "member", name, (("text", notice + (f" {comment}" if comment else "")),), role=role, time=stamp)
+        return OverlayEvent("youtube", "member", name, (("text", notice + (f" {comment}" if comment else "")),), role=role, time=stamp, user=viewer)
     if kind == "membershipGiftingEvent":
         count = (snippet.get("membershipGiftingDetails") or {}).get("giftMembershipsCount")
-        return OverlayEvent("youtube", "member", name, (("text", f"멤버십 선물 {count}개" if count else "멤버십 선물"),), role=role, time=stamp)
+        return OverlayEvent("youtube", "member", name, (("text", f"멤버십 선물 {count}개" if count else "멤버십 선물"),), role=role, time=stamp, user=viewer)
     return None
 
 

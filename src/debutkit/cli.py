@@ -1,4 +1,4 @@
-"""명령줄: debutkit gui | doctor | scenes | camera | overlay | draw | raffle | pick | wall | race | phone | vmc | remote | broadcast | launch | clip |
+"""명령줄: debutkit gui | doctor | scenes | camera | overlay | draw | raffle | pick | wall | race | phone | vmc | community | remote | broadcast | launch | clip |
 logo | character | motion | vts | settings | setup | chzzk"""
 
 from __future__ import annotations
@@ -767,6 +767,71 @@ def _vmc(args: argparse.Namespace) -> int:
     return _post_overlay(args.port, "/vmc/stop", {}, describe)
 
 
+def _community(args: argparse.Namespace) -> int:
+    """팬 커뮤니티: 올리기(Cloudflare), 상태, 공지, 관리 화면, 방송 중 표시, 이 PC에서 미리보기."""
+    from . import community
+    from .community.client import CommunityError
+    from .community.cloudflare import CloudflareError
+
+    command = args.community_command
+    if command == "preview":
+        import shutil
+        import subprocess
+
+        node = shutil.which("node")
+        if not node:
+            print("미리보기에는 Node.js 22.5 이상 필요(https://nodejs.org). 커뮤니티를 올리는 데는 필요 없음", file=sys.stderr)
+            return 1
+        script = Path(community.__file__).resolve().parent / "worker" / "preview.mjs"
+        print("debutkit API 토큰: dev-token. 멈추려면 Ctrl+C")
+        try:
+            return subprocess.call([node, str(script), str(args.listen_port)])
+        except KeyboardInterrupt:
+            return 0
+    try:
+        if command == "deploy":
+            from .community.setup import publish
+
+            token = args.token or os.environ.get("CLOUDFLARE_API_TOKEN", "")
+            done = publish(args.script or "", cloudflare_token=token, account=args.account or "", name=args.name or "", owner_name=args.owner or "")
+            print(f"커뮤니티를 올림: {done['url']}")
+            if done.get("note"):
+                print(f"  {done['note']}")
+            print("  관리 화면: debutkit community admin")
+            return 0
+        config = community.load()
+        api = community.connect(config)
+        if api is None:
+            print("커뮤니티를 아직 올리지 않음: debutkit community deploy --script 주소이름 --name 커뮤니티이름 (토큰은 CLOUDFLARE_API_TOKEN)", file=sys.stderr)
+            return 1
+        if command == "status":
+            state = api.state()
+            print(f"{state['name']}: {config['url']}")
+            print(f"  회원 {state['users']}, 글 {state['posts']}, 확인할 신고 {state['reports']}, 오늘 출석 {state['attended']}")
+            print(f"  방송 중 표시 {'켜짐' if (state.get('live') or {}).get('live') else '꺼짐'}, 로그인: 방송 채팅 인증"
+                  + "".join(f", {community.PROVIDERS[key]}" for key in config["providers"]))
+            return 0
+        if command == "notice":
+            made = api.post(args.title, args.body or "", board=args.board, link=args.link or "", pinned=args.pin)
+            print(f"올림: {made['url']}")
+            return 0
+        if command == "admin":
+            import webbrowser
+
+            url = api.owner_link()
+            print(f"관리 화면(10분 동안 한 번): {url}")
+            webbrowser.open(url)
+            return 0
+        if command == "live":
+            api.live(args.state == "on", args.title or "", config["live_url"])
+            print("방송 중 표시를 켬" if args.state == "on" else "방송 중 표시를 끔")
+            return 0
+    except (CommunityError, CloudflareError) as error:
+        print(str(error), file=sys.stderr)
+        return 1
+    return 1
+
+
 def _remote(args: argparse.Namespace) -> int:
     """실행 중인 오버레이의 휴대폰 조작 화면(켜기, 끄기, 등록, 승인, 삭제)."""
     command = args.remote_command
@@ -1455,6 +1520,29 @@ def build_parser() -> argparse.ArgumentParser:
     vmc_start.add_argument("--rate", type=int, default=60, help="초당 최대 송신 횟수 10~120 (기본 %(default)s)")
     vmc_sub.add_parser("stop", help="송신 멈춤(다음 실행 때 시작하지 않음)")
     vmc_parser.set_defaults(func=_vmc)
+
+    community_parser = sub.add_parser("community", help="팬 커뮤니티(트게더처럼 공지, 일정, 게시판, 출석과 포인트): 내 Cloudflare 무료 계정에 올리고 방송과 연동")
+    community_sub = community_parser.add_subparsers(dest="community_command", required=True)
+    community_sub.add_parser("status", help="회원, 글, 신고, 오늘 출석")
+    community_deploy = community_sub.add_parser("deploy", help="올리기 또는 고치기(같은 주소 이름이면 글과 회원은 그대로)")
+    community_deploy.add_argument("--script", help="주소 이름(영문 소문자, 숫자, -. 예: dotori-fans)")
+    community_deploy.add_argument("--name", help="커뮤니티 이름")
+    community_deploy.add_argument("--owner", help="스트리머 이름(공지 작성자)")
+    community_deploy.add_argument("--token", help="Cloudflare API 토큰(또는 CLOUDFLARE_API_TOKEN). 한 번 넣으면 이 PC에 암호화 보관")
+    community_deploy.add_argument("--account", help="Cloudflare 계정 ID(계정이 여럿일 때만)")
+    community_notice = community_sub.add_parser("notice", help="공지 올리기")
+    community_notice.add_argument("title")
+    community_notice.add_argument("--body")
+    community_notice.add_argument("--board", choices=["notice", "clips"], default="notice")
+    community_notice.add_argument("--link", help="https 주소(클립, 다시보기)")
+    community_notice.add_argument("--pin", action="store_true", help="위에 고정")
+    community_sub.add_parser("admin", help="관리 화면 열기(스트리머로 로그인, 10분 동안 한 번 쓰는 주소)")
+    community_live = community_sub.add_parser("live", help="방송 중 표시 켜기, 끄기")
+    community_live.add_argument("state", choices=["on", "off"])
+    community_live.add_argument("--title", help="방송 제목")
+    community_preview = community_sub.add_parser("preview", help="이 PC에서 커뮤니티 화면 미리보기(Node.js 22.5 이상, 시험용 데이터)")
+    community_preview.add_argument("--listen-port", type=int, default=8794)
+    community_parser.set_defaults(func=_community)
 
     remote = sub.add_parser("remote", help="휴대폰 조작 화면: 같은 Wi-Fi의 휴대폰 브라우저로 참여 추첨, 3D 캐릭터 동작 조작(실행 중인 오버레이)")
     remote.add_argument("--port", type=int, default=OVERLAY_PORT, help="오버레이 포트 (기본 %(default)s)")

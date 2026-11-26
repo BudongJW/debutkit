@@ -1,0 +1,6 @@
+{
+  "name": "debutkit-community",
+  "private": true,
+  "type": "module",
+  "description": "debutkit 커뮤니티 Cloudflare Worker. 의존 패키지 없음. 시험: node --test (Node 22.5 이상)"
+}

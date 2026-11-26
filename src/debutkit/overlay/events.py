@@ -33,6 +33,9 @@ class OverlayEvent:
     role: str = ""  # owner | moderator | ""
     color: str = ""  # 닉네임 색 #RRGGBB (플랫폼이 줄 때만)
     time: float = field(default_factory=time.time)
+    #: 플랫폼의 바뀌지 않는 시청자 번호(치지직 채널 ID, SOOP 아이디, Twitch user-id, YouTube 채널 ID). 닉네임을 바꿔도 같은 사람으로
+    #: 보기 위해 커뮤니티 연결, 출석에 쓴다. 플랫폼이 주지 않으면 빈 값
+    user: str = ""
 
     @property
     def text(self) -> str:
@@ -90,6 +93,7 @@ def chzzk_event(item: dict[str, Any], *, donation: bool = False) -> OverlayEvent
     return OverlayEvent(
         "chzzk", "donation" if paid else "chat", name, text_parts(str(item.get("msg") or ""), _json_object(extras.get("emojis"))),
         amount=amount, unit="원" if paid else "", role=role, time=float(stamp) / 1000 if stamp else time.time(),
+        user=str(item.get("uid") or profile.get("userIdHash") or "")[:64],
     )
 
 
@@ -114,18 +118,21 @@ def chzzk_api_event(name: str, data: dict[str, Any]) -> OverlayEvent | None:
         stamp = data.get("messageTime")
         return OverlayEvent("chzzk", "chat", str(profile.get("nickname") or "익명"),
                             text_parts(str(data.get("content") or ""), _json_object(data.get("emojis"))), role=role,
-                            time=float(stamp) / 1000 if isinstance(stamp, (int, float)) else time.time())
+                            time=float(stamp) / 1000 if isinstance(stamp, (int, float)) else time.time(),
+                            user=str(data.get("senderChannelId") or "")[:64])
     if name == "DONATION":
         try:
             amount = float(str(data.get("payAmount") or "0").replace(",", ""))
         except ValueError:
             amount = 0.0
         return OverlayEvent("chzzk", "donation", str(data.get("donatorNickname") or "익명 후원자"),
-                            text_parts(str(data.get("donationText") or ""), _json_object(data.get("emojis"))), amount=amount, unit="원")
+                            text_parts(str(data.get("donationText") or ""), _json_object(data.get("emojis"))), amount=amount, unit="원",
+                            user=str(data.get("donatorChannelId") or "")[:64])
     if name == "SUBSCRIPTION":
         month = data.get("month")
         notice = f"{month}개월 구독" if month else "구독"
-        return OverlayEvent("chzzk", "member", str(data.get("subscriberNickname") or "구독자"), (("text", notice),))
+        return OverlayEvent("chzzk", "member", str(data.get("subscriberNickname") or "구독자"), (("text", notice),),
+                            user=str(data.get("subscriberChannelId") or "")[:64])
     return None
 
 
@@ -150,14 +157,15 @@ def soop_event(packet: bytes, streamer: str = "") -> OverlayEvent | None:
     if service == b"0005" and len(parts) > 2:
         user = _SOOP_SESSION.sub("", at(2))
         role = "owner" if streamer and user == streamer else ""
-        return OverlayEvent("soop", "chat", at(6) or user, (("text", at(1)),), role=role)
+        return OverlayEvent("soop", "chat", at(6) or user, (("text", at(1)),), role=role, user=user[:64])
     balloons = {b"0018": (2, 3, 4), b"0087": (3, 4, 10), b"0105": (3, 4, 5)}  # 아이디, 닉네임, 개수
     if service in balloons:
         user, nick, count = balloons[service]
         if not at(count).isdigit():
             return None
         unit = "애드벌룬" if service == b"0087" else "별풍선"
-        return OverlayEvent("soop", "donation", at(nick) or _SOOP_SESSION.sub("", at(user)), (), amount=float(at(count)), unit=unit)
+        donor = _SOOP_SESSION.sub("", at(user))
+        return OverlayEvent("soop", "donation", at(nick) or donor, (), amount=float(at(count)), unit=unit, user=donor[:64])
     return None
 
 
@@ -187,9 +195,11 @@ def twitch_event(line: str) -> OverlayEvent | None:
         if tags.get("msg-id") not in ("sub", "resub", "subgift", "submysterygift", "anonsubgift", "anonsubmysterygift"):
             return None
         notice = tags.get("system-msg", "") or "구독"
-        return OverlayEvent("twitch", "member", name, (("text", notice + (f" {text}" if text else "")),), role=role, color=color)
+        return OverlayEvent("twitch", "member", name, (("text", notice + (f" {text}" if text else "")),), role=role, color=color,
+                            user=tags.get("user-id", "")[:64])
     bits = int(tags["bits"]) if tags.get("bits", "").isdigit() else 0
-    return OverlayEvent("twitch", "donation" if bits else "chat", name, (("text", text),), amount=float(bits), unit="bits" if bits else "", role=role, color=color)
+    return OverlayEvent("twitch", "donation" if bits else "chat", name, (("text", text),), amount=float(bits), unit="bits" if bits else "", role=role, color=color,
+                        user=tags.get("user-id", "")[:64])
 
 
 # --------------------------------------------------------------------------- 수신기: stream2clip 연결 + 화면용 변환
@@ -294,6 +304,8 @@ def twitch_source(channel: str) -> Any:
 SAMPLE_CHATS = ["안녕하세요!", "ㅋㅋㅋㅋㅋㅋ", "오늘 방송 기대돼요", "목소리 너무 좋다", "첫 방송 축하드려요!!", "草", "888888", "오 그거 어떻게 했어요?",
                 "아바타 움직임 자연스럽다", "BGM 뭐예요?", "ㄹㅇㅋㅋ", "화이팅!"]
 SAMPLE_NAMES = ["치즈냥", "숲속토끼", "새벽감성", "고양이집사", "lurker_kim", "별빛시청자", "도토리", "Haru"]
+#: 데모 채팅의 시청자 번호. 플랫폼 이름은 진짜처럼 보이지만 실제 방송이 아님을 커뮤니티 연동(방송 중 표시) 등이 알 수 있게
+DEMO_USER = "debutkit-demo"
 
 
 class DemoChat:
@@ -314,8 +326,9 @@ class DemoChat:
         if pick.random() < 0.12:
             amount, unit = {"chzzk": (float(pick.choice([1000, 5000, 10000])), "원"), "soop": (float(pick.choice([10, 50, 100])), "별풍선"),
                             "twitch": (float(pick.choice([100, 500])), "bits"), "youtube": (float(pick.choice([2000, 10000])), "원")}[platform]
-            return OverlayEvent(platform, "donation", name, (("text", "데뷔 축하해요! 앞으로도 응원할게요"),), amount=amount, unit=unit)
-        return OverlayEvent(platform, "chat", name, (("text", pick.choice(SAMPLE_CHATS)),), role="moderator" if pick.random() < 0.05 else "")
+            return OverlayEvent(platform, "donation", name, (("text", "데뷔 축하해요! 앞으로도 응원할게요"),), amount=amount, unit=unit, user=DEMO_USER)
+        return OverlayEvent(platform, "chat", name, (("text", pick.choice(SAMPLE_CHATS)),), role="moderator" if pick.random() < 0.05 else "",
+                            user=DEMO_USER)
 
     def read(self) -> list[OverlayEvent]:
         found = []

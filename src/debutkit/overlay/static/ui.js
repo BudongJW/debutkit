@@ -11,6 +11,7 @@
     ["/pick/control", "뽑기판"],
     ["/wall/control", "후원 벽"],
     ["/race/control", "참여 레이스"],
+    ["/community/control", "커뮤니티"],
     ["/phone", "휴대폰"],
     ["/broadcast/control", "바로 방송"],
     ["/logo", "로고"],
