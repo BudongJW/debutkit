@@ -151,6 +151,7 @@
           <label>엔딩 문구<input type="text" id="frame-ending" maxlength="40" placeholder="시청해 주셔서 감사합니다"></label>
           <label>아래 한 줄(방송 일정, SNS)<input type="text" id="frame-note" maxlength="60"></label>
           <label>대기 시간(분, 0은 표시 안 함)<input type="number" id="frame-minutes" min="0" max="120" value="0"></label>
+          <label>대기, 자리 비움, 엔딩 화면 그림<select id="frame-art"><option value="">없음</option><option value="debi">데비(손 인사, 조는 모습, 만세)</option><option value="character">방송 캐릭터 그림</option></select></label>
         </div>
         <div class="row"><button id="save-frames" type="button">프레임 문구 저장</button></div>
         <p class="hint">프레임은 방송 스타일마다 모서리 장식이 다릅니다. OBS 주소 <code>/frame?kind=cam</code>(캐릭터 테두리), <code>screen</code>(게임 화면 테두리), <code>starting</code>, <code>brb</code>, <code>ending</code>(대기, 자리 비움, 엔딩 화면).</p>
@@ -541,6 +542,7 @@
       if (!games[state.game]) state.game = applied;
       for (const field of FRAME_FIELDS) $(`frame-${field}`).value = (info.frames || {})[field] || "";
       $("frame-minutes").value = (info.frames || {}).minutes || 0;
+      $("frame-art").value = (info.frames || {}).art || "";
       showGames();
       render();
     }
@@ -572,6 +574,7 @@
     $("save-frames").addEventListener("click", async () => {
       const body = Object.fromEntries(FRAME_FIELDS.map((field) => [field, $(`frame-${field}`).value]));
       body.minutes = Math.max(0, Math.min(120, Math.round(Number($("frame-minutes").value) || 0)));
+      body.art = $("frame-art").value;
       try {
         showGameInfo(await post("/games/frames", body));
         debutkitUi.toast("프레임 문구를 저장함");

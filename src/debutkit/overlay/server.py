@@ -81,6 +81,9 @@ STATIC = {"/": "index.html", "/chat": "chat.html", "/alerts": "alerts.html", "/o
           "/draw/script": "draw-script.html", "/draw/log": "draw-log.html", "/phone": "phone.html",
           "/camera/view": "camera-view.html", "/camera-view.js": "camera-view.js", "/program": "program.html", "/broadcast/control": "broadcast.html", "/logo": "logo.html"}
 STATIC.update({f"/mascot/{name}.png": f"mascot/{name}.png" for name in MASCOTS})
+#: 대기, 자리 비움, 엔딩 화면의 데비 그림(기본 3D 캐릭터의 자세, packaging/build_promo.py)
+DEBI_POSES = ("wave", "sleep", "cheer")
+STATIC.update({f"/mascot/debi3d/{name}.png": f"mascot/debi3d/{name}.png" for name in DEBI_POSES})
 #: 없는 주소를 브라우저로 열었을 때: 무대 감독 큐의 "대본에 없는 장면" 안내와 시작하기 화면 링크
 MISSING_PAGE = """<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>debutkit 없는 화면</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml"><meta name="viewport" content="width=device-width, initial-scale=1">

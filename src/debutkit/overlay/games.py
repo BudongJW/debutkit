@@ -8,7 +8,7 @@
   ``/games/thumb/키.jpg`` 는 그 미리보기를 찍어 둔 그림(packaging/build_game_previews.py)
 - 게임 이름은 어떤 게임에 맞춘 배치인지 알리는 데만 쓴다. 게임 회사의 로고, 글꼴, 그림, 캐릭터는 쓰지 않으며 debutkit은 게임 회사와 관계없음
 - ``/games`` 조회, ``POST /games/apply`` (``{"game": "valorant", "parts": ["style", "alerts", "layout"]}``),
-  ``POST /games/frames`` 프레임 문구(이름표, 대기, 자리 비움, 엔딩 문구, 아래 한 줄, 대기 시간). ``/live?feeds=games`` 로 바뀐 값
+  ``POST /games/frames`` 프레임 문구(이름표, 대기, 자리 비움, 엔딩 문구, 아래 한 줄, 대기 시간)와 그림(없음, 데비, 방송 캐릭터). ``/live?feeds=games`` 로 바뀐 값
 - ``/frame?kind=cam|screen|starting|brb|ending`` 프레임 화면(frame.html). 장면 만들기(``debutkit scenes --game``)가 배치와 프레임을 씀
 - 설정은 설정 폴더의 ``games.json`` (고른 게임, 프레임 문구)
 """
@@ -106,7 +106,9 @@ GAMES: dict[str, Game] = {
 }
 GAME_PARTS = ("style", "alerts", "layout")
 FRAME_KEYS = {"name": 30, "tag": 12, "starting": 40, "brb": 40, "ending": 40, "note": 60}
-FRAME_DEFAULTS: dict[str, Any] = {"name": "", "tag": "", "starting": "", "brb": "", "ending": "", "note": "", "minutes": 0}
+#: 대기, 자리 비움, 엔딩 화면의 그림: 없음, 데비(기본 3D 캐릭터 자세), 방송 캐릭터(PNGTuber 입 다문 그림, 3D 미리보기 그림)
+FRAME_ARTS = {"": "없음", "debi": "데비", "character": "방송 캐릭터"}
+FRAME_DEFAULTS: dict[str, Any] = {"name": "", "tag": "", "starting": "", "brb": "", "ending": "", "note": "", "minutes": 0, "art": ""}
 
 
 class GameError(feature.FeatureError):
@@ -137,6 +139,10 @@ def check_frames(data: Any) -> dict[str, Any]:
         if isinstance(minutes, bool) or not isinstance(minutes, (int, float)) or minutes != int(minutes) or not 0 <= minutes <= 120:
             raise GameError("대기 시간은 0에서 120분 사이의 정수(0은 표시 안 함)")
         found["minutes"] = int(minutes)
+    if "art" in data:
+        if data["art"] not in FRAME_ARTS:
+            raise GameError("프레임 그림은 " + ", ".join(name for name in FRAME_ARTS.values()) + " 중 하나")
+        found["art"] = data["art"]
     return found
 
 

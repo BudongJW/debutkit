@@ -112,5 +112,14 @@ html[data-dk-style="sports"] .fr-plate { left: 0; bottom: 18px; transform: none;
 .fr-band.top { top: 12vh; bottom: auto; transform: rotate(1.5deg); animation-direction: reverse; opacity: 0.35; }
 @keyframes fr-band { to { background-position: 62.2px 0; } }
 html[data-dk-style="minimal"] .fr-band, html[data-dk-style="glass"] .fr-band { opacity: 0.35; }
+/* 그림이 있을 때(데비, 방송 캐릭터): 글은 왼쪽 60%, 그림은 오른쪽 아래에 서 있게 */
+.fr-panel.with-art { padding-right: 36vw; box-sizing: border-box; }
+.fr-panel.with-art .fr-title { max-width: 56vw; }
+.fr-panel.with-art .fr-sub { max-width: 50vw; }
+.fr-panel.with-art .fr-name { right: 36vw; }
+.fr-art { position: absolute; right: 7vw; bottom: 6vh; z-index: 1; max-width: 30vw; max-height: 80vh; object-fit: contain;
+  filter: drop-shadow(0 18px 24px rgba(0, 0, 0, 0.35)); animation: fr-float 4s ease-in-out infinite; }
+@keyframes fr-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1.2vh); } }
+.fr-art.bust { bottom: 0; max-height: 72vh; animation: none; }
 html[data-dk-style="night"] .fr-panel { background-size: 240px 240px, 300px 300px, 180px 180px, 260px 260px, 100% 100%; }
 html[data-dk-style="diary"] .fr-panel, html[data-dk-style="prop"] .fr-panel { background-size: auto; }

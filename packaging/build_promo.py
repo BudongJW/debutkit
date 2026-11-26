@@ -27,7 +27,10 @@ sys.path.insert(0, str(ROOT / "packaging"))
 
 #: 데비 자세: 이름 -> (추천 자세, 각도, 표정)
 POSES = {"wave": ("wave", 0, "happy"), "hip": ("hip", 0.3, "neutral"), "cheer": ("cheer", 0, "happy"), "relaxed": ("relaxed", 0.62, "relaxed"),
-         "front": ("relaxed", 0, "happy")}
+         "front": ("relaxed", 0, "happy"), "sleep": ("relaxed", 0, "blink")}
+#: 대기, 자리 비움, 엔딩 화면(/frame)의 데비 그림: 파일 이름 -> 자세(함께 배포, overlay/static/mascot/debi3d)
+FRAME_ART = {"wave": "wave", "sleep": "sleep", "cheer": "cheer"}
+FRAME_DIR = ROOT / "src" / "debutkit" / "overlay" / "static" / "mascot" / "debi3d"
 #: 소개 장면: 키 -> (꼬리표, 제목(<br> 줄바꿈), 설명, 꼬리표 목록)
 SLIDES = {
     "hero": ("debutkit", "첫 방송 준비를<br>debutkit 하나로", "PC 점검, OBS 장면, 통합 채팅과 후원 알림, 캐릭터 방송, 방송 연출까지. 무료 오픈소스",
@@ -64,9 +67,15 @@ def render_poses(browsers: list[str], base: str, folder: Path) -> None:
 
     if not any(build_screens._devtools(browser, (1280, 900), work) and pictures for browser in browsers):
         raise SystemExit("데비 자세 그리기 실패")
+    FRAME_DIR.mkdir(parents=True, exist_ok=True)
     for name, data in pictures.items():
         image = Image.open(io.BytesIO(data)).convert("RGBA")
-        image.crop(image.getbbox()).save(folder / f"debi-{name}.png")
+        image = image.crop(image.getbbox())
+        image.save(folder / f"debi-{name}.png")
+        if name in FRAME_ART.values():  # 프레임 그림: 높이 900px로 줄여 함께 배포
+            small = image.copy()
+            small.thumbnail((900, 900), Image.Resampling.LANCZOS)
+            small.save(FRAME_DIR / f"{name}.png", optimize=True)
 
 
 def overlays(browsers: list[str], base: str, folder: Path) -> None:

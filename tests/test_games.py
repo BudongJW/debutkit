@@ -60,8 +60,9 @@ def test_every_package_is_complete_and_avoids_its_hud():
 
 def test_frame_texts_are_checked():
     assert games.check_frames({"name": "  도토리   방송 ", "minutes": 5}) == {"name": "도토리 방송", "minutes": 5}
+    assert games.check_frames({"art": "debi"}) == {"art": "debi"} and games.check_frames({"art": ""}) == {"art": ""}
     for bad, message in (({"name": "가" * 31}, "이름표는 30자 이내"), ({"minutes": 121}, "0에서 120분"), ({"minutes": 1.5}, "정수"),
-                         ({"minutes": True}, "정수"), ("x", "형식")):
+                         ({"minutes": True}, "정수"), ("x", "형식"), ({"art": "../secret"}, "프레임 그림은")):
         with pytest.raises(games.GameError, match=message):
             games.check_frames(bad)
     assert games.load() == {"game": "", "frames": games.FRAME_DEFAULTS}
@@ -118,6 +119,13 @@ def test_frame_pages(port):
     page = (STATIC / "stage.html").read_text(encoding="utf-8")
     assert '"/games/apply"' in page and '"/games/frames"' in page and "hud-box" in page and "/frame?kind=cam" in page
     assert "/games/thumb/" in page and "/games/scene/" in page and "srcOf(" in page
+    # 대기, 자리 비움, 엔딩 화면의 그림: 데비(기본 3D 캐릭터 자세 그림, 함께 배포) 또는 방송 캐릭터 그림
+    assert 'id="frame-art"' in page and "body.art" in page
+    assert 'const DEBI = { starting: "wave", brb: "sleep", ending: "cheer" }' in script and '"/character/info"' in script
+    from debutkit.overlay import server as overlay_server
+    for name in overlay_server.DEBI_POSES:
+        status, kind, body = request(port, "GET", f"/mascot/debi3d/{name}.png")
+        assert status == 200 and kind == "image/png" and body[:4] == b"\x89PNG", name
 
 
 def test_game_looks_and_previews_are_served(port):

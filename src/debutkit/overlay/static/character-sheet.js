@@ -355,8 +355,8 @@ const ANGLES = [["정면", 0], ["살짝 옆", 0.3], ["3/4", 0.62]];
 const locks = {};
 
 // 포즈 그림 한 장: 온몸, 고른 표정과 각도. background가 거짓이면 투명
-function renderPose(width, height, background) {
-  express({ [$("pose-face").value]: $("pose-face").value === "neutral" ? 0 : 1 });
+function renderPose(width, height, background, face = $("pose-face").value) {
+  express({ [face]: face === "neutral" ? 0 : 1 });
   const body = bodyBox();
   frame(body.center, body.height * 1.1, Number($("pose-angle").value), width, height);
   const out = document.createElement("canvas");
@@ -434,16 +434,16 @@ function buildPoseControls() {
 
 buildPoseControls();
 
-// 문서 그림용(packaging/build_screens.py가 헤드리스 브라우저로 부름): 추천 자세, 각도(0, 0.3, 0.62), 표정을 정해 그림을 PNG 주소로
+// 문서 그림용(packaging/build_screens.py, build_promo.py가 헤드리스 브라우저로 부름): 추천 자세, 각도(0, 0.3, 0.62),
+// 표정(VRM 표정 이름, 눈 감음 blink 포함)을 정해 그림을 PNG 주소로
 window.debutkitSheet = {
   ready: () => Boolean(current) && $("state").textContent === "그림 완료",
   pose(preset, angle = 0, face = "neutral", width = 600, height = 900, background = false) {
     Object.assign(poseState, PRESETS[preset].parts);
     syncParts();
     $("pose-angle").value = String(angle);
-    $("pose-face").value = face;
     applyPose();
-    return renderPose(width, height, background).toDataURL("image/png");
+    return renderPose(width, height, background, face).toDataURL("image/png");
   },
   sheet(preset) {
     Object.assign(poseState, PRESETS[preset].parts);
