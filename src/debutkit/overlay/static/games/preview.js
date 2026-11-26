@@ -41,7 +41,7 @@
     const cam = el("div", "cam");
     place(cam, game.character);
     const avatar = el("img");
-    avatar.src = "/games/avatar.svg";
+    avatar.src = "/games/avatar.png";  // debutkit 마스코트 데비(시안)
     avatar.alt = "";
     const frame = el("iframe", "layer");
     frame.src = `/frame?${new URLSearchParams({ kind: "cam", look: game.look, name: "치즈냥", tag: "LIVE", ...colors })}`;

@@ -130,7 +130,7 @@ def test_game_looks_and_previews_are_served(port):
     for page in ("alerts.html", "chat.html", "frame.html"):
         assert '<link rel="stylesheet" href="/games/look.css">' in (STATIC / page).read_text(encoding="utf-8"), page
     for path, kind in (("/games/look.css", "text/css"), ("/games/preview", "text/html"), ("/games/preview.js", "text/javascript"),
-                       ("/games/avatar.svg", "image/svg+xml"), ("/games/scene/lol.jpg", "image/jpeg"), ("/games/thumb/lol.jpg", "image/jpeg")):
+                       ("/games/avatar.png", "image/png"), ("/games/scene/lol.jpg", "image/jpeg"), ("/games/thumb/lol.jpg", "image/jpeg")):
         status, content_type, _ = request(port, "GET", path)
         assert status == 200 and content_type.startswith(kind), path
     assert request(port, "GET", "/games/scene/tetris.jpg")[0] == 404

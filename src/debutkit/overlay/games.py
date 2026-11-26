@@ -198,7 +198,7 @@ def make_feature(context: feature.Context, theme_part: feature.Feature, alerts_p
         return publish()
 
     static = {"/frame": "frame.html", "/frame.css": "frame.css", "/frame.js": "frame.js", "/games/look.css": "games/look.css",
-              "/games/preview": "games/preview.html", "/games/preview.js": "games/preview.js", "/games/avatar.svg": "games/avatar.svg"}
+              "/games/preview": "games/preview.html", "/games/preview.js": "games/preview.js", "/games/avatar.png": "games/avatar.png"}
     for key in GAMES:
         static[f"/games/scene/{key}.jpg"] = f"games/scene-{key}.jpg"
         static[f"/games/thumb/{key}.jpg"] = f"games/thumb-{key}.jpg"

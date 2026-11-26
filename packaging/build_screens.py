@@ -137,7 +137,7 @@ def _free_port() -> int:
         return int(probe.getsockname()[1])
 
 
-def _devtools_capture(browser: str, url: str, out: Path, size: tuple[int, int], wait: float) -> bool:
+def _devtools_capture(browser: str, url: str, out: Path, size: tuple[int, int], wait: float, transparent: bool = False) -> bool:
     """헤드리스 브라우저를 원격 디버깅(DevTools)으로 열고 ``wait`` 초 뒤 촬영.
 
     오버레이 화면은 사건 흐름(SSE) 연결이 계속 열려 있어 --screenshot, --virtual-time-budget의 촬영 시점이 일정하지 않다
@@ -183,6 +183,8 @@ def _devtools_capture(browser: str, url: str, out: Path, size: tuple[int, int], 
 
             try:
                 call("Emulation.setDeviceMetricsOverride", width=size[0], height=size[1], deviceScaleFactor=1, mobile=False)
+                if transparent:  # 투명 배경 PNG(브랜드 파일): 페이지 배경을 투명하게
+                    call("Emulation.setDefaultBackgroundColorOverride", color={"r": 0, "g": 0, "b": 0, "a": 0})
                 call("Page.navigate", url=url)
                 time.sleep(wait)
                 out.write_bytes(base64.b64decode(call("Page.captureScreenshot", format="png")["data"]))
@@ -204,10 +206,10 @@ def _devtools_capture(browser: str, url: str, out: Path, size: tuple[int, int], 
                 process.kill()
 
 
-def capture(browsers: list[str], url: str, out: Path, size: tuple[int, int], wait: float = 4.0) -> Path:
+def capture(browsers: list[str], url: str, out: Path, size: tuple[int, int], wait: float = 4.0, transparent: bool = False) -> Path:
     out.unlink(missing_ok=True)  # 이전 이미지가 남아 촬영 실패를 놓치지 않도록
     for browser in browsers:
-        if _devtools_capture(browser, url, out, size, wait) and out.is_file():
+        if _devtools_capture(browser, url, out, size, wait, transparent) and out.is_file():
             return out
     raise SystemExit(f"촬영 실패: {url}")
 
