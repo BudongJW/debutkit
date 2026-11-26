@@ -27,6 +27,7 @@ ASSETS: dict[str, str] = {
     "assets/shots/wizard-chat.png": "docs/images/wizard-chat.png",
     "assets/shots/wizard-character.png": "docs/images/wizard-character.png",
     "assets/shots/overlay-settings.png": "docs/images/overlay-settings.png",
+    "assets/shots/overlay-alerts-looks.png": "docs/images/overlay-alerts-looks.png",
     "assets/shots/overlay-themes.png": "docs/images/overlay-themes.png",
     "assets/shots/overlay-draw.png": "docs/images/overlay-draw.png",
     "assets/shots/overlay-raffle.png": "docs/images/overlay-raffle.png",

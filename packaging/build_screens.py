@@ -275,6 +275,8 @@ def overlay_shots(browser: list[str]) -> list[Path]:
     server = overlay_server()
     try:
         settings = capture(browser, server.url + "/", OUT / "overlay-settings.png", (1180, 1340))
+        # 알림 꾸미기: 추천 모양과 배치의 그림 견본(그림은 화면에 보일 때 불러오므로 넉넉히 기다림)
+        looks = capture(browser, server.url + "/alerts/control", OUT / "overlay-alerts-looks.png", (1200, 1180), wait=10.0)
         draws = draw_shot(browser, server.url)
         raffles = draw_shot(browser, server.url, OUT / "overlay-raffle.png", (("pick", "sample=raffle", 7.0), ("order", "sample=order", 5.0)))
     finally:
@@ -283,7 +285,7 @@ def overlay_shots(browser: list[str]) -> list[Path]:
         page = Path(folder) / "themes.html"
         page.write_text(themes_page(), encoding="utf-8")
         themes = capture(browser, page.as_uri(), OUT / "overlay-themes.png", (1200, 600))
-    return [settings, draws, raffles, themes]
+    return [settings, looks, draws, raffles, themes]
 
 
 def shrink(path: Path, width: int = 1200) -> None:
