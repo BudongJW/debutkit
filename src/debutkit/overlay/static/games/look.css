@@ -1,6 +1,7 @@
 /* debutkit 게임별 스타일의 장식(/games/look.css): 알림, 채팅(방송 스타일 카드), 프레임에 그 게임의 모양 언어를 더한다.
    색과 바탕은 /theme.css의 --dk-* 변수(theme.py의 게임별 스타일), 여기는 꼬리표 모양, 모서리 장식, 글자 꼴, 대기 화면 배경 그림.
-   html의 data-dk-style이 게임 이름일 때만 적용. 공식 로고, 그림, 글꼴은 쓰지 않고 장식은 모두 debutkit에서 그린 도형.
+   html의 data-dk-style이 게임 이름일 때만 적용. 공식 로고, 그림, 글꼴은 쓰지 않음. 장식은 debutkit에서 그린 도형,
+   대기 화면 배경은 공개 모델(FLUX.1 schnell, Apache-2.0)로 만든 일러스트(games/scenes.json에 생성 기록).
    OBS 28(Chromium 103) 호환: :has, 색 섞기 함수, translate, scale 속성 쓰지 않음 */
 
 /* ================================================================ 공통: 장식 자리(말풍선, 큰 글자 배치는 장식 없이) */
@@ -190,16 +191,23 @@ html[data-dk-style="minecraft"] .fr-box i { width: 36px; height: 36px; border: 3
 html[data-dk-style="minecraft"] .fr-plate { border-radius: 0; }
 
 /* ================================================================ 대기, 자리 비움, 엔딩 화면: 그 게임 느낌의 배경 그림 */
-html[data-dk-style="valorant"] .fr-panel { background: linear-gradient(90deg, rgba(15, 25, 35, 0.92), rgba(15, 25, 35, 0.55)), url("/games/scene/valorant.svg") center / cover; }
-html[data-dk-style="lol"] .fr-panel { background: radial-gradient(ellipse at 50% 50%, rgba(1, 10, 19, 0.45), rgba(1, 10, 19, 0.9)), url("/games/scene/lol.svg") center / cover; }
-html[data-dk-style="overwatch"] .fr-panel { background: linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(229, 235, 243, 0.8)), url("/games/scene/overwatch.svg") center / cover; }
-html[data-dk-style="hearthstone"] .fr-panel { background: radial-gradient(ellipse at 50% 50%, rgba(246, 231, 196, 0.85), rgba(91, 58, 30, 0.6)), url("/games/scene/hearthstone.svg") center / cover; }
-html[data-dk-style="pubg"] .fr-panel { background: linear-gradient(180deg, rgba(22, 25, 19, 0.6), rgba(22, 25, 19, 0.88)), url("/games/scene/pubg.svg") center / cover; }
-html[data-dk-style="maplestory"] .fr-panel { background: linear-gradient(180deg, rgba(255, 255, 255, 0.25), rgba(255, 243, 220, 0.7)), url("/games/scene/maplestory.svg") center / cover; }
-html[data-dk-style="lostark"] .fr-panel { background: radial-gradient(ellipse at 50% 60%, rgba(11, 13, 18, 0.4), rgba(11, 13, 18, 0.9)), url("/games/scene/lostark.svg") center / cover; }
-html[data-dk-style="fconline"] .fr-panel { background: linear-gradient(180deg, rgba(11, 11, 11, 0.5), rgba(11, 11, 11, 0.88)), url("/games/scene/fconline.svg") center / cover; }
-html[data-dk-style="tft"] .fr-panel { background: radial-gradient(ellipse at 50% 50%, rgba(12, 10, 30, 0.4), rgba(12, 10, 30, 0.88)), url("/games/scene/tft.svg") center / cover; }
-html[data-dk-style="minecraft"] .fr-panel { background: linear-gradient(180deg, rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.55)), url("/games/scene/minecraft.svg") center / cover; }
+html[data-dk-style="valorant"] .fr-panel { background: linear-gradient(90deg, rgba(15, 25, 35, 0.92), rgba(15, 25, 35, 0.55)), url("/games/scene/valorant.jpg") center / cover; }
+html[data-dk-style="lol"] .fr-panel { background: radial-gradient(ellipse at 50% 50%, rgba(1, 10, 19, 0.45), rgba(1, 10, 19, 0.9)), url("/games/scene/lol.jpg") center / cover; }
+html[data-dk-style="overwatch"] .fr-panel { background: linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(229, 235, 243, 0.8)), url("/games/scene/overwatch.jpg") center / cover; }
+html[data-dk-style="hearthstone"] .fr-panel { background: radial-gradient(ellipse at 50% 50%, rgba(246, 231, 196, 0.85), rgba(91, 58, 30, 0.6)), url("/games/scene/hearthstone.jpg") center / cover; }
+html[data-dk-style="pubg"] .fr-panel { background: linear-gradient(180deg, rgba(22, 25, 19, 0.6), rgba(22, 25, 19, 0.88)), url("/games/scene/pubg.jpg") center / cover; }
+html[data-dk-style="maplestory"] .fr-panel { background: linear-gradient(180deg, rgba(255, 255, 255, 0.25), rgba(255, 243, 220, 0.7)), url("/games/scene/maplestory.jpg") center / cover; }
+html[data-dk-style="lostark"] .fr-panel { background: radial-gradient(ellipse at 50% 60%, rgba(11, 13, 18, 0.4), rgba(11, 13, 18, 0.9)), url("/games/scene/lostark.jpg") center / cover; }
+html[data-dk-style="fconline"] .fr-panel { background: linear-gradient(180deg, rgba(11, 11, 11, 0.5), rgba(11, 11, 11, 0.88)), url("/games/scene/fconline.jpg") center / cover; }
+html[data-dk-style="tft"] .fr-panel { background: radial-gradient(ellipse at 50% 50%, rgba(12, 10, 30, 0.4), rgba(12, 10, 30, 0.88)), url("/games/scene/tft.jpg") center / cover; }
+html[data-dk-style="minecraft"] .fr-panel { background: linear-gradient(180deg, rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.55)), url("/games/scene/minecraft.jpg") center / cover; }
 html[data-dk-style="valorant"] .fr-band, html[data-dk-style="lol"] .fr-band, html[data-dk-style="lostark"] .fr-band, html[data-dk-style="tft"] .fr-band,
 html[data-dk-style="hearthstone"] .fr-band, html[data-dk-style="minecraft"] .fr-band { display: none; }
 html[data-dk-style="minecraft"] .fr-title, html[data-dk-style="minecraft"] .fr-name { color: #ffffff; text-shadow: 5px 5px 0 #3f3f3f; }
+/* 그림 배경 위 글자: 어두운 그림자로 읽기 쉽게 */
+html[data-dk-style="valorant"] .fr-title, html[data-dk-style="valorant"] .fr-sub, html[data-dk-style="valorant"] .fr-name,
+html[data-dk-style="lol"] .fr-title, html[data-dk-style="lol"] .fr-sub, html[data-dk-style="lol"] .fr-name,
+html[data-dk-style="pubg"] .fr-title, html[data-dk-style="pubg"] .fr-sub, html[data-dk-style="pubg"] .fr-name,
+html[data-dk-style="lostark"] .fr-title, html[data-dk-style="lostark"] .fr-sub, html[data-dk-style="lostark"] .fr-name,
+html[data-dk-style="fconline"] .fr-title, html[data-dk-style="fconline"] .fr-sub, html[data-dk-style="fconline"] .fr-name,
+html[data-dk-style="tft"] .fr-title, html[data-dk-style="tft"] .fr-sub, html[data-dk-style="tft"] .fr-name { text-shadow: 0 2px 14px rgba(0, 0, 0, 0.85), 0 0 2px rgba(0, 0, 0, 0.6); }

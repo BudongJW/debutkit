@@ -51,8 +51,10 @@ def test_every_package_is_complete_and_avoids_its_hud():
     assert {key: game.style for key, game in games.GAMES.items()} == {key: key for key in games.GAMES}
     assert set(games.GAMES) == set(theme.GAME_LOOKS)
     for key in games.GAMES:
-        scene = (STATIC / "games" / f"scene-{key}.svg").read_text(encoding="utf-8")
-        assert scene.startswith("<svg") and "<script" not in scene and "href" not in scene, key  # 외부 그림, 스크립트 없음
+        assert (STATIC / "games" / f"scene-{key}.jpg").read_bytes()[:3] == b"\xff\xd8\xff", key
+        record = json.loads((STATIC / "games" / "scenes.json").read_text(encoding="utf-8"))[key]  # 생성 기록(다시 만들 수 있게)
+        assert record["license"].endswith("Apache-2.0") and record["prompt"] and isinstance(record["seed"], int), key
+        assert "no logo" in record["prompt"] and games.GAMES[key].name not in record["prompt"], key  # 게임 이름, 로고 없이 장면만
         assert (STATIC / "games" / f"thumb-{key}.jpg").read_bytes()[:3] == b"\xff\xd8\xff", key
 
 
@@ -123,15 +125,15 @@ def test_game_looks_and_previews_are_served(port):
     for key in theme.GAME_LOOKS:  # 알림, 프레임, 대기 화면 배경을 게임마다
         for part in (".alert::before", ".fr-box", ".fr-plate", ".fr-panel"):
             assert f'html[data-dk-style="{key}"] {part}' in look, (key, part)
-        assert f'url("/games/scene/{key}.svg")' in look, key
+        assert f'url("/games/scene/{key}.jpg")' in look, key
     assert ":has(" not in look and "color-mix(" not in look  # OBS 28(Chromium 103)
     for page in ("alerts.html", "chat.html", "frame.html"):
         assert '<link rel="stylesheet" href="/games/look.css">' in (STATIC / page).read_text(encoding="utf-8"), page
     for path, kind in (("/games/look.css", "text/css"), ("/games/preview", "text/html"), ("/games/preview.js", "text/javascript"),
-                       ("/games/avatar.svg", "image/svg+xml"), ("/games/scene/lol.svg", "image/svg+xml"), ("/games/thumb/lol.jpg", "image/jpeg")):
+                       ("/games/avatar.svg", "image/svg+xml"), ("/games/scene/lol.jpg", "image/jpeg"), ("/games/thumb/lol.jpg", "image/jpeg")):
         status, content_type, _ = request(port, "GET", path)
         assert status == 200 and content_type.startswith(kind), path
-    assert request(port, "GET", "/games/scene/tetris.svg")[0] == 404
+    assert request(port, "GET", "/games/scene/tetris.jpg")[0] == 404
     preview = (STATIC / "games" / "preview.js").read_text(encoding="utf-8")
     assert "sample: \"1\"" in preview and "still: \"1\"" in preview and "/frame?" in preview and "innerHTML" not in preview
     # 채팅창 그림 견본(?sample): 예시 줄만, 연결하지 않음

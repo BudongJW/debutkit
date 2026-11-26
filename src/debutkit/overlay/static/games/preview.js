@@ -1,6 +1,6 @@
 // debutkit 게임 패키지 미리보기(/games/preview?game=valorant): 그 게임 느낌의 배경 그림 위에 실제 방송 화면(캐릭터 프레임, 채팅창, 후원 알림)을
 // 패키지 배치대로 겹쳐 그린다. 고른 게임의 방송 스타일과 색은 이 화면에서만 쓰고 저장하지 않는다. 그림 단추(그림 견본 이미지)를 만들 때도 쓴다.
-// 주소: ?game=키 &hud=0(게임 HUD 흉내 숨기기)
+// 주소: ?game=키 &hud=1(게임 HUD 자리 흉내 보이기. 기본은 배경 그림만)
 "use strict";
 
 (() => {
@@ -25,10 +25,10 @@
     if (!game) return;
     const colors = { primary: game.primary.slice(1), highlight: game.highlight.slice(1) };
     const scene = el("img", "scene");
-    scene.src = `/games/scene/${key}.svg`;
+    scene.src = `/games/scene/${key}.jpg`;
     scene.alt = "";
     stage.appendChild(scene);
-    if (params.get("hud") !== "0") {
+    if (params.get("hud") === "1") {
       for (const hud of game.hud) {
         const kind = hudKind(hud.label);
         if (!kind || /전장|판|손패/.test(hud.label)) continue;  // 화면 가운데를 차지하는 게임 판은 배경 그림이 대신

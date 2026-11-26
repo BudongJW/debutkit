@@ -1,0 +1,132 @@
+{
+ "valorant": {
+  "model": "FLUX.1 schnell",
+  "service": "AI Horde (Flux.1-Schnell fp8 (Compact))",
+  "license": "FLUX.1 schnell: Apache-2.0",
+  "prompt": "cinematic wide video game environment concept art, sunlit mediterranean town plaza turned tactical arena, stone arches and terracotta roofs, sharp angular concrete barriers, crisp red and off-white fabric banners with plain horizontal stripes only, crates for cover, golden hour light with long shadows, stylized semi-realistic 3D render, clean composition, no people, no text, no letters, no symbols, no logo, no user interface",
+  "seed": 11,
+  "size": [
+   1344,
+   768
+  ],
+  "worker": "tazlin-larger-machine-2",
+  "made": "2026-11-26"
+ },
+ "lol": {
+  "model": "FLUX.1 schnell",
+  "service": "AI Horde (Flux.1-Schnell fp8 (Compact))",
+  "license": "FLUX.1 schnell: Apache-2.0",
+  "prompt": "cinematic wide fantasy video game environment concept art, aerial three-quarter view of a lush magical jungle valley split by a glowing teal river, ancient stone paths and ruined gold-trimmed towers, hextech-like glowing blue runes, warm sunset rim light, painterly high fantasy style, rich greens and gold, no people, no text, no logo, no user interface",
+  "seed": 7,
+  "size": [
+   1344,
+   768
+  ],
+  "worker": "Wanabeelee 4090N",
+  "made": "2026-11-26"
+ },
+ "overwatch": {
+  "model": "FLUX.1 schnell",
+  "service": "AI Horde (Flux.1-Schnell fp8 (Compact))",
+  "license": "FLUX.1 schnell: Apache-2.0",
+  "prompt": "cinematic wide video game environment concept art, bright optimistic near-future city plaza on a sunny day, sleek white curved buildings with orange accents and blue glass, floating walkways, holographic signs without text, clean stylized 3D animated film look, soft sunlight, no people, no text, no logo, no user interface",
+  "seed": 7,
+  "size": [
+   1344,
+   768
+  ],
+  "worker": "Wanabeelee 4090N",
+  "made": "2026-11-26"
+ },
+ "hearthstone": {
+  "model": "FLUX.1 schnell",
+  "service": "AI Horde (Flux.1-Schnell fp8 (Compact))",
+  "license": "FLUX.1 schnell: Apache-2.0",
+  "prompt": "cozy fantasy tavern table seen from above, worn wooden planks, an ornate stone and brass game board in the center with glowing blue gem sockets, scattered playing cards face down, candles and a mug, warm firelight, hand-painted stylized fantasy illustration, rich browns and gold, no people, no text, no logo, no user interface",
+  "seed": 7,
+  "size": [
+   1344,
+   768
+  ],
+  "worker": "Labyrinth-RX9070XT",
+  "made": "2026-11-26"
+ },
+ "pubg": {
+  "model": "FLUX.1 schnell",
+  "service": "AI Horde (Flux.1-Schnell fp8 (Compact))",
+  "license": "FLUX.1 schnell: Apache-2.0",
+  "prompt": "wide cinematic landscape photograph style render of open countryside: golden wheat field, a lone wooden barn and rusty shipping containers, an olive military supply crate with plain unmarked sides landing under a parachute, rolling hills, dramatic overcast sky with a faint blue haze wall on the horizon, gritty semi-realistic look, muted olive and sand tones, plain unmarked surfaces, no writing anywhere, no people, no text, no letters, no logo",
+  "seed": 23,
+  "size": [
+   1344,
+   768
+  ],
+  "worker": "Neon_Nexus_3090_5070ti",
+  "made": "2026-11-26"
+ },
+ "maplestory": {
+  "model": "FLUX.1 schnell",
+  "service": "AI Horde (Flux.1-Schnell fp8 (Compact))",
+  "license": "FLUX.1 schnell: Apache-2.0",
+  "prompt": "cute 2D platformer scenery illustration: bright blue sky with fluffy clouds, small floating grassy islands joined by rope ladders, cottages with mushroom roofs, big round leafy trees, little sparkles, pastel cheerful palette, hand-painted cartoon background art, empty sky, no writing anywhere, no characters, no text, no letters, no title, no logo",
+  "seed": 23,
+  "size": [
+   1344,
+   768
+  ],
+  "worker": "Labyrinth-RX9070XT",
+  "made": "2026-11-26"
+ },
+ "lostark": {
+  "model": "FLUX.1 schnell",
+  "service": "AI Horde (Flux.1-Schnell fp8 (Compact))",
+  "license": "FLUX.1 schnell: Apache-2.0",
+  "prompt": "cinematic wide dark fantasy video game environment concept art, gothic castle on a cliff at night under a starry sky, a beam of golden light rising from the castle, floating ancient ruins, glowing embers, deep navy and gold palette, epic painterly MMORPG key art style, no people, no text, no logo, no user interface",
+  "seed": 7,
+  "size": [
+   1344,
+   768
+  ],
+  "worker": "tazlin-larger-machine-2",
+  "made": "2026-11-26"
+ },
+ "fconline": {
+  "model": "FLUX.1 schnell",
+  "service": "AI Horde (Flux.1-Schnell fp8 (Compact))",
+  "license": "FLUX.1 schnell: Apache-2.0",
+  "prompt": "wide cinematic view of a modern football stadium at night from high in the stands, bright floodlights, vivid striped green pitch with white lines, blurred crowd with bokeh lights, blank dark LED boards around the pitch, realistic sports render, no flags, no banners, no writing anywhere, no players, no text, no letters, no logo, no advertising",
+  "seed": 23,
+  "size": [
+   1344,
+   768
+  ],
+  "worker": "Wanabeelee 4090N",
+  "made": "2026-11-26"
+ },
+ "tft": {
+  "model": "FLUX.1 schnell",
+  "service": "AI Horde (Flux.1-Schnell fp8 (Compact))",
+  "license": "FLUX.1 schnell: Apache-2.0",
+  "prompt": "cinematic fantasy video game environment concept art, a floating island arena with a hexagonal tile board in the center, golden coins scattered, cosmic purple and blue sky with stars and nebula, magical glowing particles, polished stylized 3D render, purple and gold palette, no people, no text, no logo, no user interface",
+  "seed": 7,
+  "size": [
+   1344,
+   768
+  ],
+  "worker": "saikia81",
+  "made": "2026-11-26"
+ },
+ "minecraft": {
+  "model": "FLUX.1 schnell",
+  "service": "AI Horde (Flux.1-Schnell fp8 (Compact))",
+  "license": "FLUX.1 schnell: Apache-2.0",
+  "prompt": "voxel art landscape made of cubic blocks, grassy block hills, blocky oak trees, a small blocky cottage, a waterfall of cube water, square sun and blocky clouds in a bright blue sky, isometric-ish cinematic angle, clean stylized render, no people, no text, no logo, no user interface",
+  "seed": 7,
+  "size": [
+   1344,
+   768
+  ],
+  "worker": "tazlin-larger-machine-2",
+  "made": "2026-11-26"
+ }
+}

@@ -1,7 +1,9 @@
 """게임 패키지(``/games``): 게임마다 어울리는 방송 스타일과 색, 게임 화면의 HUD(미니맵, 킬 로그, 체력과 스킬)를 피한 배치, 프레임.
 
 - 패키지 하나 = 게임별 스타일(theme.GAME_LOOKS, 게임과 같은 이름) + 주 색과 강조 색 + 알림 위치 + 캐릭터, 채팅, 목표 게이지, 순위 자리
-  + HUD 자리(미리보기용) + 그 게임 느낌의 배경 그림(``/games/scene/키.svg``, 미리보기와 대기 화면)
+  + HUD 자리(미리보기용) + 그 게임 느낌의 배경 그림(``/games/scene/키.jpg``, 미리보기와 대기 화면)
+- 배경 그림은 공개 모델 FLUX.1 schnell(Apache-2.0)로 만든 일러스트(packaging/build_game_art.py, 생성 기록은 games/scenes.json).
+  게임 이름, 로고, 캐릭터 없이 장면만 묘사
 - ``/games/preview?game=키`` 배경 그림 위에 실제 방송 화면(캐릭터 프레임, 채팅, 알림)을 패키지 배치로 겹친 미리보기.
   ``/games/thumb/키.jpg`` 는 그 미리보기를 찍어 둔 그림(packaging/build_game_previews.py)
 - 게임 이름은 어떤 게임에 맞춘 배치인지 알리는 데만 쓴다. 게임 회사의 로고, 글꼴, 그림, 캐릭터는 쓰지 않으며 debutkit은 게임 회사와 관계없음
@@ -198,7 +200,7 @@ def make_feature(context: feature.Context, theme_part: feature.Feature, alerts_p
     static = {"/frame": "frame.html", "/frame.css": "frame.css", "/frame.js": "frame.js", "/games/look.css": "games/look.css",
               "/games/preview": "games/preview.html", "/games/preview.js": "games/preview.js", "/games/avatar.svg": "games/avatar.svg"}
     for key in GAMES:
-        static[f"/games/scene/{key}.svg"] = f"games/scene-{key}.svg"
+        static[f"/games/scene/{key}.jpg"] = f"games/scene-{key}.jpg"
         static[f"/games/thumb/{key}.jpg"] = f"games/thumb-{key}.jpg"
     return feature.Feature(name="games", static=static,
                            get={"/games": info}, post={"/games/apply": apply, "/games/frames": save_frames}, feeds={"games": channel})

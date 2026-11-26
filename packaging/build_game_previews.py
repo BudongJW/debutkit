@@ -5,7 +5,7 @@
 - 게임마다 /games/preview?game=키 (그 게임 느낌의 배경 그림 + 실제 캐릭터 프레임, 채팅창, 후원 알림)를 헤드리스 Chrome 또는 Edge로 찍어
   960x540 JPEG로 저장. 방송 화면 미리보기의 게임 패키지 단추에 쓴다(iframe 여러 개 대신 가벼운 그림)
 - 사용 설명서 그림 docs/images/game-packages.png (10장을 5x2로)도 함께
-- 저장 설정은 임시 폴더(이 PC 설정이 그림에 나오지 않음). 배경 그림은 packaging/build_game_scenes.py가 먼저 만든다
+- 저장 설정은 임시 폴더(이 PC 설정이 그림에 나오지 않음). 배경 그림은 packaging/build_game_art.py가 먼저 만든다
 """
 
 from __future__ import annotations

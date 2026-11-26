@@ -300,7 +300,7 @@
       // 배경: 게임 화면 흉내를 고르고 게임 패키지를 골랐으면 그 게임 느낌의 배경 그림
       const scene = state.background === "game" && games[state.game];
       $("bg").className = `bg ${scene ? "scene" : state.background}`;
-      $("bg").style.backgroundImage = scene ? `url("/games/scene/${state.game}.svg")` : "";
+      $("bg").style.backgroundImage = scene ? `url("/games/scene/${state.game}.jpg")` : "";
       $("legend").replaceChildren(...LAYERS.filter(([id]) => state.layers[id]).map(([, label, src]) => {
         const item = document.createElement("span");
         const name = document.createElement("b");
