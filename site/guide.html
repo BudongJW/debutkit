@@ -57,6 +57,7 @@
           <li><a href="#overlay">채팅창과 후원 알림</a></li>
           <li><a href="#stage">방송 연출(뽑기판, 후원 벽, 참여 레이스)</a></li>
           <li><a href="#community">팬 커뮤니티</a></li>
+          <li><a href="#discord">디스코드 합방</a></li>
           <li><a href="#broadcast">OBS 없이 바로 방송</a></li>
           <li><a href="#clip">자동 클립</a></li>
           <li><a href="#chzzk">치지직 공식 API</a></li>
@@ -219,7 +220,7 @@ debutkit-gui</code></pre>
           <li>잡음에 입이 움직이면 기준을 높이고(-30 등), 말해도 반응하지 않으면 낮춥니다. 명령줄: <code>debutkit overlay --voice-threshold -35</code></li>
           <li>OBS 마이크 대신 다른 오디오 소스를 사용하는 경우 <code>--voice-input 소스이름</code>을 지정합니다.</li>
           <li>미리보기: 오버레이 실행 중 설정 마법사의 미리보기 버튼(말하기 동작 반복)</li>
-          <li>기준 조정: 오버레이 설정 화면(<code>http://127.0.0.1:8790</code>)의 캐릭터 화면 카드에서 현재 OBS 마이크 음량(dB)과 말하기 상태를 보면서 기준을 정합니다. 말하기 시험 버튼은 3초 동안 말하는 모습을 표시합니다.</li>
+          <li>기준 조정: 시작하기 화면(<code>http://127.0.0.1:8790</code>)의 캐릭터 화면 카드에서 현재 OBS 마이크 음량(dB)과 말하기 상태를 보면서 기준을 정합니다. 말하기 시험 버튼은 3초 동안 말하는 모습을 표시합니다.</li>
         </ul>
         <h3 id="character-tracking">웹캠 얼굴 추적</h3>
         <p>3D(VRM) 캐릭터의 머리 움직임, 양쪽 눈, 입, 웃음을 웹캠으로 추적합니다. PNGTuber는 눈 깜빡임과 입 벌림에 반영합니다. OBS 브라우저 소스는 카메라를 쓸 수 없어 추적은 일반 브라우저 창에서 합니다.</p>
@@ -300,7 +301,7 @@ debutkit-gui</code></pre>
           <li>설정 마법사 캐릭터 단계의 3D 캐릭터 동작 카드에서 동작 파일 추가를 누릅니다. zip은 안의 동작 파일을 모두 등록합니다. 명령줄: <code>debutkit motion add 파일</code></li>
           <li>기본 동작에서 대기 중 반복할 동작을 고릅니다. 없음은 기본 움직임(호흡, 흔들림)입니다. 명령줄: <code>debutkit motion idle 동작</code></li>
           <li>후원 반응에 동작과 최소 금액을 지정한 뒤 오버레이를 시작합니다. 명령줄: <code>debutkit overlay --motion-reaction 1000:동작</code></li>
-          <li>오버레이 실행 중에는 한 번 실행 버튼, 오버레이 설정 화면의 동작 버튼, <code>debutkit motion play 동작</code>으로 바로 실행합니다.</li>
+          <li>오버레이 실행 중에는 한 번 실행 버튼, 시작하기 화면의 동작 버튼, <code>debutkit motion play 동작</code>으로 바로 실행합니다.</li>
         </ol>
         <ul>
           <li>FBX, GLB는 뼈 이름(Mixamo, VRoid, Unreal, Blender, MMD 등)으로 캐릭터의 뼈에 맞춰 변환합니다. 이동 거리는 캐릭터 키에 맞추고, A자 자세 캐릭터는 팔 방향을 보정합니다.</li>
@@ -494,7 +495,7 @@ debutkit camera status                # 휴대폰 연결 대기, 수신 중</cod
           <table>
             <thead><tr><th>주소</th><th>용도</th></tr></thead>
             <tbody>
-              <tr><th scope="row"><code>http://127.0.0.1:8790</code></th><td>설정 화면. 주소 복사, 표시 형태 선택, 미리보기, 테스트 메시지, 캐릭터 음량과 말하기 시험</td></tr>
+              <tr><th scope="row"><code>http://127.0.0.1:8790</code></th><td>시작하기 화면. 방송 준비 목록(OBS 연결, OBS에 넣기, 시험 후원, 방송 모양), 방송 화면마다 OBS에 넣기와 주소 복사, 채팅창 표시 형태, 미리보기, 시험 메시지, 캐릭터 음량과 말하기 시험</td></tr>
               <tr><th scope="row"><code>/chat</code></th><td>통합 채팅창. 권장 크기 420x1000</td></tr>
               <tr><th scope="row"><code>/alerts</code></th><td>후원, 구독 알림. 권장 크기 1920x1080</td></tr>
               <tr><th scope="row"><code>/alerts/control</code></th><td>알림 꾸미기(스타일, 배치, 위치, 문구, 효과음, 금액 구간별 그림과 효과). OBS 사용자 지정 브라우저 독으로도 사용</td></tr>
@@ -506,9 +507,23 @@ debutkit camera status                # 휴대폰 연결 대기, 수신 중</cod
           </table>
         </div>
         <figure>
-          <img src="assets/shots/overlay-settings.png" alt="오버레이 설정 화면. 채팅창, 알림, 캐릭터 화면 주소와 미리보기" width="1180" height="1340" loading="lazy">
-          <figcaption>그림 3. 오버레이 설정 화면</figcaption>
+          <img src="assets/shots/overlay-settings.png" alt="시작하기 화면. 채팅창, 알림, 캐릭터 화면 주소와 미리보기" width="1180" height="1340" loading="lazy">
+          <figcaption>그림 3. 시작하기 화면</figcaption>
         </figure>
+        <h3 id="overlay-start">시작하기 화면과 OBS에 넣기</h3>
+        <p>오버레이를 켜면 열리는 시작하기 화면(<code>http://127.0.0.1:8790</code>) 맨 위에 방송 준비 목록이 있습니다. 진행 막대와 할 일 다섯 가지(debutkit 켜기, OBS 연결, 채팅창과 알림과 캐릭터를 OBS에 넣기, 시험 후원으로 확인, 방송 모양 고르기)를 차례로 보여 주며, OBS 연결과 OBS에 넣은 화면은 저절로 확인합니다. 다 끝나면 목록 접기로 접어 둡니다.</p>
+        <ol class="procedure">
+          <li>OBS를 켜고 OBS 위 메뉴의 도구, WebSocket 서버 설정에서 WebSocket 서버 사용을 켭니다(OBS 28 이상에 들어 있음).</li>
+          <li>서버 비밀번호를 설정 마법사의 OBS 장면 단계에 넣고 오버레이를 켭니다. 화면 오른쪽 위에 OBS 연결됨과 지금 장면 이름이 보입니다.</li>
+          <li>방송 화면마다 있는 OBS에 넣기를 누릅니다. 지금 OBS 장면에 그 화면이 들어가고 이름(<code>[DK] 채팅</code> 등), 크기, 자리가 맞춰집니다.</li>
+        </ol>
+        <ul>
+          <li>후원 알림처럼 소리가 나는 화면은 OBS로 오디오 보내기와 오디오 모니터링(모니터와 출력)도 함께 맞춰 방송으로 소리가 나가고 내 헤드폰으로도 들립니다.</li>
+          <li>이미 있는 화면은 주소(채팅창의 표시 형태 등)만 맞추며 장면에 이미 있으면 다시 넣지 않습니다. 설정 마법사의 장면 만들기로 만든 화면도 같은 이름을 씁니다.</li>
+          <li>OBS에 연결하지 못하면 할 일과 함께 끌어다 놓기 링크가 나옵니다. 링크를 OBS의 소스 목록으로 끌어다 놓으면 이름과 크기까지 맞춘 브라우저 소스가 생깁니다(OBS를 관리자 권한으로 실행했다면 되지 않음). 주소 복사로 직접 넣을 수도 있습니다.</li>
+          <li>위쪽 메뉴는 시작하기, 꾸미기(방송 화면, 후원 알림), 방송 중 놀이(후원 추첨, 뽑기판, 후원 벽, 참여 레이스), 팬과 함께(팬 커뮤니티, 디스코드 합방), 더 보기(휴대폰, OBS 없이 방송, 로고 만들기, VMC 송신) 다섯 묶음이며 지금 묶음의 화면은 그 아래 줄에 나옵니다.</li>
+          <li>OBS, 장면, 브라우저 소스, WebSocket 같은 용어 옆의 ? 단추를 누르면 풀이가 나옵니다.</li>
+        </ul>
         <h3 id="overlay-sources">채널 지정</h3>
         <div class="tablewrap">
           <table>
@@ -534,7 +549,7 @@ debutkit settings                                # 저장 내용 확인</code></
           <li>설정 마법사와 명령줄은 같은 설정 파일을 사용합니다. YouTube API 키는 저장하지 않으므로 환경 변수 <code>YOUTUBE_API_KEY</code> 또는 <code>--youtube-key</code>로 지정합니다.</li>
         </ul>
         <h3 id="overlay-options">표시 형태</h3>
-        <p>설정 화면에서 선택하면 OBS용 주소에 바로 반영됩니다. 주소에 직접 지정할 수도 있습니다. 예: <code>/chat?theme=card&amp;font=26&amp;max=10&amp;fade=30</code></p>
+        <p>시작하기 화면에서 고르면 OBS용 주소와 OBS에 넣기에 바로 들어갑니다. 주소에 직접 지정할 수도 있습니다. 예: <code>/chat?theme=card&amp;font=26&amp;max=10&amp;fade=30</code></p>
         <div class="tablewrap">
           <table>
             <thead><tr><th>값</th><th>내용</th><th>기본값</th></tr></thead>
@@ -561,12 +576,12 @@ debutkit settings                                # 저장 내용 확인</code></
         <ul>
           <li>알림 소리를 내보내려면 브라우저 소스 속성의 OBS 오디오 제어 항목을 체크합니다.</li>
           <li>세부 디자인은 브라우저 소스 속성의 사용자 지정 CSS로 변경할 수 있습니다.</li>
-          <li>테스트 채팅과 테스트 후원은 외부로 전송되지 않으며 설정 화면과 OBS에만 표시됩니다.</li>
+          <li>테스트 채팅과 테스트 후원은 외부로 전송되지 않으며 시작하기 화면과 OBS에만 표시됩니다.</li>
         </ul>
         <h3 id="overlay-alerts-design">알림 꾸미기</h3>
         <p>후원, 구독 알림의 모양과 소리를 정합니다. 바꾼 설정은 OBS 소스를 새로고침하지 않아도 방송 화면에 바로 반영됩니다.</p>
         <ol class="procedure">
-          <li>설정 화면의 후원, 구독 알림 카드에서 알림 꾸미기를 누르거나 <code>http://127.0.0.1:8790/alerts/control</code>을 엽니다.</li>
+          <li>시작하기 화면의 후원, 구독 알림 카드에서 알림 꾸미기를 누르거나 <code>http://127.0.0.1:8790/alerts/control</code>을 엽니다.</li>
           <li>스타일(방송 스타일 따르기 또는 알림만 다른 스타일), 배치, 위치, 등장 움직임, 표시 시간, 크기를 고릅니다.</li>
           <li>후원 문구와 구독 문구를 입력합니다. <code>{name}</code>은 후원자 이름, <code>{amount}</code>는 금액 자리입니다.</li>
           <li>금액 구간을 추가하고 구간마다 그림, 강조 효과, 표시 시간, 효과음을 정합니다. 그림은 먼저 그림 올리기로 올립니다.</li>
@@ -582,7 +597,7 @@ debutkit settings                                # 저장 내용 확인</code></
         <h3 id="overlay-draw">후원 추첨</h3>
         <p>후원이 오면 상품표에서 확률대로 뽑아 방송 화면에 카드 뒤집기, 룰렛, 캡슐 뽑기, 즉석 복권, 티켓 출력, 추첨기, 타로 중 고른 연출로 표시합니다. 평소에는 투명하고 추첨할 때만 화면 아래쪽에 나타납니다. 고양이 귀 마이크 문양을 찍은 카드와 무대용 상품 룰렛, 후원자와 금액을 표시하는 하단 띠로 구성됩니다.</p>
         <ol class="procedure">
-          <li>오버레이를 시작한 뒤 설정 화면의 후원 추첨 카드에서 추첨 설정과 시험 추첨을 엽니다. 설정 마법사에서는 채팅과 알림 단계의 후원 추첨 설정 버튼을 누릅니다.</li>
+          <li>오버레이를 시작한 뒤 시작하기 화면의 후원 추첨 카드에서 추첨 설정과 시험 추첨을 엽니다. 설정 마법사에서는 채팅과 알림 단계의 후원 추첨 설정 버튼을 누릅니다.</li>
           <li>상품표에 상품 이름과 가중치를 입력합니다. 가중치는 비율이며 확률이 바로 계산됩니다.</li>
           <li>추첨 규칙에 최소 금액과 추첨 횟수를 입력합니다. 예: 1,000원 이상 1회, 10,000원 이상 11회</li>
           <li>연출, 결과 표시 시간, 추첨 이름(예: 벌칙 룰렛), 표시 위치(아래 가운데, 왼쪽 아래, 오른쪽 아래), 크기를 정하고 후원이 오면 추첨(사용)을 체크한 뒤 저장합니다.</li>
@@ -642,7 +657,7 @@ debutkit settings                                # 저장 내용 확인</code></
         <ul>
           <li>스트리머와 매니저는 치지직, Twitch, YouTube의 채팅 권한 정보로 구분합니다. SOOP은 스트리머 본인만 구분합니다.</li>
           <li>끄기: 설정 마법사 채팅과 알림 단계의 채팅 명령 체크 해제 또는 <code>debutkit overlay --no-chat-commands</code></li>
-          <li>실행 결과와 실패 안내는 설정 화면의 상태 안내와 오류 기록에 남습니다.</li>
+          <li>실행 결과와 실패 안내는 시작하기 화면의 상태 안내와 오류 기록에 남습니다.</li>
           <li>명령줄: <code>debutkit draw show</code>, <code>debutkit draw set --on --prize 90:꽝 --prize 10:노래 --rule 1000:1 --style wheel --title "벌칙 룰렛" --position right --scale 80</code>, <code>debutkit draw test --amount 1000</code></li>
         </ul>
         <h3 id="overlay-remote">휴대폰 조작 화면</h3>
@@ -672,7 +687,7 @@ debutkit remote approve 기기                   # 승인(remove로 삭제)</cod
           <li>방송 색: 색 조합 12종 중 하나를 고르거나 주 색과 강조 색(희귀, 금박)을 직접 고릅니다. 로고 만들기에서 저장한 로고의 색을 가져올 수도 있습니다. 채팅, 알림, 추첨 소품, 뽑기판, 후원 벽, 레이스, 조작 화면이 같은 색을 쓰며 OBS 소스를 새로고침하지 않아도 바뀝니다. 뽑기판과 레이스에서 다른 색을 고르면 그 색이 우선합니다.</li>
           <li>방송 스타일 8종(방송 소품, 파스텔 몽글, 네온, 레트로 픽셀, 유리, 다이어리, 밤하늘, 미니멀): 모서리, 테두리, 그림자, 바탕, 글꼴, 등장 움직임을 묶어서 바꿉니다. 알림, 채팅창(방송 스타일 카드), 후원 벽, 목표 게이지, 후원 순위가 따르며 방송 색과 함께 씁니다. 알림과 채팅창은 각각 다른 스타일을 고를 수도 있습니다.</li>
           <li>글꼴: 제목 글꼴(이름, 금액, 제목)과 본문 글꼴(메시지, 설명)을 따로 고릅니다. 함께 배포한 글꼴, Windows와 macOS 기본 한글 글꼴, 이 PC에 설치한 글꼴 이름을 쓸 수 있고, 글꼴 파일(TTF, OTF, WOFF, WOFF2, 20 MB 이하)을 올릴 수도 있습니다. 올린 글꼴은 방송에 쓸 수 있는 라이선스인지 확인합니다.</li>
-          <li>레트로 픽셀과 다이어리 스타일은 도트 글꼴(Galmuri, 둥근모)과 손글씨 글꼴(나눔손글씨 펜, Gaegu)이 이 PC에 설치되어 있으면 쓰고, 없으면 기본 글꼴로 표시합니다.</li>
+          <li>레트로 픽셀 스타일은 도트 글꼴 갈무리11(Galmuri11), 다이어리 스타일은 손글씨 글꼴 개구(Gaegu)를 씁니다. 둘 다 SIL OFL 글꼴이며 debutkit에 함께 들어 있습니다. 개구에 없는 드문 한글 글자는 기본 글꼴로 표시합니다.</li>
           <li>모든 방송 화면은 공유 연결 하나로 debutkit의 값을 받습니다. 브라우저는 같은 주소에 동시 연결을 6개까지만 열어(OBS 브라우저 소스끼리도 공유) 화면마다 연결하면 일부 화면이 멈출 수 있기 때문입니다.</li>
           <li>화면 가운데를 크게 쓰는 연출(후원 추첨, 참여 추첨 결과, 뽑기판 결과)은 겹치지 않게 먼저 온 것부터 하나씩 나옵니다. 알림, 후원 벽 카드, 채팅은 함께 나옵니다.</li>
         </ul>
@@ -765,6 +780,30 @@ debutkit remote approve 기기                   # 승인(remove로 삭제)</cod
           <li>관리 화면의 데이터 내보내기로 회원, 글, 댓글, 일정, 포인트를 JSON 파일로 받습니다. 커뮤니티를 옮기거나 닫기 전에 받아 둡니다. 닫을 때는 Cloudflare 대시보드에서 Worker, D1, KV를 지웁니다.</li>
         </ul>
 
+        <h2 id="discord">디스코드 합방</h2>
+        <p>여러 스트리머가 디스코드 음성으로 대화하며 함께 방송할 때 쓰는 기능입니다. 오버레이를 켜고 위쪽 메뉴의 팬과 함께, 디스코드 합방(<code>http://127.0.0.1:8790/discord/control</code>)을 엽니다.</p>
+        <h3 id="discord-widget">합방 참여자 화면</h3>
+        <ol class="procedure">
+          <li><a href="https://streamkit.discord.com/overlay">StreamKit</a>을 열고 OBS용 설치를 눌러 디스코드에서 허락합니다.</li>
+          <li>음성 위젯에서 서버와 음성 채널을 고르고 오른쪽의 주소를 복사해 음성 위젯 주소에 붙여 넣습니다.</li>
+          <li>배치(세로, 가로), 그림 크기, 이름 보이기, 이름표를 방송 스타일로, 말하는 사람만 밝게를 고르고 OBS에 넣기를 누릅니다.</li>
+        </ol>
+        <ul>
+          <li>디스코드 공식 음성 위젯(StreamKit)을 쓰므로 이 PC의 디스코드 앱이 켜져 있어야 합니다. debutkit은 디스코드에 접속하지 않고 위젯의 모양(OBS 사용자 지정 CSS)만 만듭니다.</li>
+          <li>참여자 그림: 참여자의 디스코드 사용자 ID(디스코드 설정의 고급에서 개발자 모드를 켜고 이름을 오른쪽 클릭, 사용자 ID 복사)와 평소 그림, 말할 때 그림(각 400 KB 이하)을 넣으면 프로필 사진 대신 캐릭터 그림이 나오고 말할 때 바뀝니다. 그림을 쓰기 전에 참여자에게 먼저 물어봅니다. 기본 프로필 사진을 쓰는 사람은 바꿀 수 없습니다.</li>
+          <li>미리보기는 예시 참여자 세 명으로 보여 줍니다. 디스코드가 위젯 모양을 바꾸면 꾸미기가 맞지 않을 수 있습니다.</li>
+        </ul>
+        <h3 id="discord-webhook">디스코드 방송 알림</h3>
+        <ol class="procedure">
+          <li>디스코드에서 알림을 올릴 채널의 설정(톱니바퀴), 연동, 웹후크, 새 웹후크를 누르고 웹후크 URL을 복사합니다.</li>
+          <li>디스코드 합방 화면의 방송 알림에 붙여 넣고 저장한 뒤 시험 보내기를 누릅니다.</li>
+          <li>채널 이름, 방송 주소, 시작 알림 글과 끝 알림 글을 정합니다.</li>
+        </ol>
+        <ul>
+          <li>방송 시작 알림은 실제 방송 채팅이나 후원이 처음 올 때(시험 채팅과 데모 채팅은 제외), 방송 끝 요약(채팅 수, 후원 수, 원으로 바꾼 합계)은 오버레이를 멈출 때 보냅니다. 지금 보낼 글로 직접 알림도 보냅니다.</li>
+          <li>@everyone 같은 호출은 보내지 않습니다. 웹후크 주소는 이 PC에 암호화해 보관하며 방송 화면과 기록에 남기지 않습니다.</li>
+        </ul>
+
         <h2 id="broadcast">OBS 없이 바로 방송</h2>
         <p>캐릭터, 채팅, 후원 알림, 추첨 연출을 한 화면에 모은 송출 화면을 OBS 없이 치지직, SOOP, YouTube, Twitch로 바로 보냅니다. 송출 화면 창(Edge 앱 창)을 ffmpeg로 캡처해 하드웨어 H.264와 마이크 소리로 송출합니다. 게임 화면 캡처와 장면 전환은 없으므로 게임 방송은 OBS를 사용합니다. 현재 Windows 10(1903 이상), Windows 11을 지원합니다.</p>
         <h3 id="broadcast-ready">준비</h3>
@@ -817,11 +856,11 @@ debutkit broadcast start      # 방송 시작(stop으로 끝내기)</code></pre>
               <tr><th scope="row">표시 명령</th><td>스트리머, 매니저의 <code>!clip</code>, <code>!클립</code> 입력. 시청자의 입력은 무시</td></tr>
               <tr><th scope="row">동시 송출</th><td>모든 플랫폼 채팅을 합산해 판단. YouTube 채팅은 요청 간격 때문에 최대 10초 늦게 반영</td></tr>
               <tr><th scope="row">저장 위치</th><td><code>동영상/debutkit-clips</code>. <code>--clip-dir</code>로 변경</td></tr>
-              <tr><th scope="row">결과 표시</th><td>설정 화면의 채팅창 미리보기와 설정 마법사의 기록 영역</td></tr>
+              <tr><th scope="row">결과 표시</th><td>시작하기 화면의 채팅창 미리보기와 설정 마법사의 기록 영역</td></tr>
             </tbody>
           </table>
         </div>
-        <p>방송 없이 시험하려면 설정 화면의 스트리머 !clip 버튼을 사용합니다.</p>
+        <p>방송 없이 시험하려면 시작하기 화면의 스트리머 !clip 버튼을 사용합니다.</p>
         <div class="box">
           <h4>클립 길이</h4>
           <ul>
@@ -972,6 +1011,9 @@ debutkit overlay --youtube 영상ID --youtube-interval 15</code></pre>
               <tr><th scope="row">방송 시작 버튼이 프로그램을 끄지 못함</th><td>관리자 권한으로 실행된 프로그램은 끄지 못할 수 있음. 프로그램 이름(작업 관리자의 세부 정보 탭) 확인</td></tr>
               <tr><th scope="row">창이 기억한 자리로 가지 않음</th><td>모니터 연결 확인(연결되지 않은 모니터의 자리는 건너뜀). 창이 늦게 뜨는 프로그램은 켜는 간격을 늘림</td></tr>
               <tr><th scope="row">VMC로 받은 캐릭터가 움직이지 않음</th><td>받는 프로그램의 VMC 수신 켜기와 포트 확인, VMC 화면의 보낸 횟수가 늘어나는지 확인. 얼굴 추적 창이나 휴대폰 추적이 켜져 있어야 함</td></tr>
+              <tr><th scope="row">OBS에 넣기가 되지 않음</th><td>오른쪽 위의 OBS 표시 확인. OBS를 켜고 도구, WebSocket 서버 설정에서 서버 사용을 켜고 비밀번호를 설정 마법사에 입력. 그래도 안 되면 끌어다 놓기 링크나 주소 복사</td></tr>
+              <tr><th scope="row">알림 소리가 방송에 안 나감</th><td>알림을 OBS에 넣기로 다시 넣기(OBS로 오디오 보내기와 모니터링을 맞춤). 직접 넣었다면 소스 속성의 OBS로 오디오 제어를 켬</td></tr>
+              <tr><th scope="row">디스코드 음성 위젯이 비어 있음</th><td>이 PC의 디스코드 앱이 켜져 있고 그 음성 채널에 들어가 있는지 확인. StreamKit에서 OBS용 설치를 다시 허락</td></tr>
               <tr><th scope="row">커뮤니티 올리기 실패</th><td>화면의 이유 확인. 권한 부족이면 API 토큰에 Workers 스크립트, Workers KV, D1 편집, 계정 설정 읽기 권한이 있는지 확인. 처음 올린 주소는 열리기까지 몇 분 걸릴 수 있음</td></tr>
               <tr><th scope="row">채팅 인증이 넘어가지 않음</th><td>오버레이가 실행 중이고 그 플랫폼 채팅을 받고 있는지, 커뮤니티 화면의 채팅 인증이 켜져 있는지 확인. 숫자는 10분 동안만 쓸 수 있음</td></tr>
               <tr><th scope="row">SmartScreen 경고</th><td>추가 정보 선택 후 실행. 실행 파일 사용이 어려운 경우 파이썬 패키지로 설치</td></tr>
@@ -986,6 +1028,7 @@ debutkit overlay --youtube 영상ID --youtube-interval 15</code></pre>
           <li>외부 연결은 직접 실행한 경우에만 발생합니다: 업로드 속도 측정(Cloudflare 측정 서버, speed.cloudflare.com에 최대 31 MB의 임의 데이터 전송), 새 버전 확인(GitHub), ffmpeg 다운로드(GitHub), 로고 만들기의 생성형 AI(사용자가 고른 서비스). PC 정보는 전송하지 않습니다.</li>
           <li>오버레이 서버는 127.0.0.1에서만 열리며, 다른 웹사이트의 요청은 Host, Origin 확인으로 차단합니다.</li>
           <li>뽑기판의 판과 열기 기록(<code>pick.json</code>), 후원 벽의 후원자 닉네임과 금액(<code>wall.json</code>, 시그니처 그림은 <code>wall</code> 폴더), 참여 레이스 설정(<code>race.json</code>, 참가자 명단과 결과는 메모리에만), 방송 색과 방송 스타일(<code>theme.json</code>, 올린 글꼴은 <code>fonts</code> 폴더), 게임 패키지와 프레임 문구(<code>games.json</code>), 알림 꾸미기(<code>alerts.json</code>, 올린 그림은 <code>alert-images</code> 폴더)는 설정 폴더에만 보관하며 외부로 보내지 않습니다.</li>
+          <li>디스코드 합방 설정과 참여자 그림은 설정 폴더의 <code>discord.json</code>, <code>discord-images</code> 폴더에, 웹후크 주소는 <code>discord-keys.json</code>(암호화)에만 둡니다. 방송 알림은 사용자가 저장한 웹후크로만 보내며 채팅 수, 후원 수, 원으로 바꾼 합계 말고 시청자 이름은 보내지 않습니다.</li>
           <li>팬 커뮤니티의 회원과 글은 스트리머의 Cloudflare 계정에 저장되며(국외 데이터센터일 수 있음) debutkit 팀은 볼 수 없습니다. 이 PC에는 커뮤니티 주소와 연동 설정(<code>community.json</code>), Cloudflare 토큰과 커뮤니티 토큰(<code>community-keys.json</code>, 암호화)만 둡니다. 방송 중에는 <code>!인증</code>, <code>!출석</code>을 친 시청자의 플랫폼 계정 번호와 닉네임만 커뮤니티로 보냅니다.</li>
           <li>방송 시작 버튼의 세팅(프로그램 경로, 사이트 주소, 창 위치)과 이번 방송에 끈 프로그램 목록은 설정 폴더의 <code>launcher.json</code>, <code>launcher-session.json</code>에만 보관합니다.</li>
           <li>VMC 송신은 얼굴 추적 숫자 값만 사용자가 지정한 이 PC나 같은 네트워크의 프로그램으로 보내며, 인터넷 주소는 받는 곳으로 지정할 수 없습니다.</li>
