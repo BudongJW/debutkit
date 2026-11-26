@@ -55,10 +55,10 @@ def request(srv, method, path, body=None):
 
 def test_list_and_register_pngtuber_from_vrm(server):
     status, body = request(server, "GET", "/character/sheet/list")
-    assert status == 200 and json.loads(body)["characters"] == []  # 기본 캐릭터(PNG)는 그릴 수 없음
+    assert status == 200 and [item["id"] for item in json.loads(body)["characters"]] == ["debutkit-3d"]  # 2D 데비는 그릴 수 없고 3D 데비는 바로
     fake_vrm()
     listed = json.loads(request(server, "GET", "/character/sheet/list")[1])["characters"]
-    assert [item["id"] for item in listed] == ["test-vrm"]
+    assert [item["id"] for item in listed] == ["debutkit-3d", "test-vrm"]
 
     images = {state: data_url() for state in character.PNG_STATES}
     status, body = request(server, "POST", "/character/pngtuber", {"source": "test-vrm", "name": "  내   캐릭터 ", "images": images})
@@ -83,7 +83,7 @@ def test_bad_requests_are_explained(server, body, message):
     fake_vrm()
     status, data = request(server, "POST", "/character/pngtuber", body)
     assert status == 400 and message in json.loads(data)["error"]
-    assert [item.kind for item in character.all_characters()] == ["png", "vrm"]  # 실패하면 아무것도 남기지 않음
+    assert [item.kind for item in character.all_characters()] == ["png", "vrm", "vrm"]  # 실패하면 아무것도 남기지 않음
 
 
 def test_sheet_page_draws_locally():

@@ -50,6 +50,24 @@ def test_default_character_is_debi():
     assert set(record["edits"]) == {"idle", "blink", "talk_blink"} and all(item["license"] == "Apache-2.0" for item in record["edits"].values())
 
 
+def test_builtin_3d_debi_is_complete_and_recorded():
+    import hashlib
+
+    debi = character.sample_3d()
+    model = character.file_path(debi, "debi.vrm")
+    assert debi.builtin and debi.kind == "vrm" and model is not None and character.file_path(debi, "thumbnail.png") is not None
+    assert model.stat().st_size < 10 * 1024 * 1024  # 함께 배포하는 크기(텍스처 1024px)
+    gltf, binary = character.read_glb(model)
+    meta = gltf["extensions"]["VRM"]["meta"]
+    assert meta["title"] == "데비" and meta["licenseName"] == "CC0" and meta["allowedUserName"] == "Everyone" and meta["commercialUssageName"] == "Allow"
+    check = character.vrm_check(gltf, binary)  # 캐릭터 화면과 그림 시트가 쓰는 표정이 모두 있음
+    assert check["emotions"] == list(character.EMOTIONS) and len(check["vowels"]) == 5 and check["blink"] == "both" and check["warnings"] == []
+    assert check["textures"]["largest"] <= character.LIGHT_TEXTURE
+    record = json.loads((model.parent / "manifest.json").read_text(encoding="utf-8"))
+    assert record["file"]["sha256"] == hashlib.sha256(model.read_bytes()).hexdigest() and "CC0" in record["base"]["license"]
+    assert record["tool"] == "packaging/build_debi3d.py" and record["changes"]
+
+
 @pytest.fixture
 def port():
     srv = OverlayServer([], port=0).start()

@@ -397,22 +397,24 @@ def test_character_page_add_make_use_send_and_preview(app, tmp_path):
     window = Wizard(calls.backend(pick_character=lambda: picks["file"], pick_folder=lambda title: picks["folder"],
                                   pick_png=lambda: ("Cat", {"idle": png(tmp_path / "i.png"), "talk": png(tmp_path / "t.png")})))
     try:
-        assert window.characters.count() == 1 and "[방송 사용 중]" in window.characters.item(0).text()  # 기본 캐릭터
+        assert window.characters.count() == 2 and "[방송 사용 중]" in window.characters.item(0).text()  # 기본 캐릭터(2D, 3D 데비)
         assert not window.remove_button.isEnabled() and not window.send_button.isEnabled()
+        window.characters.setCurrentRow(1)
+        assert window.selected_character().id == character.SAMPLE_3D_ID and not window.remove_button.isEnabled()
         window.add_character()
         assert window.selected_character().kind == "vrm" and "Warudo로 보내기" == window.send_button.text()
         assert "상업적 이용: 법인 포함 가능" in window.character_detail.text()
         window.use_character()
         assert character.active().kind == "vrm" and window.avatar_app.currentData() == "debutkit"
         window.make_png_character()
-        assert window.selected_character().id == "cat" and window.characters.count() == 3
+        assert window.selected_character().id == "cat" and window.characters.count() == 4
         picks["file"] = str(live2d(tmp_path / "l2d" / "hiyori") / "hiyori.model3.json")
         window.add_character()
         window.send_character()  # 자동으로 찾지 못하면 폴더를 물어본다
         assert (folder / window.selected_character().id / "hiyori.model3.json").is_file() and "VTube Studio로 복사" in window.character_detail.text()
         window.use_character()
         assert window.avatar_app.currentData() == "vts"
-        window.characters.setCurrentRow(2)
+        window.characters.setCurrentRow(3)  # Live2D(hiyori)
         window.preview_character()
         assert "오버레이를 시작한 뒤" in window.character_detail.text()
         window.open_tracker()

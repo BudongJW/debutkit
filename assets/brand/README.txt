@@ -45,6 +45,7 @@ debutkit 브랜드 파일 (메인 캐릭터 데비, 작은 심볼 마이)
 사용처
 - 사이트 헤더, 파비콘, 공유 이미지: packaging/build_site.py 가 복사
 - 기본 캐릭터(PNGTuber 4상태): src/debutkit/overlay/static/character/sample(데비)
+- 기본 3D 캐릭터(VRM): src/debutkit/overlay/static/character/debi3d(데비. CC0 VRoid 샘플 Victoria Rubin의 색을 바꿈, packaging/build_debi3d.py)
 - Windows 실행 파일 아이콘: app-icon/debutkit.ico
 - 설정 마법사 창 아이콘: src/debutkit/gui/icon.png
 - 오버레이 화면 탭 아이콘: src/debutkit/overlay/static/favicon.svg

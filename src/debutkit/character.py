@@ -27,6 +27,7 @@ KINDS = {"png": "PNGTuber", "vrm": "3D(VRM)", "model": "3D(GLB, FBX)", "live2d":
 PNG_STATES = ("idle", "talk", "blink", "talk_blink")
 STATE_NAMES = {"idle": "입 다묾", "talk": "입 벌림", "blink": "눈 감음", "talk_blink": "입 벌리고 눈 감음"}
 SAMPLE_ID = "debutkit"
+SAMPLE_3D_ID = "debutkit-3d"
 MAX_ZIP_BYTES = 1024 * 1024 * 1024  # 압축 해제 후 1 GB
 BROADCAST = {"png": "debutkit 캐릭터 화면", "vrm": "debutkit 캐릭터 화면, Warudo, VMagicMirror, VSeeFace(VRM 0.x)",
              "model": "debutkit 캐릭터 화면", "live2d": "VTube Studio", "inochi2d": "Inochi Session"}
@@ -89,8 +90,24 @@ def sample() -> Character:
                      builtin=True)
 
 
+def sample_3d() -> Character:
+    """debutkit 기본 3D 캐릭터 데비(VRM). VRM 화면, 캐릭터 그림 만들기, 얼굴 추적을 내 모델 없이 시험하도록 함께 배포.
+
+    pixiv VRoid β 샘플(CC0) Victoria Rubin의 색을 데비 팔레트로 바꾼 것(packaging/build_debi3d.py, 기록은 debi3d/manifest.json).
+    """
+    return Character(SAMPLE_3D_ID, "debutkit 기본 3D 캐릭터 데비", "vrm", {"model": "debi.vrm"}, author="debutkit", version="VRM 0.x",
+                     thumbnail="thumbnail.png", license=["CC0 1.0. 방송, 수익 방송, 소속사 사용, 수정, 재배포 가능",
+                                                         "베이스: pixiv VRoid β 샘플 Victoria Rubin(CC0)의 색을 바꿈"], builtin=True)
+
+
+#: 함께 배포하는 캐릭터의 폴더(static/character 아래)
+_BUILTIN_FOLDERS = {SAMPLE_ID: "sample", SAMPLE_3D_ID: "debi3d"}
+
+
 def folder_of(character: Character) -> Path:
-    return sample_dir() if character.builtin else library_dir() / character.id
+    if character.builtin:
+        return sample_dir().parent / _BUILTIN_FOLDERS.get(character.id, "sample")
+    return library_dir() / character.id
 
 
 # --------------------------------------------------------------------------- 형식 확인
@@ -388,9 +405,14 @@ def shrink_vrm(path: Path, max_size: int = LIGHT_TEXTURE) -> tuple[bytes, list[d
                         "before": len(blob), "after": len(replaced[view_index])})
     if not replaced:
         return b"", []
+    return repack_glb(gltf, binary, replaced), changed
+
+
+def repack_glb(gltf: dict[str, Any], binary: bytes, replaced: dict[int, bytes]) -> bytes:
+    """bufferView 번호 -> 새 내용으로 바꾼 GLB 파일 내용. 버퍼 0을 차례로 다시 쌓고(4바이트 정렬) 위치 값만 고친다(gltf를 바꿈)."""
     parts: list[bytes] = []
     cursor = 0
-    for view_index, view in enumerate(views):  # 버퍼 0을 차례로 다시 쌓음(4바이트 정렬)
+    for view_index, view in enumerate(gltf.get("bufferViews") or []):
         if view.get("buffer", 0) != 0:
             continue
         pad = -cursor % 4
@@ -403,7 +425,7 @@ def shrink_vrm(path: Path, max_size: int = LIGHT_TEXTURE) -> tuple[bytes, list[d
         cursor += pad + len(data)
     body = b"".join(parts)
     gltf["buffers"][0]["byteLength"] = len(body)
-    return _write_glb(gltf, body), changed
+    return _write_glb(gltf, body)
 
 
 def lighten(character_id: str, max_size: int = LIGHT_TEXTURE) -> tuple[Character, dict[str, Any]]:
@@ -683,7 +705,7 @@ def _slug(name: str, taken: set[str]) -> str:
     """보관함 폴더와 명령줄에 쓰는 이름. 한글 등 글자는 유지하고 공백, 기호는 하이픈으로."""
     base = re.sub(r"[^\w]+|_+", "-", name.lower()).strip("-")[:40] or "character"
     candidate, number = base, 2
-    while candidate in taken or candidate == SAMPLE_ID:
+    while candidate in taken or candidate in _BUILTIN_FOLDERS:
         candidate, number = f"{base}-{number}", number + 1
     return candidate
 
@@ -912,8 +934,8 @@ def load(folder: Path) -> Character | None:
 
 
 def all_characters() -> list[Character]:
-    """기본 캐릭터와 등록한 캐릭터."""
-    found = [sample()]
+    """기본 캐릭터(2D, 3D 데비)와 등록한 캐릭터."""
+    found = [sample(), sample_3d()]
     library = library_dir()
     if library.is_dir():
         for folder in sorted(library.iterdir()):
@@ -931,7 +953,7 @@ def get(character_id: str | None) -> Character | None:
 
 
 def remove(character_id: str) -> Path | None:
-    if character_id == SAMPLE_ID:
+    if character_id in _BUILTIN_FOLDERS:
         raise CharacterError("기본 캐릭터는 삭제할 수 없음")
     folder = library_dir() / character_id
     if not (folder / "character.json").is_file():

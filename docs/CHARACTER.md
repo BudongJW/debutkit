@@ -169,3 +169,9 @@
 ## 6. debutkit 기본 캐릭터
 
 - 즉시 시험할 수 있도록 debutkit 메인 캐릭터 데비를 PNGTuber 형식(PNG 4장: 입 다묾, 입 벌림, 눈 감음, 입 벌리고 눈 감음)으로 포함. Apache-2.0. 그림은 FLUX.1 schnell과 Qwen-Image-Edit(둘 다 Apache-2.0)로 만들고 눈과 입만 바꿔 붙임(생성 기록 character/sample/manifest.json)
+- 기본 3D 캐릭터 데비(`debutkit-3d`, character/debi3d/debi.vrm, VRM 0.x, 약 8MB)
+  - 내 VRM 없이 3D 캐릭터 화면, 캐릭터 그림 만들기, 얼굴 추적, VMC 송신을 시험
+  - 베이스: pixiv VRoid β 샘플 Victoria Rubin(파일 메타 CC0, 모든 사람, 상업 이용 허용). 사이드 포니테일과 리본이 데비와 같은 실루엣
+  - 바꾼 것: 머리 라벤더(머리끝 보라), 눈썹 라벤더, 눈동자 민트, 옷과 신발의 분홍은 라벤더, 리본 노랑(별 머리핀 색), 미리보기 그림, 텍스처 1024px. 모양, 뼈, 표정 18종, 흔들림 뼈는 그대로
+  - 사용 조건: CC0 1.0(베이스와 같음). 다시 만들기는 `python packaging/build_debi3d.py 베이스.vrm 썸네일.png`(베이스는 SHA-256으로 확인, 기록 character/debi3d/manifest.json)
+  - 고유 모델(VRoid Studio로 새로 만든 데비)이 생기면 교체 예정

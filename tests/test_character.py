@@ -160,7 +160,7 @@ def test_png_character_checks_and_library(tmp_path):
     assert any("투명 배경 없음" in warning for warning in added.warnings) and any("크기가 다름" in warning for warning in added.warnings)
     with pytest.raises(character.CharacterError, match="입 벌린 이미지"):
         character.png_character(idle, None)
-    assert [item.id for item in character.all_characters()] == ["debutkit", "my-png"]
+    assert [item.id for item in character.all_characters()] == ["debutkit", "debutkit-3d", "my-png"]
     assert character.add_png(idle, talk, name="My PNG").id == "my-png-2"
 
 
@@ -174,8 +174,9 @@ def test_use_active_files_and_remove(tmp_path):
     sample = character.sample()
     assert all(character.file_path(sample, name) for name in sample.files.values())  # 기본 캐릭터 파일이 패키지에 있음
     assert character.remove(added.id) and character.active().id == character.SAMPLE_ID
-    with pytest.raises(character.CharacterError):
-        character.remove(character.SAMPLE_ID)
+    for builtin in (character.SAMPLE_ID, character.SAMPLE_3D_ID):
+        with pytest.raises(character.CharacterError):
+            character.remove(builtin)
 
 
 def test_inochi2d_header(tmp_path):
