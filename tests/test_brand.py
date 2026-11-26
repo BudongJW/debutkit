@@ -50,6 +50,22 @@ def test_default_character_is_debi():
     assert set(record["edits"]) == {"idle", "blink", "talk_blink"} and all(item["license"] == "Apache-2.0" for item in record["edits"].values())
 
 
+def test_debi_scenes_are_recorded():
+    """데비 장면 그림(방송 중, 방송 준비, 일상): 그림마다 생성 기록(모델, 라이선스, 지시문, 시드)과 파일, 만들기 스크립트의 장면 목록."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("build_debi_scenes", ROOT / "packaging" / "build_debi_scenes.py")
+    builder = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(builder)
+    record = json.loads((BRAND / "mascot" / "scenes.json").read_text(encoding="utf-8"))
+    assert record and set(record) <= set(builder.SCENES)
+    for key, item in record.items():
+        picture = ROOT / item["file"]
+        assert picture.is_file() and picture.read_bytes()[:3] == b"\xff\xd8\xff", key
+        assert item["license"] == "Apache-2.0" and item["prompt"].endswith(builder.DESIGN) and isinstance(item["seed"], int), key
+        assert item["group"] in ("방송 중", "방송 준비", "일상"), key
+
+
 def test_builtin_3d_debi_is_complete_and_recorded():
     import hashlib
 

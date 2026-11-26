@@ -1,0 +1,72 @@
+{
+ "live_desk": {
+  "group": "방송 중",
+  "title": "책상에서 인사",
+  "file": "src/debutkit/overlay/static/mascot/scenes/live_desk.jpg",
+  "tool": "Hugging Face Space prithivMLmods/Qwen-Image-Edit-2511-LoRAs-Fast",
+  "model": "Qwen-Image-Edit-2511 (Rapid-AIO, 4 steps)",
+  "license": "Apache-2.0",
+  "lora": "prithivMLmods/Qwen-Image-Edit-2511-Anime",
+  "reference": "assets/brand/mascot/source/debi_1024.png",
+  "prompt": "Redraw this girl as a full scene illustration: she sits at a cozy streaming desk at night, speaking into a desk microphone on a boom arm and waving at the viewer with a big smile, a large monitor beside her glows with colorful blurry chat bubbles, a ring light, fairy lights and plushies on the shelf, lavender and mint room lighting. Keep her exact character design: chibi proportions with a big head, lavender hair with a side ponytail tied by a yellow hair clip, a big yellow star hair clip on the other side of her head, mint green headphones, teal green eyes, rosy cheeks, a lavender zip-up jacket with coral collar and cuffs and mint sleeve panels, a white t-shirt, mint shoes. Same cute anime illustration style with thick dark outlines and soft flat cel shading. No text, no letters, no numbers, no logos, no watermark, no signature.",
+  "seed": 21,
+  "steps": 4,
+  "date": "2026-11-27"
+ },
+ "live_sing": {
+  "group": "방송 중",
+  "title": "노래 방송",
+  "file": "src/debutkit/overlay/static/mascot/scenes/live_sing.jpg",
+  "tool": "Hugging Face Space prithivMLmods/Qwen-Image-Edit-2511-LoRAs-Fast",
+  "model": "Qwen-Image-Edit-2511 (Rapid-AIO, 4 steps)",
+  "license": "Apache-2.0",
+  "lora": "prithivMLmods/Qwen-Image-Edit-2511-Anime",
+  "reference": "assets/brand/mascot/source/debi_1024.png",
+  "prompt": "Redraw this girl as a full scene illustration: she sings into her microphone on a small stage, eyes closed happily, one hand raised, soft spotlights, floating sparkles and music notes, lavender and pink stage lights, a dark background. Keep her exact character design: chibi proportions with a big head, lavender hair with a side ponytail tied by a yellow hair clip, a big yellow star hair clip on the other side of her head, mint green headphones, teal green eyes, rosy cheeks, a lavender zip-up jacket with coral collar and cuffs and mint sleeve panels, a white t-shirt, mint shoes. Same cute anime illustration style with thick dark outlines and soft flat cel shading. No text, no letters, no numbers, no logos, no watermark, no signature.",
+  "seed": 21,
+  "steps": 4,
+  "date": "2026-11-27"
+ },
+ "live_game": {
+  "group": "방송 중",
+  "title": "게임 방송",
+  "file": "src/debutkit/overlay/static/mascot/scenes/live_game.jpg",
+  "tool": "Hugging Face Space prithivMLmods/Qwen-Image-Edit-2511-LoRAs-Fast",
+  "model": "Qwen-Image-Edit-2511 (Rapid-AIO, 4 steps)",
+  "license": "Apache-2.0",
+  "lora": "prithivMLmods/Qwen-Image-Edit-2511-Anime",
+  "reference": "assets/brand/mascot/source/debi_1024.png",
+  "prompt": "Redraw this girl as a full scene illustration: she sits in a gaming chair holding a game controller, leaning forward with an excited determined face, the glowing monitor reflects on her face, a cozy dark room with neon mint and lavender light strips. Keep her exact character design: chibi proportions with a big head, lavender hair with a side ponytail tied by a yellow hair clip, a big yellow star hair clip on the other side of her head, mint green headphones, teal green eyes, rosy cheeks, a lavender zip-up jacket with coral collar and cuffs and mint sleeve panels, a white t-shirt, mint shoes. Same cute anime illustration style with thick dark outlines and soft flat cel shading. No text, no letters, no numbers, no logos, no watermark, no signature.",
+  "seed": 21,
+  "steps": 4,
+  "date": "2026-11-27"
+ },
+ "prep_checklist": {
+  "group": "방송 준비",
+  "title": "점검 목록 확인",
+  "file": "src/debutkit/overlay/static/mascot/scenes/prep_checklist.jpg",
+  "tool": "Hugging Face Space prithivMLmods/Qwen-Image-Edit-2511-LoRAs-Fast",
+  "model": "Qwen-Image-Edit-2511 (Rapid-AIO, 4 steps)",
+  "license": "Apache-2.0",
+  "lora": "prithivMLmods/Qwen-Image-Edit-2511-Anime",
+  "reference": "assets/brand/mascot/source/debi_1024.png",
+  "prompt": "Redraw this girl as a full scene illustration: she holds a clipboard checklist and a pencil, checking items with a nervous but determined face, a laptop open on the desk beside her, sticky notes on the wall, afternoon light in a cozy room. Keep her exact character design: chibi proportions with a big head, lavender hair with a side ponytail tied by a yellow hair clip, a big yellow star hair clip on the other side of her head, mint green headphones, teal green eyes, rosy cheeks, a lavender zip-up jacket with coral collar and cuffs and mint sleeve panels, a white t-shirt, mint shoes. Same cute anime illustration style with thick dark outlines and soft flat cel shading. No text, no letters, no numbers, no logos, no watermark, no signature.",
+  "seed": 21,
+  "steps": 4,
+  "date": "2026-11-27"
+ },
+ "prep_setup": {
+  "group": "방송 준비",
+  "title": "마이크와 카메라 설치",
+  "file": "src/debutkit/overlay/static/mascot/scenes/prep_setup.jpg",
+  "tool": "Hugging Face Space prithivMLmods/Qwen-Image-Edit-2511-LoRAs-Fast",
+  "model": "Qwen-Image-Edit-2511 (Rapid-AIO, 4 steps)",
+  "license": "Apache-2.0",
+  "lora": "prithivMLmods/Qwen-Image-Edit-2511-Anime",
+  "reference": "assets/brand/mascot/source/debi_1024.png",
+  "prompt": "Redraw this girl as a full scene illustration: she stands on her toes adjusting a microphone and a small webcam on her desk, cables and a small toolbox nearby, focused cute face with her tongue slightly out, a bright tidy room. Keep her exact character design: chibi proportions with a big head, lavender hair with a side ponytail tied by a yellow hair clip, a big yellow star hair clip on the other side of her head, mint green headphones, teal green eyes, rosy cheeks, a lavender zip-up jacket with coral collar and cuffs and mint sleeve panels, a white t-shirt, mint shoes. Same cute anime illustration style with thick dark outlines and soft flat cel shading. No text, no letters, no numbers, no logos, no watermark, no signature.",
+  "seed": 21,
+  "steps": 4,
+  "date": "2026-11-27"
+ }
+}

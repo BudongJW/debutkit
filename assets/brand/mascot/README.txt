@@ -11,6 +11,13 @@ debutkit 마스코트 캐스트 (시안 v0.1)
 - dessaengi  데생이(데생 인형, 보조): 캐릭터 없음 화면, 그림 만들기 안내
 - pad        패드(게이머 너구리, 후보): 게임 패키지
 
+[ scenes ]  데비 장면 그림(16:9, 1024x576 JPEG): src/debutkit/overlay/static/mascot/scenes, 기록 scenes.json
+- 방송 중: live_desk(책상에서 인사), live_sing(노래 방송), live_game(게임 방송)
+- 방송 준비: prep_checklist(점검 목록 확인), prep_setup(마이크와 카메라 설치), prep_mirror(거울 앞 준비, 예정)
+- 일상(예정): daily_cafe(카페), daily_walk(공원 산책), daily_sleep(방송 끝나고 잠)
+- 만든 방법: Qwen-Image-Edit-2511(Apache-2.0, Anime 로라)에 source/debi_1024.png를 16:9 바탕에 놓고 참조로 줌. 모든 장면에 같은 캐릭터 설명을 붙여 디자인 유지
+- 다시 만들기: python packaging/build_debi_scenes.py make, finish(무료 계정은 하루 4~5장)
+
 만든 방법
 - 모델: FLUX.1 schnell(Apache-2.0), AI Horde(자원봉사자 GPU)에서 실행
 - 배경: 테두리와 이어진 단색 배경만 지움(debutkit logo_image.key_background)
