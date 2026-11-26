@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>debutkit 캐릭터 그림 만들기</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/theme.css?fonts=0">
+  <link rel="stylesheet" href="/ui.css">
+  <script type="importmap">{"imports": {"three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/"}}</script>
+  <style>
+    :root { color-scheme: light; --bg: #ffffff; --panel: #faf7f5; --line: #e3dfdb; --text: #1e2327; --dim: #5b6670; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.6 "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; }
+    header { display: flex; align-items: center; gap: 12px; padding: 14px 24px; border-bottom: 1px solid var(--line); }
+    header img { width: 28px; height: 28px; }
+    header h1 { font-size: 17px; margin: 0; }
+    main { max-width: 1240px; margin: 0 auto; padding: 18px 24px 48px; display: grid; gap: 16px; }
+    section { border: 1px solid var(--line); border-radius: 6px; padding: 14px 18px; }
+    h2 { font-size: 16px; margin: 0 0 8px; }
+    ul.tips { margin: 6px 0 0; padding-left: 18px; color: var(--dim); font-size: 13px; }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    select, input[type=text] { padding: 6px 8px; border: 1px solid #c9c3bd; border-radius: 3px; font: inherit; background: #fff; }
+    button { background: var(--text); color: #fff; border: 1px solid var(--text); border-radius: 3px; padding: 6px 13px; font: inherit; font-weight: 600; cursor: pointer; }
+    button.secondary { background: #fff; color: var(--text); border-color: #c9c3bd; }
+    button:disabled { opacity: 0.45; cursor: default; }
+    canvas.sheet { width: 100%; height: auto; border-radius: 4px; background: #1d1f23; display: block; }
+    .states { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .states figure { margin: 0; text-align: center; font-size: 13px; color: var(--dim); }
+    .states img { width: 100%; aspect-ratio: 1; object-fit: contain; border-radius: 4px;
+      background: repeating-conic-gradient(#e9e4dd 0% 25%, #f6f2ee 0% 50%) 0 0 / 20px 20px; }
+    .state { font-size: 13px; color: var(--dim); }
+    .state.error { color: #b3261e; }
+  </style>
+</head>
+<body>
+  <header><img src="/favicon.svg" alt=""><h1>캐릭터 그림 만들기(VRM)</h1></header>
+  <main>
+    <section>
+      <h2>캐릭터 고르기</h2>
+      <div class="row">
+        <select id="pick" aria-label="VRM 캐릭터"></select>
+        <button type="button" id="draw">그리기</button>
+        <span class="state" id="state"></span>
+      </div>
+      <ul class="tips">
+        <li>등록한 VRM을 이 PC에서 그림(모델 파일은 밖으로 보내지 않음)</li>
+        <li>시트: 정면, 3/4, 얼굴, 표정 7종(기본, 기쁨, 화남, 슬픔, 편안, 아, 눈 감음)</li>
+        <li>VRoid Studio로 만든 VRM이면 그 품질 그대로</li>
+      </ul>
+    </section>
+    <section>
+      <h2>표정 시트</h2>
+      <canvas class="sheet" id="sheet" width="1600" height="900"></canvas>
+      <div class="row" style="margin-top: 8px"><button type="button" class="secondary" id="save-sheet" disabled>시트 그림 저장</button></div>
+    </section>
+    <section>
+      <h2>PNGTuber 4상태</h2>
+      <div class="states" id="states"></div>
+      <div class="row" style="margin-top: 10px">
+        <input type="text" id="name" maxlength="40" placeholder="캐릭터 이름(비우면 원본 이름 + 그림)" aria-label="캐릭터 이름" style="flex: 1">
+        <button type="button" id="register" disabled>PNGTuber로 등록</button>
+      </div>
+      <ul class="tips">
+        <li>입 다묾 = 기본 표정, 입 벌림 = 아, 눈 감음 = 눈 감음, 입 벌리고 눈 감음 = 아 + 눈 감음</li>
+        <li>등록하면 캐릭터 목록에 PNGTuber로 추가(원본 VRM의 사용 조건을 그대로 따름)</li>
+      </ul>
+    </section>
+  </main>
+  <script src="/theme.js"></script>
+  <script src="/ui.js"></script>
+  <script type="module" src="/character/sheet.js"></script>
+</body>
+</html>

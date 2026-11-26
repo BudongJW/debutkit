@@ -642,6 +642,23 @@ def add_png(idle: Path, talk: Path, blink: Path | None = None, talk_blink: Path 
     return _store(character, name, lambda folder: [shutil.copy2(Path(sources[state]), folder / f"{state}.png") for state in character.files])
 
 
+def add_rendered(source: Character, images: dict[str, Path], *, name: str = "") -> Character:
+    """3D 캐릭터(VRM)를 그려 만든 상태별 PNG로 PNGTuber 캐릭터 등록(캐릭터 그림 만들기 화면).
+
+    그림은 원본 모델에서 나온 것이므로 원본의 작성자와 사용 조건을 그대로 옮기고(완화하지 않음), 원본 이름을 경고에 남긴다.
+    """
+    if source.kind not in ("vrm", "model"):
+        raise CharacterError("3D 캐릭터(VRM)에서만 그림을 만들 수 있음")
+    made = add_png(images["idle"], images["talk"], images.get("blink"), images.get("talk_blink"), name=name or f"{source.name} 그림")
+    made.author = source.author
+    made.version = ""
+    made.license = [f"원본 3D 캐릭터({source.name})의 사용 조건을 따름", *source.license]
+    made.warnings = [f"원본 3D 캐릭터({source.name})를 그린 그림: 원본의 사용 조건(수정, 재배포, 상업 이용) 확인", *source.warnings,
+                     *[text for text in made.warnings if "투명 배경" not in text]]
+    _save(made, library_dir() / made.id)
+    return made
+
+
 def _store(character: Character, name: str, copy: Any) -> Character:
     library = library_dir()
     library.mkdir(parents=True, exist_ok=True)

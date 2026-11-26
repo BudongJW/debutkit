@@ -592,6 +592,9 @@ class Wizard(QMainWindow):
         self.send_button.clicked.connect(self.send_character)
         self.preview_button = QPushButton("미리보기")
         self.preview_button.clicked.connect(self.preview_character)
+        self.sheet_button = QPushButton("그림 만들기(VRM)")
+        self.sheet_button.setToolTip("VRM을 정면, 3/4, 얼굴, 표정 7종으로 그리고 PNGTuber 4상태로 등록")
+        self.sheet_button.clicked.connect(self.character_sheet)
         self.tracker_button = QPushButton("얼굴 추적 창 열기")
         self.tracker_button.setToolTip("웹캠으로 얼굴을 추적해 캐릭터의 머리 움직임, 눈, 입, 웃음에 반영(브라우저에서 카메라 허용)")
         self.tracker_button.clicked.connect(self.open_tracker)
@@ -603,7 +606,7 @@ class Wizard(QMainWindow):
         self.vmc_button.clicked.connect(self.open_vmc)
         self.remove_button = QPushButton("삭제")
         self.remove_button.clicked.connect(self.remove_character)
-        layout.addWidget(card(self.characters, self.character_detail, row(add, make, self.use_button), row(self.send_button, self.preview_button, self.tracker_button, self.phone_button, self.vmc_button, self.remove_button),
+        layout.addWidget(card(self.characters, self.character_detail, row(add, make, self.sheet_button, self.use_button), row(self.send_button, self.preview_button, self.tracker_button, self.phone_button, self.vmc_button, self.remove_button),
                               title="내 캐릭터"))
         self._filling = False
         self._pending_reaction = ""
@@ -729,6 +732,7 @@ class Wizard(QMainWindow):
         self.send_button.setText("VTube Studio로 보내기" if item.kind == "live2d" else "Warudo로 보내기" if item.kind == "vrm" else "방송 프로그램으로 보내기")
         self.remove_button.setEnabled(not item.builtin)
         self.preview_button.setEnabled(item.renders_in_overlay)
+        self.sheet_button.setEnabled(item.kind == "vrm")
         self.tracker_button.setEnabled(item.renders_in_overlay)
         self.phone_button.setEnabled(item.renders_in_overlay)
 
@@ -801,6 +805,13 @@ class Wizard(QMainWindow):
         if self.server is None:
             return self._character_message("채팅과 알림 단계에서 오버레이를 시작한 뒤 미리보기를 열 수 있습니다.")
         self.backend.open_url(f"{self.server.url}/character?id={urllib.parse.quote(item.id)}&demo")
+
+    def character_sheet(self) -> None:
+        item = self.selected_character()
+        if self.server is None:
+            return self._character_message("채팅과 알림 단계에서 오버레이를 시작한 뒤 그림 만들기를 열 수 있습니다.")
+        target = f"?id={urllib.parse.quote(item.id)}" if item is not None and item.kind == "vrm" else ""
+        self.backend.open_url(f"{self.server.url}/character/sheet{target}")
 
     # 3D 캐릭터 동작
     def refresh_motions(self, select: str | None = None) -> None:
