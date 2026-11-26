@@ -102,3 +102,23 @@ def test_mascot_pictures_are_served(port):
     page = (STATIC / "index.html").read_text(encoding="utf-8")
     assert '/mascot/debi.png' in page and '/mascot/cue.png' in page
     assert 'mascot("capsule"' in (STATIC / "draw-control.html").read_text(encoding="utf-8")
+    # 빈 화면은 뽀글이들(레이스 참가자, 후원 벽 카드, 커뮤니티 처음), 방송 직전 점검의 마이크는 마이
+    assert 'mascot("bubbles"' in (STATIC / "race-control.html").read_text(encoding="utf-8")
+    assert 'mascot("bubbles"' in (STATIC / "wall-control.html").read_text(encoding="utf-8")
+    assert '/mascot/bubbles.png' in (STATIC / "community-control.html").read_text(encoding="utf-8")
+    assert 'id="c-mic"><span class="dot"></span><b><img class="cast-mini" src="/mascot/mai.png"' in page
+
+
+def test_missing_page_is_cue_for_browsers(port):
+    def get(accept):
+        conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+        conn.request("GET", "/no-such-screen", headers={"Accept": accept})
+        response = conn.getresponse()
+        body = response.read()
+        conn.close()
+        return response.status, response.getheader("Content-Type"), body
+
+    status, kind, body = get("text/html,application/xhtml+xml")
+    page = body.decode("utf-8")
+    assert status == 404 and kind.startswith("text/html") and "/mascot/cue.png" in page and "대본에 없는 장면" in page and 'href="/"' in page
+    assert get("*/*") == (404, "text/plain; charset=utf-8", b"not found")  # 브라우저가 아닌 요청은 그대로

@@ -684,7 +684,11 @@
   function renderCards() {
     if ($("cards").contains(document.activeElement) && document.activeElement.tagName === "SELECT") return;  // 고르는 중에는 그대로
     if (!changed("cards", [status.cards.map((card) => [card.id, card.column, card.name]), status.columns.map((column) => column.key)])) return;
-    if (!status.cards.length) return $("cards").replaceChildren(el("li", "state", "카드가 없습니다."));
+    if (!status.cards.length) {  // 빈 화면: 뽀글이들이 할 일 안내
+      const empty = el("li", "state");
+      empty.append(window.debutkitUi ? debutkitUi.mascot("bubbles", "아직 카드 없음. 시험 후원으로 쌓이는 모습 확인", true) : document.createTextNode("카드가 없습니다."));
+      return $("cards").replaceChildren(empty);
+    }
     const names = Object.fromEntries(status.columns.map((column) => [column.key, columnName(column)]));
     $("cards").replaceChildren(...status.cards.map((card) => {
       const item = el("li");

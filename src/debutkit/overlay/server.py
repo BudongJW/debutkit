@@ -81,6 +81,15 @@ STATIC = {"/": "index.html", "/chat": "chat.html", "/alerts": "alerts.html", "/o
           "/draw/script": "draw-script.html", "/draw/log": "draw-log.html", "/phone": "phone.html",
           "/camera/view": "camera-view.html", "/camera-view.js": "camera-view.js", "/program": "program.html", "/broadcast/control": "broadcast.html", "/logo": "logo.html"}
 STATIC.update({f"/mascot/{name}.png": f"mascot/{name}.png" for name in MASCOTS})
+#: 없는 주소를 브라우저로 열었을 때: 무대 감독 큐의 "대본에 없는 장면" 안내와 시작하기 화면 링크
+MISSING_PAGE = """<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>debutkit 없는 화면</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml"><meta name="viewport" content="width=device-width, initial-scale=1">
+<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#faf7f5;color:#231b3d;font:16px/1.6 "Pretendard","Malgun Gothic",sans-serif}
+main{display:flex;gap:20px;align-items:center;padding:24px;max-width:560px}img{width:132px;height:132px;object-fit:contain;flex:none}
+h1{margin:0 0 4px;font-size:22px}p{margin:0 0 12px;color:#5b6670}a{color:#5b3fc4;font-weight:700}</style></head>
+<body><main><img src="/mascot/cue.png" alt="무대 감독 큐"><div><h1>NG! 대본에 없는 장면</h1>
+<p>이 주소의 화면은 없음. 주소를 다시 확인하거나 시작하기 화면에서 고르기</p><a href="/">시작하기 화면으로</a></div></main></body></html>
+""".encode("utf-8")
 #: 외부에서 받은 SVG를 직접 열 때도 스크립트, 외부 연결이 동작하지 않게(logo.py에서 이미 정리)
 SVG_POLICY = "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:"
 #: /live 로 받을 수 있는 항목(등록한 기능의 항목 추가). feeds를 지정하지 않으면 DEFAULT_FEEDS.
@@ -321,6 +330,8 @@ def make_handler(hub: Hub, port_of: Callable[[], int], *, keepalive: float = 15.
                 return self._send(HTTPStatus.OK, body, TYPES.get("." + path.rsplit(".", 1)[-1], "application/octet-stream"))
             name = STATIC.get(path) or feature_static.get(path)
             if name is None:
+                if "text/html" in (self.headers.get("Accept") or ""):  # 브라우저로 연 주소: 큐가 안내하는 화면
+                    return self._send(HTTPStatus.NOT_FOUND, MISSING_PAGE, TYPES[".html"])
                 return self._send(HTTPStatus.NOT_FOUND, b"not found")
             self._send(HTTPStatus.OK, _static(name), TYPES["." + name.rsplit(".", 1)[1]], TRACKER_POLICY if path.startswith("/tracker") else "")
 

@@ -92,6 +92,7 @@ QToolTip {{ background: {field}; color: {text}; border: 1px solid {border}; }}
 EXTRA_STYLE = ""
 LINK = "color:#FF8FB1"
 ICON = Path(__file__).with_name("icon.png")  # packaging/build_brand.py 로 생성
+MASCOTS = Path(__file__).resolve().parent.parent / "overlay" / "static" / "mascot"  # 마스코트 캐스트 그림(큐: 안내, 데비: 마무리)
 
 
 def style_sheet() -> str:
@@ -459,21 +460,33 @@ class Wizard(QMainWindow):
             signal.emit(*values)
 
     @staticmethod
-    def _title(content: str, lead: str) -> QWidget:
+    def _title(content: str, lead: str, mascot: str = "") -> QWidget:
+        """페이지 머리말. mascot(마스코트 이름)을 주면 왼쪽에 그 캐릭터 그림(안내 역할, assets/brand/mascot/README.txt)."""
         box = QWidget()
-        layout = QVBoxLayout(box)
-        layout.setContentsMargins(0, 0, 0, 8)
+        outer = QHBoxLayout(box)
+        outer.setContentsMargins(0, 0, 0, 8)
+        picture = MASCOTS / f"{mascot}.png"
+        if mascot and picture.is_file():
+            face = QLabel()
+            face.setObjectName(f"Mascot-{mascot}")
+            face.setPixmap(QPixmap(str(picture)).scaled(64, 64, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+            face.setFixedSize(68, 68)
+            outer.addWidget(face, 0, Qt.AlignmentFlag.AlignTop)
+        column = QVBoxLayout()
+        column.setContentsMargins(0, 0, 0, 0)
         title = QLabel(content)
         title.setObjectName("Title")
-        layout.addWidget(title)
-        layout.addWidget(text(lead, muted=True))
+        column.addWidget(title)
+        column.addWidget(text(lead, muted=True))
+        outer.addLayout(column, 1)
         return box
 
     # ------------------------------------------------------------------ 1. 점검
     def _page_checks(self) -> QWidget:
         page = QWidget()
         layout = QVBoxLayout(page)
-        layout.addWidget(self._title("PC 점검", "방송에 필요한 사양과 프로그램을 점검합니다. 프로그램 설치나 설정 변경은 하지 않습니다."))
+        layout.addWidget(self._title("PC 점검", "방송에 필요한 사양과 프로그램을 점검합니다. 프로그램 설치나 설정 변경은 하지 않습니다. "
+                                     "무대 감독 큐가 순서대로 안내합니다.", mascot="cue"))
         self.check_rows = QGridLayout()
         self.check_rows.setHorizontalSpacing(12)
         self.check_rows.setVerticalSpacing(8)
@@ -1362,7 +1375,7 @@ class Wizard(QMainWindow):
     def _page_finish(self) -> QWidget:
         page = QWidget()
         layout = QVBoxLayout(page)
-        layout.addWidget(self._title("마무리", "방송 전 준비 상태를 확인합니다."))
+        layout.addWidget(self._title("마무리", "방송 전 준비 상태를 확인합니다.", mascot="debi"))
         # 설정 마법사 다음 차례: 오버레이의 시작하기 화면(방송 준비 목록과 방송 직전 점검)과 같은 이름으로 안내
         self.next_state = text("오버레이를 켠 뒤 시작하기 화면에서 차례로 합니다: OBS 연결 확인, 채팅창과 알림과 캐릭터를 OBS에 넣기, "
                                "시험 후원으로 확인, 방송 모양 고르기. 방송할 때마다 시작하기 화면의 방송 직전 점검(OBS, 방송 장면, 알림 소리, "

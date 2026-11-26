@@ -387,6 +387,8 @@
       const parts = Object.entries(data.sources).map(([source, count]) => `${SOURCES[source] || source} ${count}`);
       if (parts.length) head.append(document.createTextNode(` (${parts.join(", ")})`));
       box.append(head);
+      // 빈 화면: 뽀글이들(시청자 역할)이 할 일 안내
+      if (!data.count && window.debutkitUi) box.append(debutkitUi.mascot("bubbles", "아직 참가자 없음. 모집 시작으로 채팅 참가를 받거나 이름을 붙여 넣기", true));
       const notes = [...data.notes];
       if (data.problem) notes.unshift(data.problem);
       if (notes.length) {

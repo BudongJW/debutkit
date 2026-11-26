@@ -47,6 +47,7 @@
     .start-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
     .start-head h2 { margin: 0; font-size: 18px; }
     .start-head img.cast { width: 44px; height: 44px; object-fit: contain; margin: -8px -4px -8px -6px; }
+    img.cast-mini { width: 20px; height: 20px; object-fit: contain; vertical-align: -5px; margin-right: 4px; }  /* 마이크 항목은 마이가 담당 */
     .progress { flex: 1; min-width: 140px; height: 10px; border-radius: 999px; background: var(--panel); border: 1px solid var(--line); overflow: hidden; }
     .progress span { display: block; height: 100%; width: 0; background: var(--accent); transition: width 0.4s ease; }
     .start-count { font-weight: 700; color: var(--dim); font-size: 14px; }
@@ -130,7 +131,7 @@
       <li id="c-scene"><span class="dot"></span><b>방송 장면</b><span class="text">확인 중</span><span class="fix" id="c-scene-fix"></span></li>
       <li id="c-sound"><span class="dot"></span><b>알림 소리</b><span class="text">확인 중</span><span class="fix" id="c-sound-fix"></span></li>
       <li id="c-chat"><span class="dot"></span><b>채팅 연결</b><span class="text">확인 중</span></li>
-      <li id="c-mic"><span class="dot"></span><b>마이크</b><span class="text">확인 중</span></li>
+      <li id="c-mic"><span class="dot"></span><b><img class="cast-mini" src="/mascot/mai.png" alt="">마이크</b><span class="text">확인 중</span></li>
     </ul>
     <p class="hint">방송을 켜기 전에 한 번 봅니다. 초록은 준비됨, 주황은 확인이 필요한 곳입니다. 단추가 있으면 눌러서 바로 고칩니다.</p>
   </section>

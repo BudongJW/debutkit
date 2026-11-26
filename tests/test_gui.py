@@ -9,7 +9,7 @@ import pytest
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 pytest.importorskip("PySide6.QtWidgets")
 
-from PySide6.QtWidgets import QApplication, QPushButton  # noqa: E402
+from PySide6.QtWidgets import QApplication, QLabel, QPushButton  # noqa: E402
 
 from debutkit.doctor import FAIL, OK, WARN, Check  # noqa: E402
 from debutkit.gui.app import Backend, Wizard, style_sheet  # noqa: E402
@@ -88,6 +88,10 @@ def test_checks_run_on_open_and_show_states(app):
         assert names == ["StateOk", "StateWarn", "StateMissing"]
         assert "조치: 정리" in window.check_rows.itemAtPosition(2, 2).widget().text()
         assert not window.ffmpeg_button.isVisibleTo(window)  # ffmpeg 항목이 없으면 버튼도 없음
+        # 마스코트 안내: 첫 페이지(점검)는 무대 감독 큐, 마무리는 데비
+        for name in ("Mascot-cue", "Mascot-debi"):
+            face = window.findChild(QLabel, name)
+            assert face is not None and not face.pixmap().isNull(), name
     finally:
         window.close()
 
