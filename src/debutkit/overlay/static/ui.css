@@ -62,6 +62,15 @@ button.done::after { content: " (넣음)"; font-weight: 400; }
   background: radial-gradient(circle at 70% 64%, #c7743a 0 9%, transparent 9.2%), linear-gradient(180deg, #6fb7e8 0%, #a9d8f2 52%, #79b86c 52%, #4f8c4f 100%); }
 .dk-thumb iframe { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; border: 0; transform-origin: 0 0; transform: scale(0.1); color-scheme: normal; }
 
+/* 마스코트 안내(debutkitUi.mascot): 캐릭터 그림과 말풍선 한 줄. 빈 화면, 안내에 */
+.dk-mascot { display: flex; align-items: center; gap: 12px; margin: 10px 0; }
+.dk-mascot img { width: 72px; height: 72px; object-fit: contain; flex: none; }
+.dk-mascot p { position: relative; margin: 0; padding: 8px 12px; border-radius: 10px; background: var(--panel, #faf7f5); border: 1px solid var(--line, #e3dfdb);
+  color: var(--text, #1e2327); font-size: 14px; line-height: 1.5; }
+.dk-mascot p::before { content: ""; position: absolute; left: -7px; top: 50%; width: 12px; height: 12px; margin-top: -6px; background: inherit;
+  border-left: 1px solid var(--line, #e3dfdb); border-bottom: 1px solid var(--line, #e3dfdb); transform: rotate(45deg); }
+.dk-mascot.small img { width: 48px; height: 48px; }
+
 /* 모양 고르기 단추 묶음(debutkitUi.looks) */
 .dk-looks { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-top: 6px; }
 .dk-looks button { display: grid; gap: 3px; align-content: start; padding: 6px 6px 8px; text-align: left; background: var(--panel, #faf7f5); color: var(--text, #1e2327);

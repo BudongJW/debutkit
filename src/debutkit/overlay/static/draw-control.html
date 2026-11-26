@@ -224,6 +224,7 @@
     <section class="wide">
       <h2>최근 결과</h2>
       <div class="row"><button class="secondary small" id="clear">목록 비우기</button><span class="state" id="results-state"></span></div>
+      <div id="results-empty"></div>
       <ol class="results" id="results"></ol>
     </section>
   </div>
@@ -528,6 +529,8 @@
 
   function count() {
     note("results-state", `${$("results").children.length}개`);
+    // 빈 화면: 캡슐이 할 일 안내
+    $("results-empty").replaceChildren(...($("results").children.length ? [] : [debutkitUi.mascot("capsule", "아직 추첨 결과 없음. 위의 시험 추첨으로 연출 확인", true)]));
   }
 
   $("clear").addEventListener("click", async () => {

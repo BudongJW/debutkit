@@ -46,6 +46,7 @@
     .start { margin-bottom: 22px; border: 2px solid var(--accent); border-radius: 8px; padding: 16px 20px; background: #fff; }
     .start-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
     .start-head h2 { margin: 0; font-size: 18px; }
+    .start-head img.cast { width: 44px; height: 44px; object-fit: contain; margin: -8px -4px -8px -6px; }
     .progress { flex: 1; min-width: 140px; height: 10px; border-radius: 999px; background: var(--panel); border: 1px solid var(--line); overflow: hidden; }
     .progress span { display: block; height: 100%; width: 0; background: var(--accent); transition: width 0.4s ease; }
     .start-count { font-weight: 700; color: var(--dim); font-size: 14px; }
@@ -90,6 +91,7 @@
 <main>
   <section class="start" id="start">
     <div class="start-head">
+      <img class="cast" src="/mascot/debi.png" alt="데비">
       <h2>방송 준비</h2>
       <div class="progress" aria-hidden="true"><span id="start-bar"></span></div>
       <span class="start-count" id="start-count">1/5</span>
@@ -121,7 +123,7 @@
   </section>
 
   <section class="check" id="check">
-    <div class="start-head"><h2>방송 직전 점검</h2><span class="start-count" id="check-count"></span>
+    <div class="start-head"><img class="cast" src="/mascot/cue.png" alt="큐"><h2>방송 직전 점검</h2><span class="start-count" id="check-count"></span>
       <button type="button" class="secondary" id="check-again">다시 점검</button></div>
     <ul class="checks">
       <li id="c-obs"><span class="dot"></span><b>OBS</b><span class="text">확인 중</span></li>

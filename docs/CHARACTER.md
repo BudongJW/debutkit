@@ -163,4 +163,4 @@
 
 ## 6. debutkit 기본 캐릭터
 
-- 즉시 시험할 수 있도록 debutkit 브랜드 캐릭터(고양이 귀 마이크)를 PNGTuber 형식(SVG 4장)으로 포함. Apache-2.0
+- 즉시 시험할 수 있도록 debutkit 메인 캐릭터 데비를 PNGTuber 형식(PNG 4장: 입 다묾, 입 벌림, 눈 감음, 입 벌리고 눈 감음)으로 포함. Apache-2.0. 그림은 FLUX.1 schnell과 Qwen-Image-Edit(둘 다 Apache-2.0)로 만들고 눈과 입만 바꿔 붙임(생성 기록 character/sample/manifest.json)

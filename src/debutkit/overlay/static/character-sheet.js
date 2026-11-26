@@ -219,6 +219,9 @@ fetch("/character/sheet/list").then((response) => response.json()).then((data) =
   $("pick").replaceChildren(...list.map((item) => new Option(item.name + (item.active ? " (방송 중)" : ""), item.id)));
   const wanted = params.get("id");
   if (wanted && list.some((item) => item.id === wanted)) $("pick").value = wanted;
-  if (!list.length) note("등록한 VRM이 없음: 설정 마법사의 캐릭터 단계에서 VRM 추가", true);
+  if (!list.length) {
+    note("등록한 VRM이 없음", true);
+    if (window.debutkitUi) $("empty").replaceChildren(window.debutkitUi.mascot("dessaengi", "아직 VRM 캐릭터가 없음. 설정 마법사의 캐릭터 단계에서 VRM을 추가하거나 VRoid Studio로 만들기"));
+  }
   else if (wanted) draw();
 });

@@ -73,11 +73,14 @@ from .events import OverlayEvent, system_event
 from .tracking import TrackingState, clean
 from .voice import VoiceState
 
+#: 마스코트 캐스트 그림(조작 화면의 안내, 빈 화면). assets/brand/mascot 참고
+MASCOTS = ("debi", "mai", "cue", "bubbles", "capsule", "dessaengi", "cuckoo")
 STATIC = {"/": "index.html", "/chat": "chat.html", "/alerts": "alerts.html", "/overlay.css": "overlay.css", "/overlay.js": "overlay.js",
           "/favicon.svg": "favicon.svg", "/character": "character.html", "/character.js": "character.js", "/tracker": "tracker.html", "/tracker.js": "tracker.js",
           "/draw": "draw.html", "/draw.js": "draw.js", "/draw-props.js": "draw-props.js", "/draw.css": "draw.css", "/draw/control": "draw-control.html",
           "/draw/script": "draw-script.html", "/draw/log": "draw-log.html", "/phone": "phone.html",
           "/camera/view": "camera-view.html", "/camera-view.js": "camera-view.js", "/program": "program.html", "/broadcast/control": "broadcast.html", "/logo": "logo.html"}
+STATIC.update({f"/mascot/{name}.png": f"mascot/{name}.png" for name in MASCOTS})
 #: 외부에서 받은 SVG를 직접 열 때도 스크립트, 외부 연결이 동작하지 않게(logo.py에서 이미 정리)
 SVG_POLICY = "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:"
 #: /live 로 받을 수 있는 항목(등록한 기능의 항목 추가). feeds를 지정하지 않으면 DEFAULT_FEEDS.

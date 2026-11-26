@@ -130,11 +130,11 @@ def test_character_page_info_files_and_vendor(server):
     info = json.loads(body)
     assert status == 200 and info["id"] == character.SAMPLE_ID and info["kind"] == "png" and info["renders"]
     status, kind, body = get(server, info["files"]["talk"])
-    assert status == 200 and kind == "image/svg+xml" and b"<svg" in body
+    assert status == 200 and kind == "image/png" and body.startswith(b"\x89PNG")  # 기본 캐릭터 데비(PNGTuber)
     assert get(server, "/vendor/three/build/three.module.js")[0] == 200
     assert get(server, "/vendor/three-vrm/three-vrm.module.min.js")[0] == 200
     for bad in ("/vendor/../server.py", "/vendor/three/../../server.py", "/character/files/debutkit/../../server.py", "/character/files/debutkit/README.txt",
-                "/character/files/nobody/idle.svg", "/character/info?id=nobody"):
+                "/character/files/nobody/idle.png", "/character/info?id=nobody"):
         assert get(server, bad)[0] == 404, bad
 
 

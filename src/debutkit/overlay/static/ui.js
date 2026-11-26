@@ -251,6 +251,20 @@
     return box;
   }
 
+  // 마스코트 안내: debutkitUi.mascot("capsule", "아직 추첨 결과 없음") -> 그림과 말풍선 한 줄(빈 화면, 안내)
+  const MASCOT_NAMES = { debi: "데비", mai: "마이", cue: "큐", bubbles: "뽀글이들", capsule: "캡슐", dessaengi: "데생이", cuckoo: "뻐꾹" };
+  function mascot(name, text, small = false) {
+    const box = document.createElement("div");
+    box.className = small ? "dk-mascot small" : "dk-mascot";
+    const img = document.createElement("img");
+    img.src = `/mascot/${name}.png`;
+    img.alt = MASCOT_NAMES[name] || "";
+    const line = document.createElement("p");
+    line.textContent = text;
+    box.append(img, line);
+    return box;
+  }
+
   // 모양 고르기 단추 묶음(그림 견본 + 이름 + 설명): debutkitUi.looks($("box"), [{ key, label, about, src, view }], 지금 값, (key) => ...)
   // 같은 목록이면 그림을 다시 부르지 않고 눌린 표시만 바꾼다
   function looks(box, items, value, pick) {
@@ -319,7 +333,7 @@
     timer = setTimeout(() => box.classList.remove("show"), bad ? 5000 : 2600);
   }
 
-  window.debutkitUi = { toast, pages: PAGES, groups: GROUPS, glossary: GLOSSARY, obsCheck, onObs: (listener) => obsListeners.push(listener), helpers, addToObs, unsaved, thumb, looks };
+  window.debutkitUi = { toast, pages: PAGES, groups: GROUPS, glossary: GLOSSARY, obsCheck, onObs: (listener) => obsListeners.push(listener), helpers, addToObs, unsaved, thumb, looks, mascot };
   const start = () => { nav(); dock(); obsChip(); helpers(); };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
   else start();

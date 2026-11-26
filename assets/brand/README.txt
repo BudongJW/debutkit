@@ -1,12 +1,12 @@
-debutkit 브랜드 파일 (마스코트 마이, 리본 마이크)
-================================================
+debutkit 브랜드 파일 (메인 캐릭터 데비, 작은 심볼 마이)
+====================================================
 
 구성
 - board.png     컨셉 보드(로고, 앱 아이콘, 파비콘, 색, 캐스트)
-- symbol/       심볼(마이), 투명 배경. symbol-small 은 32px 이하용 단순화 버전
+- symbol/       심볼(데비 배지), 투명 배경. symbol-small 은 32px 이하용(마이 단순화), mai 는 마이 전체 그림
 - wordmark/     글자(윤곽선, 글꼴 설치 불필요). i의 점 자리는 노란 별
 - lockup/       심볼과 글자 조합. horizontal(가로형), vertical(세로형)
-- app-icon/     1024px 앱 아이콘. dark, dark_rounded(모서리 둥근), light. debutkit.ico 는 Windows 실행 파일 아이콘
+- app-icon/     1024px 앱 아이콘(데비). dark, dark_rounded(모서리 둥근), light. debutkit.ico 는 Windows 실행 파일 아이콘(32px 이하는 마이)
 - favicon/      favicon.svg, favicon.ico(16, 32, 48), favicon-16 에서 512 PNG
 - mascot/       마스코트 캐스트 시안과 생성 기록(mascot/README.txt)
 
@@ -21,9 +21,12 @@ debutkit 브랜드 파일 (마스코트 마이, 리본 마이크)
 - SVG는 벡터 원본, PNG는 투명 배경(앱 아이콘 제외)
 
 심볼
-- 마스코트 마이: 1950년대 리본 마이크, 은색 막대 위 얼굴, 양옆 민트 음파, 꼭대기 코랄 불, 노란 띠
-- build_brand.py 에서 도형으로 직접 그린 벡터. AI 시안(mascot/draft/mai.png)은 모양 참고용
-- 작은 크기(32px 이하): 음파, 받침, 불을 빼고 몸과 얼굴만
+- 메인 캐릭터 데비(데뷔 준비생): 라벤더 원형 배지 위 상반신. 원본 mascot/source/debi_1024.png
+  - FLUX.1 schnell(Apache-2.0) 시안, 배경 제거. 생성 기록 mascot/draft/manifest.json
+  - AI 생성물 자체는 저작물로 보호되지 않아 대표 그림은 사람 손질이나 다시 그리기 권장
+- 작은 심볼 마이(리본 마이크): 파비콘, 32px 이하. build_brand.py 에서 도형으로 직접 그린 벡터
+  - 은색 막대 2개 아래 줄 없는 얼굴판에 얼굴(눈과 입이 줄, 외곽선과 겹치지 않게), 양옆 민트 음파, 꼭대기 코랄 불, 노란 띠
+  - 작은 크기: 음파, 받침, 불을 빼고 몸과 얼굴만
 
 컬러
 - Lavender        #A98BF7  심볼 몸, 어두운 배경의 강조
@@ -41,6 +44,7 @@ debutkit 브랜드 파일 (마스코트 마이, 리본 마이크)
 
 사용처
 - 사이트 헤더, 파비콘, 공유 이미지: packaging/build_site.py 가 복사
+- 기본 캐릭터(PNGTuber 4상태): src/debutkit/overlay/static/character/sample(데비)
 - Windows 실행 파일 아이콘: app-icon/debutkit.ico
 - 설정 마법사 창 아이콘: src/debutkit/gui/icon.png
 - 오버레이 화면 탭 아이콘: src/debutkit/overlay/static/favicon.svg

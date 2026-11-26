@@ -79,9 +79,13 @@ def sample_dir() -> Path:
 
 
 def sample() -> Character:
-    """debutkit 기본 캐릭터(고양이 귀 마이크). 바로 시험할 수 있도록 함께 배포. Apache-2.0."""
-    return Character(SAMPLE_ID, "debutkit 기본 캐릭터", "png", {state: f"{state}.svg" for state in PNG_STATES}, author="debutkit",
-                     thumbnail="idle.svg", license=["Apache-2.0(debutkit). 방송, 수익 방송, 소속사 사용 가능"], builtin=True)
+    """debutkit 기본 캐릭터(메인 캐릭터 데비, PNGTuber 4상태). 바로 시험할 수 있도록 함께 배포.
+
+    그림은 공개 모델(FLUX.1 schnell, Qwen-Image-Edit-2511, 둘 다 Apache-2.0)로 만든 뒤 눈과 입만 바꿔 붙인 것(생성 기록은 sample/manifest.json).
+    """
+    return Character(SAMPLE_ID, "debutkit 기본 캐릭터 데비", "png", {state: f"{state}.png" for state in PNG_STATES}, author="debutkit",
+                     thumbnail="idle.png", license=["Apache-2.0(debutkit). 방송, 수익 방송, 소속사 사용 가능", "AI 생성 그림(FLUX.1 schnell, Qwen-Image-Edit, Apache-2.0)"],
+                     builtin=True)
 
 
 def folder_of(character: Character) -> Path:
