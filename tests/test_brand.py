@@ -50,20 +50,42 @@ def test_default_character_is_debi():
     assert set(record["edits"]) == {"idle", "blink", "talk_blink"} and all(item["license"] == "Apache-2.0" for item in record["edits"].values())
 
 
-def test_debi_scenes_are_recorded():
-    """데비 장면 그림(방송 중, 방송 준비, 일상): 그림마다 생성 기록(모델, 라이선스, 지시문, 시드)과 파일, 만들기 스크립트의 장면 목록."""
+def _load(name):
     import importlib.util
 
-    spec = importlib.util.spec_from_file_location("build_debi_scenes", ROOT / "packaging" / "build_debi_scenes.py")
-    builder = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(builder)
-    record = json.loads((BRAND / "mascot" / "scenes.json").read_text(encoding="utf-8"))
-    assert record and set(record) <= set(builder.SCENES)
-    for key, item in record.items():
-        picture = ROOT / item["file"]
-        assert picture.is_file() and picture.read_bytes()[:3] == b"\xff\xd8\xff", key
-        assert item["license"] == "Apache-2.0" and item["prompt"].endswith(builder.DESIGN) and isinstance(item["seed"], int), key
-        assert item["group"] in ("방송 중", "방송 준비", "일상"), key
+    spec = importlib.util.spec_from_file_location(name, ROOT / "packaging" / f"{name}.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_debi_scene_prompts_keep_hands_simple():
+    """2D 장면 그림(보류: 손이 뭉개져 다시 만들기 전까지 배포하지 않음): 지시문에 손 두 개, 발 두 개 규칙. 기록이 있으면 파일, 라이선스와 맞는지."""
+    builder = _load("build_debi_scenes")
+    assert "exactly two arms, two hands and two feet" in builder.DESIGN
+    for key, (group, title, prompt, seed) in builder.SCENES.items():
+        assert group in ("방송 중", "방송 준비", "일상") and title and prompt and isinstance(seed, int), key
+    record_file = BRAND / "mascot" / "scenes.json"
+    for key, item in (json.loads(record_file.read_text(encoding="utf-8")) if record_file.is_file() else {}).items():
+        assert (ROOT / item["file"]).is_file() and item["license"] == "Apache-2.0" and item["prompt"].endswith(builder.DESIGN), key
+
+
+def test_promo_pictures_use_3d_debi_and_are_on_the_site():
+    """서비스 소개 그림(1600x900): 기본 3D 데비와 실제 화면으로 만든 장면마다 파일이 있고 소개 페이지와 사이트 복사 목록에 있음."""
+    from PIL import Image
+
+    promo = _load("build_promo")
+    site = (ROOT / "site" / "index.html").read_text(encoding="utf-8")
+    copies = _load("build_site").ASSETS
+    for key in promo.SLIDES:
+        picture = ROOT / "docs" / "images" / f"promo-{key}.jpg"
+        with Image.open(picture) as image:
+            assert image.size == (1600, 900), key
+        assert copies[f"assets/promo/{key}.jpg"] == f"docs/images/promo-{key}.jpg", key
+    for key in ("live", "prep", "character", "fun"):
+        assert f"assets/promo/{key}.jpg" in site, key
+    assert "assets/shots/promo-hero.jpg" in site and "assets/promo/hero.jpg" in site  # 화면 모음 첫 장, 공유 그림
+    assert "assets/debi/" not in site  # 2D 장면 그림은 보류
 
 
 def test_builtin_3d_debi_is_complete_and_recorded():

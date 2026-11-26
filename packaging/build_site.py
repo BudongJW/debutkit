@@ -34,8 +34,8 @@ ASSETS: dict[str, str] = {
     "assets/shots/game-packages.png": "docs/images/game-packages.png",
     "assets/shots/character-3d-debi.png": "docs/images/character-3d-debi.png",
     "assets/shots/character-sheet.png": "docs/images/character-sheet.png",
-    **{f"assets/debi/{key}.jpg": f"src/debutkit/overlay/static/mascot/scenes/{key}.jpg"
-       for key in ("live_desk", "live_sing", "live_game", "prep_checklist", "prep_setup")},
+    "assets/shots/promo-hero.jpg": "docs/images/promo-hero.jpg",
+    **{f"assets/promo/{key}.jpg": f"docs/images/promo-{key}.jpg" for key in ("hero", "live", "prep", "character", "fun")},
     "assets/favicon.svg": "assets/brand/favicon/favicon.svg",
     "assets/favicon.ico": "assets/brand/favicon/favicon.ico",
     "assets/apple-touch-icon.png": "assets/brand/favicon/favicon-180.png",

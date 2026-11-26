@@ -11,12 +11,14 @@ debutkit 마스코트 캐스트 (시안 v0.1)
 - dessaengi  데생이(데생 인형, 보조): 캐릭터 없음 화면, 그림 만들기 안내
 - pad        패드(게이머 너구리, 후보): 게임 패키지
 
-[ scenes ]  데비 장면 그림(16:9, 1024x576 JPEG): src/debutkit/overlay/static/mascot/scenes, 기록 scenes.json
-- 방송 중: live_desk(책상에서 인사), live_sing(노래 방송), live_game(게임 방송)
-- 방송 준비: prep_checklist(점검 목록 확인), prep_setup(마이크와 카메라 설치), prep_mirror(거울 앞 준비, 예정)
-- 일상(예정): daily_cafe(카페), daily_walk(공원 산책), daily_sleep(방송 끝나고 잠)
-- 만든 방법: Qwen-Image-Edit-2511(Apache-2.0, Anime 로라)에 source/debi_1024.png를 16:9 바탕에 놓고 참조로 줌. 모든 장면에 같은 캐릭터 설명을 붙여 디자인 유지
-- 다시 만들기: python packaging/build_debi_scenes.py make, finish(무료 계정은 하루 4~5장)
+[ 소개 그림 ]  서비스 소개(docs/images/promo-*.jpg, 1600x900): 기본 3D 데비(character/debi3d)와 실제 debutkit 화면
+- hero(소개), live(방송 중), prep(방송 준비), character(캐릭터), fun(방송 연출)
+- 데비는 캐릭터 그림 만들기의 추천 자세(손 인사, 허리에 손, 만세, 편하게 서기)로 그림. 3D라 손 모양이 늘 바름
+- 다시 만들기: python packaging/build_promo.py
+
+[ 2D 장면 그림, 보류 ]  방송 중, 방송 준비, 일상의 데비 2D 장면(packaging/build_debi_scenes.py)
+- Qwen-Image-Edit-2511로 그린 첫 5장은 손이 뭉개지거나(손가락 뭉침, 손 세 개) 책상 위에 신발이 있어 배포하지 않음
+- 지시문을 손이 단순한 동작과 손 두 개, 발 두 개 규칙으로 고쳐 두었고, 시드 후보를 여러 장 그려 손이 바른 것을 고른 뒤 넣을 예정(무료 계정은 하루 4~5장)
 
 만든 방법
 - 모델: FLUX.1 schnell(Apache-2.0), AI Horde(자원봉사자 GPU)에서 실행
