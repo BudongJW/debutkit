@@ -88,7 +88,7 @@
   function subscribe(feeds, handler) {
     const wanted = new Set(feeds);
     const wrapped = (feed, data, initial) => {
-      if (feed === "theme" && window.debutkitTheme) window.debutkitTheme.apply(data);
+      if (feed === "theme" && window.debutkitTheme) window.debutkitTheme.apply(data, initial);
       try { handler(feed, data, Boolean(initial)); } catch (error) { console.warn("debutkit: 화면 처리 실패", error); }
     };
     handlers.push([wanted, wrapped]);

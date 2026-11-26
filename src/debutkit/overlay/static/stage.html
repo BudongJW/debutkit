@@ -31,6 +31,15 @@
     .swatches button { height: 34px; padding: 0; border-radius: 4px; border: 2px solid transparent; position: relative; background: var(--sw); overflow: hidden; }
     .swatches button::after { content: ""; position: absolute; right: 0; bottom: 0; width: 40%; height: 40%; background: var(--hl); border-top-left-radius: 4px; }
     .swatches button[aria-pressed="true"] { border-color: var(--text); box-shadow: 0 0 0 2px #fff inset; }
+    .styles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .styles button { position: relative; min-height: 70px; padding: 8px 10px 30px; text-align: left; border: 2px solid transparent; background: var(--panel);
+      color: var(--text); font-size: 13px; font-weight: 700; line-height: 1.35; }
+    .styles button small { display: block; font-weight: 400; color: var(--dim); font-size: 11.5px; }
+    .styles button .chip { position: absolute; left: 10px; right: 10px; bottom: 8px; height: 16px; }
+    .styles button[aria-pressed="true"] { border-color: var(--text); }
+    .fonts { display: grid; gap: 8px; }
+    .fonts label { display: grid; gap: 2px; font-size: 13px; color: var(--dim); }
+    .fonts .local { display: flex; gap: 6px; }
     .colors { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
     .colors label { display: grid; gap: 2px; font-size: 13px; color: var(--dim); }
     .colors input[type=color] { width: 100%; height: 32px; padding: 0 2px; border: 1px solid #c9c3bd; border-radius: 3px; background: #fff; }
@@ -90,6 +99,24 @@
           <button class="secondary" id="from-logo">로고 색 가져오기</button>
         </div>
         <p class="hint">채팅, 알림, 추첨, 뽑기판, 후원 벽, 레이스와 조작 화면이 같은 색을 씁니다. 화면마다 따로 고른 색이 있으면 그 색이 우선합니다.</p>
+      </section>
+      <section>
+        <h2>방송 스타일</h2>
+        <div class="styles" id="styles"></div>
+        <p class="hint">모양(모서리, 테두리, 그림자), 바탕(종이, 반투명, 빛), 글꼴, 등장 움직임을 함께 바꿉니다. 알림, 채팅(방송 스타일 카드), 후원 벽, 목표 게이지, 순위가 따라갑니다.</p>
+      </section>
+      <section>
+        <h2>글꼴</h2>
+        <div class="fonts">
+          <label>제목 글꼴(이름, 금액, 제목)<select id="display-font"></select></label>
+          <label>본문 글꼴(메시지, 설명)<select id="text-font"></select></label>
+          <label>이 PC에 설치한 글꼴 이름
+            <span class="local"><input type="text" id="local-font" placeholder="예: 나눔스퀘어라운드"><button class="secondary" id="use-local" type="button">제목에</button><button class="secondary" id="use-local-text" type="button">본문에</button></span>
+          </label>
+          <label>내 글꼴 올리기(TTF, OTF, WOFF, WOFF2)<input type="file" id="font-file" accept=".ttf,.otf,.woff,.woff2,font/*"></label>
+          <div class="row" id="user-fonts"></div>
+        </div>
+        <p class="hint">스타일 기본은 스타일마다 어울리는 글꼴입니다. 픽셀, 다이어리 스타일은 도트, 손글씨 글꼴이 설치되어 있으면 씁니다. 올린 글꼴은 이 PC의 설정 폴더에만 보관하며, 방송에 쓸 수 있는 라이선스인지 확인하십시오.</p>
       </section>
       <section>
         <h2>배경</h2>
@@ -213,7 +240,46 @@
 
     // 방송 색
     let presets = {};
+    function fontOptions(select, theme, value) {
+      const items = [new Option("스타일 기본", "")];
+      for (const [key, font] of Object.entries(theme.font_choices || {})) items.push(new Option(`${font.name} (${font.about})`, key));
+      for (const font of theme.fonts || []) items.push(new Option(`내 글꼴: ${font.name}`, `user:${font.id}`));
+      if (value && value.startsWith("local:")) items.push(new Option(`설치한 글꼴: ${value.slice(6)}`, value));
+      select.replaceChildren(...items);
+      select.value = value || "";
+    }
+    function showStyles(theme) {
+      $("styles").replaceChildren(...Object.entries(theme.styles || {}).map(([key, style]) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.setAttribute("aria-pressed", String(theme.style === key));
+        const name = document.createElement("span");
+        name.textContent = style.name;
+        name.style.fontFamily = style.font;
+        const about = document.createElement("small");
+        about.textContent = style.about;
+        const chip = document.createElement("span");
+        chip.className = "chip";
+        Object.assign(chip.style, { background: style.surface, border: `2px solid ${style.line}`, borderRadius: style.radius, boxShadow: style.shadow });
+        button.append(name, about, chip);
+        button.addEventListener("click", () => saveTheme({ style: key }, "방송 스타일을 바꿈"));
+        return button;
+      }));
+      fontOptions($("display-font"), theme, theme.display_font);
+      fontOptions($("text-font"), theme, theme.text_font);
+      $("user-fonts").replaceChildren(...(theme.fonts || []).map((font) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "secondary small";
+        button.textContent = `${font.name} 지우기`;
+        button.addEventListener("click", async () => {
+          try { showTheme(await post("/theme/font/remove", { id: font.id })); debutkitUi.toast("글꼴을 지움"); } catch (error) { debutkitUi.toast(error.message, true); }
+        });
+        return button;
+      }));
+    }
     function showTheme(theme) {
+      showStyles(theme);
       $("primary").value = theme.primary;
       $("highlight").value = theme.highlight;
       for (const button of $("swatches").children) button.setAttribute("aria-pressed", String(button.dataset.preset === theme.preset));
@@ -221,10 +287,10 @@
       $("from-logo").disabled = !theme.logo;
       $("from-logo").title = theme.logo ? `로고 주 색 ${theme.logo.primary}` : "로고 만들기에서 저장한 로고가 없음";
     }
-    async function saveTheme(body) {
+    async function saveTheme(body, done = "방송 색을 바꿈") {
       try {
         showTheme(await post("/theme", body));
-        debutkitUi.toast("방송 색을 바꿈");
+        debutkitUi.toast(done);
       } catch (error) {
         debutkitUi.toast(error.message, true);
       }
@@ -246,6 +312,23 @@
     });
     $("save-theme").addEventListener("click", () => saveTheme({ primary: $("primary").value, highlight: $("highlight").value }));
     $("from-logo").addEventListener("click", () => saveTheme({ from_logo: true }));
+    $("display-font").addEventListener("change", () => saveTheme({ display_font: $("display-font").value }, "제목 글꼴을 바꿈"));
+    $("text-font").addEventListener("change", () => saveTheme({ text_font: $("text-font").value }, "본문 글꼴을 바꿈"));
+    $("use-local").addEventListener("click", () => saveTheme({ display_font: `local:${$("local-font").value.trim()}` }, "제목 글꼴을 바꿈"));
+    $("use-local-text").addEventListener("click", () => saveTheme({ text_font: `local:${$("local-font").value.trim()}` }, "본문 글꼴을 바꿈"));
+    $("font-file").addEventListener("change", async () => {
+      const file = $("font-file").files[0];
+      if (!file) return;
+      if (file.size > 20 * 1024 * 1024) { debutkitUi.toast("글꼴 파일은 20MB 이하", true); return; }
+      const data = await new Promise((resolve) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.readAsDataURL(file); });
+      try {
+        showTheme(await post("/theme/font", { name: file.name, data, use: ["display"] }));
+        debutkitUi.toast("글꼴을 올리고 제목 글꼴로 정함");
+      } catch (error) {
+        debutkitUi.toast(error.message, true);
+      }
+      $("font-file").value = "";
+    });
 
     render();
     fit();
