@@ -48,6 +48,11 @@ class SceneOptions:
     race_url: str = "http://127.0.0.1:8790/race"
     goal_url: str = "http://127.0.0.1:8790/wall/goal"
     rank_url: str = "http://127.0.0.1:8790/wall/rank"
+    frame_url: str = "http://127.0.0.1:8790/frame"
+    #: 게임 패키지(overlay/games.py의 이름): 그 게임의 HUD(미니맵, 킬 로그 등)를 피한 자리에 캐릭터, 채팅, 목표 게이지, 순위를 놓고 프레임을 넣음
+    game: str = ""
+    #: 프레임(캐릭터 테두리, 대기, 자리 비움, 엔딩 화면). 게임 패키지를 고르면 함께 켬
+    frames: bool = False
     avatar: str = "vts"  # vts | vseeface | warudo | vmagicmirror | debutkit(캐릭터 화면) | none
     background: int = 0xFF3D1F2A  # OBS 색은 ABGR 순서: 짙은 남보라
     os_name: str = field(default_factory=lambda: {"win32": "Windows", "darwin": "Darwin"}.get(sys.platform, "Linux"))
@@ -130,6 +135,17 @@ def build_scenes(width: int, height: int, kinds: dict[str, str], options: SceneO
     """장면 5종의 설계도. 소스는 아래에서 위 순서(먼저 만든 것이 뒤에 깔린다)."""
     options = options or SceneOptions()
     W, H = width, height
+    from .overlay import games as game_packs
+
+    spots = game_packs.layout(options.game) if options.game else None
+    framed = options.frames or spots is not None
+
+    def spot(name: str) -> dict[str, Any] | None:
+        """게임 패키지의 자리(1920x1080 기준)를 이 캔버스 크기로."""
+        if spots is None:
+            return None
+        x, y, w, h = spots[name]
+        return _bounds(x * W / 1920, y * H / 1080, w * W / 1920, h * H / 1080)
     margin = round(H * 0.03)
     chat_w = round(W * 0.22)
     font = FONTS.get(options.os_name, FONTS["Linux"])
@@ -140,12 +156,18 @@ def build_scenes(width: int, height: int, kinds: dict[str, str], options: SceneO
             return None
         return Item(f"{PREFIX}배경", "color", {"color": options.background, "width": W, "height": H}, _bounds(0, 0, W, H))
 
-    def chat() -> Item | None:
+    def chat(in_game: bool = False) -> Item | None:
+        """채팅창. 게임 장면(``in_game``)에서만 게임 패키지 자리, 나머지 장면은 오른쪽 세로 전체.
+
+        OBS 소스 하나를 여러 장면이 함께 쓰므로 자리는 장면마다(장면 안 항목의 변환) 다르다."""
         if "browser" not in kinds:
             return None
-        settings = {"url": options.overlay_url, "width": chat_w, "height": H - 2 * margin, "fps_custom": False, "reroute_audio": False,
-                    "shutdown": False, "restart_when_active": False}
-        return Item(f"{PREFIX}채팅", "browser", settings, _bounds(W - chat_w - margin, margin, chat_w, H - 2 * margin))
+        placed = spot("chat") if in_game else None
+        box = placed or _bounds(W - chat_w - margin, margin, chat_w, H - 2 * margin)
+        settings = {"url": options.overlay_url, "width": round(box["boundsWidth"]), "height": round(box["boundsHeight"]), "fps_custom": False,
+                    "reroute_audio": False, "shutdown": False, "restart_when_active": False}
+        # 브라우저 소스의 화면 크기는 소스마다 하나: 게임 배치의 채팅은 크기가 달라 따로 만든다
+        return Item(f"{PREFIX}채팅 (게임 배치)" if placed else f"{PREFIX}채팅", "browser", settings, box)
 
     def alerts() -> Item | None:
         if "browser" not in kinds:
@@ -172,11 +194,26 @@ def build_scenes(width: int, height: int, kinds: dict[str, str], options: SceneO
     def wall() -> Item | None:  # 후원 벽은 벽지처럼 캐릭터 뒤에
         return stage("후원 벽", options.wall_url)
 
-    def stages() -> tuple[Item | None, ...]:
-        """캐릭터 앞의 연출. 목표 게이지는 왼쪽 위(알림이 뜨는 가운데 위와 겹치지 않게), 순위는 그 아래 왼쪽"""
+    def stages(in_game: bool = False) -> tuple[Item | None, ...]:
+        """캐릭터 앞의 연출. 목표 게이지는 왼쪽 위(알림이 뜨는 가운데 위와 겹치지 않게), 순위는 그 아래 왼쪽. 게임 장면은 게임 패키지의 HUD를 피한 자리"""
+        goal, rank = (0.017, 0.022, 0.3, 0.1), (0.017, 0.14, 0.15, 0.36)
+        if spots is not None and in_game:
+            goal = tuple(value / size for value, size in zip(spots["goal"], (1920, 1080, 1920, 1080), strict=True))  # type: ignore[assignment]
+            rank = tuple(value / size for value, size in zip(spots["rank"], (1920, 1080, 1920, 1080), strict=True))  # type: ignore[assignment]
         return (stage("뽑기판", options.pick_url), stage("참여 레이스", options.race_url),
-                stage("목표 게이지", options.goal_url, (1280, 240), (0.017, 0.022, 0.3, 0.1)),
-                stage("후원 순위", options.rank_url, (560, 720), (0.017, 0.14, 0.15, 0.36)))
+                stage("목표 게이지", options.goal_url, (1280, 240), goal), stage("후원 순위", options.rank_url, (560, 720), rank))
+
+    def frame(name: str, kind: str, box: dict[str, Any] | None = None) -> Item | None:
+        """프레임(/frame): 캐릭터 테두리는 캐릭터 위에, 대기, 자리 비움, 엔딩 화면은 안내 문구 대신 화면 전체에."""
+        if not framed or "browser" not in kinds:
+            return None
+        box = box or _bounds(0, 0, W, H)
+        settings = {"url": f"{options.frame_url}?kind={kind}", "width": round(box["boundsWidth"]), "height": round(box["boundsHeight"]),
+                    "reroute_audio": False, "shutdown": True}
+        return Item(f"{PREFIX}{name}", "browser", settings, box)
+
+    def screen(name: str, kind: str, text_name: str, text: str) -> Item | None:
+        return frame(name, kind) if framed and "browser" in kinds else caption(text_name, text)
 
     def caption(name: str, text: str) -> Item | None:
         if "text" not in kinds:
@@ -190,8 +227,11 @@ def build_scenes(width: int, height: int, kinds: dict[str, str], options: SceneO
         settings = {"capture_mode": "any_fullscreen"} if kinds["game"] == "game_capture" else {}
         return Item(f"{PREFIX}게임 화면", "game", settings, _bounds(0, 0, W, H))
 
-    # 본방송: 게임 위 왼쪽 아래에 아바타, 오른쪽에 채팅
-    main_avatar = _avatar_item(options, kinds, _bounds(0, H, W * 0.32, H * 0.62, alignment=9))
+    # 본방송: 게임 위 왼쪽 아래에 아바타, 오른쪽에 채팅(게임 패키지는 그 게임의 HUD를 피한 자리)
+    main_box = spot("character") or _bounds(0, H, W * 0.32, H * 0.62, alignment=9)
+    main_avatar = _avatar_item(options, kinds, main_box)
+    cam_box = spot("character") or _bounds(0, H - H * 0.62, W * 0.32, H * 0.62)
+    cam_frame = frame("캐릭터 프레임", "cam", cam_box) if main_avatar is not None else None
     # 토크: 아바타를 크게 가운데에
     talk_avatar = _avatar_item(options, kinds, _bounds((W - chat_w - margin) / 2, H, W * 0.6, H * 0.95, alignment=8))
 
@@ -199,11 +239,14 @@ def build_scenes(width: int, height: int, kinds: dict[str, str], options: SceneO
         return Scene(name, purpose, tuple(item for item in items if item is not None))
 
     return [
-        scene("대기 화면", "방송 시작 전 대기. 안내 문구와 채팅", background(), caption("대기 문구", options.starting_text), chat(), alerts(), draws()),
-        scene("본방송", "게임 화면, 아바타, 채팅, 후원 알림과 추첨", background(), game(), wall(), main_avatar, *stages(), chat(), alerts(), draws()),
+        scene("대기 화면", "방송 시작 전 대기. 안내 문구와 채팅", background(), screen("대기 화면 프레임", "starting", "대기 문구", options.starting_text),
+              chat(), alerts(), draws()),
+        scene("본방송", "게임 화면, 아바타, 채팅, 후원 알림과 추첨", background(), game(), wall(), main_avatar, cam_frame, *stages(in_game=True),
+              chat(in_game=True), alerts(), draws()),
         scene("토크", "잡담, 노래. 아바타 크게 표시", background(), wall(), talk_avatar, *stages(), chat(), alerts(), draws()),
-        scene("자리 비움", "휴식 시간. 마이크는 직접 음소거", background(), caption("자리 비움 문구", options.brb_text), chat(), alerts(), draws()),
-        scene("엔딩", "방송 마무리", background(), caption("엔딩 문구", options.ending_text), chat()),
+        scene("자리 비움", "휴식 시간. 마이크는 직접 음소거", background(), screen("자리 비움 프레임", "brb", "자리 비움 문구", options.brb_text),
+              chat(), alerts(), draws()),
+        scene("엔딩", "방송 마무리", background(), screen("엔딩 프레임", "ending", "엔딩 문구", options.ending_text), chat()),
     ]
 
 

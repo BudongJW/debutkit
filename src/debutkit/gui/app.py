@@ -1010,9 +1010,21 @@ class Wizard(QMainWindow):
             self.avatar_app.addItem(label, value)
         self.replay = QCheckBox("자동 클립용 리플레이 버퍼 사용(60초)")
         self.replay.setChecked(True)
+        # 게임 패키지 배치: 방송 화면 미리보기에서 적용한 게임이 처음 값
+        from ..overlay import games as game_packs
+
+        self.scene_game = QComboBox()
+        self.scene_game.addItem("기본 배치", "")
+        for key, game in game_packs.GAMES.items():
+            self.scene_game.addItem(f"{game.name} ({game.genre})", key)
+        self.scene_game.setToolTip("고른 게임의 HUD(미니맵, 킬 로그, 체력과 스킬)를 피해 캐릭터, 채팅, 목표 게이지, 순위를 놓고 프레임을 넣습니다")
+        self.scene_game.setCurrentIndex(max(0, self.scene_game.findData(game_packs.load()["game"])))
+        self.scene_frames = QCheckBox("프레임 넣기(캐릭터 테두리, 대기, 자리 비움, 엔딩 화면)")
         form.addRow("WebSocket 포트", self.obs_port)
         form.addRow("비밀번호", self.obs_password)
         form.addRow("아바타 프로그램", self.avatar_app)
+        form.addRow("게임 배치", self.scene_game)
+        form.addRow("", self.scene_frames)
         form.addRow("", self.replay)
         fields = QWidget()
         fields.setLayout(form)
@@ -1077,8 +1089,9 @@ class Wizard(QMainWindow):
         base = f"http://127.0.0.1:{self.port.value()}"
         options = scenes.SceneOptions(overlay_url=f"{base}/chat", alerts_url=f"{base}/alerts", character_url=f"{base}/character",
                                        draw_url=f"{base}/draw", pick_url=f"{base}/pick", wall_url=f"{base}/wall", race_url=f"{base}/race",
-                                       goal_url=f"{base}/wall/goal", rank_url=f"{base}/wall/rank",
-                                       avatar=str(self.avatar_app.currentData()))
+                                       goal_url=f"{base}/wall/goal", rank_url=f"{base}/wall/rank", frame_url=f"{base}/frame",
+                                       avatar=str(self.avatar_app.currentData()), game=str(self.scene_game.currentData() or ""),
+                                       frames=self.scene_frames.isChecked())
         port, password, replay = self.obs_port.value(), self.obs_password.text() or None, 60 if self.replay.isChecked() else None
 
         def job() -> None:

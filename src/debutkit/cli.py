@@ -13,6 +13,9 @@ from typing import Any, Callable
 from . import __version__
 from .doctor import JOIN_URL, OVERLAY_PORT
 
+#: 게임 패키지 이름(overlay/games.py의 GAMES와 같음. 명령줄을 빨리 띄우려고 여기에 이름만)
+GAME_CHOICES = ("valorant", "lol", "overwatch", "hearthstone", "pubg", "maplestory", "lostark", "fconline", "tft", "minecraft")
+
 
 def _doctor(args: argparse.Namespace) -> int:
     from .doctor import FAIL, format_report, run_checks, to_json
@@ -44,8 +47,8 @@ def _scenes(args: argparse.Namespace) -> int:
     base = f"http://127.0.0.1:{args.overlay_port}"
     options = SceneOptions(overlay_url=f"{base}/chat", alerts_url=f"{base}/alerts", character_url=f"{base}/character", draw_url=f"{base}/draw",
                            pick_url=f"{base}/pick", wall_url=f"{base}/wall", race_url=f"{base}/race", goal_url=f"{base}/wall/goal",
-                           rank_url=f"{base}/wall/rank",
-                           avatar=args.avatar)
+                           rank_url=f"{base}/wall/rank", frame_url=f"{base}/frame",
+                           avatar=args.avatar, game=args.game or "", frames=args.frames)
     if args.dry_run:
         kinds = default_kinds(options.os_name)
         print(format_plan(build_scenes(1920, 1080, kinds, options), kinds))
@@ -1243,6 +1246,8 @@ def build_parser() -> argparse.ArgumentParser:
     scenes.add_argument("--switch", action="store_true", help="생성 후 대기 화면으로 전환")
     scenes.add_argument("--replay-buffer", type=int, nargs="?", const=60, metavar="초",
                         help="자동 클립용 리플레이 버퍼 켜기 (길이 기본 60초)")
+    scenes.add_argument("--game", choices=sorted(GAME_CHOICES), help="게임 패키지 배치: 그 게임의 HUD(미니맵, 킬 로그 등)를 피해 캐릭터, 채팅, 목표 게이지, 순위를 놓고 프레임을 넣음")
+    scenes.add_argument("--frames", action="store_true", help="프레임(캐릭터 테두리, 대기, 자리 비움, 엔딩 화면)을 넣음. --game 을 고르면 함께 켬")
     scenes.add_argument("--dry-run", action="store_true", help="OBS에 연결하지 않고 설계도만 출력")
     scenes.set_defaults(func=_scenes)
 

@@ -117,9 +117,11 @@ def default_features(context: Context) -> list[Feature]:
     from .. import wall
     from ..pick import pick_feature
     from ..race import feature as race_feature
-    from . import alerts, stage, theme, vmc
+    from . import alerts, games, stage, theme, vmc
 
-    found: list[Feature] = [theme.make_feature(context), alerts.make_feature(context), stage.make_feature(context), vmc.make_feature(context)]
+    theme_part, alerts_part = theme.make_feature(context), alerts.make_feature(context)
+    found: list[Feature] = [theme_part, alerts_part, games.make_feature(context, theme_part, alerts_part), stage.make_feature(context),
+                            vmc.make_feature(context)]
     found.append(wall.feature(context))  # 후원 벽, 목표 게이지, 후원 순위
     found.append(pick_feature(context))  # 뽑기판
     found.append(race_feature(context))  # 참여 레이스
