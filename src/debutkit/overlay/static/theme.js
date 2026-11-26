@@ -2,7 +2,7 @@
 // 화면이 이미 받고 있는 공유 연결(live.js)의 theme 항목으로 바뀐 값을 받으면 debutkitTheme.apply(값)이 새로고침 없이 바꾼다:
 // 색은 바로 CSS 변수로, 방송 스타일과 글꼴은 /theme.css 를 다시 읽어서.
 // 브라우저는 같은 주소에 동시 연결을 6개까지만 열어(OBS 브라우저 소스끼리도 공유) 색만 받으려고 연결을 따로 열지 않는다.
-// 문서의 data-dk-style 에 지금 방송 스타일 이름(--dk-style)을 적어 화면별 CSS가 스타일마다 다르게 꾸밀 수 있게 한다.
+// 문서의 data-dk-style 에 지금 방송 스타일 이름(--dk-style), data-dk-tone 에 바탕 밝기(dark, light)를 적어 화면별 CSS가 다르게 꾸밀 수 있게 한다.
 "use strict";
 
 (() => {
@@ -11,8 +11,11 @@
   let shown = "";
 
   function mark() {
-    const style = getComputedStyle(document.documentElement).getPropertyValue("--dk-style").trim();
+    const values = getComputedStyle(document.documentElement);
+    const style = values.getPropertyValue("--dk-style").trim();
+    const tone = values.getPropertyValue("--dk-tone").trim();  // 바탕 밝기: 화면별 CSS가 어두운 바탕이면 밝은 글자로
     if (style) document.documentElement.dataset.dkStyle = style;
+    if (tone) document.documentElement.dataset.dkTone = tone;
   }
 
   function reload(seq) {

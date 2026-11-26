@@ -11,7 +11,7 @@ from debutkit.overlay.server import OverlayServer
 
 WOFF2 = b"wOF2" + bytes(60)
 KEYS = ("surface", "on-surface", "muted", "line", "line-width", "line-style", "radius", "shadow", "glow", "backdrop", "tag-bg", "tag-text",
-        "display", "text", "enter-time", "enter-ease", "style")
+        "display", "text", "enter-time", "enter-ease", "style", "tone")
 
 
 def request(port, method, path, body=None):
@@ -41,12 +41,15 @@ def test_every_style_has_all_tokens_and_an_entrance():
         sheet = theme.css({**base, "style": key})
         assert f"--dk-style: {key};" in sheet and "@keyframes dk-enter" in sheet and '"Black Han Sans"' in sheet
         assert "Black Han Sans\"; src" not in theme.css({**base, "style": key}, fonts=False)
-    # 어두운 스타일은 밝은 글자, 밝은 스타일은 어두운 글자
+    # 바탕 밝기(tone): 어두운 바탕은 밝은 글자, 밝은 바탕은 어두운 글자. 화면별 CSS가 tone으로 이름과 금액 색을 고름
     colors = theme.palette("#ff4f8b", "#ffd84d")
-    for key in ("neon", "pixel", "night", "minimal"):
-        assert theme.luminance(theme._style_tokens(key, colors)["on-surface"]) > 0.7, key
-    for key in ("prop", "pastel", "diary"):
-        assert theme.luminance(theme._style_tokens(key, colors)["on-surface"]) < 0.1, key
+    for key in theme.STYLES:
+        values = theme._style_tokens(key, colors)
+        bright = theme.luminance(values["on-surface"])
+        assert (bright > 0.7) if values["tone"] == "dark" else (bright < 0.1), key
+        assert values["enter"] in theme.ENTERS, key
+    assert {theme._style_tokens(key, colors)["tone"] for key in theme.GENRE_STYLES} == {"dark", "light"}
+    assert set(theme.GENRE_STYLES) < set(theme.STYLES) and len(theme.STYLES) == 16
 
 
 def test_font_choices_and_local_names():

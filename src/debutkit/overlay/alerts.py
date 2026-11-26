@@ -25,7 +25,8 @@ LAYOUTS = {"card": "카드", "banner": "가로 띠", "bubble": "말풍선", "big
 POSITIONS = {"top-left": "왼쪽 위", "top": "위 가운데", "top-right": "오른쪽 위", "left": "왼쪽", "center": "가운데", "right": "오른쪽",
              "bottom-left": "왼쪽 아래", "bottom": "아래 가운데", "bottom-right": "오른쪽 아래"}
 ENTERS = {"auto": "방송 스타일 따르기", "stamp": "도장 찍기", "float": "말랑 떠오르기", "flicker": "깜빡 켜지기", "steps": "도트 계단",
-          "fade": "서서히", "tape": "테이프 붙이기", "twinkle": "반짝 나타나기", "slide": "옆에서 밀려오기"}
+          "fade": "서서히", "tape": "테이프 붙이기", "twinkle": "반짝 나타나기", "slide": "옆에서 밀려오기", "wipe": "쓱 지나가며 드러나기",
+          "punch": "확 튀어나오기", "flip": "카드 뒤집기", "unveil": "빛나며 나타나기"}
 SOUNDS = {"none": "없음", "chime": "차임", "coin": "동전", "fanfare": "팡파르", "pop": "퐁", "bell": "방울"}
 EMPHASIS = {"none": "없음", "sparkle": "반짝이", "confetti": "종이 조각", "shake": "흔들림", "glow": "빛 번짐", "bigger": "크게"}
 PLACEHOLDERS = ("{name}", "{amount}")

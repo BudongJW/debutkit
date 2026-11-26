@@ -5,7 +5,7 @@
     ``--dk-ink`` (슬레이트 잉크), ``--dk-paper`` (크림 종이)
   - 방송 스타일(STYLES): ``--dk-surface`` (카드 바탕, background 값), ``--dk-on-surface``, ``--dk-muted``, ``--dk-line``, ``--dk-line-width``,
     ``--dk-line-style``, ``--dk-radius``, ``--dk-shadow``, ``--dk-glow`` (제목 글자 빛), ``--dk-backdrop`` (뒤 흐림), ``--dk-tag-bg``, ``--dk-tag-text``,
-    ``--dk-enter-ease``, ``--dk-enter-time`` 와 ``@keyframes dk-enter``. ``--dk-style`` 은 스타일 이름
+    ``--dk-enter-ease``, ``--dk-enter-time`` 와 ``@keyframes dk-enter``. ``--dk-style`` 은 스타일 이름, ``--dk-tone`` 은 바탕의 밝기(dark, light)
   - 글꼴: ``--dk-display`` (제목), ``--dk-text`` (본문). 스타일 기본 글꼴 또는 고른 글꼴
 - ``/theme`` 조회, ``POST /theme`` (``{"primary", "highlight"}``, ``{"preset": "lavender"}``, ``{"from_logo": true}``, ``{"style": "neon"}``,
   ``{"display_font": "blackhan", "text_font": "local:나눔고딕"}``). ``POST /theme/font`` 내 글꼴 올리기(``{"name", "data"}``, base64),
@@ -154,7 +154,23 @@ ENTERS: dict[str, tuple[str, str, str]] = {
     "twinkle": ("0% { opacity: 0; transform: scale(0.86); filter: brightness(2.2); } 100% { opacity: 1; transform: none; filter: none; }",
                 "0.6s", "ease-out"),
     "slide": ("0% { opacity: 0; transform: translateX(-36px); } 100% { opacity: 1; transform: none; }", "0.35s", "cubic-bezier(0.2, 0.8, 0.2, 1)"),
+    # 왼쪽에서 오른쪽으로 드러남. 끝 상태도 잘라 내므로 꼬리표, 그림자가 들어가도록 바깥으로 넉넉히
+    "wipe": ("0% { opacity: 0; clip-path: inset(-80px 100% -80px -80px); } 25% { opacity: 1; } "
+             "100% { opacity: 1; clip-path: inset(-80px -80px -80px -80px); }", "0.42s", "cubic-bezier(0.7, 0, 0.2, 1)"),
+    "punch": ("0% { opacity: 0; transform: scale(1.32) skewX(-9deg); } 60% { opacity: 1; transform: scale(0.97) skewX(2deg); } "
+              "100% { opacity: 1; transform: none; }", "0.42s", "cubic-bezier(0.2, 0.9, 0.3, 1.2)"),
+    "flip": ("0% { opacity: 0; transform: perspective(700px) rotateY(80deg); } 60% { opacity: 1; transform: perspective(700px) rotateY(-10deg); } "
+             "100% { opacity: 1; transform: none; }", "0.6s", "ease-out"),
+    "unveil": ("0% { opacity: 0; transform: translateY(10px); filter: brightness(1.9) blur(2px); } 100% { opacity: 1; transform: none; filter: none; }",
+               "0.7s", "ease-out"),
 }
+
+
+def _brackets(color: str, size: int = 16, width: int = 3) -> str:
+    """모서리 꺾쇠(바탕 위 그라데이션 층): 왼쪽 위와 오른쪽 아래."""
+    bar = f"linear-gradient({color}, {color})"
+    return (f"{bar} left top / {size}px {width}px no-repeat, {bar} left top / {width}px {size}px no-repeat, "
+            f"{bar} right bottom / {size}px {width}px no-repeat, {bar} right bottom / {width}px {size}px no-repeat")
 
 
 def _style_tokens(key: str, colors: dict[str, str]) -> dict[str, str]:
@@ -162,7 +178,10 @@ def _style_tokens(key: str, colors: dict[str, str]) -> dict[str, str]:
     p, h = colors["primary"], colors["highlight"]
     base = {"surface": PAPER, "on-surface": INK, "muted": "#4a535b", "line": INK, "line-width": "3px", "line-style": "solid", "radius": "10px",
             "shadow": f"0 6px 0 {INK}", "glow": "none", "backdrop": "none", "tag-bg": p, "tag-text": colors["on-primary"],
-            "display": f'"Black Han Sans", {FALLBACK}', "text": f'"Pretendard", {FALLBACK}', "enter": "stamp"}
+            "display": f'"Black Han Sans", {FALLBACK}', "text": f'"Pretendard", {FALLBACK}', "enter": "stamp", "tone": "light"}
+    gold = mix(h, "#8a6a2f", 0.35)  # 금장: 강조 색을 조금 어둡고 누렇게
+    old_gold = mix(h, "#6b5426", 0.45)
+    wood = "#5b3a1e"
     styles: dict[str, dict[str, str]] = {
         "prop": {"surface": f"{_GRAIN}, {PAPER}"},
         "pastel": {"surface": f"linear-gradient(180deg, #ffffff, {mix(p, '#ffffff', 0.84)})", "on-surface": "#4a3f55", "muted": "#7a6f86",
@@ -170,15 +189,16 @@ def _style_tokens(key: str, colors: dict[str, str]) -> dict[str, str]:
                    "tag-text": on_color(mix(p, "#ffffff", 0.25)), "display": f'"Pretendard", {FALLBACK}', "enter": "float"},
         "neon": {"surface": "rgba(12, 10, 28, 0.86)", "on-surface": "#f6f2ff", "muted": "#c3bbdf", "line": p, "line-width": "2px", "radius": "14px",
                  "shadow": f"0 0 0 1px {p}, 0 0 18px {rgba(p, 0.65)}, inset 0 0 14px {rgba(p, 0.35)}", "glow": f"0 0 6px {p}, 0 0 16px {rgba(p, 0.8)}",
-                 "enter": "flicker"},
+                 "enter": "flicker", "tone": "dark"},
         "pixel": {"surface": "#20243f", "on-surface": "#ffffff", "muted": "#c9cde8", "line": "#ffffff", "line-width": "4px", "radius": "0px",
                   "shadow": "4px 4px 0 #000000, 8px 8px 0 rgba(0, 0, 0, 0.35)", "glow": "2px 2px 0 #000000", "display": _PIXEL_FONT,
-                  "text": _PIXEL_FONT, "enter": "steps"},
+                  "text": _PIXEL_FONT, "enter": "steps", "tone": "dark"},
         # 흰 글자가 밝은 게임 화면 위에서도 읽히도록 어두운 연기 유리에 위쪽 반사광
         "glass": {"surface": "linear-gradient(160deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.04) 55%), rgba(18, 22, 30, 0.42)",
                   "on-surface": "#ffffff", "muted": "rgba(255, 255, 255, 0.88)", "line": "rgba(255, 255, 255, 0.55)",
                   "line-width": "1.5px", "radius": "20px", "shadow": "0 12px 30px rgba(0, 0, 0, 0.28)", "glow": "0 1px 3px rgba(0, 0, 0, 0.45)",
-                  "backdrop": "blur(14px) saturate(1.3)", "tag-bg": rgba(p, 0.85), "display": f'"Pretendard", {FALLBACK}', "enter": "fade"},
+                  "backdrop": "blur(14px) saturate(1.3)", "tag-bg": rgba(p, 0.85), "display": f'"Pretendard", {FALLBACK}', "enter": "fade",
+                  "tone": "dark"},
         "diary": {"surface": f"repeating-linear-gradient(180deg, transparent 0 27px, {rgba('#7fa7d9', 0.35)} 27px 28px), #fffdf6",
                   "on-surface": "#3b3330", "muted": "#6b5f58", "line": "#3b3330", "line-width": "2px", "line-style": "dashed", "radius": "4px",
                   "shadow": "3px 4px 0 rgba(59, 51, 48, 0.22)", "tag-bg": rgba(h, 0.8), "tag-text": on_color(h), "display": _HAND_FONT, "text": _HAND_FONT,
@@ -188,9 +208,40 @@ def _style_tokens(key: str, colors: dict[str, str]) -> dict[str, str]:
                               "radial-gradient(1px 1px at 88% 18%, #ffffff, transparent), linear-gradient(160deg, #1b2457, #3a2363)"),
                   "on-surface": "#fff8e7", "muted": "#d9cfe8", "line": h, "line-width": "2px", "radius": "16px",
                   "shadow": f"0 0 0 4px {rgba(h, 0.18)}, 0 12px 26px rgba(0, 0, 0, 0.45)", "glow": f"0 0 10px {rgba(h, 0.6)}", "tag-bg": h,
-                  "tag-text": colors["on-highlight"], "enter": "twinkle"},
+                  "tag-text": colors["on-highlight"], "enter": "twinkle", "tone": "dark"},
         "minimal": {"surface": "rgba(18, 20, 24, 0.82)", "on-surface": "#ffffff", "muted": "rgba(255, 255, 255, 0.72)", "line": "transparent",
-                    "line-width": "0px", "radius": "8px", "shadow": f"inset 6px 0 0 {p}", "display": f'"Pretendard", {FALLBACK}', "enter": "slide"},
+                    "line-width": "0px", "radius": "8px", "shadow": f"inset 6px 0 0 {p}", "display": f'"Pretendard", {FALLBACK}', "enter": "slide",
+                    "tone": "dark"},
+        # ---- 게임 장르 스타일(게임 패키지가 고름). 공식 로고, 글꼴, 그림 없이 모양과 색만
+        "tactical": {"surface": f"{_brackets(p)}, linear-gradient(180deg, rgba(20, 27, 35, 0.94), rgba(12, 17, 23, 0.94))",
+                     "on-surface": "#f3f0ea", "muted": "#aab4be", "line": "rgba(243, 240, 234, 0.22)", "line-width": "1px", "radius": "0px",
+                     "shadow": "0 0 0 1px rgba(0, 0, 0, 0.55), 8px 8px 0 rgba(0, 0, 0, 0.28)", "enter": "wipe", "tone": "dark"},
+        "arcane": {"surface": f"radial-gradient(ellipse at 50% -20%, {rgba(p, 0.28)}, transparent 60%), linear-gradient(180deg, rgba(12, 22, 40, 0.95), "
+                              "rgba(5, 11, 24, 0.95))",
+                   "on-surface": "#f0e6d2", "muted": "#b3ab98", "line": gold, "line-width": "1.5px", "radius": "2px",
+                   "shadow": f"0 0 0 3px rgba(5, 11, 24, 0.95), 0 0 0 4px {rgba(gold, 0.6)}, 0 12px 28px rgba(0, 0, 0, 0.55)",
+                   "glow": f"0 0 8px {rgba(gold, 0.5)}", "tag-bg": gold, "tag-text": on_color(gold), "enter": "unveil", "tone": "dark"},
+        "hero": {"surface": f"linear-gradient(105deg, {p} 0 12px, transparent 12px), linear-gradient(180deg, #ffffff, #e8edf4)",
+                 "on-surface": "#1d2733", "muted": "#566577", "line": "rgba(29, 39, 51, 0.14)", "line-width": "2px", "radius": "6px",
+                 "shadow": "0 10px 24px rgba(20, 30, 50, 0.28)", "enter": "punch"},
+        "tavern": {"surface": "radial-gradient(ellipse at 50% 0%, rgba(255, 255, 255, 0.55), transparent 65%), linear-gradient(180deg, #f7e9c8, #e8cf9c)",
+                   "on-surface": "#3a2513", "muted": "#6e5235", "line": "#6b4423", "line-width": "3px", "radius": "14px",
+                   "shadow": f"inset 0 0 0 2px {rgba(h, 0.9)}, 0 0 0 4px {wood}, 0 10px 22px rgba(0, 0, 0, 0.4)", "enter": "flip"},
+        "survival": {"surface": f"repeating-linear-gradient(135deg, {h} 0 9px, #1c1f18 9px 18px) left top / 100% 6px no-repeat, "
+                                "linear-gradient(180deg, rgba(46, 51, 39, 0.95), rgba(29, 32, 25, 0.95))",
+                     "on-surface": "#f0ead6", "muted": "#bdb69e", "line": "rgba(240, 234, 214, 0.28)", "line-width": "2px", "radius": "2px",
+                     "shadow": "5px 5px 0 rgba(0, 0, 0, 0.45)", "tag-bg": h, "tag-text": colors["on-highlight"], "enter": "stamp", "tone": "dark"},
+        "adventure": {"surface": "linear-gradient(180deg, #fffaf0, #ffe8c4)", "on-surface": "#4a2e18", "muted": "#7a5a3c", "line": "#a5682b",
+                      "line-width": "3px", "radius": "18px", "shadow": "0 0 0 3px #fff4dc, 0 0 0 6px #a5682b, 0 9px 0 6px rgba(90, 52, 20, 0.3)",
+                      "enter": "float"},
+        "gothic": {"surface": "radial-gradient(ellipse at 50% 130%, rgba(150, 24, 24, 0.4), transparent 65%), linear-gradient(180deg, rgba(22, 17, 16, 0.96), "
+                              "rgba(10, 8, 8, 0.96))",
+                   "on-surface": "#efe3c8", "muted": "#a99780", "line": old_gold, "line-width": "1px", "radius": "0px",
+                   "shadow": f"0 0 0 1px #000000, 0 0 0 4px rgba(10, 8, 8, 0.96), 0 0 0 5px {rgba(old_gold, 0.55)}, 0 14px 30px rgba(0, 0, 0, 0.6)",
+                   "glow": "0 0 10px rgba(190, 40, 30, 0.55)", "tag-bg": "#7d1d1a", "tag-text": "#ffffff", "enter": "unveil", "tone": "dark"},
+        "sports": {"surface": f"linear-gradient(90deg, {p} 0 10px, {h} 10px 14px, transparent 14px), linear-gradient(180deg, #13315a, #0b1f3b)",
+                   "on-surface": "#ffffff", "muted": "#b9c9de", "line": "transparent", "line-width": "0px", "radius": "4px",
+                   "shadow": "0 8px 18px rgba(0, 0, 0, 0.35)", "tag-bg": h, "tag-text": colors["on-highlight"], "enter": "wipe", "tone": "dark"},
     }
     return {**base, **styles.get(key, styles["prop"])}
 
@@ -205,7 +256,17 @@ STYLES: dict[str, tuple[str, str]] = {
     "diary": ("다이어리", "줄 노트, 점선 테두리, 마스킹 테이프, 손글씨 글꼴(설치한 경우)"),
     "night": ("밤하늘", "별이 뜬 남보라 하늘, 금빛 테두리"),
     "minimal": ("미니멀", "어두운 반투명 띠와 방송 색 막대"),
+    "tactical": ("택티컬", "전술 FPS: 어두운 판, 꺾쇠 모서리, 쓱 지나가며 등장"),
+    "arcane": ("마법 금장", "판타지 AOS: 짙은 남색 판, 금빛 이중 테두리"),
+    "hero": ("히어로", "히어로 슈터: 밝은 흰 판, 비스듬한 색 띠, 확 튀어나옴"),
+    "tavern": ("선술집 카드", "카드 게임: 양피지 카드, 금테와 나무 테두리, 카드 뒤집기"),
+    "survival": ("서바이벌", "배틀로얄: 군용 올리브 판, 경고 줄무늬"),
+    "adventure": ("모험 동화", "캐주얼 RPG: 크림 판, 둥근 나무 테두리, 말랑한 등장"),
+    "gothic": ("다크 판타지", "다크 판타지 RPG: 검붉은 판, 낡은 금 테두리"),
+    "sports": ("스포츠 중계", "축구, 야구 게임: 중계 자막 띠, 남색 판"),
 }
+#: 게임 장르 스타일(미리보기에서 따로 묶어 보여 줌). 나머지는 일반 스타일
+GENRE_STYLES = ("tactical", "arcane", "hero", "tavern", "survival", "adventure", "gothic", "sports")
 
 
 # --------------------------------------------------------------------------- 글꼴
@@ -356,7 +417,8 @@ def make_feature(context: feature.Context) -> feature.Feature:
         for key, (name, about) in STYLES.items():
             values = _style_tokens(key, colors)
             styles[key] = {"name": name, "about": about, "surface": values["surface"], "on": values["on-surface"], "line": values["line"],
-                           "radius": values["radius"], "shadow": values["shadow"], "tag": values["tag-bg"], "font": values["display"]}
+                           "radius": values["radius"], "shadow": values["shadow"], "tag": values["tag-bg"], "font": values["display"],
+                           "tone": values["tone"], "group": "game" if key in GENRE_STYLES else "basic"}
         return {**current, "palette": colors, "tokens": tokens(current),
                 "presets": {key: {"name": name, "primary": primary, "highlight": highlight} for key, (name, primary, highlight) in PRESETS.items()},
                 "styles": styles, "font_choices": {key: {"name": name, "about": about} for key, (name, _, about) in FONT_CHOICES.items()},

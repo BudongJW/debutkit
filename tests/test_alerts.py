@@ -136,6 +136,6 @@ def test_control_and_overlay_pages(port):
     css = (STATIC / "overlay.css").read_text(encoding="utf-8")
     for layout in ("banner", "bubble", "big", "side"):
         assert f".alert.layout-{layout}" in css, layout
-    for enter in ("stamp", "float", "flicker", "steps", "fade", "tape", "twinkle", "slide"):
-        assert f'data-enter="{enter}"' in css, enter
+    for enter in alerts.theme.ENTERS:  # 방송 스타일의 등장 움직임마다 알림에서 직접 고를 때의 규칙
+        assert f'data-enter="{enter}"' in css and f"@keyframes alert-{'rise' if enter in ('steps', 'fade') else 'twinkle-in' if enter == 'twinkle' else enter}" in css, enter
     assert '"/alerts/control"' in (STATIC / "ui.js").read_text(encoding="utf-8")
