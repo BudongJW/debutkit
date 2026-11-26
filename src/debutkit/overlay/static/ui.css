@@ -18,13 +18,44 @@
   --on-accent: var(--dk-on-primary, #1e2327);
 }
 
-/* 이동 막대: 조작 화면 사이를 오간다. 현재 화면은 방송 색 밑줄 */
-.dk-nav { display: flex; gap: 2px; padding: 0 16px; border-bottom: 1px solid var(--line); background: var(--panel); overflow-x: auto; scrollbar-width: thin; }
-.dk-nav a { flex: none; padding: 9px 12px 8px; color: var(--dim); font-size: 13px; font-weight: 600; text-decoration: none; border-bottom: 3px solid transparent; white-space: nowrap; }
+/* 위쪽 메뉴: 첫째 줄은 묶음 5개, 둘째 줄은 지금 묶음의 화면. 지금 묶음과 화면은 방송 색 밑줄 */
+.dk-nav { display: flex; gap: 4px; padding: 0 16px; border-bottom: 1px solid var(--line); background: #fff; overflow-x: auto; scrollbar-width: none; }
+.dk-nav::-webkit-scrollbar { display: none; }
+.dk-nav a { flex: none; padding: 11px 14px 9px; color: var(--dim); font-size: 14.5px; font-weight: 700; text-decoration: none; border-bottom: 3px solid transparent; white-space: nowrap; }
 .dk-nav a:hover { color: var(--text); }
-.dk-nav a[aria-current="page"] { color: var(--text); border-bottom-color: var(--accent); }
-.dk-nav .dk-nav-gap { flex: 1; }
+.dk-nav a[aria-current] { color: var(--text); border-bottom-color: var(--accent); }
+.dk-subnav { display: flex; gap: 6px; padding: 8px 16px; border-bottom: 1px solid var(--line); background: var(--panel); overflow-x: auto; scrollbar-width: none; }
+.dk-subnav::-webkit-scrollbar { display: none; }
+.dk-subnav a { flex: none; padding: 4px 12px; border-radius: 999px; color: var(--dim); font-size: 13px; font-weight: 600; text-decoration: none; white-space: nowrap; }
+.dk-subnav a:hover { color: var(--text); background: #fff; }
+.dk-subnav a[aria-current="page"] { color: var(--on-accent); background: var(--accent); }
 .dk-nav .dk-dot { display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--dk-highlight, #ffd84d) inset; vertical-align: 0; }
+
+/* 머리말의 OBS 연결 표시(누르면 다시 확인) */
+.dk-obs { margin-left: 8px; padding: 3px 10px 3px 22px; border: 1px solid var(--line); border-radius: 999px; background: #fff; color: var(--dim); font: 600 12px/1.6 inherit;
+  position: relative; cursor: pointer; white-space: nowrap; }
+.dk-obs::before { content: ""; position: absolute; left: 9px; top: 50%; width: 8px; height: 8px; margin-top: -4px; border-radius: 50%; background: #b9b2ab; }
+.dk-obs.ok { color: var(--ok); border-color: #b7dcc8; }
+.dk-obs.ok::before { background: var(--ok); }
+.dk-obs.bad { color: var(--bad); border-color: #f0c2bd; }
+.dk-obs.bad::before { background: var(--bad); }
+header .dk-obs:first-of-type { margin-left: auto; }
+
+/* OBS에 넣기가 안 될 때: 할 일, 끌어다 놓기 링크, 주소 복사 */
+button.done::after { content: " (넣음)"; font-weight: 400; }
+.dk-obs-help { flex-basis: 100%; margin-top: 6px; padding: 8px 10px; border: 1px dashed #f0c2bd; border-radius: 4px; background: #fff8f7; font-size: 13px; }
+.dk-obs-help p { margin: 0 0 6px; color: var(--bad); }
+.dk-obs-help .dk-drag { display: inline-block; margin-right: 8px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 3px; background: #fff; color: var(--text);
+  cursor: grab; text-decoration: none; font-weight: 600; }
+
+/* 용어 풀이 ? 단추와 풀이 상자 */
+.dk-help { display: inline-flex; align-items: center; justify-content: center; width: 17px; height: 17px; margin-left: 4px; padding: 0; border: 1px solid #c9c3bd;
+  border-radius: 50%; background: #fff; color: var(--dim); font: 700 11px/1 inherit; cursor: pointer; vertical-align: 1px; }
+.dk-help:hover { color: var(--text); border-color: var(--text); }
+.dk-help-pop { position: absolute; z-index: 60; width: 290px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; background: #fff;
+  box-shadow: 0 8px 24px rgba(30, 35, 39, 0.18); font-size: 13px; line-height: 1.55; }
+.dk-help-pop b { display: block; margin-bottom: 2px; font-size: 13.5px; }
+.dk-help-pop p { margin: 0; color: var(--dim); }
 
 /* 방송 색 강조: 주요 버튼 */
 button.primary, .button.primary { background: var(--accent); border-color: var(--accent-deep); color: var(--on-accent); }
@@ -33,7 +64,7 @@ button.primary, .button.primary { background: var(--accent); border-color: var(-
 body.dock header { padding: 8px 12px; }
 body.dock header h1 { font-size: 15px; }
 body.dock header > a, body.dock .lead { display: none; }
-body.dock .dk-nav { display: none; }
+body.dock .dk-nav, body.dock .dk-subnav, body.dock .dk-obs { display: none; }
 body.dock main { padding: 10px 12px 32px; }
 body.dock section { padding: 12px; }
 body.dock .grid { grid-template-columns: 1fr; gap: 12px; }

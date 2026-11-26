@@ -87,7 +87,7 @@
 <header>
   <img src="/favicon.svg" alt="">
   <h1>debutkit 후원 벽</h1>
-  <a href="/">오버레이 설정 화면</a>
+  <a href="/">시작하기</a>
 </header>
 <main>
   <p class="lead">치지직, SOOP, YouTube, Twitch 후원이 올 때마다 카드 한 장을 방송 화면의 칸에 붙입니다. 칸은 단위(별풍선, 애드벌룬, 원, 비트, 외화)마다 나뉘고, 벽은 비우기 전까지 방송이 끝나도 남습니다. 목표 게이지와 후원 순위도 같은 카드로 계산합니다.</p>
@@ -133,9 +133,9 @@
 
     <section>
       <h2>방송 화면</h2>
-      <div class="url"><span>후원 벽</span><input id="wall-url" readonly aria-label="후원 벽 주소"><button class="secondary small" data-copy="wall-url">복사</button><small>권장 크기 1920x1080, 평소 투명</small></div>
-      <div class="url"><span>목표</span><input id="goal-url" readonly aria-label="목표 게이지 주소"><button class="secondary small" data-copy="goal-url">복사</button><small>권장 크기 1280x240</small></div>
-      <div class="url"><span>순위</span><input id="rank-url" readonly aria-label="후원 순위 주소"><button class="secondary small" data-copy="rank-url">복사</button><small>권장 크기 560x720</small></div>
+      <div class="url"><span>후원 벽</span><input id="wall-url" readonly aria-label="후원 벽 주소"><button class="secondary small" data-copy="wall-url">복사</button><button type="button" class="primary small" data-obs="wall">OBS에 넣기</button><small>권장 크기 1920x1080, 평소 투명</small></div>
+      <div class="url"><span>목표</span><input id="goal-url" readonly aria-label="목표 게이지 주소"><button class="secondary small" data-copy="goal-url">복사</button><button type="button" class="primary small" data-obs="goal">OBS에 넣기</button><small>권장 크기 1280x240</small></div>
+      <div class="url"><span>순위</span><input id="rank-url" readonly aria-label="후원 순위 주소"><button class="secondary small" data-copy="rank-url">복사</button><button type="button" class="primary small" data-obs="rank">OBS에 넣기</button><small>권장 크기 560x720</small></div>
       <p class="hint">OBS 브라우저 소스로 추가합니다. 크기를 줄여도 비율대로 줄어듭니다.</p>
       <h3>OBS 안에서 조작</h3>
       <div class="url"><span>조작 화면</span><input id="control-url" readonly aria-label="조작 화면 주소"><button class="secondary small" data-copy="control-url">복사</button></div>

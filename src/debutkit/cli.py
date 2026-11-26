@@ -113,7 +113,7 @@ def _camera(args: argparse.Namespace) -> int:
     where = ", ".join(result["added"]) + " 장면에 추가" if result["added"] else ", ".join(result["kept"]) + " 장면에 이미 있음"
     print(f"OBS 소스 {camera.SOURCE_NAME} {done}, {where}. 상태: {state['text']}")
     if args.app:
-        print("앱 등록: 오버레이 설정 화면의 휴대폰 연결에서 휴대폰 조작 화면을 켜고 QR 등록, PC에서 승인")
+        print("앱 등록: 시작하기 화면의 휴대폰 연결에서 휴대폰 조작 화면을 켜고 QR 등록, PC에서 승인")
         return 0
     print("OBS가 처음 수신할 때 Windows 보안 경고가 나오면 개인 네트워크 허용")
     print(_camera_info(camera.connection_info(config)))
@@ -181,7 +181,7 @@ def _overlay(args: argparse.Namespace) -> int:
 
     record = logs.setup("overlay")
     server.hub.taps.append(logs.status)  # 상태 안내(연결, 클립 저장, 오류)만 이 PC의 기록 파일에. 채팅 내용은 기록하지 않음
-    print(f"오버레이 실행 중: {server.url}  (설정 화면)")
+    print(f"오버레이 실행 중: {server.url}  (시작하기 화면: 방송 준비 목록, OBS에 넣기)")
     print(f"  채팅창  {server.url}/chat")
     print(f"  알림    {server.url}/alerts")
     print("  연결: " + ", ".join(label for label, _ in sources))

@@ -79,14 +79,14 @@
 <header>
   <img src="/favicon.svg" alt="">
   <h1>debutkit 참여 레이스</h1>
-  <a href="/">오버레이 설정 화면</a>
+  <a href="/">시작하기</a>
 </header>
 <main>
   <p class="lead">시청자 이름이 방송 화면에서 경주합니다. 참가자는 시청자 참여 추첨 명단(채팅 참가 명령, 후원 참가, 직접 추가)과 붙여 넣은 이름입니다. 순위는 시작할 때 이 PC의 debutkit이 운영체제 난수로 정하고, 방송 화면과 미리보기는 같은 결과를 그립니다. 명단과 결과는 파일로 저장하지 않습니다.</p>
   <div class="grid">
     <section>
       <h2>방송 화면</h2>
-      <div class="url"><input id="race-url" readonly aria-label="방송 화면 주소"><button data-copy="race-url">복사</button></div>
+      <div class="url"><input id="race-url" readonly aria-label="방송 화면 주소"><button class="secondary" data-copy="race-url">복사</button><button type="button" class="primary small" data-obs="race">OBS에 넣기</button></div>
       <p class="hint">OBS 브라우저 소스로 추가합니다. 크기 1920x1080. 평소에는 투명하고 레이스를 시작하면 나타납니다. 경기 중에 연 화면은 지금 장면부터 이어서 그립니다.</p>
       <div class="row">
         <button class="secondary small" id="preview-toggle">미리보기 켜기</button>

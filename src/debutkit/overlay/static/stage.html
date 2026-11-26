@@ -37,6 +37,11 @@
     .styles button small { display: block; font-weight: 400; color: var(--dim); font-size: 11.5px; }
     .styles button .chip { position: absolute; left: 10px; right: 10px; bottom: 8px; height: 16px; }
     .styles button[aria-pressed="true"] { border-color: var(--text); }
+    .combos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .combos button { min-height: 64px; padding: 8px 8px 26px; position: relative; text-align: left; border: 2px solid transparent; background: var(--panel); color: var(--text);
+      font-size: 13px; font-weight: 700; line-height: 1.3; }
+    .combos button .chip { position: absolute; left: 8px; right: 8px; bottom: 7px; height: 14px; }
+    .combos button[aria-pressed="true"] { border-color: var(--text); }
     .styles h3 { grid-column: 1 / -1; margin: 4px 0 0; font-size: 13px; color: var(--dim); font-weight: 700; }
     .games { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
     .games button { position: relative; text-align: left; padding: 7px 10px; background: var(--panel); color: var(--text); border: 2px solid transparent;
@@ -76,6 +81,12 @@
   <header><img src="/favicon.svg" alt=""><h1>방송 화면 미리보기</h1></header>
   <main>
     <aside>
+      <section>
+        <h2>추천 조합</h2>
+        <div class="combos" id="combos"></div>
+        <p class="hint">누르면 방송 스타일과 색이 함께 바뀌고 OBS 화면에도 바로 나옵니다. 마음에 드는 조합에서 시작해 아래에서 색, 글꼴, 게임 배치를 고칩니다.</p>
+        <div class="row"><button class="secondary" id="combo-reset" type="button">처음 상태로(방송 소품, 핑크)</button></div>
+      </section>
       <section>
         <h2>방송 화면에 놓을 것</h2>
         <div id="layers"></div>
@@ -156,7 +167,7 @@
           <label>내 글꼴 올리기(TTF, OTF, WOFF, WOFF2)<input type="file" id="font-file" accept=".ttf,.otf,.woff,.woff2,font/*"></label>
           <div class="row" id="user-fonts"></div>
         </div>
-        <p class="hint">스타일 기본은 스타일마다 어울리는 글꼴입니다. 픽셀, 다이어리 스타일은 도트, 손글씨 글꼴이 설치되어 있으면 씁니다. 올린 글꼴은 이 PC의 설정 폴더에만 보관하며, 방송에 쓸 수 있는 라이선스인지 확인하십시오.</p>
+        <p class="hint">스타일 기본은 스타일마다 어울리는 글꼴입니다(레트로 픽셀은 갈무리11, 다이어리는 개구를 함께 배포). 올린 글꼴은 이 PC의 설정 폴더에만 보관하며, 방송에 쓸 수 있는 라이선스인지 확인하십시오.</p>
       </section>
       <section>
         <h2>배경</h2>
@@ -352,7 +363,28 @@
         return button;
       }));
     }
+    //: 추천 조합: [이름, 방송 스타일, 색 조합]
+    const COMBOS = [["귀여운 파스텔", "pastel", "pink"], ["깔끔한 미니멀", "minimal", "sky"], ["네온 게이머", "neon", "purple"],
+      ["아늑한 다이어리", "diary", "coral"], ["별빛 밤하늘", "night", "lavender"], ["레트로 게임", "pixel", "mint"]];
+    function showCombos(theme) {
+      $("combos").replaceChildren(...COMBOS.map(([name, style, preset]) => {
+        const look = (theme.styles || {})[style];
+        const colors = (theme.presets || {})[preset];
+        if (!look || !colors) return document.createTextNode("");
+        const button = document.createElement("button");
+        button.type = "button";
+        button.setAttribute("aria-pressed", String(theme.style === style && theme.preset === preset));
+        button.textContent = name;
+        const chip = document.createElement("span");
+        chip.className = "chip";
+        Object.assign(chip.style, { background: look.surface, border: `2px solid ${colors.primary}`, borderRadius: look.radius, boxShadow: `inset 10px 0 0 ${colors.primary}` });
+        button.appendChild(chip);
+        button.addEventListener("click", () => saveTheme({ style, preset }, `${name} 조합으로 바꿈`));
+        return button;
+      }));
+    }
     function showTheme(theme) {
+      showCombos(theme);
       showStyles(theme);
       $("primary").value = theme.primary;
       $("highlight").value = theme.highlight;
@@ -385,6 +417,7 @@
       showTheme(theme);
     });
     $("save-theme").addEventListener("click", () => saveTheme({ primary: $("primary").value, highlight: $("highlight").value }));
+    $("combo-reset").addEventListener("click", () => saveTheme({ style: "prop", preset: "pink", display_font: "", text_font: "" }, "처음 상태로 돌림"));
     $("from-logo").addEventListener("click", () => saveTheme({ from_logo: true }));
     $("display-font").addEventListener("change", () => saveTheme({ display_font: $("display-font").value }, "제목 글꼴을 바꿈"));
     $("text-font").addEventListener("change", () => saveTheme({ text_font: $("text-font").value }, "본문 글꼴을 바꿈"));

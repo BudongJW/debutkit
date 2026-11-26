@@ -811,7 +811,8 @@ class OverlayServer:
         #: 방송 연출 기능(feature.py의 default_features: 뽑기판, 후원 벽, 참여 레이스 등)
         self.features = features_.default_features(features_.Context(notify=lambda text: self.hub.publish(system_event(text)),
                                                                      publish=self.hub.publish, raffle=self.raffle,
-                                                                     draw=self.draw, tracking=self.tracking, port_of=lambda: self.port))
+                                                                     draw=self.draw, tracking=self.tracking, port_of=lambda: self.port,
+                                                                     obs=lambda: self.obs_target))
         for part in self.features:
             self.hub.taps.extend(part.taps)
         self._sources = list(sources)

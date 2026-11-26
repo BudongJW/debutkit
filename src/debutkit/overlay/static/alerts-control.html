@@ -58,7 +58,7 @@
   </style>
 </head>
 <body>
-  <header><img src="/favicon.svg" alt=""><h1>알림 꾸미기</h1><a href="/">설정 화면</a></header>
+  <header><img src="/favicon.svg" alt=""><h1>알림 꾸미기</h1><a href="/">시작하기</a></header>
   <main>
     <div class="stack">
       <section>
@@ -131,9 +131,9 @@
         <div class="row"><button class="secondary small" id="test-live">방송 화면으로 시험 알림</button></div>
       </section>
       <section>
-        <h2>OBS 주소</h2>
-        <div class="url"><input id="url" readonly aria-label="알림 주소"><button class="small" id="copy">복사</button></div>
-        <p class="hint">권장 크기 1920x1080. 알림 소스를 여러 개 다르게 쓸 때는 주소 뒤에 <code>?style=neon&amp;position=bottom</code>처럼 붙입니다.</p>
+        <h2>OBS에 넣기</h2>
+        <div class="url"><input id="url" readonly aria-label="알림 주소"><button class="small secondary" id="copy">주소 복사</button><button type="button" class="primary small" data-obs="alerts">OBS에 넣기</button></div>
+        <p class="hint">OBS에 넣기는 알림 소리도 방송으로 보내고 내 헤드폰에도 들리게 맞춥니다. 알림 소스를 여러 개 다르게 쓸 때는 주소 뒤에 <code>?style=neon&amp;position=bottom</code>처럼 붙여 직접 넣습니다(크기 1920x1080).</p>
       </section>
     </div>
   </main>

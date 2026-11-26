@@ -1176,7 +1176,7 @@ class Wizard(QMainWindow):
         self.overlay_button = QPushButton("오버레이 시작")
         self.overlay_button.setObjectName("Primary")
         self.overlay_button.clicked.connect(self.toggle_overlay)
-        self.open_button = QPushButton("설정 화면 열기(주소 복사, 테스트 메시지)")
+        self.open_button = QPushButton("시작하기 화면 열기(OBS에 넣기, 시험 메시지)")
         self.open_button.setEnabled(False)
         self.open_button.clicked.connect(lambda: self.server and self.backend.open_url(self.server.url))
         self.draw_button = QPushButton("추첨 조작 화면")
