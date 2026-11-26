@@ -494,6 +494,7 @@ debutkit camera status                # 휴대폰 연결 대기, 수신 중</cod
               <tr><th scope="row"><code>http://127.0.0.1:8790</code></th><td>설정 화면. 주소 복사, 표시 형태 선택, 미리보기, 테스트 메시지, 캐릭터 음량과 말하기 시험</td></tr>
               <tr><th scope="row"><code>/chat</code></th><td>통합 채팅창. 권장 크기 420x1000</td></tr>
               <tr><th scope="row"><code>/alerts</code></th><td>후원, 구독 알림. 권장 크기 1920x1080</td></tr>
+              <tr><th scope="row"><code>/alerts/control</code></th><td>알림 꾸미기(스타일, 배치, 위치, 문구, 효과음, 금액 구간별 그림과 효과). OBS 사용자 지정 브라우저 독으로도 사용</td></tr>
               <tr><th scope="row"><code>/character</code></th><td>debutkit 캐릭터 화면(PNGTuber, 3D). 권장 크기 720x900</td></tr>
               <tr><th scope="row"><code>/tracker</code></th><td>웹캠 얼굴 추적 화면. OBS가 아닌 일반 브라우저(Chrome, Edge)에서 엽니다</td></tr>
               <tr><th scope="row"><code>/draw</code></th><td>후원 추첨 연출. 권장 크기 1920x1080. 평소에는 투명</td></tr>
@@ -535,13 +536,18 @@ debutkit settings                                # 저장 내용 확인</code></
           <table>
             <thead><tr><th>값</th><th>내용</th><th>기본값</th></tr></thead>
             <tbody>
-              <tr><th scope="row"><code>theme</code></th><td><code>shadow</code>(글자 그림자), <code>bubble</code>(말풍선), <code>card</code>(이름 줄 분리, 플랫폼 색 표시), <code>outline</code>(외곽선 글자), <code>light</code>(밝은 말풍선)</td><td>shadow</td></tr>
+              <tr><th scope="row"><code>theme</code></th><td><code>shadow</code>(글자 그림자), <code>bubble</code>(말풍선), <code>card</code>(이름 줄 분리, 플랫폼 색 표시), <code>outline</code>(외곽선 글자), <code>light</code>(밝은 말풍선), <code>style</code>(방송 스타일 카드)</td><td>shadow</td></tr>
+              <tr><th scope="row"><code>look</code></th><td>방송 스타일 카드를 채팅창만 다른 스타일로(<code>prop</code>, <code>pastel</code>, <code>neon</code>, <code>pixel</code>, <code>glass</code>, <code>diary</code>, <code>night</code>, <code>minimal</code>)</td><td>방송 스타일</td></tr>
+              <tr><th scope="row"><code>names</code></th><td>이름 색. <code>user</code>(시청자가 고른 색), <code>viewer</code>(시청자마다 다른 색, 같은 이름은 같은 색), <code>theme</code>(방송 색), <code>platform</code>(플랫폼 색)</td><td>user</td></tr>
+              <tr><th scope="row"><code>enter</code></th><td>등장 움직임. <code>rise</code>(아래에서), <code>slide</code>(옆에서), <code>pop</code>(톡 튀어나옴), <code>style</code>(방송 스타일 움직임), <code>none</code></td><td>rise</td></tr>
+              <tr><th scope="row"><code>align</code>, <code>direction</code></th><td>정렬(<code>left</code>, <code>right</code>)과 쌓이는 방향(<code>up</code> 아래부터, <code>down</code> 위부터)</td><td>left, up</td></tr>
+              <tr><th scope="row"><code>emote</code>, <code>roles</code></th><td>이모티콘 크기(글자 크기의 1~4배), 0이면 스트리머와 매니저 표시 생략</td><td>1.4, 1</td></tr>
               <tr><th scope="row"><code>font</code></th><td>글자 크기(px)</td><td>22</td></tr>
               <tr><th scope="row"><code>max</code></th><td>표시 줄 수</td><td>12</td></tr>
               <tr><th scope="row"><code>fade</code></th><td>지정한 초가 지나면 사라짐. 0은 계속 표시</td><td>0</td></tr>
               <tr><th scope="row"><code>platform</code></th><td>0이면 플랫폼 표시 생략</td><td>1</td></tr>
               <tr><th scope="row"><code>hide</code></th><td>숨길 종류 또는 플랫폼(쉼표로 구분)</td><td>system</td></tr>
-              <tr><th scope="row"><code>seconds</code></th><td>알림 표시 시간(<code>/alerts</code>)</td><td>6</td></tr>
+              <tr><th scope="row"><code>style</code>, <code>layout</code>, <code>position</code>, <code>enter</code>, <code>seconds</code>, <code>scale</code></th><td>알림(<code>/alerts</code>)의 스타일, 배치, 위치, 등장, 표시 시간, 크기(%). 알림 꾸미기 설정보다 우선하므로 알림 소스를 여러 개 다르게 둘 때 씁니다</td><td>알림 꾸미기 설정</td></tr>
             </tbody>
           </table>
         </div>
@@ -553,6 +559,22 @@ debutkit settings                                # 저장 내용 확인</code></
           <li>알림 소리를 내보내려면 브라우저 소스 속성의 OBS 오디오 제어 항목을 체크합니다.</li>
           <li>세부 디자인은 브라우저 소스 속성의 사용자 지정 CSS로 변경할 수 있습니다.</li>
           <li>테스트 채팅과 테스트 후원은 외부로 전송되지 않으며 설정 화면과 OBS에만 표시됩니다.</li>
+        </ul>
+        <h3 id="overlay-alerts-design">알림 꾸미기</h3>
+        <p>후원, 구독 알림의 모양과 소리를 정합니다. 바꾼 설정은 OBS 소스를 새로고침하지 않아도 방송 화면에 바로 반영됩니다.</p>
+        <ol class="procedure">
+          <li>설정 화면의 후원, 구독 알림 카드에서 알림 꾸미기를 누르거나 <code>http://127.0.0.1:8790/alerts/control</code>을 엽니다.</li>
+          <li>스타일(방송 스타일 따르기 또는 알림만 다른 스타일), 배치, 위치, 등장 움직임, 표시 시간, 크기를 고릅니다.</li>
+          <li>후원 문구와 구독 문구를 입력합니다. <code>{name}</code>은 후원자 이름, <code>{amount}</code>는 금액 자리입니다.</li>
+          <li>금액 구간을 추가하고 구간마다 그림, 강조 효과, 표시 시간, 효과음을 정합니다. 그림은 먼저 그림 올리기로 올립니다.</li>
+          <li>미리보기에서 작은 후원, 큰 후원, 별풍선, 구독 예시를 확인하고 저장합니다. 방송 화면으로 시험 알림은 OBS의 알림 소스에 시험 후원을 보냅니다.</li>
+        </ol>
+        <ul>
+          <li>배치 6종: 카드, 가로 띠(화면 아래 한 줄), 말풍선, 큰 글자(바탕 없음), 그림 옆 글자, 그림 위 카드</li>
+          <li>강조 효과 5종: 반짝이, 종이 조각, 흔들림, 빛 번짐, 크게. 큰 후원 구간에만 넣으면 금액에 따라 연출이 달라집니다.</li>
+          <li>금액 구간은 원 기준이며 SOOP 별풍선은 1개 100원으로 계산합니다. Twitch 비트와 외화 후원은 최소 금액 0 구간을 씁니다.</li>
+          <li>효과음 5종(차임, 동전, 팡파르, 퐁, 방울)은 브라우저에서 합성하며 OBS 브라우저 소스 속성의 OBS 오디오 제어를 켠 경우 방송에 나갑니다.</li>
+          <li>올린 그림(PNG, GIF, WebP, JPEG, 8 MB 이하, 30개까지)은 이 PC의 설정 폴더 <code>alert-images</code>에만 보관합니다. 그림을 지우면 그 그림을 쓰던 구간은 그림 없이 표시합니다.</li>
         </ul>
         <h3 id="overlay-draw">후원 추첨</h3>
         <p>후원이 오면 상품표에서 확률대로 뽑아 방송 화면에 카드 뒤집기, 룰렛, 캡슐 뽑기, 즉석 복권, 티켓 출력, 추첨기, 타로 중 고른 연출로 표시합니다. 평소에는 투명하고 추첨할 때만 화면 아래쪽에 나타납니다. 고양이 귀 마이크 문양을 찍은 카드와 무대용 상품 룰렛, 후원자와 금액을 표시하는 하단 띠로 구성됩니다.</p>
@@ -641,10 +663,13 @@ debutkit remote approve 기기                   # 승인(remove로 삭제)</cod
 
         <h2 id="stage">방송 연출(뽑기판, 후원 벽, 참여 레이스)</h2>
         <p>뽑기판, 후원 벽, 참여 레이스는 오버레이와 함께 실행되는 방송 화면입니다. <code>debutkit scenes</code>로 만든 본방송과 토크 장면에 숨긴 채로 들어 있으므로 쓸 때 OBS 소스 목록의 눈 아이콘으로 켭니다. 조작 화면은 OBS 독(사용자 지정 브라우저 독)으로도 씁니다. 모든 조작 화면 위의 이동 막대로 화면 사이를 오갑니다.</p>
-        <h3 id="stage-preview">방송 화면 미리보기와 방송 색</h3>
+        <h3 id="stage-preview">방송 화면 미리보기, 방송 색, 방송 스타일</h3>
         <ul>
           <li><code>http://127.0.0.1:8790/stage</code>는 채팅, 캐릭터, 알림, 추첨, 후원 벽, 목표 게이지, 순위, 뽑기판, 레이스를 OBS 장면과 같은 자리에 겹쳐 보여 줍니다. 시험 후원(단위와 금액), 시험 채팅, 구독으로 후원 하나가 여러 화면에 어떻게 나오는지 확인합니다.</li>
           <li>방송 색: 색 조합 12종 중 하나를 고르거나 주 색과 강조 색(희귀, 금박)을 직접 고릅니다. 로고 만들기에서 저장한 로고의 색을 가져올 수도 있습니다. 채팅, 알림, 추첨 소품, 뽑기판, 후원 벽, 레이스, 조작 화면이 같은 색을 쓰며 OBS 소스를 새로고침하지 않아도 바뀝니다. 뽑기판과 레이스에서 다른 색을 고르면 그 색이 우선합니다.</li>
+          <li>방송 스타일 8종(방송 소품, 파스텔 몽글, 네온, 레트로 픽셀, 유리, 다이어리, 밤하늘, 미니멀): 모서리, 테두리, 그림자, 바탕, 글꼴, 등장 움직임을 묶어서 바꿉니다. 알림, 채팅창(방송 스타일 카드), 후원 벽, 목표 게이지, 후원 순위가 따르며 방송 색과 함께 씁니다. 알림과 채팅창은 각각 다른 스타일을 고를 수도 있습니다.</li>
+          <li>글꼴: 제목 글꼴(이름, 금액, 제목)과 본문 글꼴(메시지, 설명)을 따로 고릅니다. 함께 배포한 글꼴, Windows와 macOS 기본 한글 글꼴, 이 PC에 설치한 글꼴 이름을 쓸 수 있고, 글꼴 파일(TTF, OTF, WOFF, WOFF2, 20 MB 이하)을 올릴 수도 있습니다. 올린 글꼴은 방송에 쓸 수 있는 라이선스인지 확인합니다.</li>
+          <li>레트로 픽셀과 다이어리 스타일은 도트 글꼴(Galmuri, 둥근모)과 손글씨 글꼴(나눔손글씨 펜, Gaegu)이 이 PC에 설치되어 있으면 쓰고, 없으면 기본 글꼴로 표시합니다.</li>
           <li>모든 방송 화면은 공유 연결 하나로 debutkit의 값을 받습니다. 브라우저는 같은 주소에 동시 연결을 6개까지만 열어(OBS 브라우저 소스끼리도 공유) 화면마다 연결하면 일부 화면이 멈출 수 있기 때문입니다.</li>
           <li>화면 가운데를 크게 쓰는 연출(후원 추첨, 참여 추첨 결과, 뽑기판 결과)은 겹치지 않게 먼저 온 것부터 하나씩 나옵니다. 알림, 후원 벽 카드, 채팅은 함께 나옵니다.</li>
         </ul>
@@ -899,7 +924,7 @@ debutkit overlay --youtube 영상ID --youtube-interval 15</code></pre>
           <li>사용 통계를 전송하지 않습니다.</li>
           <li>외부 연결은 직접 실행한 경우에만 발생합니다: 업로드 속도 측정(Cloudflare 측정 서버, speed.cloudflare.com에 최대 31 MB의 임의 데이터 전송), 새 버전 확인(GitHub), ffmpeg 다운로드(GitHub), 로고 만들기의 생성형 AI(사용자가 고른 서비스). PC 정보는 전송하지 않습니다.</li>
           <li>오버레이 서버는 127.0.0.1에서만 열리며, 다른 웹사이트의 요청은 Host, Origin 확인으로 차단합니다.</li>
-          <li>뽑기판의 판과 열기 기록(<code>pick.json</code>), 후원 벽의 후원자 닉네임과 금액(<code>wall.json</code>, 시그니처 그림은 <code>wall</code> 폴더), 참여 레이스 설정(<code>race.json</code>, 참가자 명단과 결과는 메모리에만), 방송 색(<code>theme.json</code>)은 설정 폴더에만 보관하며 외부로 보내지 않습니다.</li>
+          <li>뽑기판의 판과 열기 기록(<code>pick.json</code>), 후원 벽의 후원자 닉네임과 금액(<code>wall.json</code>, 시그니처 그림은 <code>wall</code> 폴더), 참여 레이스 설정(<code>race.json</code>, 참가자 명단과 결과는 메모리에만), 방송 색과 방송 스타일(<code>theme.json</code>, 올린 글꼴은 <code>fonts</code> 폴더), 알림 꾸미기(<code>alerts.json</code>, 올린 그림은 <code>alert-images</code> 폴더)는 설정 폴더에만 보관하며 외부로 보내지 않습니다.</li>
           <li>방송 시작 버튼의 세팅(프로그램 경로, 사이트 주소, 창 위치)과 이번 방송에 끈 프로그램 목록은 설정 폴더의 <code>launcher.json</code>, <code>launcher-session.json</code>에만 보관합니다.</li>
           <li>VMC 송신은 얼굴 추적 숫자 값만 사용자가 지정한 이 PC나 같은 네트워크의 프로그램으로 보내며, 인터넷 주소는 받는 곳으로 지정할 수 없습니다.</li>
           <li>채팅은 저장하지 않으며 화면 표시용 최근 30개만 메모리에 유지합니다. 자동 클립의 급증 판단에는 닉네임을 해시로만 사용합니다. 후원 추첨 결과(후원자 이름 포함)도 파일로 저장하지 않고 최근 100개만 메모리에 둡니다. 시청자 참여 추첨 명단도 메모리에만 두며 모집을 새로 시작하면 지웁니다.</li>

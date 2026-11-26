@@ -32,8 +32,8 @@ PC 점검, OBS 장면 구성, 통합 채팅창과 후원 알림, 방송 중 자�
 | PC 점검 | `debutkit doctor` | 메모리, CPU, 그래픽카드, 저장 공간, 마이크, 웹캠, OBS, 트래킹 프로그램, ffmpeg 점검 및 조치 안내. 아바타 모델(VRM) 사용 조건 확인, 업로드 속도 측정 |
 | 캐릭터 | `debutkit character`, `debutkit motion` | PNGTuber, 3D(VRM, GLB, FBX), Live2D 등록과 사용 조건 확인. PNGTuber와 3D는 debutkit 캐릭터 화면으로 방송(OBS 마이크 음량으로 입 움직임, 웹캠 얼굴 추적, 아이폰 얼굴 추적 `debutkit phone`, 퍼펙트 싱크). 얼굴 추적 값을 VMC 프로토콜로 Warudo, VSeeFace, VMagicMirror에 보내기(`debutkit vmc`). 3D 캐릭터 동작(VRMA, Mixamo 등의 FBX, GLB)으로 기본 동작과 후원 반응. Live2D는 VTube Studio로 보내기, 모델 불러오기, 후원 시 단축키 실행(`debutkit vts`) |
 | OBS 장면 구성 | `debutkit scenes`, `debutkit camera` | 대기 화면, 본방송, 토크, 자리 비움, 엔딩 장면 생성. 아바타 투명 배경 캡처, 채팅창과 후원 알림 연결. 휴대폰 카메라 영상(SRT, 암호)을 받는 OBS 소스와 휴대폰 앱 연결 QR |
-| 채팅창과 후원 알림 | `debutkit overlay`, `debutkit draw`, `debutkit raffle` | OBS 브라우저 소스용 통합 채팅창과 후원 알림. 표시 형태 5종. 후원 추첨 연출 7종(카드 뒤집기, 룰렛, 캡슐 뽑기, 즉석 복권, 티켓 출력, 추첨기, 타로, 상품과 확률표, 금액별 추첨 횟수). 시청자 참여 추첨(채팅 !참가로 모집, 당첨자 뽑기, 순서 정하기). 스트리머, 매니저 채팅 명령. 휴대폰 조작 화면(`debutkit remote`, QR 등록과 PC 승인, 요청 서명) |
-| 방송 연출 | `debutkit pick`, `debutkit wall`, `debutkit race` | 뽑기판(당첨 칸은 조작 화면에서만, 채팅과 후원으로 시청자가 열기, 배치 공정성 확인), 후원 벽(단위별 카드 벽지, 시그니처 그림, 목표 게이지, 후원 순위), 참여 레이스(구슬 레이스, 달리기 경주, 서바이벌). 방송 화면 미리보기(`/stage`)와 방송 색(모든 화면의 색 맞춤). 모든 방송 화면이 공유 연결 하나를 쓰고 가운데 연출은 차례로 |
+| 채팅창과 후원 알림 | `debutkit overlay`, `debutkit draw`, `debutkit raffle` | OBS 브라우저 소스용 통합 채팅창과 후원 알림. 채팅창 표시 형태 6종(방송 스타일 카드 포함)과 이름 색, 등장, 정렬. 알림 꾸미기(`/alerts/control`: 배치 6종, 위치 9곳, 문구, 효과음, 금액 구간별 그림과 강조 효과). 후원 추첨 연출 7종(카드 뒤집기, 룰렛, 캡슐 뽑기, 즉석 복권, 티켓 출력, 추첨기, 타로, 상품과 확률표, 금액별 추첨 횟수). 시청자 참여 추첨(채팅 !참가로 모집, 당첨자 뽑기, 순서 정하기). 스트리머, 매니저 채팅 명령. 휴대폰 조작 화면(`debutkit remote`, QR 등록과 PC 승인, 요청 서명) |
+| 방송 연출 | `debutkit pick`, `debutkit wall`, `debutkit race` | 뽑기판(당첨 칸은 조작 화면에서만, 채팅과 후원으로 시청자가 열기, 배치 공정성 확인), 후원 벽(단위별 카드 벽지, 시그니처 그림, 목표 게이지, 후원 순위), 참여 레이스(구슬 레이스, 달리기 경주, 서바이벌). 방송 화면 미리보기(`/stage`), 방송 색(모든 화면의 색 맞춤), 방송 스타일 8종(파스텔, 네온, 레트로 픽셀, 유리, 다이어리, 밤하늘, 미니멀 등 모양, 바탕, 글꼴, 등장 묶음)과 글꼴(설치한 글꼴, 내 글꼴 올리기). 모든 방송 화면이 공유 연결 하나를 쓰고 가운데 연출은 차례로 |
 | 휴대폰 앱 | `mobile/` | 안드로이드(APK, MediaPipe), 아이폰(ARKit, 소스 빌드) 얼굴 추적과 카메라 영상(WebRTC, OBS 브라우저 소스로 직접 전송) 앱. 같은 QR로 등록하고 PC에서 승인, 서명된 요청과 값만 사용. 안드로이드는 PC 없이 바로 방송(캐릭터 화면 또는 카메라 영상을 치지직, SOOP, YouTube, Twitch로 송출) 지원. [mobile/README.md](mobile/README.md) |
 | OBS 없이 바로 방송 | `debutkit broadcast` | Windows. 캐릭터, 채팅, 후원 알림, 추첨 연출을 모은 송출 화면을 치지직, SOOP, YouTube, Twitch로 바로 송출(ffmpeg 창 캡처, 하드웨어 H.264, 마이크). 스트림 키는 암호화 저장. 토크 방송용(게임 방송은 OBS) |
 | 방송 로고 만들기 | `debutkit logo` | 함께 배포하는 아이콘(Fluent Emoji 356개, Phosphor 102개 굵기 6종, MIT, 한국어 검색, 채널 색 다시 칠하기)과 기본 도형 8종, 계정 없는 공개 모델 AI Horde(FLUX.1 schnell, 대기열 백그라운드 대기), 공개 이미지 모델 Qwen-Image(사용자의 ComfyUI 또는 Hugging Face 공개 데모) 또는 사용자 본인 API 키의 생성형 AI(Claude, OpenAI, Recraft) 심볼과 채널 이름(글꼴 윤곽선)으로 SVG, 투명 PNG 로고. 외곽선과 스티커 테두리 마감, 아이콘 출처와 AI 생성 표시 메타데이터, 받은 SVG 정리, API 키 암호화 저장 |
@@ -82,7 +82,8 @@ debutkit launch add 방송 "C:/Program Files/obs-studio/bin/64bit/obs64.exe" && 
 debutkit clip shorts 클립.mp4 --mode crop --focus 0.8   # 세로 쇼츠
 ```
 
-- 방송 화면 미리보기: http://127.0.0.1:8790/stage (모든 방송 화면을 겹쳐 보기, 시험 후원, 방송 색)
+- 방송 화면 미리보기: http://127.0.0.1:8790/stage (모든 방송 화면을 겹쳐 보기, 시험 후원, 방송 색, 방송 스타일, 글꼴)
+- 알림 꾸미기: http://127.0.0.1:8790/alerts/control
 
 - OBS 장면 생성 전 OBS의 도구 메뉴에서 WebSocket 서버 사용 설정 필요
 - 오버레이 설정 화면: http://127.0.0.1:8790 (OBS용 주소 복사, 표시 형태 선택, 미리보기, 시험 메시지)
