@@ -1,4 +1,4 @@
-함께 배포하는 외부 라이브러리, 글꼴, 아이콘(캐릭터 화면의 VRM 표시, 동작 재생, 얼굴 추적, 후원 추첨 연출과 로고의 글꼴, 로고 심볼 아이콘).
+함께 배포하는 외부 라이브러리, 글꼴, 아이콘(캐릭터 화면의 VRM 표시, 동작 재생, 얼굴 추적, 후원 추첨 연출과 로고와 방송 스타일의 글꼴, 로고 심볼 아이콘).
 라이브러리와 글꼴은 원본 파일을 수정하지 않고 포함. 아이콘은 일부만 골라 숫자 자릿수를 줄인 묶음(packaging/build_icons.py).
 
 three 0.187.0 (MIT) https://github.com/mrdoob/three.js
@@ -15,6 +15,12 @@ Black Han Sans (SIL OFL 1.1, 예약 글꼴 이름 없음) https://github.com/zes
   출처 https://github.com/google/fonts/tree/main/ofl/blackhansans (BlackHanSans-Regular.ttf를 글리프 변경 없이 woff2로 변환), 라이선스 fonts/OFL-BlackHanSans.txt
 Pretendard 1.3.9 (SIL OFL 1.1, 예약 글꼴 이름 Pretendard) https://github.com/orioncactus/pretendard
   출처 https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/static/woff2-subset/ (제작자 배포 파일 그대로, SemiBold, Bold), 라이선스 fonts/OFL-Pretendard.txt
+Galmuri 2.40.4 (SIL OFL 1.1, 예약 글꼴 이름 없음, Copyright Lee Minseo) https://github.com/quiple/galmuri
+  출처 https://raw.githubusercontent.com/quiple/galmuri/v2.40.4/dist/ (제작자 배포 파일 그대로, Galmuri11 보통, 굵게. 레트로 픽셀 스타일), 라이선스 fonts/OFL-Galmuri.txt
+Gaegu (SIL OFL 1.1, 예약 글꼴 이름 없음, Copyright The Gaegu Project Authors) https://github.com/google/fonts/tree/main/ofl/gaegu
+  출처 google/fonts 커밋 088df5c822dacc8fad9dd64dbbe5649cd6830e99의 Gaegu-Regular.ttf, Gaegu-Bold.ttf를 글리프 변경 없이 woff2로 변환(다이어리 스타일),
+  라이선스 fonts/OFL-Gaegu.txt. 한글은 자주 쓰는 2,350자(KS X 1001)만 있어 그 밖의 글자는 다음 글꼴로 표시
+쓰지 않는 글꼴: 나눔손글씨 펜(OFL이지만 예약 글꼴 이름 Nanum이 있어 줄이거나 바꾸면 이름을 바꿔야 함)
 MediaPipe Face Landmarker 모델 face_landmarker.task (float16, 버전 1, Apache-2.0)
   출처 https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task
 Microsoft Fluent Emoji (MIT, Copyright (c) Microsoft Corporation) https://github.com/microsoft/fluentui-emoji
@@ -31,6 +37,12 @@ SHA-256
   999152fa183e30112f2506d3c371e8edb2216163d6950a94f593d03a07fbd7b9  fonts/BlackHanSans-Regular.woff2
   c324192c8b3a988bae45a9a7e4ac1258b684739003bda114e0523423440457c9  fonts/OFL-BlackHanSans.txt
   b04538c9abec39a3db75108cf0af0fd9c77032fe8aa2cf38345b4d250e98e38e  fonts/OFL-Pretendard.txt
+  bdabf8de5b6c1fe8aa6d018fdc664c9d9396306adcc5dea0632c14a9ecd56f3e  fonts/Gaegu-Bold.woff2
+  fb3a27f6e84fb2a479c961354e001cab05777c3d4061fac670145012d0566c6c  fonts/Gaegu-Regular.woff2
+  8643094f395aa2dbad6bc4385cc043314801eaec2e759d549435ec8ac4f2d078  fonts/Galmuri11-Bold.woff2
+  f467d1b10e6b88dfa8399c9f93b38c7643e050abfe4fc15800ac0b000f5a57d6  fonts/Galmuri11.woff2
+  53a9ce47085d9fef613c7ecb3730dc80d25962510bbea231b89564f58240f251  fonts/OFL-Gaegu.txt
+  9a9e5a342c430c3fcf01a408b680f4405d5bf4ac659c931be35f8a1b27ea69c9  fonts/OFL-Galmuri.txt
   78eb71c33101ee7d4f8d1b777d193a12d00f8a296e712a8c417cf27abe946397  fonts/Pretendard-Bold.subset.woff2
   4247dc5e260b92640c2cbd0e75091154647b71e1d5884116655e2903468c54cc  fonts/Pretendard-SemiBold.subset.woff2
   646f8936b8ddcd14e13e578ff6857e368780b0d1a4f6066bee89211923a373e2  icons/LICENSE-fluent-emoji.txt

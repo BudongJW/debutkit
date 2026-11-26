@@ -51,7 +51,12 @@ PAPER = "#faf7f5"
 #: 방송 화면용 글꼴(함께 배포). 기존 화면(draw.css)과 같은 선언
 FONTS = ('@font-face { font-family: "Black Han Sans"; src: url("/vendor/fonts/BlackHanSans-Regular.woff2") format("woff2"); font-display: block; }\n'
          '@font-face { font-family: "Pretendard"; src: url("/vendor/fonts/Pretendard-SemiBold.subset.woff2") format("woff2"); font-weight: 600; font-display: block; }\n'
-         '@font-face { font-family: "Pretendard"; src: url("/vendor/fonts/Pretendard-Bold.subset.woff2") format("woff2"); font-weight: 700; font-display: block; }\n')
+         '@font-face { font-family: "Pretendard"; src: url("/vendor/fonts/Pretendard-Bold.subset.woff2") format("woff2"); font-weight: 700; font-display: block; }\n'
+         # 레트로 픽셀(갈무리11), 다이어리(개구) 스타일. 브라우저는 그 글꼴을 쓰는 화면에서만 받는다
+         '@font-face { font-family: "Galmuri11"; src: url("/vendor/fonts/Galmuri11.woff2") format("woff2"); font-weight: 400; font-display: block; }\n'
+         '@font-face { font-family: "Galmuri11"; src: url("/vendor/fonts/Galmuri11-Bold.woff2") format("woff2"); font-weight: 700; font-display: block; }\n'
+         '@font-face { font-family: "Gaegu"; src: url("/vendor/fonts/Gaegu-Regular.woff2") format("woff2"); font-weight: 400; font-display: block; }\n'
+         '@font-face { font-family: "Gaegu"; src: url("/vendor/fonts/Gaegu-Bold.woff2") format("woff2"); font-weight: 700; font-display: block; }\n')
 FALLBACK = '"Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans CJK KR", sans-serif'
 #: 고를 수 있는 글꼴: 이름 -> (표시 이름, CSS 글꼴 목록, 설명). 함께 배포한 글꼴과 운영체제 기본 한글 글꼴.
 #: 그 밖에 "local:글꼴 이름" (이 PC에 설치한 글꼴), "user:번호" (올린 내 글꼴)
@@ -62,6 +67,8 @@ FONT_CHOICES: dict[str, tuple[str, str, str]] = {
     "gulim": ("굴림", f'"Gulim", "굴림", {FALLBACK}', "Windows 기본"),
     "batang": ("바탕(명조)", '"Batang", "바탕", "AppleMyungjo", "Noto Serif CJK KR", serif', "Windows 기본"),
     "gungsuh": ("궁서", '"Gungsuh", "궁서", "Batang", serif', "Windows 기본"),
+    "galmuri": ("갈무리11", f'"Galmuri11", {FALLBACK}', "도트 글꼴(함께 배포)"),
+    "gaegu": ("개구", f'"Gaegu", "Pretendard", {FALLBACK}', "손글씨(함께 배포)"),
     "applesd": ("Apple SD 산돌고딕 Neo", f'"Apple SD Gothic Neo", {FALLBACK}', "macOS 기본"),
 }
 _LOCAL_NAME = re.compile(r"^[0-9A-Za-z가-힣 _\-.]{1,40}$")
@@ -138,7 +145,7 @@ _GRAIN = ("url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg'
           "type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.12 0 0 0 0 0.14 0 0 0 0 0.15 "
           "0 0 0 0.09 0'/></filter><rect width='120' height='120' filter='url(%23n)'/></svg>\")")
 _PIXEL_FONT = f'"Galmuri11", "Galmuri9", "DungGeunMo", "Neo둥근모", "Black Han Sans", {FALLBACK}'
-_HAND_FONT = f'"Nanum Pen Script", "나눔손글씨 펜", "Gaegu", "Cafe24 Ssurround", "Pretendard", {FALLBACK}'
+_HAND_FONT = f'"Gaegu", "Nanum Pen Script", "나눔손글씨 펜", "Pretendard", {FALLBACK}'
 #: 등장 움직임: 이름 -> (키프레임 내용, 시간, 속도 곡선)
 ENTERS: dict[str, tuple[str, str, str]] = {
     "stamp": ("0% { opacity: 0; transform: translateY(-28px) scale(1.04); } 60% { opacity: 1; } 100% { opacity: 1; transform: none; }",
@@ -251,9 +258,9 @@ STYLES: dict[str, tuple[str, str]] = {
     "prop": ("방송 소품", "크림 종이, 잉크 외곽선, 딱딱한 그림자(기본)"),
     "pastel": ("파스텔 몽글", "흰 바탕에 방송 색 물감, 둥근 모서리, 부드러운 그림자"),
     "neon": ("네온", "어두운 유리에 빛나는 테두리와 글자"),
-    "pixel": ("레트로 픽셀", "각진 대화 상자, 계단 그림자, 도트 글꼴(설치한 경우)"),
+    "pixel": ("레트로 픽셀", "각진 대화 상자, 계단 그림자, 도트 글꼴(갈무리11)"),
     "glass": ("유리", "뒤가 흐리게 비치는 반투명 판"),
-    "diary": ("다이어리", "줄 노트, 점선 테두리, 마스킹 테이프, 손글씨 글꼴(설치한 경우)"),
+    "diary": ("다이어리", "줄 노트, 점선 테두리, 마스킹 테이프, 손글씨 글꼴(개구)"),
     "night": ("밤하늘", "별이 뜬 남보라 하늘, 금빛 테두리"),
     "minimal": ("미니멀", "어두운 반투명 띠와 방송 색 막대"),
     "tactical": ("택티컬", "전술 FPS: 어두운 판, 꺾쇠 모서리, 쓱 지나가며 등장"),

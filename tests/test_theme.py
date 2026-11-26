@@ -3,6 +3,7 @@
 import base64
 import http.client
 import json
+from pathlib import Path
 
 import pytest
 
@@ -135,3 +136,17 @@ def test_style_change_reaches_live_feed(port):
     request(port, "POST", "/theme", {"style": "diary"})
     value = first_theme(port)
     assert value["seq"] == 1 and value["style"] == "diary" and value["palette"]["on-primary"] in (theme.INK, "#ffffff")
+
+
+def test_bundled_style_fonts_are_listed_with_hashes():
+    import hashlib
+
+    static = Path(theme.__file__).resolve().parent / "static" / "vendor"
+    readme = (static / "README.txt").read_text(encoding="utf-8")
+    for name in ("Galmuri11.woff2", "Galmuri11-Bold.woff2", "Gaegu-Regular.woff2", "Gaegu-Bold.woff2", "OFL-Galmuri.txt", "OFL-Gaegu.txt"):
+        data = (static / "fonts" / name).read_bytes()
+        assert f"{hashlib.sha256(data).hexdigest()}  fonts/{name}" in readme, name
+        if name.endswith(".woff2"):
+            assert data[:4] == b"wOF2" and f"/vendor/fonts/{name}" in theme.FONTS, name
+    assert theme._PIXEL_FONT.startswith('"Galmuri11"') and theme._HAND_FONT.startswith('"Gaegu"')
+    assert {"galmuri", "gaegu"} <= set(theme.FONT_CHOICES)
