@@ -1,4 +1,5 @@
-// debutkit 방송 이미지 만들기(/decor): 프사, 배너, 다시보기 썸네일을 캔버스로 그려 저장. 글은 textContent로만 넣는다.
+// debutkit 방송 이미지 만들기(/decor): 프사(움짤 포함), 배너, 다시보기 썸네일, 시그니처 풍선 그림을 캔버스로 그려 저장.
+// 움짤은 이 PC 서버(/decor/animate)에서 GIF로, 시그니처는 후원 벽(/wall/signature)에 바로 등록. 글은 textContent로만 넣는다.
 "use strict";
 
 (() => {
@@ -9,6 +10,8 @@
   let format = "profile";
   let picture = null;  // 그릴 캐릭터 그림(Image)
   let uploaded = "";  // 올린 그림의 주소(브라우저 안)
+  let phase = null;  // 움짤 장면 위치(0에서 1, 한 바퀴). null이면 멈춘 그림
+  const wave = (offset = 0) => (phase === null ? 0 : Math.sin((phase + offset) * Math.PI * 2));
 
   const css = (name, fallback) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
   const colors = () => ({
@@ -68,8 +71,11 @@
     } else if (pattern === "stars") {
       let seed = 11;
       const random = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-      ctx.globalAlpha = 0.5;
-      for (let k = 0; k < Math.round((width * height) / (unit * unit * 3)); k += 1) star(random() * width, random() * height, unit * (0.08 + random() * 0.16));
+      for (let k = 0; k < Math.round((width * height) / (unit * unit * 3)); k += 1) {
+        const x = random() * width, y = random() * height, r = unit * (0.08 + random() * 0.16), offset = random();
+        ctx.globalAlpha = 0.5 + 0.4 * wave(offset);  // 움짤에서는 별마다 다른 때에 반짝임
+        star(x, y, r * (1 + 0.25 * wave(offset)));
+      }
     }
     ctx.restore();
   }
@@ -90,11 +96,12 @@
     if (!image) return;
     const box = image.dkBox || (image.dkBox = trimmed(image));
     const width = (box.w * tall) / box.h;
+    const bob = tall * 0.012 * wave();  // 움짤에서 살짝 위아래로
     ctx.save();
     ctx.shadowColor = "rgba(20, 10, 40, 0.35)";
     ctx.shadowBlur = tall * 0.04;
     ctx.shadowOffsetY = tall * 0.015;
-    ctx.drawImage(image, box.x, box.y, box.w, box.h, cx - width / 2, bottom - tall, width, tall);
+    ctx.drawImage(image, box.x, box.y, box.w, box.h, cx - width / 2, bottom - tall + bob, width, tall);
     ctx.restore();
   }
 
@@ -148,6 +155,60 @@
     ctx.closePath();
   }
 
+  //: 시그니처 단위 -> 금액 뒤에 붙는 말
+  const SUFFIX = { "별풍선": "개", "애드벌룬": "개", "원": "원", bits: " bits" };
+  const sigAmount = () => Number(String($("sig-amount").value).replace(/[^0-9.]/g, ""));
+
+  // 시그니처 풍선 그림: 둥근 카드(방송 색)에 빛살, 캐릭터, 이름 띠, 큰 금액. 카드 바깥은 투명
+  function drawSignature(c, width, height, scale) {
+    ctx.clearRect(0, 0, width, height);
+    const pad = width * 0.04, radius = width * 0.14;
+    ctx.save();
+    roundRect(pad, pad, width - pad * 2, height - pad * 2, radius);
+    ctx.clip();
+    background(c, width, height, $("pattern").value);
+    ctx.fillStyle = "#ffffff";
+    for (let k = 0; k < 12; k += 1) {  // 캐릭터 뒤 빛살(움짤에서는 천천히 돎)
+      const angle = (k / 12) * Math.PI * 2 + (phase || 0) * (Math.PI / 6);
+      ctx.globalAlpha = 0.16;
+      ctx.beginPath();
+      ctx.moveTo(width / 2, height * 0.42);
+      ctx.arc(width / 2, height * 0.42, width, angle, angle + Math.PI / 24);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    figure(picture, width / 2, height * 0.74, height * 0.6 * scale);
+    ctx.restore();
+    ctx.lineWidth = width * 0.03;
+    ctx.strokeStyle = c.highlight;
+    roundRect(pad, pad, width - pad * 2, height - pad * 2, radius);
+    ctx.stroke();
+    const title = $("sig-title").value.trim();
+    if (title) {  // 이름 띠
+      const px = fitText(title, '"Pretendard", sans-serif', height * 0.065, width * 0.66, "700");
+      const w = ctx.measureText(title).width + px * 1.4;
+      ctx.fillStyle = c.highlight;
+      roundRect(width / 2 - w / 2, height * 0.665, w, px * 1.7, px * 0.85);
+      ctx.fill();
+      ctx.fillStyle = c.onHighlight;
+      ctx.textAlign = "center";
+      ctx.fillText(title, width / 2, height * 0.665 + px * 1.22);
+    }
+    const amount = sigAmount();
+    if (amount > 0) {  // 큰 금액
+      const text = amount.toLocaleString("ko-KR") + (SUFFIX[$("sig-unit").value] || "");
+      const px = fitText(text, '"Black Han Sans", sans-serif', height * 0.19, width * 0.82);
+      ctx.textAlign = "center";
+      ctx.lineJoin = "round";
+      ctx.lineWidth = px * 0.16;
+      ctx.strokeStyle = c.deep;
+      ctx.strokeText(text, width / 2, height * 0.915);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText(text, width / 2, height * 0.915);
+    }
+  }
+
   // 그리기: guide가 참이면 안내선(프사 원, YouTube 안전 영역)도
   function draw(guide) {
     const spec = formats[format];
@@ -156,16 +217,21 @@
     canvas.width = width;
     canvas.height = height;
     const c = colors();
-    background(c, width, height, $("pattern").value);
     const scale = Number($("scale").value) / 100;
+    if (format === "signature") return drawSignature(c, width, height, scale);
+    background(c, width, height, $("pattern").value);
     const side = $("side").value;
     if (format === "profile") {
       figure(picture, width / 2, height * 0.98, height * 0.84 * scale);
+      ctx.save();
       ctx.lineWidth = width * 0.035;
       ctx.strokeStyle = c.highlight;
+      ctx.shadowColor = c.highlight;
+      ctx.shadowBlur = phase === null ? 0 : width * (0.02 + 0.02 * wave());  // 움짤: 테두리 빛이 숨쉬듯
       ctx.beginPath();
       ctx.arc(width / 2, height / 2, width / 2 - ctx.lineWidth / 2, 0, Math.PI * 2);
       ctx.stroke();
+      ctx.restore();
       if ($("name").value.trim()) texts(c, width / 2, height * 0.86, width * 0.62, height * 0.1, "center");
       if (guide) {  // 원형으로 잘리는 바깥을 어둡게
         ctx.save();
@@ -223,12 +289,87 @@
         format = key;
         for (const other of $("formats").children) other.setAttribute("aria-pressed", String(other === button));
         $("format-note").textContent = spec.note;
-        $("side").value = key === "profile" ? "center" : "right";
+        $("side").value = key === "profile" || key === "signature" ? "center" : "right";
+        fields();
         redraw();
       });
       return button;
     }));
     $("format-note").textContent = formats[format].note;
+    fields();
+  }
+
+  // 그림 종류마다 쓰는 칸과 단추만: 시그니처는 단위, 금액, 이름과 후원 벽 등록, 프사는 움짤
+  function fields() {
+    const signature = format === "signature";
+    $("sig-fields").hidden = !signature;
+    $("to-wall").hidden = !signature;
+    $("save-gif").hidden = format !== "profile";
+    for (const id of ["name", "line"]) $(id).closest("label").hidden = signature;
+    $("side").closest("label").hidden = signature;
+  }
+
+  function download(href, name) {
+    const link = document.createElement("a");
+    link.href = href;
+    link.download = name;
+    link.click();
+  }
+
+  // 움짤 프사: 24장(한 바퀴)을 512px로 그려 이 PC 서버에서 GIF로(Pillow)
+  async function saveGif() {
+    const frames = [];
+    const small = document.createElement("canvas");
+    small.width = small.height = 512;
+    const smallCtx = small.getContext("2d");
+    smallCtx.imageSmoothingQuality = "high";
+    for (let index = 0; index < 24; index += 1) {
+      phase = index / 24;
+      draw(false);
+      smallCtx.clearRect(0, 0, 512, 512);
+      smallCtx.drawImage(canvas, 0, 0, 512, 512);
+      frames.push(small.toDataURL("image/png"));
+    }
+    phase = null;
+    redraw();
+    $("save-gif").disabled = true;
+    $("save-state").textContent = "움짤 만드는 중";
+    try {
+      const response = await fetch("/decor/animate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ frames, delay: 80 }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "움짤을 만들지 못함");
+      download(data.gif, "debutkit-profile-512.gif");
+      $("save-state").textContent = `저장함: debutkit-profile-512.gif(${Math.round(data.bytes / 1024)}KB)`;
+    } catch (error) {
+      $("save-state").textContent = error.message;
+    } finally {
+      $("save-gif").disabled = false;
+    }
+  }
+
+  // 후원 벽 시그니처로 등록: 같은 단위와 금액의 시그니처가 있으면 그림과 이름만 바꿈
+  async function toWall() {
+    const unit = $("sig-unit").value;
+    const amount = sigAmount();
+    if (!(amount > 0)) { $("save-state").textContent = "시그니처 금액을 숫자로 입력"; return; }
+    draw(false);
+    const image = canvas.toDataURL("image/png");
+    redraw();
+    $("to-wall").disabled = true;
+    try {
+      const state = await (await fetch("/wall/state")).json();
+      const existing = ((state.config || {}).signatures || []).find((item) => item.unit === unit && Math.abs(item.amount - amount) < 0.005);
+      const body = { unit, amount, title: $("sig-title").value.trim(), hide_number: existing ? existing.hide_number : false, image };
+      if (existing) body.id = existing.id;
+      const response = await fetch("/wall/signature", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "등록하지 못함");
+      $("save-state").textContent = `후원 벽에 ${existing ? "바꿔" : "새로"} 등록함: ${body.title || "시그니처"}(${amount.toLocaleString("ko-KR")}${SUFFIX[unit] || ""})`;
+    } catch (error) {
+      $("save-state").textContent = error.message;
+    } finally {
+      $("to-wall").disabled = false;
+    }
   }
 
   async function save() {
@@ -273,9 +414,20 @@
     uploaded = URL.createObjectURL(file);
     choose();
   });
-  for (const id of ["name", "line"]) $(id).addEventListener("input", redraw);
-  for (const id of ["pattern", "scale", "side", "guide"]) $(id).addEventListener("input", redraw);
+  for (const id of ["name", "line", "sig-amount", "sig-title"]) $(id).addEventListener("input", redraw);
+  for (const id of ["pattern", "scale", "side", "guide", "sig-unit"]) $(id).addEventListener("input", redraw);
   $("save").addEventListener("click", save);
-  window.debutkitDecor = { draw: (key) => { format = key; draw(false); return canvas.toDataURL("image/png"); } };  // 문서 그림, 시험용
+  $("save-gif").addEventListener("click", saveGif);
+  $("to-wall").addEventListener("click", toWall);
+  // 문서 그림, 시험용: 그림 종류(key)를 그려 PNG 주소로. at은 움짤 장면 위치(0에서 1)
+  window.debutkitDecor = {
+    draw: (key, at = null) => {
+      format = key;
+      phase = at;
+      draw(false);
+      phase = null;
+      return canvas.toDataURL("image/png");
+    },
+  };
   start();
 })();
