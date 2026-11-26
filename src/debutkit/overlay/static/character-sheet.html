@@ -31,6 +31,8 @@
       background: repeating-conic-gradient(#e9e4dd 0% 25%, #f6f2ee 0% 50%) 0 0 / 20px 20px; }
     .state { font-size: 13px; color: var(--dim); }
     .state.error { color: #b3261e; }
+    ul.facts { margin: 0; padding-left: 18px; font-size: 14px; }
+    ul.facts li.warn { color: #9a4a00; }
   </style>
 </head>
 <body>
@@ -40,6 +42,7 @@
       <h2>캐릭터 고르기</h2>
       <div class="row">
         <select id="pick" aria-label="VRM 캐릭터"></select>
+        <select id="pose" aria-label="자세"></select>
         <button type="button" id="draw">그리기</button>
         <span class="state" id="state"></span>
       </div>
@@ -47,7 +50,21 @@
       <ul class="tips">
         <li>등록한 VRM을 이 PC에서 그림(모델 파일은 밖으로 보내지 않음)</li>
         <li>시트: 정면, 3/4, 얼굴, 표정 7종(기본, 기쁨, 화남, 슬픔, 편안, 아, 눈 감음)</li>
+        <li>자세: 편하게 서기(짝다리, 고개 기울임), 손 인사, A 자세(정면 확인용). PNGTuber 4상태도 같은 자세</li>
         <li>VRoid Studio로 만든 VRM이면 그 품질 그대로</li>
+      </ul>
+    </section>
+    <section id="check-box" hidden>
+      <h2>모델 점검</h2>
+      <ul class="facts" id="check"></ul>
+      <div class="row" style="margin-top: 8px">
+        <button type="button" class="secondary" id="lighten" disabled>가벼운 사본 만들기</button>
+        <span class="state" id="light-state"></span>
+      </div>
+      <ul class="tips">
+        <li>가벼운 사본: 텍스처를 1024px 이하로 줄인 새 캐릭터(원본은 그대로, 사용 조건도 그대로)</li>
+        <li>상반신 방송 화면에서는 차이가 거의 보이지 않고 그래픽 메모리는 약 절반(게임과 함께 방송할 때)</li>
+        <li>모델 제작자가 수정을 허용하지 않은 VRM은 만들지 않음</li>
       </ul>
     </section>
     <section>

@@ -575,6 +575,8 @@ async function start3d(info) {
   const perfect = vrm.expressionManager ? perfectSyncMap(vrm.expressionManager.expressions.map((item) => item.expressionName)) : new Map();
   const perfectSync = perfect.size >= PERFECT_SYNC_MIN;
   const shapes = Object.fromEntries([...perfect.keys()].map((name) => [name, 0]));
+  const blinkBoth = Boolean(vrm.expressionManager?.getExpression("blink"));  // 두 눈을 함께 감는 표정
+  const blinkSides = Boolean(vrm.expressionManager?.getExpression("blinkLeft") && vrm.expressionManager.getExpression("blinkRight"));
   window.debutkitCharacter.perfectSync = perfectSync ? Object.fromEntries(perfect) : null;  // 시험용
   const animate = (timestamp) => {
     timer.update(timestamp);
@@ -605,17 +607,14 @@ async function start3d(info) {
       for (const name of ["aa", "blink", "blinkLeft", "blinkRight", "happy"]) expressions.setValue(name, 0);
     } else if (expressions) {
       expressions.setValue("aa", Math.min(1, mouth));
-      if (face) {  // 추적 중: 양쪽 눈 따로, 웃음
-        expressions.setValue("blink", 0);
-        expressions.setValue("blinkLeft", pose.blinkLeft);
-        expressions.setValue("blinkRight", pose.blinkRight);
-        expressions.setValue("happy", Math.min(1, pose.smile * 0.8));
-      } else {
-        expressions.setValue("blink", Math.max(blink, (pose.blinkLeft + pose.blinkRight) / 2));
-        expressions.setValue("blinkLeft", 0);
-        expressions.setValue("blinkRight", 0);
-        expressions.setValue("happy", pose.smile * 0.8);
-      }
+      // 눈: 추적 중이면 양쪽 따로, 아니면 깜빡임. 좌우 표정만 있는 모델(100Avatars 등)은 좌우로, 두 눈 표정만 있으면 평균으로
+      const left = face ? pose.blinkLeft : Math.max(blink, (pose.blinkLeft + pose.blinkRight) / 2);
+      const right = face ? pose.blinkRight : left;
+      const split = blinkSides && (Boolean(face) || !blinkBoth);
+      expressions.setValue("blink", split ? 0 : (left + right) / 2);
+      expressions.setValue("blinkLeft", split ? left : 0);
+      expressions.setValue("blinkRight", split ? right : 0);
+      expressions.setValue("happy", Math.min(1, pose.smile * 0.8));
     }
     if (spine) spine.rotation.x = Math.sin(t * 1.6) * 0.015 * flip;  // 호흡
     const idle = face ? 0 : 1;  // 추적이 없을 때만 기본 흔들림

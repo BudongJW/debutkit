@@ -62,7 +62,9 @@ def test_vrm1_details_license_and_thumbnail(tmp_path):
     found = character.inspect(vrm1(tmp_path / "a.vrm", commercialUsage="personalProfit", avatarPermission="everyone"))
     assert found.kind == "vrm" and found.name == "테스트 캐릭터" and found.author == "작가" and found.version == "VRM 1.0"
     assert "상업적 이용: 개인 영리 가능" in found.license
-    assert found.warnings == ["법인(소속사) 사용 불가. 개인 수익 방송은 가능"]
+    # 사용 조건 다음에 모델 점검(이 시험 파일에는 표정이 없음)
+    assert found.warnings == ["법인(소속사) 사용 불가. 개인 수익 방송은 가능", "입 모양 표정(아) 없음: 말해도 입이 움직이지 않음",
+                              "눈 깜빡임 표정 없음: 눈이 깜빡이지 않음"]
     added = character.add(tmp_path / "a.vrm")
     folder = character.library_dir() / added.id
     assert (folder / "a.vrm").is_file() and added.thumbnail == "thumbnail.png" and (folder / "thumbnail.png").read_bytes().startswith(b"\x89PNG")

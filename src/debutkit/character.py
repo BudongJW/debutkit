@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import io
 import json
 import re
 import shutil
@@ -197,7 +198,8 @@ def vrm_details(gltf: dict[str, Any], binary: bytes = b"") -> dict[str, Any]:
         details = {"version": "VRM 0.x", "name": meta.get("title") or "", "author": meta.get("author") or "", "thumbnail": _image_bytes(gltf, binary, source)}
     else:
         raise CharacterError("VRM 정보(VRM 또는 VRMC_vrm 확장) 없음: 일반 glTF 모델은 VRoid Studio, Blender VRM Add-on으로 VRM 변환 필요")
-    details.update(license=license_, warnings=warnings)
+    check = vrm_check(gltf, binary)
+    details.update(license=license_, warnings=warnings + check["warnings"], check=check)
     return details
 
 
@@ -212,6 +214,226 @@ def _maker_warnings(meta: dict[str, Any]) -> list[str]:
 _AVATAR_1 = {"onlyAuthor": "제작자 본인", "onlySeparatelyLicensedPerson": "별도 허락을 받은 사람", "everyone": "모든 사람"}
 _COMMERCIAL_1 = {"personalNonProfit": "개인 비영리만", "personalProfit": "개인 영리 가능", "corporation": "법인 포함 가능"}
 _AVATAR_0 = {"OnlyAuthor": "제작자 본인", "ExplicitlyLicensedPerson": "별도 허락을 받은 사람", "Everyone": "모든 사람"}
+
+
+# --------------------------------------------------------------------------- VRM 점검(표정, 텍스처 무게), 가벼운 사본
+#
+# 공개 VRM 11종(VRoid 샘플, VRM 규격 샘플, 100Avatars 등)을 재어 정한 기준. VRoid 출신은 텍스처 19~30장(2048px 4장),
+# 그래픽 메모리 약 55~145MB. 감정 표정 없이 입 모양과 좌우 눈 깜빡임만 있는 모델도 있다(100Avatars)
+
+#: VRM 0.x 표정 이름 -> 1.0 이름(three-vrm과 같은 대응)
+_PRESET_0 = {"a": "aa", "i": "ih", "u": "ou", "e": "ee", "o": "oh", "joy": "happy", "sorrow": "sad", "fun": "relaxed", "blink_l": "blinkLeft",
+             "blink_r": "blinkRight", "lookup": "lookUp", "lookdown": "lookDown", "lookleft": "lookLeft", "lookright": "lookRight"}
+#: 감정 표정(VRM 1.0 이름 -> 이름표). 0.x의 놀람은 사용자 표정 Surprised
+EMOTIONS = {"happy": "기쁨", "angry": "화남", "sad": "슬픔", "relaxed": "편안", "surprised": "놀람"}
+VOWELS = ("aa", "ih", "ou", "ee", "oh")
+#: ARKit 이름 표정이 이만큼 있으면 퍼펙트 싱크 모델(캐릭터 화면 character.js의 PERFECT_SYNC_MIN과 같음)
+PERFECT_SYNC_MIN = 12
+#: 무거운 모델 기준: 그래픽 메모리 추정(가로 x 세로 x 4바이트 x 밉맵 4/3의 합), 가장 큰 텍스처 한 변
+HEAVY_GPU_MB = 256
+HEAVY_TEXTURE = 4096
+#: 가벼운 사본의 텍스처 한 변(방송 화면의 상반신 크기에서 차이가 거의 보이지 않음)
+LIGHT_TEXTURE = 1024
+#: 점검 경고(모델 자체의 상태). 이 모델을 그린 PNGTuber에는 옮기지 않음
+_CHECK_PREFIXES = ("입 모양 표정", "눈 깜빡임 표정", "텍스처가 무거움")
+
+
+def _image_size(blob: bytes) -> tuple[int, int] | None:
+    """PNG, JPEG 머리글의 (가로, 세로). 다른 형식(KTX2, WebP)은 None."""
+    if blob[:8] == b"\x89PNG\r\n\x1a\n" and len(blob) >= 24:
+        width, height = struct.unpack(">II", blob[16:24])
+        return width, height
+    if blob[:2] == b"\xff\xd8":
+        position = 2
+        while position + 9 <= len(blob):
+            if blob[position] != 0xFF:
+                position += 1
+                continue
+            marker = blob[position + 1]
+            if marker == 0xFF or 0xD0 <= marker <= 0xD8 or marker == 0x01:  # 채움 바이트, 길이 없는 표시
+                position += 1 if marker == 0xFF else 2
+                continue
+            if 0xC0 <= marker <= 0xCF and marker not in (0xC4, 0xC8, 0xCC):  # SOF: 높이, 너비
+                height, width = struct.unpack(">HH", blob[position + 5:position + 9])
+                return width, height
+            position += 2 + struct.unpack(">H", blob[position + 2:position + 4])[0]
+    return None
+
+
+def _bound(expression: Any) -> bool:
+    """VRM 1.0 표정에 실제로 움직이는 것(형태 변형, 재질 색, 텍스처 이동)이 있는지. VRoid는 빈 표정도 내보낸다."""
+    return isinstance(expression, dict) and any(expression.get(key) for key in ("morphTargetBinds", "materialColorBinds", "textureTransformBinds"))
+
+
+def vrm_expressions(gltf: dict[str, Any]) -> tuple[set[str], bool]:
+    """움직이는 표정 이름(VRM 1.0 이름, 사용자 표정은 원래 이름)과 턱 뼈 유무."""
+    extensions = gltf.get("extensions") or {}
+    names: set[str] = set()
+    vrm1 = extensions.get("VRMC_vrm")
+    if isinstance(vrm1, dict):
+        expressions = vrm1.get("expressions") or {}
+        for group in ("preset", "custom"):
+            items = expressions.get(group) if isinstance(expressions, dict) else None
+            if isinstance(items, dict):
+                names |= {str(name) for name, item in items.items() if _bound(item)}
+        bones = (vrm1.get("humanoid") or {}).get("humanBones")
+        return names, isinstance(bones, dict) and "jaw" in bones
+    vrm0 = extensions.get("VRM") if isinstance(extensions.get("VRM"), dict) else {}
+    for group in (vrm0.get("blendShapeMaster") or {}).get("blendShapeGroups") or []:
+        if isinstance(group, dict) and (group.get("binds") or group.get("materialValues")):
+            preset = str(group.get("presetName") or "unknown").lower()
+            names.add(str(group.get("name") or "") if preset == "unknown" else _PRESET_0.get(preset, preset))
+    bones = (vrm0.get("humanoid") or {}).get("humanBones") or []
+    return names - {""}, any(isinstance(bone, dict) and bone.get("bone") == "jaw" for bone in bones)
+
+
+def vrm_textures(gltf: dict[str, Any], binary: bytes) -> dict[str, Any]:
+    """파일 안 그림 장수, 가장 큰 한 변(px), 그래픽 메모리 추정(MB), 그림 용량(바이트)."""
+    count, largest, memory, size = 0, 0, 0.0, 0
+    for index in range(len(gltf.get("images") or [])):
+        found = _image_bytes(gltf, binary, index)
+        if not found:
+            continue
+        count += 1
+        size += len(found[0])
+        dimensions = _image_size(found[0])
+        if dimensions:
+            largest = max(largest, *dimensions)
+            memory += dimensions[0] * dimensions[1] * 4 * 4 / 3
+    return {"count": count, "largest": largest, "gpu_mb": round(memory / 1048576), "bytes": size}
+
+
+def vrm_check(gltf: dict[str, Any], binary: bytes = b"") -> dict[str, Any]:
+    """방송 전 점검: 표정(입 모양, 눈 깜빡임, 감정, 퍼펙트 싱크), 텍스처 무게. 캐릭터 화면이 쓰는 표정이 없으면 경고."""
+    from .overlay.tracking import arkit_name  # 표준 라이브러리만 쓰는 모듈(ARKit 이름 표기 차이)
+
+    names, jaw = vrm_expressions(gltf)
+    lower = {name.lower() for name in names}
+    blink = "both" if "blink" in lower else "sides" if {"blinkleft", "blinkright"} <= lower else ""
+    perfect = {arkit_name(name) for name in names} - {None}
+    textures = vrm_textures(gltf, binary)
+    warnings: list[str] = []
+    if "aa" not in lower and not jaw:
+        warnings.append("입 모양 표정(아) 없음: 말해도 입이 움직이지 않음")
+    if not blink:
+        warnings.append("눈 깜빡임 표정 없음: 눈이 깜빡이지 않음")
+    if textures["gpu_mb"] >= HEAVY_GPU_MB or textures["largest"] >= HEAVY_TEXTURE:
+        warnings.append(f"텍스처가 무거움(가장 큰 그림 {textures['largest']}px, 그래픽 메모리 약 {textures['gpu_mb']}MB): "
+                        "게임과 함께 방송하면 캐릭터 그림 만들기 화면의 가벼운 사본 사용")
+    return {"emotions": [key for key in EMOTIONS if key in lower], "vowels": [key for key in VOWELS if key in lower], "blink": blink, "jaw": jaw,
+            "perfect_sync": len(perfect) if len(perfect) >= PERFECT_SYNC_MIN else 0, "textures": textures, "warnings": warnings}
+
+
+def modification_allowed(gltf: dict[str, Any]) -> bool:
+    """모델 제작자가 수정을 허용했는지(VRM 1.0 modification, VRM 0.x 라이선스의 ND). 정보가 없으면 허용으로 보지 않음(1.0 기본값 prohibited)."""
+    extensions = gltf.get("extensions") or {}
+    meta = (extensions.get("VRMC_vrm") or {}).get("meta") if isinstance(extensions.get("VRMC_vrm"), dict) else None
+    if isinstance(meta, dict):
+        return (meta.get("modification") or "prohibited") != "prohibited"
+    meta = (extensions.get("VRM") or {}).get("meta") if isinstance(extensions.get("VRM"), dict) else None
+    if isinstance(meta, dict):
+        return "_ND" not in str(meta.get("licenseName") or "").upper()
+    return False
+
+
+def _write_glb(gltf: dict[str, Any], binary: bytes) -> bytes:
+    body = json.dumps(gltf, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    body += b" " * (-len(body) % 4)
+    chunks = struct.pack("<I4s", len(body), b"JSON") + body
+    if binary:
+        binary += b"\x00" * (-len(binary) % 4)
+        chunks += struct.pack("<I4s", len(binary), b"BIN\x00") + binary
+    return b"glTF" + struct.pack("<II", 2, 12 + len(chunks)) + chunks
+
+
+def shrink_vrm(path: Path, max_size: int = LIGHT_TEXTURE) -> tuple[bytes, list[dict[str, Any]]]:
+    """VRM(GLB) 안의 PNG, JPEG 텍스처를 한 변 max_size 이하로 줄인 파일 내용과 바꾼 그림 목록.
+
+    - glTF JSON(사람 모양 뼈, 표정, 흔들림 뼈, MToon 등 VRM 확장)은 그대로, 위치 값(bufferView)만 다시 계산
+    - 줄이기는 Pillow LANCZOS(RGBA는 투명도를 미리 곱해 계산하므로 머리카락 가장자리가 어두워지지 않음). 줄여도 커지는 그림은 그대로
+    """
+    try:
+        from PIL import Image
+    except ImportError:
+        raise CharacterError('가벼운 사본에는 Pillow 필요: pip install "debutkit[logo]"') from None
+    gltf, binary = read_glb(path)
+    views = gltf.get("bufferViews") or []
+    replaced: dict[int, bytes] = {}
+    changed: list[dict[str, Any]] = []
+    for index, image in enumerate(gltf.get("images") or []):
+        view_index = image.get("bufferView") if isinstance(image, dict) else None
+        if not isinstance(view_index, int) or view_index in replaced or not 0 <= view_index < len(views) or views[view_index].get("buffer", 0) != 0:
+            continue
+        start = int(views[view_index].get("byteOffset") or 0)
+        blob = binary[start:start + int(views[view_index].get("byteLength") or 0)]
+        size = _image_size(blob)
+        if not size or max(size) <= max_size:
+            continue
+        scale = max_size / max(size)
+        target = (max(1, round(size[0] * scale)), max(1, round(size[1] * scale)))
+        out = io.BytesIO()
+        try:
+            with Image.open(io.BytesIO(blob)) as picture:
+                if blob[:2] == b"\xff\xd8":
+                    picture.convert("RGB").resize(target, Image.Resampling.LANCZOS).save(out, "JPEG", quality=90)
+                else:
+                    mode = picture.mode if picture.mode in ("RGBA", "RGB", "L", "LA") else "RGBA" if "transparency" in picture.info or "A" in picture.mode else "RGB"
+                    picture.convert(mode).resize(target, Image.Resampling.LANCZOS).save(out, "PNG", optimize=True)
+        except (OSError, ValueError):
+            continue  # 읽지 못하는 그림은 그대로
+        if len(out.getvalue()) >= len(blob):
+            continue
+        replaced[view_index] = out.getvalue()
+        changed.append({"name": str(image.get("name") or f"image_{index}"), "from": list(size), "to": list(target),
+                        "before": len(blob), "after": len(replaced[view_index])})
+    if not replaced:
+        return b"", []
+    parts: list[bytes] = []
+    cursor = 0
+    for view_index, view in enumerate(views):  # 버퍼 0을 차례로 다시 쌓음(4바이트 정렬)
+        if view.get("buffer", 0) != 0:
+            continue
+        pad = -cursor % 4
+        parts.append(b"\x00" * pad)
+        start = int(view.get("byteOffset") or 0)
+        data = replaced.get(view_index, binary[start:start + int(view.get("byteLength") or 0)])
+        view["byteOffset"] = cursor + pad
+        view["byteLength"] = len(data)
+        parts.append(data)
+        cursor += pad + len(data)
+    body = b"".join(parts)
+    gltf["buffers"][0]["byteLength"] = len(body)
+    return _write_glb(gltf, body), changed
+
+
+def lighten(character_id: str, max_size: int = LIGHT_TEXTURE) -> tuple[Character, dict[str, Any]]:
+    """등록한 VRM의 가벼운 사본(텍스처 한 변 max_size 이하)을 새 캐릭터로 등록. 원본은 그대로, 작성자와 사용 조건은 그대로 옮긴다.
+
+    모델 제작자가 수정을 허용하지 않은 모델(VRM 1.0 modification prohibited, 0.x ND 라이선스)은 만들지 않는다.
+    """
+    source = get(character_id)
+    if source is None or source.kind != "vrm" or source.builtin:
+        raise CharacterError("가벼운 사본은 등록한 VRM 캐릭터만")
+    model = file_path(source, source.files.get("model", ""))
+    if model is None:
+        raise CharacterError("모델 파일을 찾지 못함")
+    if not modification_allowed(read_glb(model)[0]):
+        raise CharacterError("모델 제작자가 수정을 허용하지 않음(VRM 사용 조건): 가벼운 사본을 만들지 않음")
+    data, changed = shrink_vrm(model, max_size)
+    if not changed:
+        raise CharacterError(f"줄일 텍스처 없음(모두 {max_size}px 이하이거나 줄여도 작아지지 않음)")
+    made = Character("", f"{source.name} 가벼운 사본", "vrm", {"model": model.name}, author=source.author, version=source.version,
+                     license=list(source.license),
+                     warnings=[f"원본({source.name})의 텍스처를 {max_size}px 이하로 줄인 사본", *[text for text in source.warnings if not text.startswith("텍스처가 무거움")]])
+
+    def write(folder: Path) -> None:
+        (folder / model.name).write_bytes(data)
+        thumbnail = file_path(source, source.thumbnail) if source.thumbnail else None
+        if thumbnail:
+            shutil.copy2(thumbnail, folder / source.thumbnail)
+            made.thumbnail = source.thumbnail
+    _store(made, "", write)
+    return made, {"before": model.stat().st_size, "after": len(data), "images": changed}
 
 
 def _live2d_refs(model: Path) -> tuple[dict[str, Any], dict[str, Any], list[str]]:
@@ -657,7 +879,8 @@ def add_rendered(source: Character, images: dict[str, Path], *, name: str = "") 
     made.author = source.author
     made.version = ""
     made.license = [f"원본 3D 캐릭터({source.name})의 사용 조건을 따름", *source.license]
-    made.warnings = [f"원본 3D 캐릭터({source.name})를 그린 그림: 원본의 사용 조건(수정, 재배포, 상업 이용) 확인", *source.warnings,
+    made.warnings = [f"원본 3D 캐릭터({source.name})를 그린 그림: 원본의 사용 조건(수정, 재배포, 상업 이용) 확인",
+                     *[text for text in source.warnings if not text.startswith(_CHECK_PREFIXES)],  # 표정, 텍스처 점검은 원본 모델의 일
                      *[text for text in made.warnings if "투명 배경" not in text]]
     _save(made, library_dir() / made.id)
     return made

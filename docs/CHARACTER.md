@@ -148,6 +148,11 @@
 - 따라서 debutkit은 Live2D 모델을 직접 표시하지 않고 VTube Studio로 전달
 - Live2D 샘플 모델은 재배포 금지. 링크만 안내
 - VRM 사용 조건이 수익 방송이나 법인 사용을 허용하지 않으면 등록 시 경고
+- VRM 모델 점검(`character.vrm_check`, 캐릭터 그림 만들기의 모델 점검)
+  - 표정: 움직이는 것(형태 변형, 재질 색, 텍스처 이동)이 있는 표정만 셈. VRM 0.x 이름은 three-vrm과 같이 1.0 이름으로(joy는 happy, blink_l은 blinkLeft)
+  - 경고: 입 모양(aa)도 턱 뼈도 없음(말해도 입이 안 움직임), 눈 깜빡임 표정 없음, 텍스처가 무거움(가장 큰 그림 4096px 이상 또는 그래픽 메모리 추정 256MB 이상)
+  - 기준 측정(공개 VRM): VRoid 출신은 텍스처 19~30장(2048px 4장), 그래픽 메모리 약 55~145MB, 파일의 58~77%가 텍스처. 100Avatars는 감정 표정 없이 입 모양과 눈 깜빡임만
+- 가벼운 사본(`character.lighten`): 파일 안 PNG, JPEG를 한 변 1024px 이하로(Pillow LANCZOS, 투명도는 미리 곱해 계산), glTF JSON은 위치 값만 바꿈. 새 캐릭터로 등록하고 원본은 그대로. VRM 1.0 `modification`이 prohibited이거나 0.x 라이선스가 ND면 만들지 않음
 - VRM 제작자 정보에 Vket, HIKKY가 있으면 Vket Avatar Maker 약관(저작권 HIKKY, 법인 사용 사전 확인) 경고
 
 ### 제작 기능 관련 약관(2026-11 조사)
