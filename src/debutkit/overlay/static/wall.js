@@ -663,6 +663,8 @@
       setTimeout(tick, every);
     };
     fontsReady.then(tick);
+    // 방송 색, 방송 스타일, 글꼴은 공유 연결의 theme 항목으로 새로고침 없이(live.js가 debutkitTheme에 넘김)
+    if (window.debutkitLive) window.debutkitLive.subscribe(["theme"], () => {});
   }
 
   function countUp(node, from, to, format) {

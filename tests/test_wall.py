@@ -303,6 +303,11 @@ def test_pages_and_static_files(server):
     css = request(server, "GET", "/wall.css")[2].decode()
     for name in ("BlackHanSans-Regular.woff2", "Pretendard-Bold.subset.woff2"):
         assert f"/vendor/fonts/{name}" in css
+    # 방송 스타일(방송 소품 외)과 고른 글꼴을 카드, 게이지, 순위가 따름. 게이지와 순위도 theme 항목을 받아 새로고침 없이 바뀜
+    assert 'html[data-dk-style]:not([data-dk-style="prop"]) .wl-front' in css and "var(--dk-surface)" in css
+    assert "--display: var(--dk-display," in css and "--text: var(--dk-text," in css
+    script = request(server, "GET", "/wall.js")[2].decode()
+    assert 'subscribe(["theme"]' in script
 
 
 def test_events_from_all_platforms_reach_the_wall(server):

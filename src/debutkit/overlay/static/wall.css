@@ -19,8 +19,8 @@
   --gold-deep: var(--dk-highlight-deep, #c9971c);
   --muted: #5b6670;
   --hard: rgba(30, 35, 39, 0.88);
-  --display: "Black Han Sans", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
-  --text: "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+  --display: var(--dk-display, "Black Han Sans", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif);  /* 방송 스타일과 고른 글꼴(/theme.css) */
+  --text: var(--dk-text, "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif);
   --grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.12 0 0 0 0 0.14 0 0 0 0 0.15 0 0 0 0.09 0'/></filter><rect width='120' height='120' filter='url(%23n)'/></svg>");
   --star: polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%);
 }
@@ -245,6 +245,60 @@ body.bg-light { background: #e9e4dd; }  /* 밝은 게임 화면 위 확인용(?b
 .wr-others .wr-row { height: 44px; }
 .wr-others .wr-name { font-size: 19px; }
 .wr-others .wr-amount { font-size: 21px; }
+
+/* ================================================================ 방송 스타일(/theme.css의 --dk-*, theme.js가 html에 data-dk-style)
+   방송 소품(prop)은 위 그대로. 다른 스타일은 카드, 칸 머리, 게이지, 순위 줄의 바탕, 테두리, 모서리, 그림자를 스타일에서 가져온다.
+   카드가 많아 흐림(backdrop-filter)은 쓰지 않음. 밝은 바탕(파스텔, 다이어리)과 어두운 바탕은 보조 글자 색만 다르다 */
+html[data-dk-style]:not([data-dk-style="prop"]) {
+  --wl-radius: min(var(--dk-radius, 10px), 14px);
+  --wl-line: var(--dk-line-width, 3px) var(--dk-line-style, solid) var(--dk-line, var(--ink));
+  --wl-soft: var(--dk-muted, var(--muted));
+}
+html[data-dk-style]:not([data-dk-style="prop"]) .wl-front,
+html[data-dk-style]:not([data-dk-style="prop"]) .wl-plate,
+html[data-dk-style]:not([data-dk-style="prop"]) .wl-art,
+html[data-dk-style]:not([data-dk-style="prop"]) .wg-plate,
+html[data-dk-style]:not([data-dk-style="prop"]) .wr-head,
+html[data-dk-style]:not([data-dk-style="prop"]) .wr-row {
+  background: var(--dk-surface); color: var(--dk-on-surface); border: var(--wl-line); border-radius: var(--wl-radius); box-shadow: var(--dk-shadow);
+}
+html[data-dk-style]:not([data-dk-style="prop"]) .wl-back { border-radius: var(--wl-radius); }
+html[data-dk-style]:not([data-dk-style="prop"]) .wl-edge { border-right: 0; }
+html[data-dk-style]:not([data-dk-style="prop"]) .wl-number,
+html[data-dk-style]:not([data-dk-style="prop"]) .wl-amount,
+html[data-dk-style]:not([data-dk-style="prop"]) .wg-value,
+html[data-dk-style]:not([data-dk-style="prop"]) .wr-amount { text-shadow: var(--dk-glow, none); }
+html[data-dk-style]:not([data-dk-style="prop"]) .wl-tag,
+html[data-dk-style]:not([data-dk-style="prop"]) .wg-tag,
+html[data-dk-style]:not([data-dk-style="prop"]) .wr-head .tag { background: var(--dk-tag-bg, var(--pink)); color: var(--dk-tag-text, var(--ink)); border-radius: calc(var(--wl-radius) * 0.5); }
+html[data-dk-style]:not([data-dk-style="prop"]) .wg-tag { box-shadow: none; }
+html[data-dk-style]:not([data-dk-style="prop"]) .wl-count,
+html[data-dk-style]:not([data-dk-style="prop"]) .wl-number small,
+html[data-dk-style]:not([data-dk-style="prop"]) .wg-value small,
+html[data-dk-style]:not([data-dk-style="prop"]) .wr-head .basis,
+html[data-dk-style]:not([data-dk-style="prop"]) .wr-row.empty { color: var(--wl-soft); }
+html[data-dk-style="pastel"] .wl-title, html[data-dk-style="diary"] .wl-title { color: var(--pink-deep); }
+/* 시그니처 칸과 금빛 카드, 1등 줄은 스타일 위에서도 금빛 표시 유지 */
+html[data-dk-style]:not([data-dk-style="prop"]) .wl-col[data-kind="sig"] .wl-art { border-color: var(--gold-deep); box-shadow: var(--dk-shadow), inset 0 0 0 4px var(--gold); }
+html[data-dk-style]:not([data-dk-style="prop"]) .wl-col[data-kind="sig"] .wl-tag { background: var(--gold); color: var(--ink); }
+html[data-dk-style]:not([data-dk-style="prop"]) .wl-col[data-kind="solo"] .wl-tag { background: var(--paper); color: var(--ink); }
+html[data-dk-style]:not([data-dk-style="prop"]) .wl-card.aura-gold .wl-front { background: linear-gradient(160deg, #fff1a8, var(--gold) 45%, #f0bd2e); color: var(--ink); text-shadow: none; }
+html[data-dk-style]:not([data-dk-style="prop"]) .wl-card.aura-gold .wl-amount { text-shadow: none; }
+/* 목표 게이지 */
+html[data-dk-style]:not([data-dk-style="prop"]) .wg-pct { border-radius: calc(var(--wl-radius) * 0.6); }
+html[data-dk-style]:not([data-dk-style="prop"]) .wg-track { border: var(--wl-line); border-radius: calc(var(--wl-radius) * 0.6); overflow: hidden;
+  background: repeating-linear-gradient(135deg, rgba(128, 128, 128, 0.22) 0 12px, rgba(128, 128, 128, 0.1) 12px 24px); }
+html[data-dk-style="minimal"] .wg-track { border: 0; }
+html[data-dk-style]:not([data-dk-style="prop"]) .wg-fill { border-right: 0; }
+html[data-dk-style]:not([data-dk-style="prop"]) .wg-tick { background: var(--dk-on-surface); opacity: 0.55; }
+html[data-dk-style]:not([data-dk-style="prop"]) .wg-mark { background: var(--dk-surface); color: var(--dk-on-surface); border: var(--wl-line); border-radius: min(var(--wl-radius), 8px); box-shadow: var(--dk-shadow); }
+html[data-dk-style]:not([data-dk-style="prop"]) .wg-mark.reached { background: var(--gold); color: var(--ink); }
+html[data-dk-style]:not([data-dk-style="prop"]) .wg-stamp { border-radius: calc(var(--wl-radius) * 0.6); }
+/* 후원 순위: 둥근 줄 안에 순위 칸이 맞도록 잘라 냄 */
+html[data-dk-style]:not([data-dk-style="prop"]) .wr-head, html[data-dk-style]:not([data-dk-style="prop"]) .wr-row { overflow: hidden; }
+html[data-dk-style]:not([data-dk-style="prop"]) .wr-rank { border-right: var(--wl-line); }
+html[data-dk-style]:not([data-dk-style="prop"]) .wr-row.r1 { box-shadow: var(--dk-shadow), inset 0 0 0 3px var(--gold); }
+html[data-dk-style]:not([data-dk-style="prop"]) .wr-sub { border-radius: calc(var(--wl-radius) * 0.6); }
 
 /* ================================================================ 움직임 */
 @keyframes col-in { from { transform: translateY(-36px); opacity: 0; } to { transform: none; opacity: 1; } }
