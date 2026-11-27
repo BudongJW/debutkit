@@ -1414,6 +1414,7 @@ def build_parser() -> argparse.ArgumentParser:
     mode.add_argument("--at-least", dest="exact", action="store_const", const=False, help="금액 이상이면 가장 큰 규칙(기본)")
     draw_set.add_argument("--members", action=argparse.BooleanOptionalAction, default=None, help="구독, 멤버십도 1회 추첨")
     from .draw import EFFECTS as DRAW_EFFECTS
+    from .draw import FONT_ALIASES as DRAW_FONT_ALIASES
     from .draw import FONTS as DRAW_FONTS
     from .draw import SIZES as DRAW_SIZES
     from .draw import STYLES as DRAW_STYLES
@@ -1421,9 +1422,9 @@ def build_parser() -> argparse.ArgumentParser:
     draw_set.add_argument("--style", choices=list(DRAW_STYLES), help="연출: " + ", ".join(f"{key}({name})" for key, name in DRAW_STYLES.items()))
     draw_set.add_argument("--design", metavar="모양", help="연출별 모양(debutkit draw show 의 모양 목록)")
     draw_set.add_argument("--effect", choices=list(DRAW_EFFECTS), help="결과 뒤 효과")
-    draw_set.add_argument("--name-font", choices=list(DRAW_FONTS), help="상품 이름 글꼴")
+    draw_set.add_argument("--name-font", choices=[*DRAW_FONTS, *DRAW_FONT_ALIASES], help="상품 이름 글꼴")
     draw_set.add_argument("--name-size", choices=list(DRAW_SIZES), help="상품 이름 크기")
-    draw_set.add_argument("--caption-font", choices=list(DRAW_FONTS), help="안내 글(하단 띠, 한마디) 글꼴")
+    draw_set.add_argument("--caption-font", choices=[*DRAW_FONTS, *DRAW_FONT_ALIASES], help="안내 글(하단 띠, 한마디) 글꼴")
     draw_set.add_argument("--caption-size", choices=list(DRAW_SIZES), help="안내 글 크기")
     draw_set.add_argument("--advice", action=argparse.BooleanOptionalAction, default=None, help="타로의 오늘의 한마디")
     draw_set.add_argument("--advice-line", action="append", metavar="문장", help="한마디 문장(여러 번 지정, 지정하면 목록 전체를 바꿈)")

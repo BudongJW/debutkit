@@ -57,6 +57,26 @@ FONTS = ('@font-face { font-family: "Black Han Sans"; src: url("/vendor/fonts/Bl
          '@font-face { font-family: "Galmuri11"; src: url("/vendor/fonts/Galmuri11-Bold.woff2") format("woff2"); font-weight: 700; font-display: block; }\n'
          '@font-face { font-family: "Gaegu"; src: url("/vendor/fonts/Gaegu-Regular.woff2") format("woff2"); font-weight: 400; font-display: block; }\n'
          '@font-face { font-family: "Gaegu"; src: url("/vendor/fonts/Gaegu-Bold.woff2") format("woff2"); font-weight: 700; font-display: block; }\n')
+#: 함께 배포한 한글 글꼴(google/fonts, SIL OFL 1.1, 자주 쓰는 한글 2,350자, packaging/build_fonts.py): 이름 -> (CSS 글꼴 이름, 파일, 표시 이름, 설명).
+#: 굵기 하나짜리라 font-weight 100~900 전체에 같은 파일(굵게를 요청해도 가짜 굵게를 덧입히지 않음)
+BUNDLED_FONTS: dict[str, tuple[str, str, str, str]] = {
+    "dohyeon": ("Do Hyeon", "DoHyeon-Regular.subset.woff2", "도현", "굵은 제목"),
+    "jua": ("Jua", "Jua-Regular.subset.woff2", "주아", "둥근 제목"),
+    "bagel": ("Bagel Fat One", "BagelFatOne-Regular.subset.woff2", "베이글 팻 원", "통통한 제목"),
+    "yeonsung": ("Yeon Sung", "YeonSung-Regular.subset.woff2", "연성", "개성 있는 제목"),
+    "gowundodum": ("Gowun Dodum", "GowunDodum-Regular.subset.woff2", "고운 돋움", "부드러운 고딕"),
+    "sunflower": ("Sunflower", "Sunflower-Bold.subset.woff2", "해바라기", "단정한 고딕"),
+    "stylish": ("Stylish", "Stylish-Regular.subset.woff2", "스타일리시", "가는 고딕"),
+    "dongle": ("Dongle", "Dongle-Bold.subset.woff2", "동글", "동글동글한 글씨"),
+    "cute": ("Cute Font", "CuteFont-Regular.subset.woff2", "귀여운 글꼴", "손글씨"),
+    "gamja": ("Gamja Flower", "GamjaFlower-Regular.subset.woff2", "감자꽃", "손글씨"),
+    "kirang": ("Kirang Haerang", "KirangHaerang-Regular.subset.woff2", "기랑해랑", "개성 손글씨"),
+    "eastsea": ("East Sea Dokdo", "EastSeaDokdo-Regular.subset.woff2", "동해 독도", "붓글씨"),
+    "gowunbatang": ("Gowun Batang", "GowunBatang-Bold.subset.woff2", "고운 바탕", "굵은 명조"),
+    "songmyung": ("Song Myung", "SongMyung-Regular.subset.woff2", "송명", "명조"),
+}
+FONTS += "".join(f'@font-face {{ font-family: "{family}"; src: url("/vendor/fonts/{file}") format("woff2"); font-weight: 100 900; font-display: block; }}\n'
+                 for family, file, _, _ in BUNDLED_FONTS.values())
 FALLBACK = '"Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans CJK KR", sans-serif'
 #: 고를 수 있는 글꼴: 이름 -> (표시 이름, CSS 글꼴 목록, 설명). 함께 배포한 글꼴과 운영체제 기본 한글 글꼴.
 #: 그 밖에 "local:글꼴 이름" (이 PC에 설치한 글꼴), "user:번호" (올린 내 글꼴)
@@ -69,8 +89,23 @@ FONT_CHOICES: dict[str, tuple[str, str, str]] = {
     "gungsuh": ("궁서", '"Gungsuh", "궁서", "Batang", serif', "Windows 기본"),
     "galmuri": ("갈무리11", f'"Galmuri11", {FALLBACK}', "도트 글꼴(함께 배포)"),
     "gaegu": ("개구", f'"Gaegu", "Pretendard", {FALLBACK}', "손글씨(함께 배포)"),
+    **{key: (name, f'"{family}", {FALLBACK}', f"{about}(함께 배포)") for key, (family, _, name, about) in BUNDLED_FONTS.items()},
     "applesd": ("Apple SD 산돌고딕 Neo", f'"Apple SD Gothic Neo", {FALLBACK}', "macOS 기본"),
 }
+#: 글꼴 고르기의 묶음(조작 화면의 목록 순서와 묶음 이름)
+FONT_GROUPS: dict[str, tuple[str, ...]] = {
+    "제목": ("blackhan", "dohyeon", "jua", "bagel", "yeonsung"),
+    "고딕": ("pretendard", "gowundodum", "sunflower", "stylish", "malgun", "gulim", "applesd"),
+    "손글씨": ("gaegu", "dongle", "cute", "gamja", "kirang", "eastsea"),
+    "명조": ("gowunbatang", "songmyung", "batang", "gungsuh"),
+    "도트": ("galmuri",),
+}
+#: 굵기: 굵기 파일이 따로 없는 제목 글꼴은 보통(가짜 굵게 방지), 나머지는 굵게
+_REGULAR_ONLY = {"blackhan"}
+#: 그림(canvas)에 쓸 때 브라우저가 불러올 파일: 이름 -> (글꼴 이름, 파일). 방송 이미지 만들기가 FontFace로 불러옴
+_FILES = {"blackhan": ("Black Han Sans", "BlackHanSans-Regular.woff2"), "pretendard": ("Pretendard", "Pretendard-Bold.subset.woff2"),
+          "galmuri": ("Galmuri11", "Galmuri11-Bold.woff2"), "gaegu": ("Gaegu", "Gaegu-Bold.woff2"),
+          **{key: (family, file) for key, (family, file, _, _) in BUNDLED_FONTS.items()}}
 _LOCAL_NAME = re.compile(r"^[0-9A-Za-z가-힣 _\-.]{1,40}$")
 #: 내 글꼴 파일: 첫 바이트 -> (확장자, CSS 형식)
 FONT_MAGIC = {b"\x00\x01\x00\x00": ("ttf", "truetype"), b"true": ("ttf", "truetype"), b"OTTO": ("otf", "opentype"), b"wOFF": ("woff", "woff"),
@@ -393,6 +428,56 @@ def font_stack(choice: str, fonts: list[dict[str, str]]) -> str | None:
     return None
 
 
+def font_catalog(fonts: list[dict[str, str]] | None = None) -> dict[str, dict[str, Any]]:
+    """모든 도구(뽑기판, 추첨 연출, 레이스, 방송 이미지)가 고르는 글꼴: 묶음 순서의 FONT_CHOICES와 올린 내 글꼴(``user:번호``).
+
+    값은 ``{"name", "about", "group", "css", "weight", "family", "src"}`` (src는 함께 배포한 글꼴과 내 글꼴의 파일 주소, 이 PC 글꼴은 빈 값).
+    ``fonts`` 를 주지 않으면 저장한 내 글꼴을 읽는다.
+    """
+    fonts = load()["fonts"] if fonts is None else fonts
+    catalog: dict[str, dict[str, Any]] = {}
+    for group, keys in FONT_GROUPS.items():
+        for key in keys:
+            name, stack, about = FONT_CHOICES[key]
+            family, file = _FILES.get(key, ("", ""))
+            catalog[key] = {"name": name, "about": about, "group": group, "css": stack, "weight": 400 if key in _REGULAR_ONLY else 700,
+                            "family": family, "src": f"/vendor/fonts/{file}" if file else ""}
+    for font in fonts:
+        catalog[f"user:{font['id']}"] = {"name": font["name"], "about": "내 글꼴", "group": "내 글꼴", "css": f'"dk-user-{font["id"]}", {FALLBACK}',
+                                         "weight": 400, "family": f"dk-user-{font['id']}", "src": f"/theme/font?id={font['id']}"}
+    return catalog
+
+
+def tool_fonts(extra: dict[str, tuple[str, str]] | None = None, fonts: list[dict[str, str]] | None = None) -> dict[str, dict[str, Any]]:
+    """도구(뽑기판, 추첨 연출, 레이스, 방송 이미지)의 글꼴 목록: 카탈로그(내 글꼴 포함) 뒤에 도구만의 이 PC 글꼴(extra: 이름 -> (표시 이름, CSS)).
+
+    값마다 ``label`` (조작 화면 목록에 보이는 "묶음: 이름") 을 더한다.
+    """
+    catalog = font_catalog(fonts)
+    for key, (name, stack) in (extra or {}).items():
+        catalog.setdefault(key, {"name": name, "about": "", "group": "이 PC", "css": stack, "weight": 700})
+    for item in catalog.values():
+        item["label"] = f"{item['group']}: {item['name']}"
+    return catalog
+
+
+def tool_font(value: Any, catalog: dict[str, dict[str, Any]], aliases: dict[str, str] | None = None, default: str = "blackhan") -> str | None:
+    """도구 설정의 글꼴 이름 확인. 예전 이름(aliases)은 새 이름으로, 지운 내 글꼴은 기본 글꼴로, 그 밖에 없는 이름은 None."""
+    key = str(value or "")
+    key = (aliases or {}).get(key, key)
+    if key in catalog:
+        return key
+    if key.startswith("user:"):
+        return default
+    return None
+
+
+def font_face(key: str, catalog: dict[str, dict[str, Any]]) -> list[Any]:
+    """[CSS 글꼴 목록, 굵기]. 없는 이름은 Black Han Sans."""
+    item = catalog.get(key) or catalog["blackhan"]
+    return [item["css"], item["weight"]]
+
+
 def font_folder() -> Path:
     return settings.data_path(FONT_FOLDER)
 
@@ -518,6 +603,7 @@ def make_feature(context: feature.Context) -> feature.Feature:
         return {**current, "palette": colors, "tokens": tokens(current),
                 "presets": {key: {"name": name, "primary": primary, "highlight": highlight} for key, (name, primary, highlight) in PRESETS.items()},
                 "styles": styles, "font_choices": {key: {"name": name, "about": about} for key, (name, _, about) in FONT_CHOICES.items()},
+                "font_catalog": font_catalog(current["fonts"]),
                 "logo": logo_colors()}
 
     def store(values: dict[str, Any]) -> dict[str, Any]:

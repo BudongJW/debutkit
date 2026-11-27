@@ -182,7 +182,8 @@
 
   function applyDisplay(display) {
     const palette = display.palette;
-    const [family, weight] = FONTS[display.font] || FONTS.blackhan;
+    const [family, weight] = display.font_css || FONTS[display.font] || FONTS.blackhan;  // 공통 글꼴 목록(서버가 CSS를 보냄)
+    if (document.fonts) document.fonts.load(`${weight} 40px ${family}`, "가A").catch(() => null);
     const styles = display.styles;
     const vars = {
       "--ink": palette.ink, "--paper": palette.paper, "--cover": palette.cover, "--cover-deep": palette.cover_deep, "--cover-light": palette.cover_light,

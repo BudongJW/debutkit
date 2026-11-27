@@ -105,6 +105,40 @@
     ctx.restore();
   }
 
+  // 글꼴(공통 글꼴 목록, /theme 의 font_catalog): 제목(채널 이름, 금액)과 글(한 줄 소개, 시그니처 이름)
+  let catalog = {};
+  const loadedFonts = new Set();
+  const face = (id, fallback) => catalog[$(id).value] || catalog[fallback] || { css: fallback === "pretendard" ? '"Pretendard", sans-serif' : '"Black Han Sans", sans-serif', weight: fallback === "pretendard" ? 700 : 400 };
+
+  async function loadFont(item) {  // 그림에 쓰기 전에 파일을 불러 둠(canvas는 글꼴을 스스로 받지 않음)
+    if (!item || !item.src || loadedFonts.has(item.src) || !window.FontFace) return;
+    try {
+      const font = new FontFace(item.family, `url("${item.src}")`, { weight: "100 900", display: "block" });
+      document.fonts.add(await font.load());
+      loadedFonts.add(item.src);
+    } catch (error) {
+      // 불러오지 못하면 다음 글꼴(맑은 고딕 등)로 그림
+    }
+  }
+
+  async function fillFonts() {
+    try {
+      catalog = (await (await fetch("/theme")).json()).font_catalog || {};
+    } catch (error) {
+      catalog = {};
+    }
+    for (const [id, chosen] of [["title-font", "blackhan"], ["text-font", "pretendard"]]) {
+      const groups = new Map();
+      for (const [key, item] of Object.entries(catalog)) {
+        if (!groups.has(item.group)) groups.set(item.group, Object.assign(document.createElement("optgroup"), { label: item.group }));
+        groups.get(item.group).append(new Option(item.name, key));
+      }
+      $(id).replaceChildren(...groups.values());
+      $(id).value = chosen;
+    }
+    await Promise.all([loadFont(catalog[$("title-font").value]), loadFont(catalog[$("text-font").value])]);
+  }
+
   // 넓이에 맞게 글자 크기 줄이기(ctx.font를 그 크기로 둠)
   function fitText(text, family, size, maxWidth, weight = "") {
     let px = Math.round(size);
@@ -123,7 +157,8 @@
     ctx.textAlign = align;
     ctx.textBaseline = "alphabetic";
     if (name) {
-      const px = fitText(name, '"Black Han Sans", sans-serif', size, maxWidth);
+      const title = face("title-font", "blackhan");
+      const px = fitText(name, title.css, size, maxWidth, String(title.weight));
       ctx.lineJoin = "round";
       ctx.lineWidth = px * 0.14;
       ctx.strokeStyle = c.deep;
@@ -132,7 +167,8 @@
       ctx.fillText(name, x, y);
     }
     if (line) {
-      const px = fitText(line, '"Pretendard", sans-serif', size * 0.36, maxWidth * 0.9, "700");
+      const text = face("text-font", "pretendard");
+      const px = fitText(line, text.css, size * 0.36, maxWidth * 0.9, String(text.weight));
       const width = ctx.measureText(line).width + px * 1.2;
       const top = y + size * 0.3;
       const left = align === "center" ? x - width / 2 : align === "right" ? x - width : x;
@@ -186,7 +222,8 @@
     ctx.stroke();
     const title = $("sig-title").value.trim();
     if (title) {  // 이름 띠
-      const px = fitText(title, '"Pretendard", sans-serif', height * 0.065, width * 0.66, "700");
+      const font = face("text-font", "pretendard");
+      const px = fitText(title, font.css, height * 0.065, width * 0.66, String(font.weight));
       const w = ctx.measureText(title).width + px * 1.4;
       ctx.fillStyle = c.highlight;
       roundRect(width / 2 - w / 2, height * 0.665, w, px * 1.7, px * 0.85);
@@ -198,7 +235,8 @@
     const amount = sigAmount();
     if (amount > 0) {  // 큰 금액
       const text = amount.toLocaleString("ko-KR") + (SUFFIX[$("sig-unit").value] || "");
-      const px = fitText(text, '"Black Han Sans", sans-serif', height * 0.19, width * 0.82);
+      const font = face("title-font", "blackhan");
+      const px = fitText(text, font.css, height * 0.19, width * 0.82, String(font.weight));
       ctx.textAlign = "center";
       ctx.lineJoin = "round";
       ctx.lineWidth = px * 0.16;
@@ -403,6 +441,7 @@
     buildFormats();
     $("side").value = "center";  // 처음 그림은 프사(가운데)
     if (document.fonts) await Promise.all(['40px "Black Han Sans"', '700 20px "Pretendard"'].map((font) => document.fonts.load(font))).catch(() => null);
+    await fillFonts();
     await choose();
   }
 
@@ -416,6 +455,7 @@
   });
   for (const id of ["name", "line", "sig-amount", "sig-title"]) $(id).addEventListener("input", redraw);
   for (const id of ["pattern", "scale", "side", "guide", "sig-unit"]) $(id).addEventListener("input", redraw);
+  for (const id of ["title-font", "text-font"]) $(id).addEventListener("change", async () => { await loadFont(catalog[$(id).value]); redraw(); });
   $("save").addEventListener("click", save);
   $("save-gif").addEventListener("click", saveGif);
   $("to-wall").addEventListener("click", toWall);

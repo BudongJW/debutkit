@@ -82,7 +82,24 @@ COLOR_PARTS = {"cover": "덮개", "board": "판 바탕", "text": "글자", "win"
 COVERS = {"number": "큰 번호", "dots": "망점", "stripes": "사선", "check": "체크", "grid": "모눈", "stars": "별", "hearts": "하트",
           "waves": "물결", "question": "물음표", "emblem": "마이 문양", "gift": "선물 포장"}
 #: 함께 배포한 글꼴(Black Han Sans, Pretendard)과 Windows 기본 글꼴
-FONTS = {"blackhan": "Black Han Sans", "pretendard": "Pretendard", "malgun": "맑은 고딕", "serif": "바탕(명조)"}
+#: 예전 글꼴 이름 -> 공통 글꼴 목록(theme.font_catalog)의 이름
+FONT_ALIASES = {"serif": "batang"}
+
+
+def fonts() -> dict[str, dict[str, Any]]:
+    """고를 수 있는 글꼴: 함께 배포한 글꼴, 이 PC 기본 글꼴, 올린 내 글꼴(방송 스타일과 같은 목록)."""
+    from .overlay import theme
+
+    return theme.tool_fonts()
+
+
+def _font(value: Any) -> str:
+    from .overlay import theme
+
+    found = theme.tool_font(value, fonts(), FONT_ALIASES)
+    if found is None:
+        raise PickError("글꼴은 목록에서 고름(함께 배포한 글꼴, 이 PC 글꼴, 내 글꼴)")
+    return found
 EFFECTS = {"confetti": "종이 조각", "stars": "별 터짐", "ribbons": "리본", "rays": "집중선", "coins": "동전 비", "hearts": "하트",
            "notes": "음표", "rings": "충격파", "sparkle": "반짝이", "pixels": "도트 조각", "random": "매번 무작위", "none": "없음"}
 MISS_EFFECTS = {"dust": "먼지", "cloud": "먹구름", "none": "없음"}
@@ -179,7 +196,7 @@ class Config:
     def display(self) -> dict[str, Any]:
         """방송 화면에 보내는 표시 설정(상품표는 넣지 않음)."""
         return {"title": self.title, "caption": self.caption, "cells": self.cells, "columns": self.columns, "theme": self.theme,
-                "color": self.color, "palette": palette(self.color, self.colors), "cover": self.cover, "font": self.font,
+                "color": self.color, "palette": palette(self.color, self.colors), "cover": self.cover, "font": self.font, "font_css": _font_face(self.font),
                 "styles": {part: dict(values) for part, values in self.styles.items()}, "effect": self.effect, "miss_effect": self.miss_effect,
                 "sound": self.sound, "volume": self.volume, "win_sound": self.win_sound, "miss_sound": self.miss_sound, "seconds": self.seconds,
                 "position": self.position, "scale": self.scale, "frame": self.frame, "show_numbers": self.show_numbers,
@@ -241,7 +258,8 @@ def color_hex(key: str) -> str:
 
 def options() -> dict[str, Any]:
     """조작 화면의 선택 목록(방송 색은 지금 색으로)."""
-    return {**OPTIONS, "colors": {key: {"label": label, "hex": color_hex(key)} for key, (label, _) in COLORS.items()}}
+    return {**OPTIONS, "colors": {key: {"label": label, "hex": color_hex(key)} for key, (label, _) in COLORS.items()},
+            "fonts": {key: item["label"] for key, item in fonts().items()}}
 
 
 def palette(color: str, overrides: dict[str, str] | None = None) -> dict[str, str]:
@@ -269,6 +287,12 @@ def _whole(value: Any, low: int, high: int, message: str) -> int:
     if number != int(number) or not low <= number <= high:
         raise PickError(message)
     return int(number)
+
+
+def _font_face(key: str) -> list[Any]:
+    from .overlay import theme
+
+    return theme.font_face(key, fonts())
 
 
 def _choice(value: Any, options: dict[str, str], what: str) -> str:
@@ -394,7 +418,7 @@ def parse_config(data: Any, base: Config | None = None) -> Config:
     return Config(
         title=title, caption=caption, cells=cells, columns=columns, prizes=prizes, blank=blank,
         theme=_choice(merged["theme"], THEMES, "디자인은"), color=color, colors=colors, cover=_choice(merged["cover"], COVERS, "덮개 무늬는"),
-        font=_choice(merged["font"], FONTS, "글꼴은"), styles=_styles(merged["styles"]), effect=_choice(merged["effect"], EFFECTS, "당첨 효과는"),
+        font=_font(merged["font"]), styles=_styles(merged["styles"]), effect=_choice(merged["effect"], EFFECTS, "당첨 효과는"),
         miss_effect=_choice(merged["miss_effect"], MISS_EFFECTS, "꽝 효과는"), sound=bool(merged["sound"]),
         volume=_whole(merged["volume"], *VOLUME, f"음량은 {VOLUME[0]}에서 {VOLUME[1]} 사이"),
         win_sound=_choice(merged["win_sound"], WIN_SOUNDS, "당첨 소리는"), miss_sound=_choice(merged["miss_sound"], MISS_SOUNDS, "꽝 소리는"),
@@ -1007,7 +1031,7 @@ class PickBoard:
 
 #: 조작 화면이 고르는 항목 이름
 OPTIONS = {"themes": THEMES, "colors": {key: {"label": label, "hex": value} for key, (label, value) in COLORS.items()}, "color_parts": COLOR_PARTS,
-           "covers": COVERS, "fonts": FONTS, "effects": EFFECTS, "miss_effects": MISS_EFFECTS, "win_sounds": WIN_SOUNDS, "miss_sounds": MISS_SOUNDS,
+           "covers": COVERS, "effects": EFFECTS, "miss_effects": MISS_EFFECTS, "win_sounds": WIN_SOUNDS, "miss_sounds": MISS_SOUNDS,
            "positions": POSITIONS, "aligns": ALIGNS, "who": WHO, "platforms": PLATFORMS, "sources": SOURCES, "style_ranges": STYLE_RANGES,
            "limits": {"cells": CELLS, "columns": COLUMNS, "prizes": MAX_PRIZES, "count": MAX_COUNT, "name": MAX_NAME, "title": MAX_TITLE,
                       "caption": MAX_CAPTION, "boards": MAX_BOARDS, "board_name": MAX_BOARD_NAME, "seconds": SECONDS, "scale": SCALE,

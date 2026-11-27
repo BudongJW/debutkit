@@ -43,7 +43,38 @@ DESIGNS = {
 EFFECTS = {"none": "없음", "confetti": "종이 조각", "streamers": "색 테이프", "fireworks": "불꽃놀이", "spotlight": "무대 조명", "hearts": "하트",
            "stars": "반짝이는 별"}
 #: 상품 이름, 안내 글(하단 띠, 한마디) 글꼴. 함께 배포한 글꼴 2가지와 Windows 기본 글꼴(macOS는 비슷한 글꼴로 대신)
-FONTS = {"display": "Black Han Sans(굵은 제목)", "text": "Pretendard(본문)", "gothic": "맑은 고딕", "serif": "바탕(명조)", "gungsuh": "궁서"}
+#: 예전 글꼴 이름 -> 공통 글꼴 목록(theme.font_catalog)의 이름
+FONT_ALIASES = {"display": "blackhan", "text": "pretendard", "gothic": "malgun", "serif": "batang"}
+
+
+def fonts() -> dict[str, dict[str, Any]]:
+    """고를 수 있는 글꼴(방송 스타일과 같은 목록, 올린 내 글꼴 포함)."""
+    from .overlay import theme
+
+    return theme.tool_fonts()
+
+
+def _font_name(value: Any) -> str | None:
+    from .overlay import theme
+
+    return theme.tool_font(value, fonts(), FONT_ALIASES)
+
+
+def _faces(*keys: str) -> dict[str, list[Any]]:
+    from .overlay import theme
+
+    catalog = fonts()
+    return {key: theme.font_face(key, catalog) for key in keys}
+
+
+#: 명령줄에서 고르는 글꼴 이름(함께 배포한 글꼴과 이 PC 기본 글꼴, 예전 이름도 받음)
+def _static_fonts() -> dict[str, str]:
+    from .overlay import theme
+
+    return {key: item["label"] for key, item in theme.tool_fonts(fonts=[]).items()}
+
+
+FONTS = _static_fonts()
 SIZES = {"small": "작게", "medium": "보통", "large": "크게"}
 #: 타로 오늘의 한마디 기본 문장(스트리머가 문장을 넣지 않은 경우)
 ADVICE = ("작은 일부터 하나씩 해 보기 좋은 날", "물 한 잔 마시고 기지개 한 번", "오늘의 행운은 채팅창에 있음", "웃으면 반은 이미 성공",
@@ -100,9 +131,9 @@ class Config:
     show_percent: bool = False  # 방송 화면에 확률 표시
     design: str = "basic"  # 연출별 모양(DESIGNS)
     effect: str = "none"  # 결과 뒤 효과(EFFECTS)
-    name_font: str = "display"  # 상품 이름 글꼴(FONTS)
+    name_font: str = "blackhan"  # 상품 이름 글꼴(공통 글꼴 목록)
     name_size: str = "medium"
-    caption_font: str = "display"  # 안내 글(하단 띠, 한마디) 글꼴
+    caption_font: str = "blackhan"  # 안내 글(하단 띠, 한마디) 글꼴
     caption_size: str = "medium"
     advice: bool = True  # 타로 오늘의 한마디
     advice_lines: list[str] = field(default_factory=list)  # 스트리머가 넣은 한마디(비면 기본 문장)
@@ -123,7 +154,9 @@ class Config:
                 "scale": self.scale, "sound": self.sound, "show_percent": self.show_percent, "design": self.design, "effect": self.effect,
                 "name_font": self.name_font, "name_size": self.name_size, "caption_font": self.caption_font, "caption_size": self.caption_size,
                 "advice": self.advice, "advice_lines": list(self.advice_lines), "advice_example": (self.advice_lines or list(ADVICE))[0],
-                "styles": STYLES, "positions": POSITIONS, "designs": DESIGNS, "effects": EFFECTS, "fonts": FONTS, "sizes": SIZES}
+                "styles": STYLES, "positions": POSITIONS, "designs": DESIGNS, "effects": EFFECTS, "sizes": SIZES,
+                "fonts": {key: item["label"] for key, item in fonts().items()},
+                "font_css": {key: [item["css"], item["weight"]] for key, item in fonts().items()}}
 
     def to_settings(self) -> dict[str, Any]:
         return {"draw_enabled": self.enabled, "draw_prizes": [f"{prize.weight:g}:{prize.name}" for prize in self.prizes],
@@ -192,8 +225,8 @@ def _choice(value: Any, choices: dict[str, str], default: str) -> str:
 def _look(saved: dict[str, Any], style: str) -> dict[str, Any]:
     """저장 설정의 모양, 효과, 글꼴, 한마디. 모르는 값은 기본값."""
     return {"design": design_for(style, saved.get("draw_design")), "effect": _choice(saved.get("draw_effect"), EFFECTS, "none"),
-            "name_font": _choice(saved.get("draw_name_font"), FONTS, "display"), "name_size": _choice(saved.get("draw_name_size"), SIZES, "medium"),
-            "caption_font": _choice(saved.get("draw_caption_font"), FONTS, "display"),
+            "name_font": _font_name(saved.get("draw_name_font")) or "blackhan", "name_size": _choice(saved.get("draw_name_size"), SIZES, "medium"),
+            "caption_font": _font_name(saved.get("draw_caption_font")) or "blackhan",
             "caption_size": _choice(saved.get("draw_caption_size"), SIZES, "medium"), "advice": bool(saved.get("draw_advice", True)),
             "advice_lines": parse_advice(saved.get("draw_advice_lines"))}
 
@@ -216,7 +249,7 @@ def load_config(saved: dict[str, Any] | None = None) -> Config:
 
 
 #: 조작 화면의 고르기 목록(기본값에서는 뺀다)
-CHOICE_KEYS = ("styles", "positions", "designs", "effects", "fonts", "sizes", "advice_example")
+CHOICE_KEYS = ("styles", "positions", "designs", "effects", "fonts", "font_css", "sizes", "advice_example")
 
 
 def defaults() -> dict[str, Any]:
@@ -317,9 +350,9 @@ def _look_request(data: dict[str, Any], style: str) -> dict[str, Any]:
         raise DrawError(f"효과는 {_listed(EFFECTS)}")
     found: dict[str, Any] = {"design": design, "effect": effect}
     for key, label in (("name_font", "상품 이름 글꼴"), ("caption_font", "안내 글꼴")):
-        value = data.get(key, kept.get(key))
-        if not isinstance(value, str) or value not in FONTS:
-            raise DrawError(f"{label}은 {_listed(FONTS)}")
+        value = _font_name(data.get(key, kept.get(key)))
+        if value is None:
+            raise DrawError(f"{label}은 목록에서 고름(함께 배포한 글꼴, 이 PC 글꼴, 내 글꼴)")
         found[key] = value
     for key, label in (("name_size", "상품 이름 크기"), ("caption_size", "안내 글 크기")):
         value = data.get(key, kept.get(key))
@@ -419,6 +452,7 @@ class DrawState:
                 "title": config.title, "position": config.position, "scale": config.scale, "sound": config.sound, "show_percent": config.show_percent,
                 "design": config.design, "effect": config.effect, "name_font": config.name_font, "name_size": config.name_size,
                 "caption_font": config.caption_font, "caption_size": config.caption_size, "advice": pick_advice(config, self._rng),
+                "font_css": _faces(config.name_font, config.caption_font),
             }
             result["script"] = script(result)
             self.current = result

@@ -231,16 +231,22 @@
     gungsuh: ['"Gungsuh", "궁서", "GungSeo", "AppleMyungjo", serif', 700],
   };
   const SIZES = { small: 0.85, medium: 1, large: 1.18 };
+  // 공통 글꼴 목록(함께 배포한 글꼴, 이 PC 글꼴, 내 글꼴): 결과(result.font_css)와 미리보기 설정(config.font_css)이 [CSS, 굵기]를 보냄
+  const OLD_NAMES = { blackhan: "display", pretendard: "text", malgun: "gothic", batang: "serif" };
+  const face = (key) => FONTS[key] || FONTS[OLD_NAMES[key]];
 
   function applyLook(scene, result) {
+    Object.assign(FONTS, result.font_css || {});
     for (const part of ["name", "caption"]) {
-      const [family, weight] = FONTS[result[`${part}_font`]] || FONTS.display;
+      const [family, weight] = face(result[`${part}_font`]) || FONTS.display;
+      if (document.fonts) document.fonts.load(`${weight} 40px ${family}`, "가A").catch(() => null);
       scene.style.setProperty(`--${part}-font`, family);
       scene.style.setProperty(`--${part}-weight`, String(weight));
       scene.style.setProperty(`--${part}-scale`, String(SIZES[result[`${part}_size`]] || 1));
     }
     // 작은 상품 이름: 굵은 제목 글꼴은 획이 뭉치므로 본문 글꼴, 다른 글꼴은 그대로
-    const small = FONTS[result.name_font] && result.name_font !== "display" ? FONTS[result.name_font] : FONTS.text;
+    const heavy = ["display", "blackhan"].includes(result.name_font);
+    const small = face(result.name_font) && !heavy ? face(result.name_font) : FONTS.text;
     scene.style.setProperty("--name-small-font", small[0]);
     scene.style.setProperty("--name-small-weight", String(small[1]));
   }
@@ -870,6 +876,7 @@
     document.body.classList.add("sample");
     if (params.get("bg") === "light") document.body.classList.add("light");
     fetch("/draw/config").then((response) => response.json()).then((config) => {
+      Object.assign(FONTS, config.font_css || {});
       const prizes = config.prizes;
       const rare = prizes.find((prize) => prize.rare) || prizes[prizes.length - 1];
       const others = prizes.filter((prize) => prize !== rare);

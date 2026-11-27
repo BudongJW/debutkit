@@ -51,17 +51,25 @@ COLORS = {"channel": ("방송 색", "#ff4f8b"), "pink": ("분홍", "#ff4f8b"), "
           "blue": ("파랑", "#3d63dd"), "purple": ("보라", "#8e5cf0"), "lilac": ("라일락", "#c27ae0"), "brown": ("갈색", "#a0673d"),
           "slate": ("먹색", "#59626a")}
 #: 글꼴: 함께 배포한 글꼴(Black Han Sans, Pretendard)과 Windows 기본 글꼴. 없는 글꼴은 맑은 고딕으로 표시
-FONTS = {"blackhan": ("Black Han Sans(함께 배포)", '"Black Han Sans", "Malgun Gothic", sans-serif'),
-         "pretendard": ("Pretendard(함께 배포)", '"Pretendard", "Malgun Gothic", sans-serif'),
-         "malgun": ("맑은 고딕", '"Malgun Gothic", "Apple SD Gothic Neo", sans-serif'),
-         "gulim": ("굴림", 'Gulim, "Malgun Gothic", sans-serif'),
-         "dotum": ("돋움", 'Dotum, "Malgun Gothic", sans-serif'),
-         "batang": ("바탕", 'Batang, "AppleMyungjo", serif'),
-         "gungsuh": ("궁서", 'Gungsuh, Batang, serif'),
-         "nanum": ("나눔고딕(설치한 경우)", '"NanumGothic", "Malgun Gothic", sans-serif'),
-         "nanumpen": ("나눔손글씨 펜(설치한 경우)", '"Nanum Pen Script", "NanumPen", "Malgun Gothic", cursive'),
-         "impact": ("Impact(영문)", 'Impact, "Black Han Sans", "Malgun Gothic", sans-serif'),
-         "consolas": ("Consolas(영문)", 'Consolas, "Malgun Gothic", monospace')}
+#: 레이스만의 이 PC 글꼴(공통 글꼴 목록 뒤에 붙음)
+EXTRA_FONTS = {"dotum": ("돋움", 'Dotum, "Malgun Gothic", sans-serif'),
+               "nanum": ("나눔고딕(설치한 경우)", '"NanumGothic", "Malgun Gothic", sans-serif'),
+               "nanumpen": ("나눔손글씨 펜(설치한 경우)", '"Nanum Pen Script", "NanumPen", "Malgun Gothic", cursive'),
+               "impact": ("Impact(영문)", 'Impact, "Black Han Sans", "Malgun Gothic", sans-serif'),
+               "consolas": ("Consolas(영문)", 'Consolas, "Malgun Gothic", monospace')}
+
+
+def fonts() -> dict[str, dict[str, Any]]:
+    """고를 수 있는 글꼴: 공통 글꼴 목록(함께 배포, 이 PC 기본, 내 글꼴)과 레이스만의 이 PC 글꼴."""
+    from .overlay import theme
+
+    return theme.tool_fonts(EXTRA_FONTS)
+
+
+def _font_css(key: str) -> str:
+    from .overlay import theme
+
+    return theme.font_face(key, fonts())[0]
 MIN_RUNNERS = 2
 MAX_RUNNERS = 100
 LANES = 8
@@ -97,6 +105,15 @@ def _pick(value: Any, table: dict[str, Any], message: str) -> str:
     if not isinstance(value, str) or value not in table:
         raise RaceError(message)
     return value
+
+
+def _font(value: Any) -> str:
+    from .overlay import theme
+
+    found = theme.tool_font(value, fonts())
+    if found is None:
+        raise RaceError("글꼴은 목록에서 고름(함께 배포한 글꼴, 이 PC 글꼴, 내 글꼴)")
+    return found
 
 
 def _integer(value: Any, low: int, high: int, message: str) -> int:
@@ -142,7 +159,7 @@ def check_options(data: Any, base: dict[str, Any] | None = None) -> dict[str, An
         "speed": round(float(speed), 2),
         "design": _pick(merged["design"], DESIGNS, "디자인은 wood(나무 장난감), metal(유리와 금속), paper(종이 공작) 중 하나"),
         "color": _pick(merged["color"], COLORS, "색은 " + ", ".join(COLORS) + " 중 하나"),
-        "font": _pick(merged["font"], FONTS, "글꼴은 " + ", ".join(FONTS) + " 중 하나"),
+        "font": _font(merged["font"]),
         "sound": bool(merged["sound"]),
         "volume": _integer(merged["volume"], 0, 100, "효과음 크기는 0에서 100 사이의 정수"),
         "listen": bool(merged["listen"]),
@@ -182,7 +199,7 @@ def choices() -> dict[str, Any]:
     """조작 화면의 선택 목록."""
     return {"games": GAMES, "courses": COURSES, "formats": FORMATS, "surprises": SURPRISES, "events": EVENTS, "ranks": RANKS, "lengths": LENGTHS,
             "designs": DESIGNS, "colors": {key: {"label": label, "hex": color_hex(key)} for key, (label, _) in COLORS.items()},
-            "fonts": {key: {"label": label, "css": css} for key, (label, css) in FONTS.items()}, "speed": list(SPEED),
+            "fonts": {key: {"label": item["label"], "css": item["css"]} for key, item in fonts().items()}, "speed": list(SPEED),
             "limits": {"min": MIN_RUNNERS, "max": MAX_RUNNERS, "lanes": LANES, "at_once": MAX_AT_ONCE, "repeat": MAX_REPEAT, "name": MAX_NAME}}
 
 
@@ -550,7 +567,7 @@ class RaceState:
         chosen_hex = color_hex(options["color"])
         plan["practice"] = practice
         plan["options"] = {"surprise": options["surprise"], "events": options["events"][options["game"]], "design": options["design"],
-                           "color": options["color"], "color_hex": chosen_hex, "font": options["font"], "font_css": FONTS[options["font"]][1],
+                           "color": options["color"], "color_hex": chosen_hex, "font": options["font"], "font_css": _font_css(options["font"]),
                            "speed": options["speed"], "length": options["length"]}
         plan["notes"] = notes
         with self._lock:
@@ -690,7 +707,7 @@ class RaceState:
         plan = build_plan(options["game"], [ticket["name"] for ticket in tickets], {**options, "custom_rank": 1}, seed)
         plan.update(id=0, practice=True, notes=[], options={"surprise": options["surprise"], "events": options["events"][options["game"]],
                                                             "design": options["design"], "color": options["color"], "color_hex": color_hex(options["color"]),
-                                                            "font": options["font"], "font_css": FONTS[options["font"]][1], "speed": options["speed"],
+                                                            "font": options["font"], "font_css": _font_css(options["font"]), "speed": options["speed"],
                                                             "length": options["length"]})
         try:
             heat = max(0, min(len(plan["heats"]) - 1, int(value("heat", 0))))

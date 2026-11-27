@@ -38,7 +38,7 @@ def test_race_commands(port, capsys):
 def test_draw_set_new_look_settings(capsys):
     assert main(["draw", "set", "--style", "capsule", "--effect", "stars", "--name-font", "text", "--name-size", "large"]) == 0
     config = draw.load_config()
-    assert (config.style, config.design, config.effect, config.name_font, config.name_size) == ("capsule", "round", "stars", "text", "large")
+    assert (config.style, config.design, config.effect, config.name_font, config.name_size) == ("capsule", "round", "stars", "pretendard", "large")
     assert "모양 둥근 유리 돔" in capsys.readouterr().out
     assert main(["draw", "set", "--style", "tarot", "--advice-line", "오늘은 좋은 날", "--advice-line", "물 많이 마시기"]) == 0
     assert draw.load_config().advice_lines == ["오늘은 좋은 날", "물 많이 마시기"] and draw.load_config().effect == "stars"  # 지정하지 않은 항목은 유지

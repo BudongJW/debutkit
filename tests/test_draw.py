@@ -281,19 +281,21 @@ def test_fonts_are_bundled_and_served(server):
 def test_look_defaults_and_round_trip():
     first = draw.load_config()
     assert (first.design, first.effect, first.name_font, first.name_size, first.caption_font, first.caption_size, first.advice, first.advice_lines) == (
-        "basic", "none", "display", "medium", "display", "medium", True, [])
-    draw.save_config(config(style="capsule", design="box", effect="stars", name_font="serif", name_size="large", caption_font="gungsuh",
+        "basic", "none", "blackhan", "medium", "blackhan", "medium", True, [])
+    draw.save_config(config(style="capsule", design="box", effect="stars", name_font="batang", name_size="large", caption_font="gungsuh",
                             caption_size="small", advice=False, advice_lines=[" 물 한 잔 ", "", "물 한 잔", "오늘도 좋은 날"]))
     saved = settings.load()
     assert (saved["draw_style"], saved["draw_design"], saved["draw_effect"], saved["draw_name_font"], saved["draw_name_size"]) == (
-        "capsule", "box", "stars", "serif", "large")
+        "capsule", "box", "stars", "batang", "large")
     assert (saved["draw_caption_font"], saved["draw_caption_size"], saved["draw_advice"], saved["draw_advice_lines"]) == (
         "gungsuh", "small", False, ["물 한 잔", "오늘도 좋은 날"])
     loaded = draw.load_config()
     assert loaded.to_settings() == {key: value for key, value in saved.items() if key.startswith("draw_")}
     shown = loaded.to_dict()
     assert shown["designs"]["capsule"]["box"] == "네모 유리창" and shown["effects"]["none"] == "없음" and shown["sizes"]["large"] == "크게"
-    assert set(shown["fonts"]) == {"display", "text", "gothic", "serif", "gungsuh"} and shown["advice_example"] == "물 한 잔"
+    assert {"blackhan", "pretendard", "batang", "gungsuh", "jua", "galmuri"} <= set(shown["fonts"]) and len(shown["fonts"]) >= 20  # 공통 글꼴 목록
+    assert shown["font_css"]["jua"][0].startswith('"Jua"') and shown["advice_example"] == "물 한 잔"
+    assert draw.load_config({"draw_name_font": "serif", "draw_caption_font": "text"}).name_font == "batang"  # 예전 이름은 새 이름으로
     assert set(draw.DESIGNS) == set(draw.STYLES) and all(len(draw.DESIGNS[style]) >= 3 for style in draw.STYLES if style not in ("card", "wheel"))
     assert len([effect for effect in draw.EFFECTS if effect != "none"]) >= 5
 
@@ -303,18 +305,18 @@ def test_saved_settings_from_before_load_unchanged():
            "draw_position": "left", "draw_scale": 120, "draw_sound": True, "draw_show_percent": True}
     loaded = draw.load_config(old)
     assert (loaded.style, loaded.seconds, loaded.title, loaded.position, loaded.scale, loaded.sound, loaded.show_percent) == ("wheel", 5, "벌칙 룰렛", "left", 120, True, True)
-    assert (loaded.design, loaded.effect, loaded.name_font, loaded.advice) == ("basic", "none", "display", True)
+    assert (loaded.design, loaded.effect, loaded.name_font, loaded.advice) == ("basic", "none", "blackhan", True)  # 예전 이름 display도
     broken = draw.load_config({"draw_style": "drum", "draw_design": "box", "draw_effect": "boom", "draw_name_font": "Comic Sans", "draw_name_size": "huge",
                                "draw_caption_font": 3, "draw_advice_lines": ["가" * 41, "좋은 날", 7]})
     assert (broken.design, broken.effect, broken.name_font, broken.name_size, broken.caption_font, broken.advice_lines) == (
-        "classic", "none", "display", "medium", "display", ["좋은 날"])
+        "classic", "none", "blackhan", "medium", "blackhan", ["좋은 날"])
 
 
 @pytest.mark.parametrize("changes, message", [
     ({"style": "capsule", "design": "basic"}, "캡슐 뽑기 모양은 round"),
     ({"style": "drum", "design": "box"}, "추첨기 모양은 classic"),
     ({"effect": "boom"}, "효과는 none"),
-    ({"name_font": "Comic Sans"}, "상품 이름 글꼴은 display"),
+    ({"name_font": "Comic Sans"}, "상품 이름 글꼴은 목록에서"),
     ({"caption_font": None}, "안내 글꼴은"),
     ({"name_size": "huge"}, "상품 이름 크기는 small"),
     ({"caption_size": 3}, "안내 글 크기는"),
@@ -331,7 +333,7 @@ def test_look_settings_are_explained(changes, message):
 def test_missing_look_keys_keep_saved_values():
     draw.save_config(config(style="tarot", design="sun", effect="hearts", name_font="text", advice_lines=["좋은 날"]))
     kept = config(style="tarot", title="타로 추첨")  # 이 항목을 모르는 명령줄처럼
-    assert (kept.design, kept.effect, kept.name_font, kept.advice_lines, kept.title) == ("sun", "hearts", "text", ["좋은 날"], "타로 추첨")
+    assert (kept.design, kept.effect, kept.name_font, kept.advice_lines, kept.title) == ("sun", "hearts", "pretendard", ["좋은 날"], "타로 추첨")
     moved = config(style="scratch")  # 저장한 모양이 새 연출에 없으면 그 연출의 기본 모양
     assert moved.design == "classic" and moved.effect == "hearts"
     assert config(style="ticket", design="").design == "stub" and config(advice_lines="첫 줄\n\n둘째 줄").advice_lines == ["첫 줄", "둘째 줄"]
@@ -341,7 +343,7 @@ def test_results_carry_look_and_tarot_advice():
     state = draw.DrawState(rng=random.Random(5))
     tarot = config(style="tarot", design="pink", effect="fireworks", caption_font="serif", advice_lines=["하나", "둘"])
     result = state.run(tarot, name="a", platform="chzzk", kind="donation", amount=1000, unit="원", count=3)
-    assert (result["style"], result["design"], result["effect"], result["caption_font"], result["name_size"]) == ("tarot", "pink", "fireworks", "serif", "medium")
+    assert (result["style"], result["design"], result["effect"], result["caption_font"], result["name_size"]) == ("tarot", "pink", "fireworks", "batang", "medium")
     assert result["advice"] in ("하나", "둘") and result["script"].endswith(f". 오늘의 한마디 {result['advice']}")
     assert state.run(config(style="tarot"), name="a", platform="chzzk", kind="donation", amount=1000, unit="원", count=1)["advice"] in draw.ADVICE
     assert state.run(config(style="tarot", advice=False), name="a", platform="chzzk", kind="donation", amount=1000, unit="원", count=1)["advice"] == ""
@@ -362,8 +364,9 @@ def test_every_style_design_effect_and_font_has_page_code(server):
     for effect in draw.EFFECTS:
         assert effect == "none" or re.search(rf"\n    {effect}\(", script), effect
         assert effect in ("none", "confetti") or f".dk-fx.{effect}" in css, effect
-    for font in draw.FONTS:
-        assert re.search(rf"\n    {font}: \[", script), font
+    # 글꼴은 서버가 보낸 CSS(공통 글꼴 목록)로. 예전 이름(display, text, gothic, serif)은 서버가 새 이름으로 바꿔 보냄
+    assert "result.font_css" in script and "config.font_css" in script
+    assert all(key in draw.FONTS for key in ("blackhan", "pretendard", "jua", "gowunbatang", "galmuri"))
     for size in draw.SIZES:
         assert f"{size}: " in script, size
 
