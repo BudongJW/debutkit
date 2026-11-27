@@ -72,7 +72,7 @@ MUTED = "#5b6670"
 
 PLATFORMS = {"chzzk": "치지직", "soop": "SOOP", "youtube": "YouTube", "twitch": "Twitch"}
 THEMES = {"card": "카드 뒤집기", "ticket": "긁는 복권", "envelope": "봉투", "capsule": "캡슐", "door": "작은 문", "sticker": "스티커 떼기",
-          "memo": "메모지"}
+          "memo": "메모지", "balloon": "풍선 터뜨리기"}
 #: 테마 색: 하나를 고르면 덮개, 판 바탕, 글자, 당첨 띠 색을 맞춘다(직접 지정한 색이 우선)
 #: channel(방송 색)은 설정 화면, 방송 화면 미리보기에서 고른 방송 색(overlay/theme.py)을 따른다
 COLORS = {"channel": ("방송 색", "#ff4f8b"), "pink": ("핑크", "#ff4f8b"), "cherry": ("체리", "#e23b4e"), "tangerine": ("귤", "#ff7a2f"), "peach": ("복숭아", "#ffa48a"),
@@ -80,7 +80,8 @@ COLORS = {"channel": ("방송 색", "#ff4f8b"), "pink": ("핑크", "#ff4f8b"), "
           "violet": ("보라", "#8a5cf5"), "lilac": ("라일락", "#c39bf0"), "cocoa": ("코코아", "#8a5a44"), "slate": ("먹", "#3a4249")}
 COLOR_PARTS = {"cover": "덮개", "board": "판 바탕", "text": "글자", "win": "당첨 띠"}
 COVERS = {"number": "큰 번호", "dots": "망점", "stripes": "사선", "check": "체크", "grid": "모눈", "stars": "별", "hearts": "하트",
-          "waves": "물결", "question": "물음표", "emblem": "마이 문양", "gift": "선물 포장"}
+          "waves": "물결", "question": "물음표", "emblem": "마이 문양", "gift": "선물 포장", "zigzag": "지그재그", "confetti": "색종이",
+          "argyle": "아가일", "flowers": "꽃", "clouds": "구름", "bubbles": "방울", "pixel": "도트"}
 #: 함께 배포한 글꼴(Black Han Sans, Pretendard)과 Windows 기본 글꼴
 #: 예전 글꼴 이름 -> 공통 글꼴 목록(theme.font_catalog)의 이름
 FONT_ALIASES = {"serif": "batang"}

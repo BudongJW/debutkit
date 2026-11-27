@@ -98,11 +98,17 @@ window.debutkitDrawProps = (kit) => {
 
   // ================================================================ 캡슐 뽑기
   // 손잡이를 돌릴 때마다 캡슐이 굴러 나와 받침에 놓이고(캡슐 색이 등급 예고), 모두 나오면 열어 쪽지(상품)를 보여 준다
-  const CAPSULE_DESIGNS = ["round", "box", "night"];
+  const CAPSULE_DESIGNS = ["round", "box", "night", "mint", "lemon", "sky", "gold", "candy"];
+  //: 모양(box: 네모 유리창, 아니면 둥근 돔)과 색
   const CAPSULE_LOOK = {
     round: { body: PINK, panel: PAPER, knob: PAPER, bar: PINK, cap: PINK, trim: null },
-    box: { body: PAPER, panel: PINK_LIGHT, knob: PAPER, bar: PINK, cap: PINK, trim: PINK },
+    box: { box: true, body: PAPER, panel: PINK_LIGHT, knob: PAPER, bar: PINK, cap: PINK, trim: PINK },
     night: { body: "#2b3238", panel: SLATE, knob: PINK, bar: PAPER, cap: PINK, trim: PINK },
+    mint: { body: "#3fc1a5", panel: PAPER, knob: "#ffd84d", bar: "#ff8a5b", cap: "#ff8a5b", trim: null },
+    lemon: { box: true, body: "#ffe066", panel: PAPER, knob: PAPER, bar: "#ff9f1c", cap: "#ff9f1c", trim: "#ff9f1c" },
+    sky: { body: "#5aa9f0", panel: "#e8f4ff", knob: PAPER, bar: "#2f6fc4", cap: "#2f6fc4", trim: PAPER },
+    gold: { body: "#d4a73a", panel: "#2b3238", knob: "#fff3c2", bar: "#8a6a1f", cap: "#8a6a1f", trim: "#fff3c2" },
+    candy: { box: true, body: "#ff8fb8", panel: "#fff3f8", knob: "#7fd6c8", bar: "#b48cff", cap: "#b48cff", trim: "#7fd6c8" },
   };
 
   function miniCapsule(x, y, r, color, angle) {
@@ -114,7 +120,7 @@ window.debutkitDrawProps = (kit) => {
 
   function capsuleMachine(design) {
     const look = CAPSULE_LOOK[design];
-    const box = design === "box";
+    const box = Boolean(look.box);
     const svg = svgEl("svg", { viewBox: "0 0 200 336", class: "machine", "aria-hidden": "true" });
     const glass = box ? ["rect", { x: 26, y: 30, width: 148, height: 150, rx: 14 }] : ["circle", { cx: 100, cy: 106, r: 84 }];
     const defs = svgEl("defs");
@@ -226,18 +232,20 @@ window.debutkitDrawProps = (kit) => {
 
   // ================================================================ 즉석 복권
   // 복권 한 장에 추첨 횟수만큼 칸. 동전이 은박을 긁어 상품을 보여 준다. 일반, 꽝 칸은 한 줄씩 함께, 희귀 칸은 금색으로 빛난 뒤 마지막에 천천히
-  const SCRATCH_DESIGNS = ["classic", "rough", "night"];
+  const SCRATCH_DESIGNS = ["classic", "rough", "night", "pastel", "gold", "mint"];
+  //: 긁는 막 색(금박 복권은 금색)
+  const COATS = { gold: ["#b8902f", "#fff0b3", "#e2c066", "#9c7724"], silver: ["#a9b0b6", "#e8ebed", "#cdd3d7", "#959da4"] };
 
-  function paintCoat(ctx, rect) {  // 은박: 금속 그러데이션, 가는 결, 잡음 점, 인쇄 글씨
+  function paintCoat(ctx, rect, coat = COATS.silver) {  // 은박: 금속 그러데이션, 가는 결, 잡음 점, 인쇄 글씨
     ctx.save();
     ctx.beginPath();
     ctx.rect(rect.x, rect.y, rect.w, rect.h);
     ctx.clip();
     const shine = ctx.createLinearGradient(rect.x, rect.y, rect.x + rect.w, rect.y + rect.h);
-    shine.addColorStop(0, "#a9b0b6");
-    shine.addColorStop(0.42, "#e8ebed");
-    shine.addColorStop(0.55, "#cdd3d7");
-    shine.addColorStop(1, "#959da4");
+    shine.addColorStop(0, coat[0]);
+    shine.addColorStop(0.42, coat[1]);
+    shine.addColorStop(0.55, coat[2]);
+    shine.addColorStop(1, coat[3]);
     ctx.fillStyle = shine;
     ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
     ctx.strokeStyle = "rgba(255, 255, 255, 0.32)";
@@ -403,7 +411,7 @@ window.debutkitDrawProps = (kit) => {
     const ctx = canvas.getContext("2d");
     ctx.scale(density, density);
     const rects = wins.map((win) => ({ x: win.offsetLeft, y: win.offsetTop, w: win.offsetWidth, h: win.offsetHeight }));
-    rects.forEach((rect) => paintCoat(ctx, rect));
+    rects.forEach((rect) => paintCoat(ctx, rect, design === "gold" ? COATS.gold : COATS.silver));
     await beat(600);  // 시작: 복권 등장
     const rare = wins.map((win, index) => index).filter((index) => wins[index].classList.contains("rare"));
     if (rare.length) {  // 예고: 희귀 칸 둘레만 금색 빛
@@ -439,7 +447,10 @@ window.debutkitDrawProps = (kit) => {
   // ================================================================ 티켓 출력
   // 출력기의 등이 등급 색으로 켜진 뒤(예고, 희귀는 금색으로 깜빡이며 흔들림) 티켓이 한 줄씩 인쇄되어 나온다(공개).
   // 여러 장이면 찢어서 옆에 차례로 놓는다
-  const TICKET_DESIGNS = ["stub", "receipt", "coupon"];
+  const TICKET_DESIGNS = ["stub", "receipt", "coupon", "concert", "movie", "boarding", "gift", "shop"];
+  //: 디자인마다 바탕 모양(입장권, 영수증, 교환권)과 교환권 위쪽 이름
+  const TICKET_BASE = { stub: "stub", receipt: "receipt", coupon: "coupon", concert: "stub", movie: "stub", boarding: "coupon", gift: "coupon", shop: "receipt" };
+  const COUPON_LABEL = { coupon: "교환권", boarding: "탑승권", gift: "상품권" };
   const TICKET_SIZE = {  // [인쇄 크기(1장), 인쇄 크기(여러 장), 옆에 놓는 칸 배치]
     stub: [[330, 156], [232, 110], [[5, 200, 94, 5], [12, 160, 76, 6], [30, 118, 58, 10]]],
     coupon: [[330, 156], [232, 110], [[5, 200, 94, 5], [12, 160, 76, 6], [30, 118, 58, 10]]],
@@ -461,12 +472,13 @@ window.debutkitDrawProps = (kit) => {
   function ticketEl(item, slot, total, design, size, showPercent, title) {
     const [width, height] = size;
     const tier = tierOf(item);
-    const node = el("div", `dk-ticket ${design} ${tier}${width < 150 ? " small" : ""}`);
+    const base = TICKET_BASE[design] || "stub";
+    const node = el("div", `dk-ticket ${base}${base === design ? "" : ` ${design}`} ${tier}${width < 150 ? " small" : ""}`);
     node.style.setProperty("--tw", `${width}px`);
     node.style.setProperty("--th", `${height}px`);
     const paper = el("div", "paper");
     const number = `${pad(slot + 1)}/${pad(total)}`;
-    if (design === "stub") {
+    if (base === "stub") {
       const stub = el("div", "stub");
       stub.appendChild(el("span", "", `No.${pad(slot + 1)}`));
       const main = el("div", "main");
@@ -474,7 +486,7 @@ window.debutkitDrawProps = (kit) => {
       const percent = percentEl(item, showPercent);
       if (percent) main.appendChild(percent);
       paper.append(stub, main);
-    } else if (design === "receipt") {
+    } else if (base === "receipt") {
       paper.style.clipPath = zigzag(width, height, Math.max(7, width / 18));
       const head = el("div", "row");
       head.append(el("span", "", title), el("span", "", number));
@@ -483,7 +495,7 @@ window.debutkitDrawProps = (kit) => {
       paper.append(head, el("i", "rule"), nameEl(item.name, width * 0.82, height * 0.4, 40, 3), el("i", "rule"), foot, barcode(item.percent * 100 + slot));
     } else {
       const head = el("div", "row");
-      head.append(el("span", "label", "교환권"), el("span", "", number));
+      head.append(el("span", "label", COUPON_LABEL[design] || "교환권"), el("span", "", number));
       paper.append(head, nameEl(item.name, width * 0.8, height * 0.48, 44));
       const percent = percentEl(item, showPercent);
       if (percent) paper.appendChild(percent);
@@ -508,7 +520,7 @@ window.debutkitDrawProps = (kit) => {
     const design = chooseDesign(result.design, TICKET_DESIGNS);
     const total = result.draws.length;
     const single = total === 1;
-    const [big, print, table] = TICKET_SIZE[design];
+    const [big, print, table] = TICKET_SIZE[TICKET_BASE[design] || "stub"];
     const size = single ? big : print;
     const plan = single ? null : grid(total, table);
     const stage = el("div", "dk-tickets");
@@ -572,9 +584,11 @@ window.debutkitDrawProps = (kit) => {
   // ================================================================ 추첨기
   // 손잡이를 돌리면 팔각 통이 돌고 공이 떨어진다. 공 색이 등급(희귀 금색, 일반 핑크, 꽝 슬레이트)이고, 이름표로 상품을 보여 준다.
   // 희귀 공이 나오면 종소리
-  const DRUM_DESIGNS = ["classic", "wood", "night"];
+  const DRUM_DESIGNS = ["classic", "wood", "night", "mint", "gold"];
   const DRUM_LOOK = {
     classic: { face: PINK, slat: PAPER, leg: PAPER, hub: PAPER, handle: PAPER, dish: PINK_LIGHT },
+    mint: { face: "#3fc1a5", slat: PAPER, leg: "#2a8f79", hub: "#ffd84d", handle: "#ffd84d", dish: "#c9f1e7" },
+    gold: { face: "#d4a73a", slat: "#fff3c2", leg: "#8a6a1f", hub: "#fff3c2", handle: "#fff3c2", dish: "#f3dc9c" },
     wood: { face: "#c98d5a", slat: "#e7c49a", leg: "#8a5a35", hub: PAPER, handle: PINK, dish: "#e7c49a" },
     night: { face: "#2b3238", slat: PINK, leg: SLATE, hub: PINK, handle: PINK, dish: SLATE },
   };

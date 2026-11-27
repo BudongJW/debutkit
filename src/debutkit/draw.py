@@ -33,10 +33,12 @@ STYLES = {"card": "카드 뒤집기", "wheel": "룰렛", "capsule": "캡슐 뽑�
 DESIGNS = {
     "card": {"basic": "기본"},
     "wheel": {"basic": "기본"},
-    "capsule": {"round": "둥근 유리 돔", "box": "네모 유리창", "night": "검정 머신"},
-    "scratch": {"classic": "은박, 깔끔하게", "rough": "은박, 거칠게", "night": "검정 복권"},
-    "ticket": {"stub": "입장권", "receipt": "영수증", "coupon": "교환권"},
-    "drum": {"classic": "핑크 팔각", "wood": "나무", "night": "검정"},
+    "capsule": {"round": "둥근 유리 돔", "box": "네모 유리창", "night": "검정 머신", "mint": "민트 레트로", "lemon": "레몬 상자", "sky": "하늘 유리",
+                "gold": "금빛 머신", "candy": "사탕 상자"},
+    "scratch": {"classic": "은박, 깔끔하게", "rough": "은박, 거칠게", "night": "검정 복권", "pastel": "파스텔 복권", "gold": "금박 복권", "mint": "민트 복권"},
+    "ticket": {"stub": "입장권", "receipt": "영수증", "coupon": "교환권", "concert": "공연 티켓", "movie": "영화표", "boarding": "탑승권",
+               "gift": "상품권", "shop": "가게 영수증"},
+    "drum": {"classic": "핑크 팔각", "wood": "나무", "night": "검정", "mint": "민트", "gold": "금빛"},
     "tarot": {"night": "밤하늘", "sun": "해", "pink": "핑크 문양"},
 }
 #: 결과 판이 나올 때의 효과(모두 꽝이면 생략)

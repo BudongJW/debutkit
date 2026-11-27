@@ -252,6 +252,15 @@ body.playing #raffle { opacity: 0; }
 .dk-lotto[data-design="night"] .win { color: var(--ink); }
 .dk-lotto[data-design="night"] .win.miss { color: var(--muted); }
 .dk-lotto[data-design="rough"] .win { border-style: solid; border-radius: 2px; }
+.dk-lotto[data-design="pastel"] { background: #fff1f6 var(--grain); }
+.dk-lotto[data-design="pastel"] .field { background: repeating-linear-gradient(45deg, rgba(180, 140, 255, 0.2) 0 2px, transparent 2px 10px), #f6efff; border-color: #b48cff; }
+.dk-lotto[data-design="gold"] { background: #2b3238 var(--grain); color: #fff3c2; border-color: var(--ink); }
+.dk-lotto[data-design="gold"] .field { background: repeating-linear-gradient(45deg, rgba(212, 167, 58, 0.3) 0 2px, transparent 2px 9px), #1b2025; border-color: #d4a73a; }
+.dk-lotto[data-design="gold"] .head .serial, .dk-lotto[data-design="gold"] .foot { color: #e2c066; }
+.dk-lotto[data-design="gold"] .barcode i { background: #e2c066; }
+.dk-lotto[data-design="gold"] .win { color: var(--ink); }
+.dk-lotto[data-design="mint"] { background: #effbf7 var(--grain); }
+.dk-lotto[data-design="mint"] .field { background: repeating-linear-gradient(-45deg, rgba(63, 193, 165, 0.22) 0 2px, transparent 2px 9px), #e3f7f1; border-color: #2a8f79; }
 
 /* ---------------------------------------------------------------- 티켓 출력 */
 .dk-tickets { display: flex; align-items: flex-end; gap: 30px; }
@@ -275,6 +284,29 @@ body.playing #raffle { opacity: 0; }
 .dk-printer[data-design="coupon"] .body { background: var(--pink); }
 .dk-printer[data-design="coupon"] .body::before { background: var(--paper); }
 .dk-printer[data-design="coupon"] .body .label { color: var(--ink); }
+.dk-printer[data-design="concert"] .body, .dk-printer[data-design="movie"] .body { background: #2b3238; }
+.dk-printer[data-design="concert"] .body .label, .dk-printer[data-design="movie"] .body .label { color: var(--gold); }
+.dk-printer[data-design="boarding"] .body { background: #5aa9f0; }
+.dk-printer[data-design="gift"] .body { background: #d4a73a; }
+.dk-printer[data-design="shop"] .body { background: #f3efe8; }
+.dk-printer[data-design="boarding"] .body .label, .dk-printer[data-design="gift"] .body .label, .dk-printer[data-design="shop"] .body .label { color: var(--ink); }
+/* 입장권 바탕: 공연 티켓(검정과 금색), 영화표(빨강) */
+.dk-ticket.stub.concert .paper { background: #262d33 var(--grain); color: var(--paper); }
+.dk-ticket.stub.concert .stub { background: var(--gold); color: var(--ink); }
+.dk-ticket.stub.concert .label { color: var(--gold); }
+.dk-ticket.stub.concert.rare .paper { background: #3a3220 var(--grain); }
+.dk-ticket.stub.movie .paper { background: #fff6ec var(--grain); }
+.dk-ticket.stub.movie .stub { background: #e23b4e; color: var(--paper); }
+.dk-ticket.stub.movie.rare .stub { background: var(--gold); color: var(--ink); }
+/* 교환권 바탕: 탑승권(하늘), 상품권(금색 테) */
+.dk-ticket.coupon.boarding .paper { background: #e8f4ff var(--grain); }
+.dk-ticket.coupon.boarding .paper::before { border-style: solid; border-color: #2f6fc4; }
+.dk-ticket.coupon.gift .paper { background: #fff8e1 var(--grain); }
+.dk-ticket.coupon.gift .paper::before { border: 3px double #b8902f; }
+.dk-ticket.coupon.gift.rare .paper { background: #fff0b3 var(--grain); }
+/* 영수증 바탕: 가게 영수증(누런 감열지) */
+.dk-ticket.receipt.shop .paper { background: #fbf6e6; }
+.dk-ticket.receipt.shop .rule { border-top-style: dotted; }
 .dk-tray.tickets { padding-bottom: 8px; }
 .dk-ticket { position: relative; width: var(--tw); height: var(--th); flex: none; filter: drop-shadow(4px 5px 0 var(--hard)); }
 .dk-ticket.waiting { visibility: hidden; }

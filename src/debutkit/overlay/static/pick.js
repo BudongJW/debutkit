@@ -151,9 +151,9 @@
     malgun: ['"Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", sans-serif', 700],
     serif: ['"Batang", "바탕", "Noto Serif KR", "AppleMyungjo", serif', 700],
   };
-  const OPEN_MS = { card: 680, ticket: 1080, envelope: 1020, capsule: 900, door: 780, sticker: 1080, memo: 980 };
-  const OPEN_SOUND = { card: "flip", ticket: "scratch", envelope: "whoosh", capsule: "pop", door: "whoosh", sticker: "whoosh", memo: "whoosh" };
-  const ASPECT = { card: 63 / 88, ticket: 1.22, envelope: 1.42, capsule: 1, door: 0.74, sticker: 1, memo: 1 };  // 가로 / 세로
+  const OPEN_MS = { card: 680, ticket: 1080, envelope: 1020, capsule: 900, door: 780, sticker: 1080, memo: 980, balloon: 760 };
+  const OPEN_SOUND = { card: "flip", ticket: "scratch", envelope: "whoosh", capsule: "pop", door: "whoosh", sticker: "whoosh", memo: "whoosh", balloon: "pop" };
+  const ASPECT = { card: 63 / 88, ticket: 1.22, envelope: 1.42, capsule: 1, door: 0.74, sticker: 1, memo: 1, balloon: 0.82 };  // 가로 / 세로
   const TIER = { win: "당첨", rare: "대박", miss: "다음 기회에" };
   const WIN_EFFECTS = ["confetti", "stars", "ribbons", "rays", "coins", "hearts", "notes", "rings", "sparkle", "pixels"];
 
@@ -197,6 +197,20 @@
       "--pat-hearts": svgUrl(`<path d='${HEART}' transform='translate(10 11) scale(0.9)' fill='${palette.cover_deep}'/>`
         + `<path d='${HEART}' transform='translate(30 31) scale(0.65)' fill='${palette.cover_light}'/>`, 40, 40),
       "--pat-waves": svgUrl(`<path d='M-2 11 Q 9 2 20 11 T 42 11' fill='none' stroke='${palette.cover_deep}' stroke-width='3.2'/>`, 40, 20),
+      "--pat-zigzag": svgUrl(`<path d='M-2 15 L10 5 L20 15 L30 5 L42 15' fill='none' stroke='${palette.cover_deep}' stroke-width='3.2' stroke-linejoin='round'/>`, 40, 20),
+      "--pat-confetti": svgUrl(`<rect x='4' y='6' width='9' height='4' fill='${palette.cover_light}' transform='rotate(20 8 8)'/>`
+        + `<rect x='24' y='20' width='9' height='4' fill='${palette.gold}' transform='rotate(-30 28 22)'/>`
+        + `<rect x='12' y='30' width='7' height='3' fill='${palette.cover_deep}' transform='rotate(60 15 31)'/><circle cx='32' cy='8' r='2' fill='${palette.cover_deep}'/>`, 40, 40),
+      "--pat-argyle": svgUrl(`<path d='M20 2 L38 20 L20 38 L2 20 Z' fill='${palette.cover_deep}' opacity='0.5'/>`
+        + `<path d='M0 0 L40 40 M40 0 L0 40' stroke='${palette.cover_light}' stroke-width='1.5' stroke-dasharray='3 3'/>`, 40, 40),
+      "--pat-flowers": svgUrl([0, 72, 144, 216, 288].map((a) => `<circle cx='${(16 + Math.cos((a * Math.PI) / 180) * 5.5).toFixed(1)}' cy='${(16 + Math.sin((a * Math.PI) / 180) * 5.5).toFixed(1)}' r='4' fill='${palette.cover_light}'/>`).join("")
+        + `<circle cx='16' cy='16' r='3' fill='${palette.gold}'/>`, 32, 32),
+      "--pat-clouds": svgUrl(`<g fill='${palette.cover_light}'><circle cx='14' cy='22' r='7'/><circle cx='22' cy='18' r='9'/><circle cx='31' cy='23' r='6'/>`
+        + `<rect x='14' y='22' width='17' height='7'/></g>`, 44, 36),
+      "--pat-bubbles": svgUrl(`<circle cx='12' cy='12' r='7' fill='none' stroke='${palette.cover_light}' stroke-width='2.4'/>`
+        + `<circle cx='30' cy='30' r='4' fill='none' stroke='${palette.cover_light}' stroke-width='2'/><circle cx='9.5' cy='9.5' r='1.6' fill='${palette.cover_light}'/>`, 40, 40),
+      "--pat-pixel": svgUrl(`<rect x='0' y='0' width='8' height='8' fill='${palette.cover_deep}'/><rect x='16' y='8' width='8' height='8' fill='${palette.cover_light}'/>`
+        + `<rect x='8' y='24' width='8' height='8' fill='${palette.cover_deep}'/><rect x='24' y='16' width='8' height='8' fill='${palette.cover_light}' opacity='0.7'/>`, 32, 32),
       "--ray": hexAlpha(palette.win, 0.34),
     };
     const rootStyle = document.documentElement.style;
@@ -332,6 +346,8 @@
         cover.appendChild(curl);
       } else if (theme === "memo") {
         cover.appendChild(el("span", "pk-tape"));
+      } else if (theme === "balloon") {
+        cover.append(el("span", "pk-knot"), el("span", "pk-string"));
       }
     }
     if (kind === "emblem") cover.appendChild(emblem(display.palette.on_cover, display.palette.cover));

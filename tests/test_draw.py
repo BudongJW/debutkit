@@ -6,6 +6,7 @@ import random
 import re
 import time
 from collections import Counter
+from pathlib import Path
 
 import pytest
 
@@ -389,3 +390,27 @@ def test_script_and_log_pages(server):
     assert status == 400 and "효과는" in json.loads(body)["error"]
     result = json.loads(request(server, "POST", "/draw/test", {"amount": 0})[2])
     assert result["design"] == "wood" and result["effect"] == "spotlight" and result["advice"] == ""
+
+
+def test_more_designs_for_every_prop():
+    """미타도네이션 대응: 연출 디자인 32종(캡슐 8, 복권 6, 티켓 8, 추첨기 5, 타로 3, 카드와 룰렛 1). 새 디자인마다 그림 코드나 CSS."""
+    import re
+
+    sizes = {style: len(designs) for style, designs in draw.DESIGNS.items()}
+    assert sizes == {"card": 1, "wheel": 1, "capsule": 8, "scratch": 6, "ticket": 8, "drum": 5, "tarot": 3} and sum(sizes.values()) == 32
+    static = Path(__file__).resolve().parent.parent / "src" / "debutkit" / "overlay" / "static"
+    props = (static / "draw-props.js").read_text(encoding="utf-8")
+    css = (static / "draw.css").read_text(encoding="utf-8")
+    capsule = props.split("const CAPSULE_LOOK = {", 1)[1].split("};", 1)[0]
+    drum = props.split("const DRUM_LOOK = {", 1)[1].split("};", 1)[0]
+    base = dict(re.findall(r'(\w+): "(\w+)"', props.split("const TICKET_BASE = {", 1)[1].split("};", 1)[0]))
+    for design in draw.DESIGNS["capsule"]:
+        assert f"{design}: {{" in capsule, design
+    for design in draw.DESIGNS["drum"]:
+        assert f"{design}: {{" in drum, design
+    assert set(base) == set(draw.DESIGNS["ticket"]) and set(base.values()) == {"stub", "receipt", "coupon"}
+    for design in ("concert", "movie", "boarding", "gift", "shop"):
+        assert f".dk-ticket.{base[design]}.{design}" in css and f'.dk-printer[data-design="{design}"]' in css, design
+    for design in ("pastel", "gold", "mint"):
+        assert f'.dk-lotto[data-design="{design}"]' in css, design
+    assert 'design === "gold" ? COATS.gold : COATS.silver' in props  # 금박 복권은 금색 막

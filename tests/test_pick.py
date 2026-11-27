@@ -501,3 +501,20 @@ def test_state_survives_server_restart():
         srv.stop()
     assert after["layout"] == before["layout"] and after["commit"]["hash"] == before["commit"]["hash"]
     assert state["display"]["title"] == "다시 시작" and state["cells"][2]["open"] and state["cells"][2]["by"] == "고양이집사"
+
+
+def test_more_cell_designs_and_covers():
+    """미타픽 대응: 디자인 8종(풍선 터뜨리기 추가), 칸 덮개 18종. 덮개마다 무늬 CSS, 풍선은 둥실과 터지는 움직임."""
+    from pathlib import Path
+
+    assert len(pick.THEMES) == 8 and pick.THEMES["balloon"] == "풍선 터뜨리기" and len(pick.COVERS) == 18
+    static = Path(__file__).resolve().parent.parent / "src" / "debutkit" / "overlay" / "static"
+    css = (static / "pick.css").read_text(encoding="utf-8")
+    script = (static / "pick.js").read_text(encoding="utf-8")
+    for cover in pick.COVERS:
+        assert f".pat-{cover}" in css, cover
+    for cover in ("zigzag", "confetti", "argyle", "flowers", "clouds", "bubbles", "pixel"):
+        assert f'"--pat-{cover}": svgUrl(' in script, cover
+    for theme in pick.THEMES:
+        assert f"{theme}: " in script.split("const OPEN_MS = {", 1)[1].split("};", 1)[0], theme
+    assert ".theme-balloon .pk-cell.opening .pk-cover" in css and "@keyframes pk-balloon" in css and "@keyframes pk-float" in css

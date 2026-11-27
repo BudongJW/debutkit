@@ -94,6 +94,13 @@ body.bg-checker { background: repeating-conic-gradient(#30373c 0% 25%, #2a3035 0
 .pat-stars { background: var(--pat-stars) 0 0 / calc(var(--u) * 0.34) calc(var(--u) * 0.34), var(--cover); }
 .pat-hearts { background: var(--pat-hearts) 0 0 / calc(var(--u) * 0.3) calc(var(--u) * 0.3), var(--cover); }
 .pat-waves { background: var(--pat-waves) 0 0 / calc(var(--u) * 0.36) calc(var(--u) * 0.18), var(--cover); }
+.pat-zigzag { background: var(--pat-zigzag) 0 0 / calc(var(--u) * 0.32) calc(var(--u) * 0.16), var(--cover); }
+.pat-confetti { background: var(--pat-confetti) 0 0 / calc(var(--u) * 0.34) calc(var(--u) * 0.34), var(--cover); }
+.pat-argyle { background: var(--pat-argyle) 0 0 / calc(var(--u) * 0.3) calc(var(--u) * 0.3), var(--cover); }
+.pat-flowers { background: var(--pat-flowers) 0 0 / calc(var(--u) * 0.3) calc(var(--u) * 0.3), var(--cover); }
+.pat-clouds { background: var(--pat-clouds) 0 0 / calc(var(--u) * 0.4) calc(var(--u) * 0.33), var(--cover); }
+.pat-bubbles { background: var(--pat-bubbles) 0 0 / calc(var(--u) * 0.32) calc(var(--u) * 0.32), var(--cover); }
+.pat-pixel { background: var(--pat-pixel) 0 0 / calc(var(--u) * 0.24) calc(var(--u) * 0.24), var(--cover); image-rendering: pixelated; }
 .pat-gift { background:
   linear-gradient(90deg, transparent 41%, var(--ink) 41% 43%, var(--cover-light) 43% 57%, var(--ink) 57% 59%, transparent 59%),
   linear-gradient(transparent 41%, var(--ink) 41% 43%, var(--cover-light) 43% 57%, var(--ink) 57% 59%, transparent 59%), var(--cover); }
@@ -210,6 +217,19 @@ body.bg-checker { background: repeating-conic-gradient(#30373c 0% 25%, #2a3035 0
 .theme-sticker .pk-cell.opening .pk-cover { animation: pk-fly 0.45s ease-in 0.58s forwards; }
 
 /* ---------------------------------------------------------------- 테마: 메모지. 테이프로 붙인 메모가 흔들리다 떨어짐 */
+/* 풍선 터뜨리기: 둥실 떠 있다가 부풀어 터짐 */
+.theme-balloon { --radius: 50%; }
+.theme-balloon .pk-cover { animation: pk-float 3.2s ease-in-out infinite; animation-delay: calc(var(--i) * -0.37s); }
+.theme-balloon .pk-face { inset: 0 5% 15% 5%; border-radius: 50% 50% 47% 47% / 56% 56% 44% 44%;
+  box-shadow: inset calc(var(--u) * -0.06) calc(var(--u) * -0.05) 0 rgba(0, 0, 0, 0.12), calc(var(--u) * 0.03) calc(var(--u) * 0.04) 0 var(--hard); }
+.theme-balloon .pk-face::after { content: ""; position: absolute; left: 20%; top: 14%; width: 16%; height: 22%; border-radius: 50%; background: rgba(255, 255, 255, 0.6);
+  transform: rotate(-25deg); }
+.theme-balloon .pk-knot { position: absolute; left: 50%; bottom: 11%; width: calc(var(--u) * 0.09); height: calc(var(--u) * 0.06); transform: translateX(-50%);
+  background: var(--cover-deep); clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.theme-balloon .pk-string { position: absolute; left: 50%; bottom: 0; width: 2px; height: 11%; background: var(--ink); transform: translateX(-50%); }
+.theme-balloon .pk-num { top: 42%; }
+.theme-balloon .pk-cell.opening .pk-cover { animation: pk-balloon 0.72s ease-in forwards; }
+
 .theme-memo { --radius: 2px; }
 .theme-memo .pk-panel.framed { background: linear-gradient(var(--board-deep) 1px, transparent 1px) 0 0 / 100% 34px, var(--board) var(--grain); }
 .theme-memo .pk-cover { transform-origin: 50% 4%; }
@@ -293,6 +313,9 @@ body.bg-checker { background: repeating-conic-gradient(#30373c 0% 25%, #2a3035 0
 @keyframes pk-enter { from { opacity: 0; transform: scale(calc(var(--scale, 1) * 0.96)) translateY(18px); } }
 @keyframes pk-drop { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; transform: none; } }
 @keyframes pk-fade { to { opacity: 0; } }
+@keyframes pk-float { 0%, 100% { transform: translateY(0) rotate(-1.5deg); } 50% { transform: translateY(-4%) rotate(1.5deg); } }
+@keyframes pk-balloon { 0% { transform: scale(1); } 55% { transform: scale(1.12, 1.08); } 72% { transform: scale(1.22); opacity: 1; filter: brightness(1.25); }
+  100% { transform: scale(1.65); opacity: 0; } }
 @keyframes pk-sheen { from { background-position: 120% 0; } to { background-position: -40% 0; } }
 @keyframes pk-rattle { 0%, 100% { transform: none; } 25% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } 75% { transform: rotate(-2deg); } }
 @keyframes pk-scratch { to { transform: scaleX(0); } }
