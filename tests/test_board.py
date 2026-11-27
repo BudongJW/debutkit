@@ -15,11 +15,13 @@ from debutkit.overlay.server import OverlayServer
 STATIC = Path(__file__).resolve().parent.parent / "src" / "debutkit" / "overlay" / "static"
 
 
-class Dice(random.Random):
-    """정해 둔 눈과 행운 카드를 차례로 내는 난수(섞기는 그대로 두기)."""
+class Dice:
+    """정해 둔 눈과 행운 카드를 차례로 내는 난수(섞기는 그대로 두기). 주사위 판이 쓰는 randint, choice, shuffle만.
+
+    random.Random을 물려받지 않음: Python 3.10은 Random.__new__ 가 생성자 인수를 받지 않아 오류
+    """
 
     def __init__(self, rolls, cards=()):
-        super().__init__(1)
         self.rolls = list(rolls)
         self.cards = list(cards)
 
