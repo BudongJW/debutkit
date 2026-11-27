@@ -106,16 +106,36 @@ async function load(id) {
   return info;
 }
 
-// 자세 적용: 부위별로 고른 뼈 회전을 모아서(T 자세 그대로면 시트가 넓어지고 어색함)
+//: 관절 직접 돌리기: 뼈 -> [x, y, z] 라디안(VRM 1.0 방향). 고른 자세 위에 더함
+const tweaks = {};
+//: 자세 파일(VRMA, VPD)에서 받은 자세: 뼈 -> [x, y, z, w](VRM 1.0 방향 정규화 뼈 회전). 있으면 부위별 자세 대신
+let filePose = null;
+
+// 자세 적용: 자세 파일이 있으면 그 자세, 없으면 부위별로 고른 뼈 회전. 그 위에 관절 직접 돌리기(T 자세 그대로면 시트가 넓어지고 어색함)
 function applyPose() {
   const { vrm, flip } = current;
   if (!vrm.humanoid) return;
   vrm.humanoid.resetNormalizedPose();
-  const bones = {};
-  for (const [part, key] of Object.entries(poseState)) Object.assign(bones, (PARTS[part].options[key] || {}).bones);
-  for (const [bone, [x, y, z]] of Object.entries(bones)) {
-    const node = vrm.humanoid.getNormalizedBoneNode(bone);
-    if (node) node.rotation.set(x * flip, y, z * flip);
+  const node = (bone) => vrm.humanoid.getNormalizedBoneNode(bone);
+  if (filePose) {
+    for (const [bone, [x, y, z, w]] of Object.entries(filePose)) {
+      const target = node(bone);
+      if (target) target.quaternion.set(x * flip, y, z * flip, w);
+    }
+  } else {
+    const bones = {};
+    for (const [part, key] of Object.entries(poseState)) Object.assign(bones, (PARTS[part].options[key] || {}).bones);
+    for (const [bone, [x, y, z]] of Object.entries(bones)) {
+      const target = node(bone);
+      if (target) target.rotation.set(x * flip, y, z * flip);
+    }
+  }
+  const turn = new THREE.Quaternion();
+  const euler = new THREE.Euler();
+  for (const [bone, [x, y, z]] of Object.entries(tweaks)) {
+    const target = node(bone);
+    const side = bone.startsWith("right") ? -1 : 1;  // 오른쪽은 거울로(같은 값이면 양쪽이 같은 동작)
+    if (target && (x || y || z)) target.quaternion.multiply(turn.setFromEuler(euler.set(x * flip, y * side, z * flip * side)));
   }
   vrm.update(0);
 }
@@ -414,6 +434,7 @@ function buildPoseControls() {
     select.setAttribute("aria-label", `${item.name} 자세`);
     select.append(...Object.entries(item.options).map(([key, option]) => new Option(option.name, key)));
     select.addEventListener("change", () => {
+      dropFilePose();
       poseState[part] = select.value;
       syncParts();
       redraw();
@@ -434,11 +455,253 @@ function buildPoseControls() {
 
 buildPoseControls();
 
+// ---------------------------------------------------------------- 관절 직접 돌리기
+//: 돌릴 수 있는 관절: [VRM 뼈 이름, 이름표]. 왼쪽, 오른쪽은 캐릭터 기준
+const JOINTS = [["hips", "엉덩이"], ["spine", "허리"], ["chest", "가슴"], ["neck", "목"], ["head", "머리"],
+  ...["left", "right"].flatMap((side) => {
+    const word = side === "left" ? "왼쪽" : "오른쪽";
+    return [[`${side}Shoulder`, `${word} 어깨`], [`${side}UpperArm`, `${word} 위팔`], [`${side}LowerArm`, `${word} 아래팔`], [`${side}Hand`, `${word} 손목`],
+      [`${side}UpperLeg`, `${word} 허벅지`], [`${side}LowerLeg`, `${word} 종아리`], [`${side}Foot`, `${word} 발목`]];
+  })];
+const AXES = ["x", "y", "z"];
+const degrees = (radian) => Math.round((radian * 180) / Math.PI);
+
+//: 축 이름표. 팔 뼈는 옆으로 뻗은 자세가 기준이라 x가 비틀기, z가 위아래
+const AXIS_NAMES = { body: ["앞뒤", "돌기", "옆으로"], arm: ["비틀기", "앞뒤", "위아래"] };
+
+function showJoint() {
+  const bone = $("joint-bone").value;
+  const values = tweaks[bone] || [0, 0, 0];
+  const names = AXIS_NAMES[/Shoulder|Arm|Hand/.test(bone) ? "arm" : "body"];
+  AXES.forEach((axis, index) => {
+    $(`joint-${axis}-name`).textContent = names[index];
+    $(`joint-${axis}`).value = String(degrees(values[index]));
+    $(`joint-${axis}-out`).textContent = `${degrees(values[index])}°`;
+  });
+}
+
+$("joint-bone").replaceChildren(...JOINTS.map(([bone, name]) => new Option(name, bone)));
+$("joint-bone").addEventListener("change", showJoint);
+showJoint();
+for (const axis of AXES) {
+  $(`joint-${axis}`).addEventListener("input", () => {
+    tweaks[$("joint-bone").value] = AXES.map((name) => (Number($(`joint-${name}`).value) * Math.PI) / 180);
+    showJoint();
+    redraw();
+  });
+}
+$("joint-reset").addEventListener("click", () => { delete tweaks[$("joint-bone").value]; showJoint(); redraw(); });
+$("joint-reset-all").addEventListener("click", () => { for (const bone of Object.keys(tweaks)) delete tweaks[bone]; showJoint(); redraw(); });
+
+// ---------------------------------------------------------------- 자세 파일(VRMA, VPD)
+//: VRM 사람 모양 뼈 전부(손가락 포함). VRMA에서 자세를 읽을 때
+const ALL_BONES = ["hips", "spine", "chest", "upperChest", "neck", "head", ...["left", "right"].flatMap((side) => [
+  `${side}Shoulder`, `${side}UpperArm`, `${side}LowerArm`, `${side}Hand`, `${side}UpperLeg`, `${side}LowerLeg`, `${side}Foot`, `${side}Toes`,
+  ...["Thumb", "Index", "Middle", "Ring", "Little"].flatMap((finger) => (finger === "Thumb" ? ["Metacarpal", "Proximal", "Distal"] : ["Proximal", "Intermediate", "Distal"])
+    .map((joint) => `${side}${finger}${joint}`))])];
+let vrma = null;  // { source, duration }
+let vpd = null;  // MMD 뼈 이름 -> THREE.Quaternion(오른손 좌표로 바꾼 것)
+
+// VRMA의 t초 자세를 읽어 filePose로(모델에 동작을 잠깐 재생해 정규화 뼈 회전을 받음)
+async function sampleVrma(seconds) {
+  const { vrm, flip } = current;
+  const animation = await import("/vendor/three-vrm-animation/three-vrm-animation.module.min.js");
+  vrm.humanoid.resetNormalizedPose();
+  const target = { humanoid: vrm.humanoid, meta: vrm.meta, expressionManager: vrm.expressionManager, scene: vrm.scene, lookAt: null };
+  const mixer = new THREE.AnimationMixer(vrm.scene);
+  const action = mixer.clipAction(animation.createVRMAnimationClip(vrma.source, target));
+  action.setLoop(THREE.LoopOnce, 1);  // 끝 시점이 처음(0초)으로 돌아가지 않게
+  action.clampWhenFinished = true;
+  action.play();
+  mixer.setTime(seconds);
+  filePose = {};
+  for (const bone of ALL_BONES) {
+    const node = vrm.humanoid.getNormalizedBoneNode(bone);
+    if (node) filePose[bone] = [node.quaternion.x * flip, node.quaternion.y, node.quaternion.z * flip, node.quaternion.w];
+  }
+  mixer.stopAllAction();
+  mixer.uncacheRoot(vrm.scene);
+  express({});
+}
+
+//: MMD 표준 뼈 이름 -> VRM 뼈(왼쪽만 적고 오른쪽은 右로 바꿔 씀). 손가락 숫자는 반각으로 바꿔 찾음
+const MMD_SIDE = { "肩": "Shoulder", "腕": "UpperArm", "ひじ": "LowerArm", "手首": "Hand", "足": "UpperLeg", "ひざ": "LowerLeg", "足首": "Foot", "つま先": "Toes",
+  "足D": "UpperLeg", "ひざD": "LowerLeg", "足首D": "Foot", "親指0": "ThumbMetacarpal", "親指1": "ThumbProximal", "親指2": "ThumbDistal",
+  "人指1": "IndexProximal", "人指2": "IndexIntermediate", "人指3": "IndexDistal", "中指1": "MiddleProximal", "中指2": "MiddleIntermediate",
+  "中指3": "MiddleDistal", "薬指1": "RingProximal", "薬指2": "RingIntermediate", "薬指3": "RingDistal", "小指1": "LittleProximal",
+  "小指2": "LittleIntermediate", "小指3": "LittleDistal" };
+const MMD_BODY = { "上半身2": "chest", "上半身3": "upperChest", "首": "neck", "頭": "head" };
+
+// VPD 글(Shift_JIS를 푼 것) -> 뼈 이름별 회전. MMD는 왼손 좌표라 x, y 부호를 바꿔 three.js(오른손) 회전으로
+function parseVpd(text) {
+  const found = {};
+  const pattern = /Bone\d+\s*\{\s*([^\r\n]+?)\s*[\r\n]+\s*[-\d.eE+]+\s*,\s*[-\d.eE+]+\s*,\s*[-\d.eE+]+\s*;[^\r\n]*[\r\n]+\s*([-\d.eE+]+)\s*,\s*([-\d.eE+]+)\s*,\s*([-\d.eE+]+)\s*,\s*([-\d.eE+]+)\s*;/g;
+  for (const match of text.matchAll(pattern)) {
+    const name = match[1].replace(/[０-９]/g, (digit) => String.fromCharCode(digit.charCodeAt(0) - 0xFEE0)).replace(/Ｄ/g, "D").trim();
+    const [x, y, z, w] = match.slice(2, 6).map(Number);
+    if ([x, y, z, w].every(Number.isFinite)) found[name] = new THREE.Quaternion(-x, -y, z, w).normalize();
+  }
+  return found;
+}
+
+// MMD 자세 -> VRM 자세. MMD 모델은 팔을 내린 자세가 기준이라 위팔은 그만큼 더 돌리고, 아래팔, 손, 손가락은 그 기준으로 바꿔 계산
+function vpdPose(bones, armDegrees) {
+  const pose = {};
+  const get = (name) => bones[name] ? bones[name].clone() : new THREE.Quaternion();
+  const set = (bone, quaternion) => { pose[bone] = [quaternion.x, quaternion.y, quaternion.z, quaternion.w]; };
+  const lower = get("下半身");
+  const hips = get("センター").multiply(get("グルーブ")).multiply(get("腰")).multiply(lower);
+  set("hips", hips);
+  set("spine", lower.clone().invert().multiply(get("上半身")));
+  for (const [name, bone] of Object.entries(MMD_BODY)) if (bones[name]) set(bone, get(name));
+  for (const [mark, side] of [["左", "left"], ["右", "right"]]) {
+    const rest = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), ((side === "left" ? -1 : 1) * armDegrees * Math.PI) / 180);
+    const back = rest.clone().invert();
+    for (const [name, suffix] of Object.entries(MMD_SIDE)) {
+      if (!bones[mark + name] || (name.endsWith("D") && bones[mark + name.slice(0, -1)])) continue;
+      let rotation = get(mark + name);
+      if (name === "腕") rotation.multiply(get(`${mark}腕捩`));
+      if (name === "ひじ") rotation.multiply(get(`${mark}手捩`));
+      const arm = ["UpperArm", "LowerArm", "Hand"].includes(suffix) || /^(Thumb|Index|Middle|Ring|Little)/.test(suffix);
+      if (suffix === "UpperArm") rotation = rotation.multiply(rest);
+      else if (arm) rotation = back.clone().multiply(rotation).multiply(rest);
+      set(`${side}${suffix}`, rotation);
+    }
+  }
+  return pose;
+}
+
+function fileState(text, error = false) {
+  $("pose-file-state").textContent = text;
+  $("pose-file-state").classList.toggle("error", error);
+}
+
+$("pose-file").addEventListener("change", async () => {
+  const file = $("pose-file").files[0];
+  if (!file || !current) return;
+  vrma = null;
+  vpd = null;
+  try {
+    if (/\.vpd$/i.test(file.name)) {
+      const buffer = await file.arrayBuffer();
+      let text;  // MMD가 저장한 VPD는 Shift_JIS, 다른 도구는 UTF-8도 있음
+      try { text = new TextDecoder("utf-8", { fatal: true }).decode(buffer); } catch { text = new TextDecoder("shift_jis").decode(buffer); }
+      if (!/Vocaloid Pose Data/.test(text)) throw new Error("VPD 파일이 아님");
+      vpd = parseVpd(text);
+      if (!Object.keys(vpd).length) throw new Error("VPD에서 뼈 회전을 찾지 못함");
+      filePose = vpdPose(vpd, Number($("vpd-arm").value));
+      fileState(`VPD 뼈 ${Object.keys(vpd).length}개를 적용함`);
+    } else {
+      const animation = await import("/vendor/three-vrm-animation/three-vrm-animation.module.min.js");
+      const loader = new loaderClass();
+      loader.register((parser) => new animation.VRMAnimationLoaderPlugin(parser));
+      const url = URL.createObjectURL(file);
+      try {
+        const source = (await loader.loadAsync(url)).userData.vrmAnimations?.[0];
+        if (!source) throw new Error("VRMA 동작을 읽지 못함");
+        vrma = { source, duration: source.duration || 0 };
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+      $("vrma-time").value = "0";
+      await sampleVrma(0);
+      fileState(`VRMA 동작(${vrma.duration.toFixed(1)}초)의 0초 자세를 적용함`);
+    }
+    $("vrma-time-row").hidden = !vrma;
+    $("vpd-arm-row").hidden = !vpd;
+    $("pose-file-off").disabled = false;
+    $("pose").value = "custom";
+    redraw();
+  } catch (error) {
+    fileState(`불러오지 못함: ${error.message}`, true);
+  }
+});
+$("vrma-time").addEventListener("input", async () => {
+  if (!vrma) return;
+  const seconds = (Number($("vrma-time").value) / 1000) * vrma.duration;
+  $("vrma-time-out").textContent = `${seconds.toFixed(1)}초`;
+  await sampleVrma(seconds);
+  fileState(`VRMA 동작(${vrma.duration.toFixed(1)}초)의 ${seconds.toFixed(1)}초 자세를 적용함`);
+  redraw();
+});
+$("vpd-arm").addEventListener("input", () => {
+  $("vpd-arm-out").textContent = `${$("vpd-arm").value}°`;
+  if (!vpd) return;
+  filePose = vpdPose(vpd, Number($("vpd-arm").value));
+  redraw();
+});
+// 자세 파일 끄기(부위별 자세나 추천 자세를 고를 때도)
+function dropFilePose() {
+  if (!filePose) return;
+  filePose = null;
+  vrma = null;
+  vpd = null;
+  $("pose-file").value = "";
+  $("vrma-time-row").hidden = true;
+  $("vpd-arm-row").hidden = true;
+  $("pose-file-off").disabled = true;
+  fileState("부위별 자세로 돌아감");
+}
+$("pose-file-off").addEventListener("click", () => { dropFilePose(); syncParts(); redraw(); });
+
+// ---------------------------------------------------------------- 내 자세 저장(이 PC 서버에 이름으로)
+function poseNote(text, error = false) {
+  $("my-pose-state").textContent = text;
+  $("my-pose-state").classList.toggle("error", error);
+}
+
+async function loadMyPoses(select = "") {
+  const data = await (await fetch("/character/poses")).json();
+  $("my-poses").replaceChildren(...(data.poses || []).map((item) => new Option(item.name, item.name)));
+  if (select) $("my-poses").value = select;
+  return data.poses || [];
+}
+
+$("my-pose-save").addEventListener("click", async () => {
+  const name = $("my-pose-name").value.trim();
+  if (!name) return poseNote("자세 이름을 입력", true);
+  const body = { name, parts: { ...poseState }, tweaks: { ...tweaks }, file: filePose };
+  const response = await fetch("/character/poses", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const data = await response.json();
+  if (!response.ok) return poseNote(data.error || "저장하지 못함", true);
+  await loadMyPoses(name);
+  poseNote(`저장함: ${name}`);
+});
+$("my-pose-load").addEventListener("click", async () => {
+  const poses = await loadMyPoses($("my-poses").value);
+  const found = poses.find((item) => item.name === $("my-poses").value);
+  if (!found) return poseNote("저장한 자세를 고름", true);
+  Object.assign(poseState, found.parts || {});
+  for (const bone of Object.keys(tweaks)) delete tweaks[bone];
+  Object.assign(tweaks, found.tweaks || {});
+  dropFilePose();
+  filePose = found.file || null;
+  $("pose-file-off").disabled = !filePose;
+  syncParts();
+  if (filePose) {
+    $("pose").value = "custom";
+    fileState(`저장한 자세 ${found.name}의 파일 자세를 적용함`);
+  }
+  showJoint();
+  redraw();
+  poseNote(`불러옴: ${found.name}`);
+});
+$("my-pose-remove").addEventListener("click", async () => {
+  const name = $("my-poses").value;
+  if (!name) return;
+  const response = await fetch("/character/poses/remove", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) });
+  if (!response.ok) return poseNote("지우지 못함", true);
+  await loadMyPoses();
+  poseNote(`지움: ${name}`);
+});
+loadMyPoses().catch(() => {});
+
 // 문서 그림용(packaging/build_screens.py, build_promo.py가 헤드리스 브라우저로 부름): 추천 자세, 각도(0, 0.3, 0.62),
 // 표정(VRM 표정 이름, 눈 감음 blink 포함)을 정해 그림을 PNG 주소로
 window.debutkitSheet = {
   ready: () => Boolean(current) && $("state").textContent === "그림 완료",
   pose(preset, angle = 0, face = "neutral", width = 600, height = 900, background = false) {
+    dropFilePose();
     Object.assign(poseState, PRESETS[preset].parts);
     syncParts();
     $("pose-angle").value = String(angle);
@@ -446,6 +709,7 @@ window.debutkitSheet = {
     return renderPose(width, height, background, face).toDataURL("image/png");
   },
   sheet(preset) {
+    dropFilePose();
     Object.assign(poseState, PRESETS[preset].parts);
     syncParts();
     applyPose();
@@ -456,11 +720,13 @@ window.debutkitSheet = {
 $("pose").addEventListener("change", () => {
   const preset = PRESETS[$("pose").value];
   if (!preset) return;
+  dropFilePose();
   Object.assign(poseState, preset.parts);
   syncParts();
   redraw();
 });
 $("random").addEventListener("click", () => {  // 잠그지 않은 부위만 무작위로
+  dropFilePose();
   for (const [part, item] of Object.entries(PARTS)) {
     if (locks[part]) continue;
     const keys = Object.keys(item.options);

@@ -219,7 +219,7 @@ def test_pages_use_side_blinks_when_there_is_no_both_eyes_blink():
     assert "blinkSides" in overlay and "blinkBoth" in overlay  # 캐릭터 화면: 좌우 표정만 있는 모델도 깜빡임
     assert 'name === "blink" && manager.getExpression("blinkLeft")' in sheet  # 표정 시트의 눈 감음
     # VRM 0.x는 팔 회전 부호가 반대(VRoid 샘플에서 팔이 올라가던 문제), 얼굴 틀은 머리 크기에 맞춤(큰 머리 로우폴리)
-    assert 'metaVersion === "0" ? -1 : 1' in sheet and "node.rotation.set(x * flip, y, z * flip)" in sheet and "function headSize()" in sheet
+    assert 'metaVersion === "0" ? -1 : 1' in sheet and "target.rotation.set(x * flip, y, z * flip)" in sheet and "function headSize()" in sheet
     assert "/character/sheet/check" in sheet and "/character/lighten" in sheet and "innerHTML" not in sheet
 
 
@@ -237,3 +237,26 @@ def test_pose_maker_parts_presets_random_and_png():
     assert "if (locks[part]) continue;" in sheet and 'toDataURL("image/png")' in sheet and "renderPose(1024, 1536" in sheet
     for element in ('id="pose-shot"', 'id="parts"', 'id="random"', 'id="pose-face"', 'id="pose-angle"', 'id="pose-bg"', 'id="save-pose"'):
         assert element in page, element
+
+
+def test_pose_maker_joints_pose_files_and_saved_poses():
+    """미타포즈 수준: 관절 직접 돌리기, 자세 파일(VRMA 원하는 시점, MMD VPD), 내 자세 저장. 파일은 브라우저 안에서만 읽음."""
+    sheet = (STATIC / "character-sheet.js").read_text(encoding="utf-8")
+    page = (STATIC / "character-sheet.html").read_text(encoding="utf-8")
+    for element in ('id="joint-bone"', 'id="joint-x"', 'id="joint-y"', 'id="joint-z"', 'id="joint-reset-all"', 'id="pose-file"', 'accept=".vrma,.vpd"',
+                    'id="vrma-time"', 'id="vpd-arm"', 'id="pose-file-off"', 'id="my-pose-name"', 'id="my-pose-save"', 'id="my-poses"',
+                    'id="my-pose-load"', 'id="my-pose-remove"'):
+        assert element in page, element
+    # 관절: 고른 자세 위에 더하고, 오른쪽은 거울(같은 값이면 양쪽이 같은 동작), 팔은 축 이름이 다름
+    assert "target.quaternion.multiply(" in sheet and 'bone.startsWith("right") ? -1 : 1' in sheet and 'arm: ["비틀기", "앞뒤", "위아래"]' in sheet
+    # VRMA: 동작을 잠깐 재생해 정규화 뼈 회전을 받음. 끝 시점이 0초로 돌아가지 않게 한 번만 재생
+    assert "createVRMAnimationClip" in sheet and "THREE.LoopOnce" in sheet and "clampWhenFinished = true" in sheet
+    # VPD: Shift_JIS, 전각 숫자, 왼손 좌표 -> 오른손(x, y 부호), MMD 팔 기준 각도 보정, 비틀기 뼈는 부모에 합침
+    assert 'new TextDecoder("shift_jis")' in sheet and "0xFEE0" in sheet and "new THREE.Quaternion(-x, -y, z, w)" in sheet
+    for name in ('"上半身2": "chest"', '"首": "neck"', '"頭": "head"', '"腕": "UpperArm"', '"ひじ": "LowerArm"', '"手首": "Hand"', '"足": "UpperLeg"',
+                 '"ひざ": "LowerLeg"', '"足首": "Foot"', '"親指0": "ThumbMetacarpal"', '"小指3": "LittleDistal"', "腕捩", "手捩", "下半身", "センター"):
+        assert name in sheet, name
+    assert "back.clone().multiply(rotation).multiply(rest)" in sheet  # 아래팔, 손, 손가락은 MMD 팔 기준으로 바꿔 계산
+    # 저장: 이 PC 서버(/character/poses). 추천 자세나 부위를 고르면 파일 자세는 꺼짐
+    assert '"/character/poses"' in sheet and '"/character/poses/remove"' in sheet and sheet.count("dropFilePose();") >= 6
+    assert "innerHTML" not in sheet and "https://" not in sheet

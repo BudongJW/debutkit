@@ -38,6 +38,12 @@
     .part { display: grid; grid-template-columns: 56px 1fr auto; gap: 8px; align-items: center; }
     .part span { font-weight: 600; }
     label.check { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: var(--dim); }
+    [hidden] { display: none !important; }
+    details.tool { margin-top: 10px; border: 1px solid var(--line); border-radius: 4px; padding: 8px 12px; }
+    details.tool summary { cursor: pointer; font-weight: 600; }
+    details.tool .row { margin-top: 8px; }
+    label.slider { display: grid; grid-template-columns: 84px 1fr 60px; gap: 8px; align-items: center; margin-top: 6px; font-size: 14px; }
+    label.slider output { font-variant-numeric: tabular-nums; color: var(--dim); }
     ul.facts { margin: 0; padding-left: 18px; font-size: 14px; }
     ul.facts li.warn { color: #9a4a00; }
   </style>
@@ -92,8 +98,37 @@
             <label class="check"><input type="checkbox" id="pose-bg" checked> 무대 배경</label>
           </div>
           <div class="row" style="margin-top: 10px"><button type="button" class="secondary" id="save-pose" disabled>PNG 저장(1024x1536)</button></div>
+          <details class="tool">
+            <summary>관절 직접 돌리기</summary>
+            <div class="row"><select id="joint-bone" aria-label="돌릴 관절"></select>
+              <button type="button" class="secondary" id="joint-reset">이 관절 처음으로</button>
+              <button type="button" class="secondary" id="joint-reset-all">모든 관절 처음으로</button></div>
+            <label class="slider"><span id="joint-x-name">앞뒤</span><input type="range" id="joint-x" min="-90" max="90" value="0"><output id="joint-x-out">0°</output></label>
+            <label class="slider"><span id="joint-y-name">돌기</span><input type="range" id="joint-y" min="-90" max="90" value="0"><output id="joint-y-out">0°</output></label>
+            <label class="slider"><span id="joint-z-name">옆으로</span><input type="range" id="joint-z" min="-90" max="90" value="0"><output id="joint-z-out">0°</output></label>
+          </details>
+          <details class="tool">
+            <summary>자세 파일 불러오기(VRMA, VPD)</summary>
+            <div class="row"><input type="file" id="pose-file" accept=".vrma,.vpd" aria-label="자세 파일">
+              <button type="button" class="secondary" id="pose-file-off" disabled>파일 자세 끄기</button></div>
+            <label class="slider" id="vrma-time-row" hidden>동작 시점<input type="range" id="vrma-time" min="0" max="1000" value="0"><output id="vrma-time-out">0.0초</output></label>
+            <label class="slider" id="vpd-arm-row" hidden>MMD 팔 각도<input type="range" id="vpd-arm" min="0" max="50" value="35"><output id="vpd-arm-out">35°</output></label>
+            <p class="state" id="pose-file-state"></p>
+          </details>
+          <details class="tool">
+            <summary>내 자세 저장</summary>
+            <div class="row"><input type="text" id="my-pose-name" maxlength="30" placeholder="자세 이름" aria-label="자세 이름" style="flex: 1">
+              <button type="button" class="secondary" id="my-pose-save">지금 자세 저장</button></div>
+            <div class="row"><select id="my-poses" aria-label="저장한 자세" style="flex: 1"></select>
+              <button type="button" class="secondary" id="my-pose-load">불러오기</button>
+              <button type="button" class="secondary" id="my-pose-remove">지우기</button></div>
+            <p class="state" id="my-pose-state"></p>
+          </details>
           <ul class="tips">
             <li>부위(몸, 머리, 왼팔, 오른팔, 다리)마다 골라 조합. 위의 추천 자세를 고르면 모든 부위가 그 자세로</li>
+            <li>관절 직접 돌리기: 고른 자세 위에 관절 하나씩 더 돌림(손목, 어깨, 무릎 등)</li>
+            <li>자세 파일: VRMA(VRoid 공식 동작 등, 원하는 시점의 자세)와 MMD 포즈 파일 VPD. 파일은 이 브라우저 안에서만 읽음</li>
+            <li>MMD 팔 각도: MMD 모델은 팔을 내린 자세가 기준이라 그 각도만큼 고쳐서 적용(팔이 너무 올라가거나 내려가면 조절)</li>
             <li>잠금: 마음에 드는 부위는 두고 나머지만 랜덤</li>
             <li>왼팔, 오른팔은 캐릭터 기준(정면 그림에서는 왼팔이 화면 오른쪽)</li>
             <li>무대 배경을 끄면 투명 PNG(썸네일, 방송 화면 꾸미기에)</li>

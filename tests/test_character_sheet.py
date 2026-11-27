@@ -9,7 +9,8 @@ from pathlib import Path
 
 import pytest
 
-from debutkit import character
+from debutkit import character, settings
+from debutkit.overlay import character_sheet
 from debutkit.overlay.server import OverlayServer
 
 STATIC = Path(__file__).resolve().parent.parent / "src" / "debutkit" / "overlay" / "static"
@@ -94,3 +95,52 @@ def test_sheet_page_draws_locally():
         assert f'"{name}"' in script, name
     assert "VRMLoaderPlugin" in script and "/character/pngtuber" in script and "innerHTML" not in script
     assert "https://" not in script  # 모델과 그림은 이 PC 서버에서만
+
+
+POSE = {"name": "  손   인사 ", "parts": {"body": "turn", "leftArm": "wave"}, "tweaks": {"head": [0, 0.2, -0.1], "rightHand": [0.5, 0, 0]},
+        "file": {"leftUpperArm": [0, 0, 0.3826834, 0.9238795], "hips": [0, 0, 0, 1]}}
+
+
+def test_saved_poses_round_trip(server):
+    """내 자세: 이름으로 저장(같은 이름은 바꿈), 최근 저장 순 목록, 지우기. 설정 폴더의 poses.json에 뼈 회전 값만."""
+    assert json.loads(request(server, "GET", "/character/poses")[1]) == {"poses": [], "max": character_sheet.MAX_POSES}
+    status, body = request(server, "POST", "/character/poses", POSE)
+    assert status == 200 and json.loads(body) == {"saved": "손 인사", "count": 1}
+    request(server, "POST", "/character/poses", {"name": "만세", "parts": {"leftArm": "up"}})
+    status, body = request(server, "POST", "/character/poses", {**POSE, "tweaks": {}})  # 같은 이름은 바꾸고 맨 앞으로
+    assert json.loads(body)["count"] == 2
+    poses = json.loads(request(server, "GET", "/character/poses")[1])["poses"]
+    assert [item["name"] for item in poses] == ["손 인사", "만세"]
+    assert poses[0]["tweaks"] == {} and poses[0]["file"]["leftUpperArm"] == [0, 0, 0.38268, 0.92388] and poses[1]["file"] is None
+    assert json.loads(settings.data_path("poses.json").read_text(encoding="utf-8"))["poses"][1]["parts"] == {"leftArm": "up"}
+    status, body = request(server, "POST", "/character/poses/remove", {"name": "만세"})
+    assert status == 200 and json.loads(body) == {"removed": "만세", "count": 1}
+    status, body = request(server, "POST", "/character/poses/remove", {"name": "만세"})
+    assert status == 404 and "저장한 자세에 없음" in json.loads(body)["error"]
+
+
+@pytest.mark.parametrize("body, message", [
+    ({"name": "   "}, "자세 이름을 입력"),
+    ({"name": "가" * 31}, "30자 이하"),
+    ({"name": "a", "tweaks": {"head": [4, 0, 0]}}, "올바르지 않음"),  # 관절은 ±π 안
+    ({"name": "a", "tweaks": {"head": [0, 0]}}, "올바르지 않음"),
+    ({"name": "a", "tweaks": {"head": [True, 0, 0]}}, "올바르지 않음"),
+    ({"name": "a", "tweaks": {"../x": [0, 0, 0]}}, "올바르지 않음"),
+    ({"name": "a", "file": {"hips": [0, 0, 2, 1]}}, "올바르지 않음"),  # 사원수 성분은 1 이하
+    ({"name": "a", "file": {"hips": [0, 0, "0", 1]}}, "올바르지 않음"),
+    ({"name": "a", "parts": {"body": 3}}, "올바르지 않음"),
+    ({"name": "a", "parts": ["body"]}, "올바르지 않음"),
+])
+def test_saved_pose_values_are_checked(server, body, message):
+    status, data = request(server, "POST", "/character/poses", body)
+    assert status == 400 and message in json.loads(data)["error"]
+    assert json.loads(request(server, "GET", "/character/poses")[1])["poses"] == []
+
+
+def test_saved_poses_have_a_limit(server, monkeypatch):
+    monkeypatch.setattr(character_sheet, "MAX_POSES", 2)
+    for name in ("하나", "둘"):
+        assert request(server, "POST", "/character/poses", {"name": name})[0] == 200
+    status, data = request(server, "POST", "/character/poses", {"name": "셋"})
+    assert status == 400 and "2개까지" in json.loads(data)["error"]
+    assert request(server, "POST", "/character/poses", {"name": "하나", "parts": {"body": "turn"}})[0] == 200  # 같은 이름 바꾸기는 됨
