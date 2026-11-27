@@ -55,7 +55,7 @@
           <li><a href="#logo">방송 로고 만들기</a></li>
           <li><a href="#scenes">OBS 장면</a></li>
           <li><a href="#overlay">채팅창과 후원 알림</a></li>
-          <li><a href="#stage">방송 연출(뽑기판, 후원 벽, 참여 레이스)</a></li>
+          <li><a href="#stage">방송 연출(뽑기판, 후원 벽, 참여 레이스, 주사위 판)</a></li>
           <li><a href="#community">팬 커뮤니티</a></li>
           <li><a href="#discord">디스코드 합방</a></li>
           <li><a href="#broadcast">OBS 없이 바로 방송</a></li>
@@ -794,7 +794,7 @@ debutkit remote pair                          # 새 휴대폰 등록 주소(5분
 debutkit remote status                        # 등록 기기와 확인 번호
 debutkit remote approve 기기                   # 승인(remove로 삭제)</code></pre>
 
-        <h2 id="stage">방송 연출(뽑기판, 후원 벽, 참여 레이스)</h2>
+        <h2 id="stage">방송 연출(뽑기판, 후원 벽, 참여 레이스, 주사위 판)</h2>
         <p>뽑기판, 후원 벽, 참여 레이스는 오버레이와 함께 실행되는 방송 화면입니다. <code>debutkit scenes</code>로 만든 본방송과 토크 장면에 숨긴 채로 들어 있으므로 쓸 때 OBS 소스 목록의 눈 아이콘으로 켭니다. 조작 화면은 OBS 독(사용자 지정 브라우저 독)으로도 씁니다. 모든 조작 화면 위의 이동 막대로 화면 사이를 오갑니다.</p>
         <h3 id="stage-preview">방송 화면 미리보기, 방송 색, 방송 스타일</h3>
         <ul>
@@ -901,6 +901,16 @@ debutkit remote approve 기기                   # 승인(remove로 삭제)</cod
           <li>게임, 코스, 디자인은 그림 단추로 고릅니다. 그림은 저장한 설정의 예시 경주를 중간에 멈춘 장면입니다. 추천 3가지(가볍게 한 판, 빠른 달리기, 끝까지 긴장)와 처음 상태로(게임과 꾸미기만, 참가자 설정은 그대로)가 있으며 이 화면은 바꾸면 바로 저장합니다. 재생 속도와 깜짝 요소는 자세히에 접혀 있습니다.</li>
           <li>결과는 채팅창 안내 한 줄로 알리고 전체 순위와 조별 기록을 텍스트 파일로 저장할 수 있습니다. 연습 모드는 예시 이름으로 미리 해 봅니다.</li>
           <li>명령줄: <code>debutkit race start --game marble</code>, <code>race start --names "치즈냥*3, 도토리"</code>, <code>race next</code>, <code>race stop</code>, <code>race status</code></li>
+        </ul>
+        <h3 id="stage-board">주사위 판</h3>
+        <p>참가자가 주사위를 굴려 판을 돌며 칸의 미션을 하는 말판 게임입니다. 방송 화면은 <code>http://127.0.0.1:8790/board</code>, 조작 화면은 <code>/board/control</code>입니다.</p>
+        <ul>
+          <li>판: 정사각형 둘레 16, 20, 24, 28칸. 칸 미션은 한 줄에 하나씩 적고(24자), 비우면 기본 미션(노래 한 소절, 애교 3초 등)</li>
+          <li>특별한 칸: 출발(지나면 한 바퀴), 한 번 더, 뒤로 2칸, 한 번 쉬기, 행운 카드(앞으로 3칸, 출발로, 모두 1칸 앞으로, 자리 바꾸기, 한 번 더 굴리기, 아무 일도 없음)</li>
+          <li>참가자: 붙여 넣은 이름과 참여 추첨 명단에서 최대 8명. 차례는 시작할 때 섞음</li>
+          <li>주사위는 debutkit이 운영체제 난수로 굴리고, 방송 화면은 주사위가 구른 뒤 말이 칸마다 뛰어 지나가는 연출로 그 결과를 그대로 보여 줌. 도착하면 가운데 카드에 미션</li>
+          <li>시청자 굴리기: 켜 두면 차례인 참가자가 채팅에 명령(기본 <code>!주사위</code>)을 쓰면 굴림. 참가자 이름이 채팅 닉네임과 같을 때만, 3초 간격</li>
+          <li>디자인 3종(파스텔, 밤하늘, 종이 공작), 색은 방송 색. 판 바깥은 투명</li>
         </ul>
 
         <h2 id="community">팬 커뮤니티</h2>

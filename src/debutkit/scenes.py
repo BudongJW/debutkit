@@ -42,10 +42,11 @@ class SceneOptions:
     alerts_url: str = "http://127.0.0.1:8790/alerts"
     character_url: str = "http://127.0.0.1:8790/character"
     draw_url: str = "http://127.0.0.1:8790/draw"
-    #: 방송 연출(뽑기판, 후원 벽, 참여 레이스). 본방송과 토크 장면에 숨긴 채로 넣고 필요할 때 OBS에서 켠다
+    #: 방송 연출(뽑기판, 후원 벽, 참여 레이스, 주사위 판). 본방송과 토크 장면에 숨긴 채로 넣고 필요할 때 OBS에서 켠다
     pick_url: str = "http://127.0.0.1:8790/pick"
     wall_url: str = "http://127.0.0.1:8790/wall"
     race_url: str = "http://127.0.0.1:8790/race"
+    board_url: str = "http://127.0.0.1:8790/board"
     goal_url: str = "http://127.0.0.1:8790/wall/goal"
     rank_url: str = "http://127.0.0.1:8790/wall/rank"
     frame_url: str = "http://127.0.0.1:8790/frame"
@@ -203,7 +204,7 @@ def build_scenes(width: int, height: int, kinds: dict[str, str], options: SceneO
         if spots is not None and in_game:
             goal = tuple(value / size for value, size in zip(spots["goal"], (1920, 1080, 1920, 1080), strict=True))  # type: ignore[assignment]
             rank = tuple(value / size for value, size in zip(spots["rank"], (1920, 1080, 1920, 1080), strict=True))  # type: ignore[assignment]
-        return (stage("뽑기판", options.pick_url), stage("참여 레이스", options.race_url),
+        return (stage("뽑기판", options.pick_url), stage("참여 레이스", options.race_url), stage("주사위 판", options.board_url),
                 stage("목표 게이지", options.goal_url, (1280, 240), goal), stage("후원 순위", options.rank_url, (560, 720), rank))
 
     def frame(name: str, kind: str, box: dict[str, Any] | None = None) -> Item | None:

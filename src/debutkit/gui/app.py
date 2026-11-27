@@ -1112,7 +1112,7 @@ class Wizard(QMainWindow):
         self.scenes_result.setText("OBS 연결 중")
         base = f"http://127.0.0.1:{self.port.value()}"
         options = scenes.SceneOptions(overlay_url=f"{base}/chat", alerts_url=f"{base}/alerts", character_url=f"{base}/character",
-                                       draw_url=f"{base}/draw", pick_url=f"{base}/pick", wall_url=f"{base}/wall", race_url=f"{base}/race",
+                                       draw_url=f"{base}/draw", pick_url=f"{base}/pick", wall_url=f"{base}/wall", race_url=f"{base}/race", board_url=f"{base}/board",
                                        goal_url=f"{base}/wall/goal", rank_url=f"{base}/wall/rank", frame_url=f"{base}/frame",
                                        avatar=str(self.avatar_app.currentData()), game=str(self.scene_game.currentData() or ""),
                                        frames=self.scene_frames.isChecked())

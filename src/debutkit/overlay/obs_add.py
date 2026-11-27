@@ -25,6 +25,7 @@ SOURCES: dict[str, tuple[str, str, int, int, tuple[int, int, int, int] | None]] 
     "goal": ("목표 게이지", "/wall/goal", 1280, 240, (33, 24, 576, 108)),
     "rank": ("후원 순위", "/wall/rank", 560, 720, (33, 151, 288, 389)),
     "race": ("참여 레이스", "/race", 1920, 1080, None),
+    "board": ("주사위 판", "/board", 1920, 1080, None),
     "community": ("커뮤니티", "/community", 1920, 1080, None),
     "frame-cam": ("캐릭터 프레임", "/frame?kind=cam", 614, 670, (0, 410, 614, 670)),
     "frame-starting": ("대기 화면 프레임", "/frame?kind=starting", 1920, 1080, None),
@@ -78,7 +79,7 @@ def add(client: Any, kind: str, base: str, *, query: str = "", url: str = "", cs
         raise ObsAddError("OBS의 지금 장면을 알 수 없음")
     video = client.request("GetVideoSettings")
     canvas_w, canvas_h = int(video.get("baseWidth", 1920)), int(video.get("baseHeight", 1080))
-    settings = {"url": address, "width": width, "height": height, "reroute_audio": kind in ("alerts", "draw", "pick", "race"), "shutdown": False}
+    settings = {"url": address, "width": width, "height": height, "reroute_audio": kind in ("alerts", "draw", "pick", "race", "board"), "shutdown": False}
     if css:
         settings["css"] = css
     exists = source in {str(item.get("inputName")) for item in client.request("GetInputList").get("inputs", [])}

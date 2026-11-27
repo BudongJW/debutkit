@@ -117,6 +117,7 @@ class Channel:
 def default_features(context: Context) -> list[Feature]:
     """오버레이 서버가 기본으로 켜는 기능들. 기능을 추가하면 여기에 한 줄 더한다."""
     from .. import wall
+    from ..board import feature as board_feature
     from ..pick import pick_feature
     from ..race import feature as race_feature
     from . import alerts, character_sheet, community, decor, discord, games, obs_add, stage, theme, vmc
@@ -127,6 +128,7 @@ def default_features(context: Context) -> list[Feature]:
     found.append(wall.feature(context))  # 후원 벽, 목표 게이지, 후원 순위
     found.append(pick_feature(context))  # 뽑기판
     found.append(race_feature(context))  # 참여 레이스
+    found.append(board_feature(context))  # 주사위 판
     found.append(community.make_feature(context))  # 팬 커뮤니티 연동(올린 경우만 주고받음)
     found.append(discord.make_feature(context))  # 디스코드 음성 위젯 꾸미기, 웹훅 알림
     found.append(obs_add.make_feature(context))  # OBS에 넣기(주소 복사 대신 단추 하나로)

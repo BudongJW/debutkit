@@ -23,10 +23,10 @@ def test_five_scenes_with_overlay_everywhere():
         assert f"{PREFIX}채팅" in names
         assert all(name.startswith(PREFIX) for name in names)
     main = scenes[1]
-    assert [item.role for item in main.items] == ["color", "game", "browser", "window"] + ["browser"] * 7
+    assert [item.role for item in main.items] == ["color", "game", "browser", "window"] + ["browser"] * 8
     hidden = [item.source for item in main.items if not item.enabled]  # 방송 연출은 숨긴 채로 넣고 필요할 때 켬, 후원 벽은 캐릭터 뒤
-    assert hidden == [f"{PREFIX}{name}" for name in ("후원 벽", "뽑기판", "참여 레이스", "목표 게이지", "후원 순위")]
-    assert [item.settings["url"].rsplit("/", 1)[-1] for item in main.items if not item.enabled] == ["wall", "pick", "race", "goal", "rank"]
+    assert hidden == [f"{PREFIX}{name}" for name in ("후원 벽", "뽑기판", "참여 레이스", "주사위 판", "목표 게이지", "후원 순위")]
+    assert [item.settings["url"].rsplit("/", 1)[-1] for item in main.items if not item.enabled] == ["wall", "pick", "race", "board", "goal", "rank"]
     assert all(item.settings["shutdown"] for item in main.items if not item.enabled)  # 숨긴 동안 멈춤
     goal = next(item for item in main.items if item.source.endswith("목표 게이지"))
     assert (goal.settings["width"], goal.settings["height"]) == (1280, 240) and goal.transform["positionX"] + goal.transform["boundsWidth"] < 1920 * 0.33
