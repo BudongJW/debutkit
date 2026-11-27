@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>참여 안내 - debutkit</title>
-<meta name="description" content="debutkit 사용, 개발 참여, 실제 환경 확인, 소속 버튜버 의향 등록 안내. 각 항목은 서로 독립적입니다.">
+<meta name="description" content="debutkit 참여 유형 안내. 프로그램 이용, 개발 기여, 실사용 환경 검증, 소속 의향서 제출. 유형별 개별 신청, 다른 유형의 의무 없음.">
 <meta name="theme-color" content="#ffffff">
 <meta property="og:image" content="https://budongjw.github.io/debutkit/assets/social.png">
 <link rel="canonical" href="https://budongjw.github.io/debutkit/join.html">
@@ -36,75 +36,88 @@
   <div class="wrap">
     <header class="dochead">
       <h1>참여 안내</h1>
-      <p>참여 방법은 프로그램 사용, 개발 참여, 실제 환경 확인, 소속 버튜버 의향 등록의 네 가지입니다. 각 방법은 서로 독립적이며, 하나에 참여해도 다른 항목의 의무는 발생하지 않습니다.</p>
+      <dl>
+        <dt>참여 유형</dt><dd>프로그램 이용, 개발 기여, 실사용 환경 검증, 소속 의향서 제출</dd>
+        <dt>신청 방식</dt><dd>유형별 개별 신청, 다른 유형의 의무 없음</dd>
+      </dl>
     </header>
 
     <div class="doc">
       <nav class="toc" aria-label="목차">
         <h2>목차</h2>
         <ul>
-          <li><a href="#use">프로그램 사용</a></li>
-          <li><a href="#contribute">개발 참여</a></li>
-          <li><a href="#verify">실제 환경 확인</a></li>
-          <li><a href="#member">소속 버튜버 의향 등록</a></li>
+          <li><a href="#use">프로그램 이용</a></li>
+          <li><a href="#contribute">개발 기여</a></li>
+          <li><a href="#verify">실사용 환경 검증</a></li>
+          <li><a href="#member">소속 의향서 제출</a></li>
         </ul>
       </nav>
 
       <article>
-        <h2 id="use">프로그램 사용</h2>
+        <h2 id="use">프로그램 이용</h2>
         <ul>
-          <li>가입이나 동의 절차 없이 사용할 수 있습니다.</li>
-          <li>설치: <a href="./#download">다운로드</a>, 사용법: <a href="guide.html">사용 설명서</a></li>
+          <li>회원 가입, 약관 동의 절차 없음</li>
+          <li>모든 기능 무상(Apache-2.0)</li>
+          <li>설치: <a href="./#download">다운로드</a>, 이용 방법: <a href="guide.html">사용 설명서</a></li>
         </ul>
 
-        <h2 id="contribute">개발 참여</h2>
+        <h2 id="contribute">개발 기여</h2>
         <div class="tablewrap">
           <table>
             <tbody>
-              <tr><th scope="row">대상</th><td>버그 제보, 번역, 장면 디자인, 코드</td></tr>
-              <tr><th scope="row">조건</th><td>커밋마다 DCO 서명(<code>git commit -s</code>). 활동명 사용 가능, 실명 불필요</td></tr>
-              <tr><th scope="row">안내</th><td><a href="https://github.com/BudongJW/debutkit/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a></td></tr>
+              <tr><th scope="row">기여 분야</th><td>버그 제보, 번역, 장면 디자인, 코드</td></tr>
+              <tr><th scope="row">요건</th><td>커밋마다 DCO 서명(<code>git commit -s</code>). 활동명 사용 가능, 실명 불필요</td></tr>
+              <tr><th scope="row">절차 안내</th><td><a href="https://github.com/BudongJW/debutkit/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a></td></tr>
             </tbody>
           </table>
         </div>
 
-        <h2 id="verify">실제 환경 확인</h2>
-        <p>1.0 출시 전, 개발 환경에서 확인할 수 없는 항목을 실제 PC와 방송 계정으로 확인하고 있습니다. 아래 항목 중 가능한 것만 확인해 보고하면 됩니다.</p>
+        <h2 id="verify">실사용 환경 검증</h2>
+        <ul>
+          <li>대상: 개발 환경에서 확인 불가한 항목. 1.0 출시 전 실제 PC와 방송 계정으로 검증</li>
+          <li>범위: 아래 항목 중 검증 가능한 항목만 선택해 결과 제출</li>
+        </ul>
         <div class="tablewrap">
           <table>
-            <thead><tr><th>확인 항목</th><th>필요 조건</th><th>방법</th></tr></thead>
+            <thead><tr><th>검증 항목</th><th>요건</th><th>방법</th></tr></thead>
             <tbody>
-              <tr><th scope="row">마이크, 웹캠 인식</th><td>macOS 또는 Linux PC</td><td>설정 마법사 PC 점검 결과의 장치 이름이 실제 장치와 일치하는지 확인</td></tr>
-              <tr><th scope="row">설정 마법사 사용</th><td>macOS 또는 Linux PC</td><td>단계별 진행 후 창 닫기. 비정상 종료 여부 확인</td></tr>
-              <tr><th scope="row">아바타 소스</th><td>VTube Studio 등 실행 중인 PC</td><td>OBS 장면 생성 후 아바타가 투명 배경으로 표시되는지 확인</td></tr>
+              <tr><th scope="row">마이크, 웹캠 인식</th><td>macOS 또는 Linux PC</td><td>설정 마법사 PC 점검 결과의 장치 이름과 실제 장치의 일치 여부 확인</td></tr>
+              <tr><th scope="row">설정 마법사 이용</th><td>macOS 또는 Linux PC</td><td>단계별 진행 후 창 닫기. 비정상 종료 여부 확인</td></tr>
+              <tr><th scope="row">아바타 소스</th><td>VTube Studio 등을 실행한 PC</td><td>OBS 장면 생성 후 아바타의 투명 배경 표시 여부 확인</td></tr>
               <tr><th scope="row">치지직 공식 API</th><td>치지직 채널, 개발자 센터 애플리케이션</td><td><code>debutkit chzzk login</code> 후 방송 채팅 표시 확인</td></tr>
-              <tr><th scope="row">SOOP 후원 알림</th><td>SOOP 방송 중 별풍선 후원</td><td>알림에 후원자 닉네임이 표시되는지 확인</td></tr>
-              <tr><th scope="row">캐릭터 화면</th><td>OBS, 마이크</td><td>PNGTuber 또는 VRM을 방송에 사용하고 말할 때 입이 움직이는지, VRM 표시가 자연스러운지 확인</td></tr>
-              <tr><th scope="row">웹캠 얼굴 추적</th><td>웹캠, VRM 또는 PNGTuber 캐릭터</td><td>얼굴 추적 창에서 추적 시작 후 머리 움직임, 눈 깜빡임, 입, 웃음이 캐릭터에 반영되는지 확인</td></tr>
+              <tr><th scope="row">SOOP 후원 알림</th><td>SOOP 방송 중 별풍선 후원</td><td>알림의 후원자 닉네임 표시 여부 확인</td></tr>
+              <tr><th scope="row">캐릭터 화면</th><td>OBS, 마이크</td><td>PNGTuber 또는 VRM 방송 화면에서 말할 때 입 움직임, VRM 표시 이상 여부 확인</td></tr>
+              <tr><th scope="row">웹캠 얼굴 추적</th><td>웹캠, VRM 또는 PNGTuber 캐릭터</td><td>얼굴 추적 창에서 추적 시작 후 머리 움직임, 눈 깜빡임, 입, 웃음의 캐릭터 반영 여부 확인</td></tr>
               <tr><th scope="row">VTube Studio 연동</th><td>VTube Studio(플러그인 API 사용)</td><td>연결 허용, 모델 불러오기, 시험 실행, 후원 시 단축키 실행 확인</td></tr>
-              <tr><th scope="row">VTube Studio로 보내기</th><td>VTube Studio, Live2D 모델</td><td>보내기 후 VTube Studio 모델 목록에 표시되는지 확인</td></tr>
+              <tr><th scope="row">VTube Studio로 보내기</th><td>VTube Studio, Live2D 모델</td><td>보내기 후 VTube Studio 모델 목록의 표시 여부 확인</td></tr>
               <tr><th scope="row">YouTube 채팅</th><td>YouTube 방송, API 키</td><td><code>debutkit youtube check 방송주소</code>의 모든 단계 정상 여부와 채팅 표시 확인</td></tr>
             </tbody>
           </table>
         </div>
         <ol class="procedure">
-          <li><a href="https://github.com/BudongJW/debutkit/releases">릴리스 목록</a>에서 사전 릴리스로 표시된 최신 1.0 후보를 설치합니다. 1.0 후보는 최신 릴리스 주소와 새 버전 확인에 표시되지 않습니다.</li>
-          <li>확인한 항목을 진행합니다.</li>
-          <li>설정 마법사 마무리 단계에서 점검 결과 복사를 누릅니다.</li>
-          <li><a href="https://github.com/BudongJW/debutkit/issues/new?template=verification.yml">실제 환경 확인 보고</a> 양식에 결과를 붙여 넣어 제출합니다.</li>
+          <li><a href="https://github.com/BudongJW/debutkit/releases">릴리스 목록</a>에서 사전 릴리스로 표시된 최신 1.0 후보 설치. 1.0 후보는 최신 릴리스 주소와 새 버전 확인에 표시 안 됨</li>
+          <li>선택한 항목 검증</li>
+          <li>설정 마법사 마무리 단계에서 점검 결과 복사 누름</li>
+          <li><a href="https://github.com/BudongJW/debutkit/issues/new?template=verification.yml">실제 환경 확인 보고</a> 양식에 결과를 붙여 넣어 제출</li>
         </ol>
-        <p>시청자 닉네임, 채팅 내용, 토큰, API 키, 비밀번호는 보고에 넣지 않습니다. 문제가 있으면 문제 제보 양식도 함께 사용합니다.</p>
+        <ul>
+          <li>제출 제외 정보: 시청자 닉네임, 채팅 내용, 토큰, API 키, 비밀번호</li>
+          <li>문제 발견 시 문제 제보 양식 별도 제출</li>
+        </ul>
 
-        <h2 id="member">소속 버튜버 의향 등록</h2>
-        <p>함께 활동할 버튜버 모집을 준비하고 있습니다. 모집을 시작하면 이 페이지에 신청서 주소를 게시합니다.</p>
+        <h2 id="member">소속 의향서 제출</h2>
+        <ul>
+          <li>대상: debutkit과 함께 활동할 소속 버튜버(모집 준비 중)</li>
+          <li>접수: 모집 개시 시 이 페이지에 신청서 주소 게시</li>
+        </ul>
         <div class="tablewrap">
           <table>
             <thead><tr><th>원칙</th><th>내용</th></tr></thead>
             <tbody>
-              <tr><th scope="row">비구속</th><td>신청은 계약이 아니며 제출에 따른 의무가 없음. 이메일 한 통으로 철회와 정보 삭제 요청 가능</td></tr>
-              <tr><th scope="row">사용과 무관</th><td>신청하지 않거나 신청 후 철회해도 모든 기능을 동일하게 사용</td></tr>
-              <tr><th scope="row">최소 수집</th><td>활동명, 연락 이메일, 연령대 확인만 수집. 실명, 얼굴 사진, 주소는 수집하지 않음</td></tr>
-              <tr><th scope="row">연령</th><td>만 14세 미만은 보호자 동의 절차가 필요해 이 신청서로 접수하지 않음. 미성년자의 소속 계약은 보호자 동의 필수</td></tr>
+              <tr><th scope="row">비구속</th><td>신청은 계약 아님. 제출에 따른 의무 없음. 이메일 한 통으로 신청 철회와 정보 삭제 요청 가능</td></tr>
+              <tr><th scope="row">이용과 무관</th><td>미신청 또는 신청 철회와 관계없이 모든 기능 동일 제공</td></tr>
+              <tr><th scope="row">최소 수집</th><td>수집 항목: 활동명, 연락 이메일, 연령대 확인. 실명, 얼굴 사진, 주소 수집 없음</td></tr>
+              <tr><th scope="row">연령</th><td>만 14세 미만은 보호자 동의 절차가 필요해 이 신청서로 접수 불가. 미성년자 소속 계약은 보호자 동의 필수</td></tr>
               <tr><th scope="row">조건 공개</th><td>캐릭터 IP 귀속, 수익 배분, 계약 기간을 모집 공고에 함께 공개</td></tr>
             </tbody>
           </table>
@@ -123,7 +136,7 @@
     <a href="https://github.com/BudongJW/debutkit/blob/main/CHANGELOG.md">변경 내역</a>
     <a href="https://github.com/BudongJW/debutkit/blob/main/LICENSE">라이선스</a>
     <a href="signing.html">코드 서명 정책</a>
-    <p>Apache-2.0 오픈소스 소프트웨어. 본 페이지는 Google Fonts 서체를 사용합니다.</p>
+    <p>Apache-2.0 오픈소스 소프트웨어. 이 페이지의 서체: Google Fonts</p>
   </div>
 </footer>
 </body>

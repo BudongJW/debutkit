@@ -124,11 +124,14 @@ def replay_clipper(out_dir: str | os.PathLike[str], host: str = "127.0.0.1", por
 class AutoClipper:
     """허브의 채팅을 지켜보다 급증하면 ``clipper(trigger)`` 를 부르고 결과를 오버레이 설정 화면에 알린다."""
 
-    def __init__(self, hub: Any, clipper: Callable[[Any], Any], *, config: Any = None, clock: Callable[[], float] = time.time, poll: float = 1.0) -> None:
+    def __init__(self, hub: Any, clipper: Callable[[Any], Any], *, config: Any = None, clock: Callable[[], float] = time.time, poll: float = 1.0,
+                 post: Callable[[Path], Any] | None = None) -> None:
+        """``post`` 는 저장한 클립 경로를 받는 후처리(움짤, 세로 쇼츠: clipfx.PostProcessor). 오래 걸리면 안 된다(대기열에 넣기만)."""
         from stream2clip.live import LiveConfig, SurgeDetector
 
         self.hub = hub
         self.clipper = clipper
+        self.post = post
         self.config = config or LiveConfig()
         self.clock = clock
         self.poll = poll
@@ -148,6 +151,11 @@ class AutoClipper:
         self.saved.append(saved)
         note = getattr(saved, "note", "")
         self.hub.publish(system_event(f"클립 저장: {Path(saved.clip).name} ({reasons})" + (f". {korean(note)}" if note else "")))
+        if self.post is not None:
+            try:
+                self.post(Path(saved.clip))
+            except Exception as error:
+                self.hub.publish(system_event(f"클립 후처리 실패: {error}"))
 
     def _run(self) -> None:
         from stream2clip.live import watch
@@ -166,6 +174,9 @@ class AutoClipper:
     def stop(self) -> None:
         self._stop.set()
         self.tap.close()
+        stop_post = getattr(self.post, "stop", None)
+        if callable(stop_post):
+            stop_post()
         if self.tap in self.hub.taps:
             self.hub.taps.remove(self.tap)
         if self._thread is not None:

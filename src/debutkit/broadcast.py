@@ -95,6 +95,8 @@ class BroadcastConfig:
     camera: bool = False  # 휴대폰 앱 카메라 영상을 크게
     title: str = ""  # 송출 화면 왼쪽 위 글자
     background: str = "2a1f3d"
+    #: 송출 화면에 넣을 방송 연출(LAYERS). 참여 레이스는 쓰지 않을 때 투명이라 기본으로 넣음
+    layers: tuple[str, ...] = ("race",)
 
     @property
     def target(self) -> Platform:
@@ -202,8 +204,19 @@ def check_key(value: Any) -> str:
     return text
 
 
+#: 송출 화면에 넣을 수 있는 방송 연출(OBS 장면과 같은 자리)
+LAYERS = {"wall": "후원 벽", "goal": "목표 게이지", "rank": "후원 순위", "pick": "뽑기판", "race": "참여 레이스"}
+
+
+def check_layers(value: Any) -> tuple[str, ...]:
+    if not isinstance(value, (list, tuple)) or any(item not in LAYERS for item in value):
+        raise BroadcastError("송출 화면 연출은 " + ", ".join(LAYERS) + " 중에서")
+    return tuple(name for name in LAYERS if name in value)
+
+
 _CHECKS: dict[str, Callable[[Any], Any]] = {"platform": check_platform, "quality": check_quality, "kbps": check_kbps, "encoder": check_encoder,
-                                            "mic": check_device, "extra_audio": check_device, "title": check_title, "background": check_color}
+                                            "mic": check_device, "extra_audio": check_device, "title": check_title, "background": check_color,
+                                            "layers": check_layers}
 
 
 def from_request(data: dict[str, Any], base: BroadcastConfig | None = None) -> BroadcastConfig:
@@ -604,6 +617,7 @@ class Broadcaster:
             query["title"] = config.title
         if config.camera:
             query["camera"] = "1"
+        query["layers"] = ",".join(config.layers)
         return urllib.parse.urlencode(query)
 
     def program_url(self, config: BroadcastConfig | None = None) -> str:

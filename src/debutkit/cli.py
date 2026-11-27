@@ -1,5 +1,5 @@
-"""명령줄: debutkit gui | doctor | scenes | camera | overlay | draw | raffle | phone | remote | broadcast | logo | character | motion | vts | settings |
-setup | chzzk"""
+"""명령줄: debutkit gui | doctor | scenes | camera | overlay | draw | raffle | pick | wall | race | phone | vmc | community | remote | broadcast | launch | clip |
+logo | character | motion | vts | settings | setup | chzzk"""
 
 from __future__ import annotations
 
@@ -12,6 +12,9 @@ from typing import Any, Callable
 
 from . import __version__
 from .doctor import JOIN_URL, OVERLAY_PORT
+
+#: 게임 패키지 이름(overlay/games.py의 GAMES와 같음. 명령줄을 빨리 띄우려고 여기에 이름만)
+GAME_CHOICES = ("valorant", "lol", "overwatch", "hearthstone", "pubg", "maplestory", "lostark", "fconline", "tft", "minecraft")
 
 
 def _doctor(args: argparse.Namespace) -> int:
@@ -43,7 +46,9 @@ def _scenes(args: argparse.Namespace) -> int:
 
     base = f"http://127.0.0.1:{args.overlay_port}"
     options = SceneOptions(overlay_url=f"{base}/chat", alerts_url=f"{base}/alerts", character_url=f"{base}/character", draw_url=f"{base}/draw",
-                           avatar=args.avatar)
+                           pick_url=f"{base}/pick", wall_url=f"{base}/wall", race_url=f"{base}/race", board_url=f"{base}/board", goal_url=f"{base}/wall/goal",
+                           rank_url=f"{base}/wall/rank", frame_url=f"{base}/frame",
+                           avatar=args.avatar, game=args.game or "", frames=args.frames)
     if args.dry_run:
         kinds = default_kinds(options.os_name)
         print(format_plan(build_scenes(1920, 1080, kinds, options), kinds))
@@ -108,7 +113,7 @@ def _camera(args: argparse.Namespace) -> int:
     where = ", ".join(result["added"]) + " 장면에 추가" if result["added"] else ", ".join(result["kept"]) + " 장면에 이미 있음"
     print(f"OBS 소스 {camera.SOURCE_NAME} {done}, {where}. 상태: {state['text']}")
     if args.app:
-        print("앱 등록: 오버레이 설정 화면의 휴대폰 연결에서 휴대폰 조작 화면을 켜고 QR 등록, PC에서 승인")
+        print("앱 등록: 시작하기 화면의 휴대폰 연결에서 휴대폰 조작 화면을 켜고 QR 등록, PC에서 승인")
         return 0
     print("OBS가 처음 수신할 때 Windows 보안 경고가 나오면 개인 네트워크 허용")
     print(_camera_info(camera.connection_info(config)))
@@ -118,7 +123,7 @@ def _camera(args: argparse.Namespace) -> int:
 #: overlay 옵션과 저장 설정 항목의 대응(API 키, 비밀번호는 저장하지 않음)
 OVERLAY_SETTINGS = {"chzzk": "chzzk", "chzzk_api": "chzzk_api", "soop": "soop", "twitch": "twitch", "youtube": "youtube",
                     "youtube_mode": "youtube_mode", "youtube_interval": "youtube_interval", "demo": "demo", "port": "overlay_port",
-                    "clip": "clip", "clip_dir": "clip_dir", "obs_port": "obs_port", "voice_input": "voice_input", "voice_threshold": "voice_threshold",
+                    "clip": "clip", "clip_dir": "clip_dir", "clip_gif": "clip_gif", "clip_shorts": "clip_shorts", "obs_port": "obs_port", "voice_input": "voice_input", "voice_threshold": "voice_threshold",
                     "vts_reaction": "vts_reactions", "motion_reaction": "motion_reactions"}
 
 
@@ -176,7 +181,7 @@ def _overlay(args: argparse.Namespace) -> int:
 
     record = logs.setup("overlay")
     server.hub.taps.append(logs.status)  # 상태 안내(연결, 클립 저장, 오류)만 이 PC의 기록 파일에. 채팅 내용은 기록하지 않음
-    print(f"오버레이 실행 중: {server.url}  (설정 화면)")
+    print(f"오버레이 실행 중: {server.url}  (시작하기 화면: 방송 준비 목록, OBS에 넣기)")
     print(f"  채팅창  {server.url}/chat")
     print(f"  알림    {server.url}/alerts")
     print("  연결: " + ", ".join(label for label, _ in sources))
@@ -236,9 +241,39 @@ def _start_autoclip(server: Any, args: argparse.Namespace) -> bool:
         print(f"자동 클립 켜기 실패: {error}", file=sys.stderr)
         print("  확인: OBS 실행, WebSocket 서버 사용, 리플레이 버퍼 사용(debutkit scenes --replay-buffer)", file=sys.stderr)
         return False
-    server.attach(AutoClipper(server.hub, clipper).start())
-    print(f"  자동 클립: 사용(OBS {version}, 저장 위치 {out}). 채팅 급증 또는 스트리머의 !clip 입력 시 저장")
+    post = None
+    if args.clip_gif or args.clip_shorts:
+        from .clipfx import PostProcessor
+        from .overlay.events import system_event
+
+        post = PostProcessor(bool(args.clip_gif), bool(args.clip_shorts), lambda text: server.hub.publish(system_event(text)))
+    server.attach(AutoClipper(server.hub, clipper, post=post).start())
+    extra = ", ".join(name for name, on in (("움짤", args.clip_gif), ("세로 쇼츠", args.clip_shorts)) if on)
+    print(f"  자동 클립: 사용(OBS {version}, 저장 위치 {out}). 채팅 급증 또는 스트리머의 !clip 입력 시 저장" + (f". 클립마다 {extra}도 만듦" if extra else ""))
     return True
+
+
+def _clipfx(args: argparse.Namespace) -> int:
+    """클립 다듬기: 움짤(GIF, WebP), 세로 쇼츠."""
+    from . import clipfx
+
+    try:
+        watermark = clipfx.Watermark(Path(args.watermark), args.watermark_position, args.watermark_size / 100, args.watermark_opacity / 100) \
+            if args.watermark else None
+        made = []
+        for source in args.files:
+            if args.clipfx_command == "gif":
+                made.append(clipfx.make_gif(Path(source), start=args.start, duration=args.duration, width=args.width, fps=args.fps, watermark=watermark))
+            elif args.clipfx_command == "webp":
+                made.append(clipfx.make_webp(Path(source), start=args.start, duration=args.duration, width=args.width, fps=args.fps, quality=args.quality,
+                                             watermark=watermark))
+            else:
+                made.append(clipfx.make_shorts(Path(source), mode=args.mode, focus=args.focus, start=args.start, duration=args.duration, watermark=watermark))
+            print(f"저장: {made[-1]}", flush=True)
+    except clipfx.ClipFxError as error:
+        print(str(error), file=sys.stderr)
+        return 1
+    return 0
 
 
 def _setup(args: argparse.Namespace) -> int:
@@ -516,6 +551,13 @@ def _draw_show(config: Any, port: int) -> None:
     print(f"  구독, 멤버십: {'1회 추첨' if config.members else '추첨 안 함'}")
     print(f"  연출: {draw.STYLES[config.style]}, 결과 표시 {config.seconds}초, 추첨 이름 {config.title}")
     print(f"  표시: {draw.POSITIONS[config.position]}, 크기 {config.scale}%, 효과음 {'켬' if config.sound else '끔'}, 확률 {'표시' if config.show_percent else '표시 안 함'}")
+    design = draw.DESIGNS.get(config.style, {}).get(config.design, config.design)
+    print(f"  꾸미기: 모양 {design}, 결과 뒤 효과 {draw.EFFECTS.get(config.effect, config.effect)}, "
+          f"상품 이름 {draw.FONTS.get(config.name_font, '')} {draw.SIZES.get(config.name_size, '')}, 안내 글 {draw.FONTS.get(config.caption_font, '')} "
+          f"{draw.SIZES.get(config.caption_size, '')}")
+    if config.style == "tarot":
+        print(f"  오늘의 한마디: {'켬' if config.advice else '끔'}" + (f", 문장 {len(config.advice_lines)}개" if config.advice_lines else ", 기본 문장"))
+    print("  모양 목록: " + ", ".join(f"{key}({name})" for key, name in draw.DESIGNS.get(config.style, {}).items()))
     print(f"  방송 화면 http://127.0.0.1:{port}/draw  조작 화면 http://127.0.0.1:{port}/draw/control")
 
 
@@ -540,16 +582,21 @@ def _draw(args: argparse.Namespace) -> int:
     if command == "test":
         return _post_overlay(args.port, "/draw/test", {"amount": args.amount}, lambda answer: f"시험 추첨 {answer.get('count')}회: {answer.get('script', '')}")
     current = draw.load_config().to_dict()
-    data: dict[str, Any] = {key: current[key] for key in ("enabled", "prizes", "rules", "exact", "members", "style", "seconds", "title", "position",
-                                                           "scale", "sound", "show_percent")}
+    keys = ("enabled", "prizes", "rules", "exact", "members", "style", "seconds", "title", "position", "scale", "sound", "show_percent", "design",
+            "effect", "name_font", "name_size", "caption_font", "caption_size", "advice")
+    data: dict[str, Any] = {key: current[key] for key in (*keys, "advice_lines")}
     try:
         if args.prize:
             data["prizes"] = [{"name": name, "weight": weight} for weight, name in _draw_pairs(args.prize, "상품(가중치:이름)")]
         if args.rule:
             data["rules"] = [{"min_won": amount, "draws": count} for amount, count in _draw_pairs(args.rule, "규칙(금액:횟수)")]
-        for key in ("enabled", "exact", "members", "style", "seconds", "title", "position", "scale", "sound", "show_percent"):
-            if getattr(args, key) is not None:
+        for key in keys:
+            if key not in ("prizes", "rules") and getattr(args, key, None) is not None:
                 data[key] = getattr(args, key)
+        if args.advice_line:
+            data["advice_lines"] = args.advice_line
+        if args.style and args.style != current["style"] and args.design is None:
+            data["design"] = next(iter(draw.DESIGNS.get(args.style, {"basic": ""})))  # 연출을 바꾸면 그 연출의 첫 모양
         config = draw.save_config(draw.from_request(data))
     except (ValueError, OSError) as error:
         print(f"후원 추첨 설정 실패: {error}", file=sys.stderr)
@@ -611,6 +658,178 @@ def _phone(args: argparse.Namespace) -> int:
     if command == "calibrate":
         return _post_overlay(args.port, "/phone/calibrate", {"reset": args.reset}, describe)
     return _post_overlay(args.port, "/phone/stop", {}, describe)
+
+
+def _pick(args: argparse.Namespace) -> int:
+    """실행 중인 오버레이의 뽑기판: 상태, 칸 열기, 되돌리기, 섞기, 처음부터, 끝내고 공개, 방송 표시."""
+
+    def describe(answer: dict[str, Any]) -> str:
+        if isinstance(answer.get("entry"), dict):  # 칸 열기
+            entry = answer["entry"]
+            prize = entry.get("prize")
+            return f"{entry.get('cell')}번 칸: {prize.get('name') if isinstance(prize, dict) else prize or entry.get('name', '')}"
+        title = (answer.get("display") or {}).get("title") or "뽑기판"
+        return (f"{title}: {answer.get('opened', 0)}/{answer.get('total', 0)}칸 열림, " + ("방송에 표시 중" if answer.get("visible") else "방송에서 숨김")
+                + (", 끝남(배치 공개)" if answer.get("finished") else ""))
+
+    command = args.pick_command
+    if command == "status":
+        return _get_overlay(args.port, "/pick/state", describe)
+    if command == "open":
+        body: dict[str, Any] = {"by": args.by or ""}
+        if args.cell is not None:
+            body["cell"] = args.cell
+        return _post_overlay(args.port, "/pick/open", body, describe)
+    if command in ("show", "hide"):
+        return _post_overlay(args.port, "/pick/visible", {"visible": command == "show"}, describe)
+    return _post_overlay(args.port, f"/pick/{command}", {}, describe)
+
+
+def _wall(args: argparse.Namespace) -> int:
+    """실행 중인 오버레이의 후원 벽: 상태, 시험 후원, 비우기, 되돌리기, 시험 카드 지우기, 내보내기."""
+
+    def describe(answer: dict[str, Any]) -> str:
+        cards = answer.get("cards") or []
+        columns = answer.get("columns") or []
+        tests = sum(1 for card in cards if card.get("test"))
+        return f"후원 벽: 카드 {len(cards)}장(시험 {tests}장), 칸 {len(columns)}개" + (". 닉네임 숨김" if answer.get("config", {}).get("names") is False else "")
+
+    command = args.wall_command
+    if command == "status":
+        return _get_overlay(args.port, "/wall/state", describe)
+    if command == "test":
+        return _post_overlay(args.port, "/wall/test", {"unit": args.unit, "amount": args.amount, "name": args.name or "시험", "count": args.count},
+                             lambda answer: f"시험 카드 {args.count}장을 보냄({args.unit} {args.amount:g}). 시험 카드는 debutkit wall clear-tests 로 지우기")
+    if command == "export":
+        import urllib.error
+        import urllib.request
+
+        try:
+            with urllib.request.urlopen(f"http://127.0.0.1:{args.port}/wall/export", timeout=5) as response:
+                text = response.read().decode("utf-8")
+        except (urllib.error.URLError, OSError) as error:
+            print(f"오버레이에 연결하지 못함({args.port}번 포트): {error}", file=sys.stderr)
+            return 1
+        if args.out:
+            Path(args.out).write_text(text, encoding="utf-8")
+            print(f"저장: {args.out}")
+        else:
+            print(text)
+        return 0
+    if command == "clear-tests":
+        return _post_overlay(args.port, "/wall/remove", {"tests": True}, describe)
+    return _post_overlay(args.port, f"/wall/{command}", {}, describe)
+
+
+def _race(args: argparse.Namespace) -> int:
+    """실행 중인 오버레이의 참여 레이스: 상태, 시작, 다음 조, 멈춤."""
+
+    def describe(answer: dict[str, Any]) -> str:
+        state = answer.get("state", "")
+        words = {"idle": "대기", "running": "경기 중", "between": "다음 조 대기", "done": "끝"}
+        result = answer.get("last_result") or answer.get("result") or {}
+        line = f"참여 레이스: {words.get(state, state)}"
+        if answer.get("heat") is not None and answer.get("heats"):
+            line += f", {int(answer['heat']) + 1}/{len(answer['heats'])}조"
+        if result.get("winner"):
+            winner = result["winner"]
+            line += f". 우승 {winner.get('name') if isinstance(winner, dict) else winner}"
+        return line
+
+    command = args.race_command
+    if command == "status":
+        return _get_overlay(args.port, "/race/state", describe)
+    if command == "start":
+        body: dict[str, Any] = {"practice": args.practice}
+        if args.game:
+            body["game"] = args.game
+        if args.names:
+            body["paste"] = args.names
+        return _post_overlay(args.port, "/race/start", body, describe)
+    return _post_overlay(args.port, f"/race/{command}", {}, describe)
+
+
+def _vmc(args: argparse.Namespace) -> int:
+    """실행 중인 오버레이의 VMC 프로토콜 송신(얼굴 추적 값을 Warudo, VSeeFace 등으로)."""
+
+    def describe(status: dict[str, Any]) -> str:
+        if not status.get("running"):
+            return "VMC 송신 꺼짐"
+        options = ", ".join(name for name, on in (("퍼펙트 싱크 표정", status.get("perfect_sync")), ("거울처럼", status.get("mirror"))) if on) or "선택 없음"
+        state = status.get("error") or (f"보낸 횟수 {status.get('sent', 0)}" if status.get("receiving") else "얼굴 추적 값 대기(추적 화면이나 휴대폰 추적 켜기)")
+        return f"VMC 송신 중: {status['host']}:{status['port']}, 초당 최대 {status['rate']}회\n  {state}\n  {options}"
+
+    if args.vmc_command == "status":
+        return _get_overlay(args.port, "/vmc/status", describe)
+    if args.vmc_command == "start":
+        body = {"host": args.host, "port": args.vmc_port, "perfect_sync": not args.no_perfect_sync, "mirror": args.mirror, "rate": args.rate}
+        return _post_overlay(args.port, "/vmc/start", body, describe)
+    return _post_overlay(args.port, "/vmc/stop", {}, describe)
+
+
+def _community(args: argparse.Namespace) -> int:
+    """팬 커뮤니티: 올리기(Cloudflare), 상태, 공지, 관리 화면, 방송 중 표시, 이 PC에서 미리보기."""
+    from . import community
+    from .community.client import CommunityError
+    from .community.cloudflare import CloudflareError
+
+    command = args.community_command
+    if command == "preview":
+        import shutil
+        import subprocess
+
+        node = shutil.which("node")
+        if not node:
+            print("미리보기에는 Node.js 22.5 이상 필요(https://nodejs.org). 커뮤니티를 올리는 데는 필요 없음", file=sys.stderr)
+            return 1
+        script = Path(community.__file__).resolve().parent / "worker" / "preview.mjs"
+        print("debutkit API 토큰: dev-token. 멈추려면 Ctrl+C")
+        try:
+            return subprocess.call([node, str(script), str(args.listen_port)])
+        except KeyboardInterrupt:
+            return 0
+    try:
+        if command == "deploy":
+            from .community.setup import publish
+
+            token = args.token or os.environ.get("CLOUDFLARE_API_TOKEN", "")
+            done = publish(args.script or "", cloudflare_token=token, account=args.account or "", name=args.name or "", owner_name=args.owner or "")
+            print(f"커뮤니티를 올림: {done['url']}")
+            if done.get("note"):
+                print(f"  {done['note']}")
+            print("  관리 화면: debutkit community admin")
+            return 0
+        config = community.load()
+        api = community.connect(config)
+        if api is None:
+            print("커뮤니티를 아직 올리지 않음: debutkit community deploy --script 주소이름 --name 커뮤니티이름 (토큰은 CLOUDFLARE_API_TOKEN)", file=sys.stderr)
+            return 1
+        if command == "status":
+            state = api.state()
+            print(f"{state['name']}: {config['url']}")
+            print(f"  회원 {state['users']}, 글 {state['posts']}, 확인할 신고 {state['reports']}, 오늘 출석 {state['attended']}")
+            print(f"  방송 중 표시 {'켜짐' if (state.get('live') or {}).get('live') else '꺼짐'}, 로그인: 방송 채팅 인증"
+                  + "".join(f", {community.PROVIDERS[key]}" for key in config["providers"]))
+            return 0
+        if command == "notice":
+            made = api.post(args.title, args.body or "", board=args.board, link=args.link or "", pinned=args.pin)
+            print(f"올림: {made['url']}")
+            return 0
+        if command == "admin":
+            import webbrowser
+
+            url = api.owner_link()
+            print(f"관리 화면(10분 동안 한 번): {url}")
+            webbrowser.open(url)
+            return 0
+        if command == "live":
+            api.live(args.state == "on", args.title or "", config["live_url"])
+            print("방송 중 표시를 켬" if args.state == "on" else "방송 중 표시를 끔")
+            return 0
+    except (CommunityError, CloudflareError) as error:
+        print(str(error), file=sys.stderr)
+        return 1
+    return 1
 
 
 def _remote(args: argparse.Namespace) -> int:
@@ -854,6 +1073,180 @@ def _post_overlay(port: int, path: str, body: dict[str, Any], describe: Callable
     return 0
 
 
+def _launch_profile_text(profile: Any, active: bool) -> list[str]:
+    from .launcher import KINDS
+
+    lines = [f"{'* ' if active else '  '}{profile.name}"]
+    for item in profile.start:
+        place = " [창 위치 기억]" if item.window else ""
+        lines.append(f"    켤 것 {KINDS[item.kind]}: {item.label}  (다음까지 {item.delay:g}초){place}")
+    for name in profile.stop:
+        lines.append(f"    끌 것: {name}")
+    flags = [("이미 켜진 것 건너뛰기", profile.skip_running), ("다시 켜지면 알림", profile.watch), ("다시 끄기", profile.rekill),
+             ("방송 끝에 다시 켜기", profile.restore), ("오버레이 시작", profile.overlay), ("OBS 연결 확인", profile.obs_check)]
+    lines.append("    " + ", ".join(f"{label} {'켬' if on else '끔'}" for label, on in flags))
+    return lines
+
+
+def _launch(args: argparse.Namespace) -> int:
+    """방송 시작 버튼: 세팅 켜기, 방송 끝, 목록, 항목 추가와 삭제, 옵션, 창 위치 기억, 감시, 백업."""
+    import time
+
+    from . import launcher
+
+    command = args.launch_command or "run"
+    for name, default in (("profile", None), ("overlay", False), ("obs_check", False), ("no_watch", False)):
+        if not hasattr(args, name):  # debutkit launch(하위 명령 없음)는 run과 같게
+            setattr(args, name, default)
+    try:
+        config = launcher.load()
+        if command == "list":
+            for profile in config.profiles:
+                print("\n".join(_launch_profile_text(profile, profile.name == config.active)))
+            if config.protect:
+                print("보호(끄지 않음): " + ", ".join(config.protect))
+            print(f"설정 파일: {launcher.settings.data_path(launcher.DATA)}")
+            return 0
+        if command == "add":
+            try:
+                profile = config.profile(args.profile)
+            except launcher.LauncherError:
+                launcher.put_profile(config, {"name": args.profile})
+                profile = config.profile(args.profile)
+            data = launcher.profile_dict(profile)
+            for target in args.targets:
+                if args.stop:
+                    data["stop"].append(target)
+                else:
+                    data["start"].append({"target": target, "delay": args.delay, "args": args.args or "", "name": args.name or ""})
+            launcher.save(launcher.put_profile(config, data, old_name=profile.name))
+            print("\n".join(_launch_profile_text(config.profile(args.profile), args.profile == config.active)))
+            return 0
+        if command == "remove":
+            profile = config.profile(args.profile)
+            before = len(profile.start) + len(profile.stop)
+            wanted = {target.casefold() for target in args.targets}
+            profile.start = [item for item in profile.start if item.target.casefold() not in wanted and item.label.casefold() not in wanted]
+            profile.stop = [name for name in profile.stop if name.casefold() not in wanted and launcher.process_key(name) not in
+                            {launcher.process_key(target) for target in args.targets}]
+            if len(profile.start) + len(profile.stop) == before:
+                print(f"지울 항목 없음: {', '.join(args.targets)}", file=sys.stderr)
+                return 1
+            launcher.save(config)
+            print("\n".join(_launch_profile_text(profile, profile.name == config.active)))
+            return 0
+        if command == "set":
+            profile = config.profile(args.profile)
+            data = launcher.profile_dict(profile)
+            for key in ("skip_running", "place_running", "watch", "rekill", "restore", "overlay", "obs_check"):
+                if getattr(args, key) is not None:
+                    data[key] = getattr(args, key)
+            if args.rename:
+                data["name"] = args.rename
+            launcher.put_profile(config, data, old_name=profile.name)
+            if args.use:
+                config.active = data["name"]
+            launcher.save(config)
+            print("\n".join(_launch_profile_text(config.profile(data["name"]), data["name"] == config.active)))
+            return 0
+        if command == "copy":
+            launcher.save(launcher.copy_profile(config, args.profile, args.new_name))
+            print(f"세팅 복제: {args.profile} -> {args.new_name}")
+            return 0
+        if command == "delete":
+            launcher.save(launcher.remove_profile(config, args.profile))
+            print(f"세팅 삭제: {args.profile}")
+            return 0
+        if command == "use":
+            config.active = config.profile(args.profile).name
+            launcher.save(config)
+            print(f"기본 세팅: {config.active}")
+            return 0
+        if command == "protect":
+            if args.remove:
+                config.protect = [name for name in config.protect if not any(launcher.same_program(name, typed) for typed in args.names)]
+            else:
+                config.protect += [name for name in args.names if launcher.process_key(name) not in {launcher.process_key(p) for p in config.protect}]
+            launcher.save(config)
+            print("보호(끄지 않음): " + (", ".join(config.protect) or "없음") + ". 운영체제, 보안 프로그램, debutkit은 항상 보호")
+            return 0
+        if command == "remember":
+            steps = launcher.remember_windows(config, args.profile)
+            launcher.save(config)
+            print(launcher.summary(steps))
+            return 0
+        if command == "export":
+            Path(args.file).write_text(launcher.export_text(config), encoding="utf-8")
+            print(f"백업 저장: {args.file}")
+            return 0
+        if command == "import":
+            launcher.save(launcher.import_text(Path(args.file).read_text(encoding="utf-8")))
+            print(f"백업 불러옴: {args.file}")
+            return 0
+        if command == "end":
+            steps = launcher.Launcher(config, report=lambda step: print(step.text(), flush=True)).end(args.profile, restore=False if args.no_restore else None)
+            if not steps:
+                print("다시 켤 프로그램 없음")
+            return 0
+        if command == "watch":
+            profile = config.profile(args.profile)
+            if not profile.stop:
+                print("끌 것이 없어 감시할 프로그램 없음", file=sys.stderr)
+                return 1
+            return _launch_watch(profile, config, until_interrupted=True)
+        # run
+        profile = config.profile(args.profile)
+        print(f"방송 시작 버튼: {profile.name}", flush=True)
+        steps = launcher.Launcher(config, report=lambda step: print("  " + step.text(), flush=True)).run(profile.name)
+        if not steps:
+            print("  " + launcher.summary([]))
+        if profile.obs_check or args.obs_check:
+            print("  OBS 연결 확인 중(최대 60초)", flush=True)
+            from .settings import load as load_settings
+
+            port = load_settings().get("obs_port", 4455)
+            ok = launcher.wait_for_port("127.0.0.1", port, 60.0)
+            print(f"  {'OBS 연결 가능' if ok else 'OBS WebSocket 응답 없음: OBS 도구 메뉴의 WebSocket 서버 설정에서 사용 체크'} (포트 {port})")
+        watcher = None
+        if profile.watch and profile.stop and not args.no_watch:
+            watcher = launcher.Watcher(profile, config, lambda text: print(f"[{time.strftime('%H:%M')}] {text}", flush=True)).start()
+        if profile.overlay or args.overlay:
+            print("저장한 설정으로 오버레이 시작(debutkit overlay --saved)", flush=True)
+            try:
+                return main(["overlay", "--saved"])
+            finally:
+                if watcher:
+                    watcher.stop()
+        if watcher:
+            print("꺼 둔 프로그램이 다시 켜지는지 감시 중. 방송이 끝나면 Ctrl+C 후 debutkit launch end", flush=True)
+            return _launch_watch(profile, config, until_interrupted=True, watcher=watcher)
+        return 1 if any(step.state == "failed" for step in steps) else 0
+    except launcher.LauncherError as error:
+        print(str(error), file=sys.stderr)
+        return 1
+    except OSError as error:
+        print(f"설정 파일 읽기, 쓰기 실패: {error}", file=sys.stderr)
+        return 1
+
+
+def _launch_watch(profile: Any, config: Any, *, until_interrupted: bool, watcher: Any = None) -> int:
+    import time
+
+    from . import launcher
+
+    watcher = watcher or launcher.Watcher(profile, config, lambda text: print(f"[{time.strftime('%H:%M')}] {text}", flush=True)).start()
+    if watcher is not None and until_interrupted:
+        print("감시 중: " + ", ".join(profile.stop) + " (끝: Ctrl+C)", flush=True)
+    try:
+        while until_interrupted:
+            time.sleep(0.5)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        watcher.stop()
+    return 0
+
+
 def _settings(args: argparse.Namespace) -> int:
     from . import settings
 
@@ -918,6 +1311,8 @@ def build_parser() -> argparse.ArgumentParser:
     scenes.add_argument("--switch", action="store_true", help="생성 후 대기 화면으로 전환")
     scenes.add_argument("--replay-buffer", type=int, nargs="?", const=60, metavar="초",
                         help="자동 클립용 리플레이 버퍼 켜기 (길이 기본 60초)")
+    scenes.add_argument("--game", choices=sorted(GAME_CHOICES), help="게임 패키지 배치: 그 게임의 HUD(미니맵, 킬 로그 등)를 피해 캐릭터, 채팅, 목표 게이지, 순위를 놓고 프레임을 넣음")
+    scenes.add_argument("--frames", action="store_true", help="프레임(캐릭터 테두리, 대기, 자리 비움, 엔딩 화면)을 넣음. --game 을 고르면 함께 켬")
     scenes.add_argument("--dry-run", action="store_true", help="OBS에 연결하지 않고 설계도만 출력")
     scenes.set_defaults(func=_scenes)
 
@@ -963,6 +1358,8 @@ def build_parser() -> argparse.ArgumentParser:
     clip = overlay.add_argument_group("자동 클립")
     clip.add_argument("--clip", action="store_true", help="채팅 급증 또는 스트리머의 !clip 입력 시 OBS 리플레이 버퍼를 클립으로 저장 (ffmpeg 필요)")
     clip.add_argument("--clip-dir", help="클립 저장 폴더 (기본 동영상/debutkit-clips)")
+    clip.add_argument("--clip-gif", action="store_true", default=None, help="클립마다 움짤(GIF, 앞 6초, 폭 480)도 만들기")
+    clip.add_argument("--clip-shorts", action="store_true", default=None, help="클립마다 세로 쇼츠(1080x1920, 흐린 배경)도 만들기")
     clip.add_argument("--obs-host", default="127.0.0.1")
     clip.add_argument("--obs-port", type=int, default=4455)
     clip.add_argument("--obs-password", help="OBS WebSocket 비밀번호 (또는 OBS_WEBSOCKET_PASSWORD)")
@@ -1016,7 +1413,21 @@ def build_parser() -> argparse.ArgumentParser:
     mode.add_argument("--exact", dest="exact", action="store_const", const=True, help="금액이 정확히 같을 때만 추첨")
     mode.add_argument("--at-least", dest="exact", action="store_const", const=False, help="금액 이상이면 가장 큰 규칙(기본)")
     draw_set.add_argument("--members", action=argparse.BooleanOptionalAction, default=None, help="구독, 멤버십도 1회 추첨")
-    draw_set.add_argument("--style", choices=["card", "wheel"], help="연출: card(카드 뒤집기), wheel(룰렛)")
+    from .draw import EFFECTS as DRAW_EFFECTS
+    from .draw import FONT_ALIASES as DRAW_FONT_ALIASES
+    from .draw import FONTS as DRAW_FONTS
+    from .draw import SIZES as DRAW_SIZES
+    from .draw import STYLES as DRAW_STYLES
+
+    draw_set.add_argument("--style", choices=list(DRAW_STYLES), help="연출: " + ", ".join(f"{key}({name})" for key, name in DRAW_STYLES.items()))
+    draw_set.add_argument("--design", metavar="모양", help="연출별 모양(debutkit draw show 의 모양 목록)")
+    draw_set.add_argument("--effect", choices=list(DRAW_EFFECTS), help="결과 뒤 효과")
+    draw_set.add_argument("--name-font", choices=[*DRAW_FONTS, *DRAW_FONT_ALIASES], help="상품 이름 글꼴")
+    draw_set.add_argument("--name-size", choices=list(DRAW_SIZES), help="상품 이름 크기")
+    draw_set.add_argument("--caption-font", choices=[*DRAW_FONTS, *DRAW_FONT_ALIASES], help="안내 글(하단 띠, 한마디) 글꼴")
+    draw_set.add_argument("--caption-size", choices=list(DRAW_SIZES), help="안내 글 크기")
+    draw_set.add_argument("--advice", action=argparse.BooleanOptionalAction, default=None, help="타로의 오늘의 한마디")
+    draw_set.add_argument("--advice-line", action="append", metavar="문장", help="한마디 문장(여러 번 지정, 지정하면 목록 전체를 바꿈)")
     draw_set.add_argument("--seconds", type=int, metavar="초", help="결과 표시 시간(3에서 60초)")
     draw_set.add_argument("--title", metavar="이름", help="추첨 이름(20자 이내, 하단 띠에 표시). 예: 벌칙 룰렛")
     draw_set.add_argument("--position", choices=["center", "left", "right"], help="표시 위치: center(아래 가운데), left(왼쪽 아래), right(오른쪽 아래)")
@@ -1057,6 +1468,82 @@ def build_parser() -> argparse.ArgumentParser:
     phone_cal.add_argument("--reset", action="store_true", help="정면 맞추기 되돌리기")
     phone_sub.add_parser("stop", help="연결 끊기(다음 오버레이 실행 때 시작하지 않음)")
     phone.set_defaults(func=_phone)
+
+    picks = sub.add_parser("pick", help="뽑기판: 상태, 칸 열기, 되돌리기, 섞기, 처음부터, 끝내고 공개(실행 중인 오버레이. 설정은 /pick/control)")
+    picks.add_argument("--port", type=int, default=OVERLAY_PORT, help="오버레이 포트 (기본 %(default)s)")
+    picks_sub = picks.add_subparsers(dest="pick_command", required=True)
+    picks_sub.add_parser("status", help="열린 칸과 남은 상품")
+    pick_open = picks_sub.add_parser("open", help="칸 열기(번호를 생략하면 남은 칸 중 무작위)")
+    pick_open.add_argument("cell", nargs="?", type=int, metavar="번호")
+    pick_open.add_argument("--by", metavar="이름", help="연 사람(기록과 대본에 표시)")
+    for name, text in (("undo", "마지막으로 연 칸 되돌리기"), ("reshuffle", "남은 칸 다시 섞기"), ("reset", "처음부터 다시(새 배치)"),
+                       ("finish", "끝내고 배치 공개(공정성 확인 문자열)"), ("show", "방송에 표시"), ("hide", "방송에서 숨기기")):
+        picks_sub.add_parser(name, help=text)
+    picks.set_defaults(func=_pick)
+
+    walls = sub.add_parser("wall", help="후원 벽: 상태, 시험 후원, 비우기와 되돌리기, 시험 카드 지우기, 내보내기(실행 중인 오버레이. 설정은 /wall/control)")
+    walls.add_argument("--port", type=int, default=OVERLAY_PORT, help="오버레이 포트 (기본 %(default)s)")
+    walls_sub = walls.add_subparsers(dest="wall_command", required=True)
+    walls_sub.add_parser("status", help="카드와 칸 수")
+    wall_test = walls_sub.add_parser("test", help="시험 후원 카드(시험 표시)")
+    wall_test.add_argument("--unit", default="별풍선", help="단위: 별풍선, 애드벌룬, 원, bits 등 (기본 %(default)s)")
+    wall_test.add_argument("--amount", type=float, default=10, help="금액이나 개수 (기본 %(default)s)")
+    wall_test.add_argument("--name", metavar="이름")
+    wall_test.add_argument("--count", type=int, default=1, help="장수 (기본 %(default)s)")
+    walls_sub.add_parser("clear", help="벽 비우기(8초 안에 undo로 되돌리기)")
+    walls_sub.add_parser("undo", help="방금 비운 벽 되돌리기")
+    walls_sub.add_parser("clear-tests", help="시험 카드만 지우기")
+    wall_export = walls_sub.add_parser("export", help="후원자별 합계(텍스트)")
+    wall_export.add_argument("--out", metavar="파일", help="파일로 저장")
+    walls.set_defaults(func=_wall)
+
+    races = sub.add_parser("race", help="참여 레이스: 상태, 시작, 다음 조, 멈춤(실행 중인 오버레이. 참가자는 참여 추첨 명단, 설정은 /race/control)")
+    races.add_argument("--port", type=int, default=OVERLAY_PORT, help="오버레이 포트 (기본 %(default)s)")
+    races_sub = races.add_subparsers(dest="race_command", required=True)
+    races_sub.add_parser("status", help="경기 상태와 마지막 결과")
+    race_start = races_sub.add_parser("start", help="시작(참여 추첨 명단, --names로 이름 추가). 게임과 꾸미기는 저장한 설정")
+    race_start.add_argument("--game", choices=["marble", "run", "survival"], help="marble(구슬 레이스), run(달리기 경주), survival(서바이벌)")
+    race_start.add_argument("--names", metavar="이름", help='쉼표나 줄바꿈으로 구분, 이름*3은 3번 참가. 예: "치즈냥*3, 도토리"')
+    race_start.add_argument("--practice", action="store_true", help="연습(예시 이름, 결과 알림 없음)")
+    races_sub.add_parser("next", help="다음 조 시작")
+    races_sub.add_parser("stop", help="멈춤")
+    races.set_defaults(func=_race)
+
+    vmc_parser = sub.add_parser("vmc", help="VMC 프로토콜 송신: debutkit 얼굴 추적 값(웹캠, 휴대폰)을 Warudo, VSeeFace 등으로 보내기(실행 중인 오버레이)")
+    vmc_parser.add_argument("--port", type=int, default=OVERLAY_PORT, help="오버레이 포트 (기본 %(default)s)")
+    vmc_sub = vmc_parser.add_subparsers(dest="vmc_command", required=True)
+    vmc_sub.add_parser("status", help="송신 상태")
+    vmc_start = vmc_sub.add_parser("start", help="송신 시작(설정 저장, 다음 오버레이 실행에도 시작)")
+    vmc_start.add_argument("--host", default="127.0.0.1", help="받는 프로그램의 주소(이 PC 127.0.0.1 또는 같은 네트워크 내부 주소, 기본 %(default)s)")
+    vmc_start.add_argument("--vmc-port", type=int, default=39539, help="받는 포트(Warudo, VSeeFace의 VMC 수신 포트, 기본 %(default)s)")
+    vmc_start.add_argument("--no-perfect-sync", action="store_true", help="ARKit 표정 52개는 보내지 않고 A, Blink, Joy만")
+    vmc_start.add_argument("--mirror", action="store_true", help="좌우 반전(받는 프로그램에서 반대로 움직일 때)")
+    vmc_start.add_argument("--rate", type=int, default=60, help="초당 최대 송신 횟수 10~120 (기본 %(default)s)")
+    vmc_sub.add_parser("stop", help="송신 멈춤(다음 실행 때 시작하지 않음)")
+    vmc_parser.set_defaults(func=_vmc)
+
+    community_parser = sub.add_parser("community", help="팬 커뮤니티(트게더처럼 공지, 일정, 게시판, 출석과 포인트): 내 Cloudflare 무료 계정에 올리고 방송과 연동")
+    community_sub = community_parser.add_subparsers(dest="community_command", required=True)
+    community_sub.add_parser("status", help="회원, 글, 신고, 오늘 출석")
+    community_deploy = community_sub.add_parser("deploy", help="올리기 또는 고치기(같은 주소 이름이면 글과 회원은 그대로)")
+    community_deploy.add_argument("--script", help="주소 이름(영문 소문자, 숫자, -. 예: dotori-fans)")
+    community_deploy.add_argument("--name", help="커뮤니티 이름")
+    community_deploy.add_argument("--owner", help="스트리머 이름(공지 작성자)")
+    community_deploy.add_argument("--token", help="Cloudflare API 토큰(또는 CLOUDFLARE_API_TOKEN). 한 번 넣으면 이 PC에 암호화 보관")
+    community_deploy.add_argument("--account", help="Cloudflare 계정 ID(계정이 여럿일 때만)")
+    community_notice = community_sub.add_parser("notice", help="공지 올리기")
+    community_notice.add_argument("title")
+    community_notice.add_argument("--body")
+    community_notice.add_argument("--board", choices=["notice", "clips"], default="notice")
+    community_notice.add_argument("--link", help="https 주소(클립, 다시보기)")
+    community_notice.add_argument("--pin", action="store_true", help="위에 고정")
+    community_sub.add_parser("admin", help="관리 화면 열기(스트리머로 로그인, 10분 동안 한 번 쓰는 주소)")
+    community_live = community_sub.add_parser("live", help="방송 중 표시 켜기, 끄기")
+    community_live.add_argument("state", choices=["on", "off"])
+    community_live.add_argument("--title", help="방송 제목")
+    community_preview = community_sub.add_parser("preview", help="이 PC에서 커뮤니티 화면 미리보기(Node.js 22.5 이상, 시험용 데이터)")
+    community_preview.add_argument("--listen-port", type=int, default=8794)
+    community_parser.set_defaults(func=_community)
 
     remote = sub.add_parser("remote", help="휴대폰 조작 화면: 같은 Wi-Fi의 휴대폰 브라우저로 참여 추첨, 3D 캐릭터 동작 조작(실행 중인 오버레이)")
     remote.add_argument("--port", type=int, default=OVERLAY_PORT, help="오버레이 포트 (기본 %(default)s)")
@@ -1099,6 +1586,78 @@ def build_parser() -> argparse.ArgumentParser:
     live_stop = live_sub.add_parser("stop", help="방송 끝내기")
     live_stop.add_argument("--close", action="store_true", help="송출 화면 창도 닫기")
     live.set_defaults(func=_broadcast)
+
+    from .clipfx import POSITIONS as MARK_POSITIONS
+    from .clipfx import SHORTS_MODES
+
+    clips = sub.add_parser("clip", help="클립 다듬기: 저장한 클립이나 영상으로 움짤(GIF, WebP)과 세로 쇼츠 만들기(ffmpeg 필요). 원본 옆에 저장")
+    clips_sub = clips.add_subparsers(dest="clipfx_command", required=True)
+    for name, text in (("gif", "움짤 GIF(어디서나 재생)"), ("webp", "움짤 WebP(GIF보다 선명하고 작음, Pillow 필요)"),
+                       ("shorts", "세로 쇼츠 MP4(1080x1920, 소리 포함)")):
+        command = clips_sub.add_parser(name, help=text)
+        command.add_argument("files", nargs="+", metavar="영상")
+        command.add_argument("--start", type=float, metavar="초", help="시작 위치")
+        command.add_argument("--duration", type=float, metavar="초", help="길이(최대 60초)")
+        if name in ("gif", "webp"):
+            command.add_argument("--width", type=int, default=480, help="폭 픽셀(기본 %(default)s)")
+            command.add_argument("--fps", type=int, default=15, help="초당 장수(기본 %(default)s)")
+        if name == "webp":
+            command.add_argument("--quality", type=int, default=75, help="화질 10에서 100(기본 %(default)s)")
+        if name == "shorts":
+            command.add_argument("--mode", choices=list(SHORTS_MODES), default="blur",
+                                 help="blur 흐린 배경(기본), crop 자르기, fit 위아래 여백")
+            command.add_argument("--focus", type=float, default=0.5, help="crop일 때 가로 위치 0(왼쪽)에서 1(오른쪽). 캐릭터가 오른쪽이면 0.8 등")
+        command.add_argument("--watermark", metavar="그림", help="워터마크 그림(투명 PNG 권장, debutkit logo로 만든 로고 등)")
+        command.add_argument("--watermark-position", choices=list(MARK_POSITIONS), default="bottom-right", help="워터마크 위치(기본 %(default)s)")
+        command.add_argument("--watermark-size", type=float, default=18.0, metavar="%", help="워터마크 폭, 결과 폭의 %%(기본 %(default)s)")
+        command.add_argument("--watermark-opacity", type=float, default=85.0, metavar="%", help="워터마크 불투명도(기본 %(default)s%%)")
+        command.set_defaults(func=_clipfx)
+
+    starts = sub.add_parser("launch", help="방송 시작 버튼: 세팅에 넣은 프로그램, 폴더, 사이트를 차례로 켜고 방해되는 프로그램은 끔. 방송 끝에 다시 켬")
+    starts_sub = starts.add_subparsers(dest="launch_command")
+    launch_run = starts_sub.add_parser("run", help="세팅 켜기(기본): 끌 것을 먼저 끄고 켤 것을 차례로 켬. 꺼 둔 프로그램이 다시 켜지면 알림")
+    launch_run.add_argument("profile", nargs="?", metavar="세팅", help="세팅 이름(기본: launch use로 정한 세팅)")
+    launch_run.add_argument("--overlay", action="store_true", help="켠 뒤 저장한 설정으로 오버레이 시작(debutkit overlay --saved)")
+    launch_run.add_argument("--obs-check", action="store_true", help="켠 뒤 OBS WebSocket 연결 확인")
+    launch_run.add_argument("--no-watch", action="store_true", help="켠 뒤 바로 끝내기(다시 켜짐 감시 안 함)")
+    launch_end = starts_sub.add_parser("end", help="방송 끝: 이번에 꺼 둔 프로그램 다시 켜기")
+    launch_end.add_argument("profile", nargs="?", metavar="세팅")
+    launch_end.add_argument("--no-restore", action="store_true", help="다시 켜지 않고 기록만 지우기")
+    starts_sub.add_parser("list", help="세팅과 항목 보기(* 기본 세팅)")
+    launch_add = starts_sub.add_parser("add", help="켤 것(프로그램, 바로가기, 폴더, 사이트 주소) 또는 --stop 으로 끌 것 추가. 세팅이 없으면 만듦")
+    launch_add.add_argument("profile", metavar="세팅")
+    launch_add.add_argument("targets", nargs="+", metavar="경로나_주소")
+    launch_add.add_argument("--stop", action="store_true", help="끌 것(프로그램 이름 예: Discord.exe, KakaoTalk.exe)으로 추가")
+    launch_add.add_argument("--delay", type=float, default=2.0, metavar="초", help="켠 뒤 다음 항목까지 기다리는 시간(기본 %(default)s초, 무거운 프로그램은 넉넉하게)")
+    launch_add.add_argument("--args", metavar="옵션", help="프로그램 실행 옵션")
+    launch_add.add_argument("--name", metavar="이름", help="표시 이름")
+    launch_remove = starts_sub.add_parser("remove", help="켤 것, 끌 것 지우기(경로, 주소, 표시 이름, 프로그램 이름)")
+    launch_remove.add_argument("profile", metavar="세팅")
+    launch_remove.add_argument("targets", nargs="+", metavar="항목")
+    launch_set = starts_sub.add_parser("set", help="세팅 옵션 바꾸기(지정한 항목만)")
+    launch_set.add_argument("profile", metavar="세팅")
+    launch_set.add_argument("--skip-running", action=argparse.BooleanOptionalAction, default=None, help="이미 켜진 프로그램은 건너뛰기(기본 켬)")
+    launch_set.add_argument("--place-running", action=argparse.BooleanOptionalAction, default=None, help="이미 켜진 프로그램 창도 기억한 자리로 옮기기")
+    launch_set.add_argument("--watch", action=argparse.BooleanOptionalAction, default=None, help="꺼 둔 프로그램이 다시 켜지면 알림(기본 켬)")
+    launch_set.add_argument("--rekill", action=argparse.BooleanOptionalAction, default=None, help="다시 켜지면 다시 끄기")
+    launch_set.add_argument("--restore", action=argparse.BooleanOptionalAction, default=None, help="방송 끝에 꺼 둔 프로그램 다시 켜기(기본 켬)")
+    launch_set.add_argument("--overlay", action=argparse.BooleanOptionalAction, default=None, help="켠 뒤 오버레이 시작")
+    launch_set.add_argument("--obs-check", action=argparse.BooleanOptionalAction, default=None, help="켠 뒤 OBS 연결 확인")
+    launch_set.add_argument("--rename", metavar="새_이름", help="세팅 이름 바꾸기")
+    launch_set.add_argument("--use", action="store_true", help="기본 세팅으로 정하기")
+    launch_copy = starts_sub.add_parser("copy", help="세팅 복제(창 위치 포함)")
+    launch_copy.add_argument("profile", metavar="세팅")
+    launch_copy.add_argument("new_name", metavar="새_이름")
+    starts_sub.add_parser("delete", help="세팅 삭제").add_argument("profile", metavar="세팅")
+    starts_sub.add_parser("use", help="기본 세팅 정하기").add_argument("profile", metavar="세팅")
+    launch_protect = starts_sub.add_parser("protect", help="끄지 않을 프로그램(보호 목록) 추가, --remove 로 빼기")
+    launch_protect.add_argument("names", nargs="*", metavar="프로그램")
+    launch_protect.add_argument("--remove", action="store_true")
+    starts_sub.add_parser("remember", help="지금 켜진 창의 자리와 크기 기억(Windows, 듀얼 모니터 포함)").add_argument("profile", nargs="?", metavar="세팅")
+    starts_sub.add_parser("watch", help="꺼 둔 프로그램이 다시 켜지는지 감시(Ctrl+C까지)").add_argument("profile", nargs="?", metavar="세팅")
+    starts_sub.add_parser("export", help="설정 백업 파일 저장(다른 PC로 옮기기)").add_argument("file", metavar="파일")
+    starts_sub.add_parser("import", help="백업 파일 불러오기(지금 설정을 바꿈)").add_argument("file", metavar="파일")
+    starts.set_defaults(func=_launch)
 
     from .logo import FONTS, LAYOUTS, STYLES, TEMPLATES
     from .logo import PROVIDERS as LOGO_PROVIDERS

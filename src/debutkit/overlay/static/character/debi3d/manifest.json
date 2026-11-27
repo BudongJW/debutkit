@@ -1,0 +1,32 @@
+{
+  "name": "데비(3D)",
+  "base": {
+    "name": "Victoria Rubin",
+    "collection": "pixiv VRoid β Ver 샘플 모델(CC0)",
+    "license": "CC0 1.0(파일 메타 licenseName CC0)",
+    "file": "VRoid_Victoria_Rubin.vrm",
+    "sha256": "b1372131bdbf233f46320146d565f342a7e4f6f4b8f2aefb301f1a283ec07e1e",
+    "obtained": "github.com/madjin/vrm-samples(β 샘플 사본), 2019년 VRoid 내보내기"
+  },
+  "license": "CC0 1.0(베이스와 같음). 누구나 방송, 수익 방송, 소속사, 수정, 재배포 가능",
+  "changes": [
+    "재질 F00_000_00_FaceBrow_00_FACE: _Color #9676d6, _ShadeColor #7054b0",
+    "재질 F00_000_HairBack_00_HAIR: _Color #c6aaf4, _ShadeColor #9270d6, _EmissionColor #e8deff",
+    "재질 F00_000_Hair_00_HAIR_01: _Color #c6aaf4, _ShadeColor #9270d6, _EmissionColor #e8deff",
+    "재질 F00_000_Hair_00_HAIR_02: _Color #c6aaf4, _ShadeColor #9270d6, _EmissionColor #e8deff",
+    "재질 F00_000_Hair_00_HAIR_03: _Color #ffc93c, _ShadeColor #e89e24, _EmissionColor #5a400a",
+    "그림 F00_000_EyeIris_00: 색상 185~255도를 -52도",
+    "그림 F00_002_Onepiece_01: 색상 285~352도를 -52도",
+    "그림 F00_002_Shoes_01: 색상 285~352도를 -52도",
+    "그림 F00_000_Hair_00_01: 색상 285~350도를 -48도",
+    "미리보기 그림: debutkit 캐릭터 그림 만들기로 그린 데비 3D",
+    "텍스처 3장을 한 변 1024px로 줄임"
+  ],
+  "file": {
+    "name": "debi.vrm",
+    "bytes": 8425544,
+    "sha256": "3484e658f0852129af6f881efe16ea0e2a0e94e5ed78fb13500d9e73f4560ab6"
+  },
+  "tool": "packaging/build_debi3d.py",
+  "date": "2026-11-26"
+}

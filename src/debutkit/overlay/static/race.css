@@ -1,0 +1,80 @@
+/* debutkit 참여 레이스 화면: 1920x1080 투명 배경 위에 게임판(캔버스)과 결과 카드. "방송 소품" 콘셉트를 세 가지 재질로:
+   나무 장난감(나무 테두리, 칠한 레일), 유리와 금속(강철 판, 유리 관, 빛나는 선), 종이 공작(종이 띠, 잉크 외곽선, 딱딱한 그림자).
+   색은 기본 색 하나에서 race.js가 만든 변수(--accent 등), 글꼴은 설정의 글꼴(--font). OBS 사용자 지정 CSS로 덮어쓸 수 있음 */
+
+@font-face { font-family: "Black Han Sans"; src: url("/vendor/fonts/BlackHanSans-Regular.woff2") format("woff2"); font-display: block; }
+@font-face { font-family: "Pretendard"; src: url("/vendor/fonts/Pretendard-SemiBold.subset.woff2") format("woff2"); font-weight: 600; font-display: block; }
+@font-face { font-family: "Pretendard"; src: url("/vendor/fonts/Pretendard-Bold.subset.woff2") format("woff2"); font-weight: 700; font-display: block; }
+
+html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; }
+body.sample { background: #59626a; }  /* 미리보기(?sample) 배경 */
+
+#stage {
+  --accent: #ff4f8b; --accent-dark: #9e2f56; --accent-light: #ffc2d6; --on-accent: #ffffff;
+  --ink: #1e2327; --paper: #faf7f5; --gold: #ffd84d;
+  --font: "Black Han Sans", "Malgun Gothic", sans-serif;
+  --text: "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+  position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; color: var(--ink);
+}
+#race-canvas { position: absolute; inset: 0; width: 1920px; height: 1080px; }
+
+/* ---------------------------------------------------------------- 결과 카드(공통) */
+.race-card {
+  position: absolute; left: 50%; top: 52%; transform: translate(-50%, -50%); box-sizing: border-box; text-align: center;
+  font-family: var(--text); animation: card-in 0.45s cubic-bezier(0.2, 1.25, 0.4, 1) both;
+}
+.race-card[hidden] { display: none; }
+.race-card .kicker { display: inline-block; padding: 8px 22px 6px; background: var(--accent); color: var(--on-accent); font: 34px/1.1 var(--font); }
+.race-card .name { margin: 18px 0 6px; font: 96px/1.08 var(--font); word-break: keep-all; overflow-wrap: anywhere; }
+.race-card .meta { font: 700 24px/1.3 var(--text); opacity: 0.75; }
+.race-card .comment { position: relative; display: inline-block; max-width: 900px; margin: 4px auto 14px; padding: 10px 24px 9px; border-radius: 22px;
+  background: rgba(255, 255, 255, 0.92); color: #1e2327; font: 700 30px/1.3 var(--text); word-break: keep-all; overflow-wrap: anywhere; }
+.race-card .comment::before { content: ""; position: absolute; left: 50%; top: -12px; margin-left: -12px; border: 12px solid transparent; border-top: 0;
+  border-bottom-color: rgba(255, 255, 255, 0.92); }
+.race-card .meta span + span::before { content: ""; display: inline-block; width: 6px; height: 6px; margin: 0 12px; border-radius: 50%; background: currentColor; vertical-align: middle; }
+.race-card .podium { list-style: none; margin: 22px auto 0; padding: 0; display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; max-width: 1060px; }
+.race-card .podium li { display: flex; align-items: baseline; gap: 8px; padding: 6px 14px 4px; font: 700 22px/1.2 var(--text); }
+.race-card .podium b { font: 24px/1 var(--font); font-weight: 400; }
+
+.race-card.win { min-width: 760px; max-width: 1180px; padding: 30px 56px 36px; }
+.race-card.heat { min-width: 640px; max-width: 900px; padding: 26px 40px 28px; }
+.race-card .rows { list-style: none; margin: 18px 0 0; padding: 0; text-align: left; display: grid; gap: 6px; }
+.race-card .rows li { display: grid; grid-template-columns: 52px 1fr auto auto; align-items: center; gap: 14px; padding: 6px 12px; font: 700 26px/1.2 var(--text);
+  animation: row-in 0.3s ease-out both; animation-delay: calc(var(--i) * 70ms); }
+.race-card .rows b { font: 30px/1 var(--font); font-weight: 400; text-align: center; }
+.race-card .rows .who { font: 32px/1.1 var(--font); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.race-card .rows small { font: 600 22px/1 var(--text); opacity: 0.75; font-variant-numeric: tabular-nums; }
+.race-card .rows em { font: 22px/1 var(--font); font-style: normal; padding: 6px 10px 4px; background: var(--accent); color: var(--on-accent); }
+.race-card .rows li:not(.advance) { opacity: 0.62; }
+.race-card .foot { margin-top: 16px; font: 700 22px/1.2 var(--text); opacity: 0.75; }
+
+/* 나무 장난감: 칠한 나무판과 굵은 테두리 */
+#stage[data-design="wood"] .race-card { background: #f7ecd9; border: 12px solid #7a4b2a; border-radius: 22px; color: #2d1f14;
+  box-shadow: inset 0 0 0 2px rgba(60, 30, 10, 0.35), 8px 10px 0 rgba(70, 38, 14, 0.45); }
+#stage[data-design="wood"] .race-card .kicker { border-radius: 10px; box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.18); }
+#stage[data-design="wood"] .race-card .rows li { background: rgba(122, 74, 34, 0.08); border-radius: 8px; }
+#stage[data-design="wood"] .race-card .rows em { border-radius: 6px; }
+#stage[data-design="wood"] .race-card .podium li { background: rgba(122, 74, 34, 0.1); border-radius: 8px; }
+
+/* 유리와 금속: 강철 판, 빛나는 기본 색 선 */
+#stage[data-design="metal"] .race-card { background: linear-gradient(180deg, #2f363e, #1b2025); border: 2px solid #9aa5af; border-radius: 16px; color: #eef2f5;
+  box-shadow: inset 0 0 0 6px rgba(255, 255, 255, 0.05), 0 0 0 2px var(--accent), 0 0 36px var(--accent-glow, rgba(255, 79, 139, 0.55)), 0 18px 40px rgba(0, 0, 0, 0.55); }
+#stage[data-design="metal"] .race-card .kicker { border-radius: 999px; box-shadow: 0 0 18px var(--accent); }
+#stage[data-design="metal"] .race-card .name { text-shadow: 0 0 22px var(--accent-glow, rgba(255, 79, 139, 0.6)); }
+#stage[data-design="metal"] .race-card .rows li { background: rgba(255, 255, 255, 0.06); border-radius: 8px; }
+#stage[data-design="metal"] .race-card .rows em { border-radius: 999px; }
+#stage[data-design="metal"] .race-card .podium li { background: rgba(255, 255, 255, 0.07); border-radius: 999px; }
+
+/* 종이 공작: 종이, 잉크 외곽선, 딱딱한 그림자, 마스킹 테이프 */
+#stage[data-design="paper"] .race-card { background: #fffdf8; border: 3px solid var(--ink); border-radius: 4px; color: var(--ink); box-shadow: 9px 9px 0 rgba(30, 35, 39, 0.88); }
+#stage[data-design="paper"] .race-card::before, #stage[data-design="paper"] .race-card::after {
+  content: ""; position: absolute; top: -18px; width: 130px; height: 34px; background: var(--accent-light); opacity: 0.85; }
+#stage[data-design="paper"] .race-card::before { left: 34px; transform: rotate(-5deg); }
+#stage[data-design="paper"] .race-card::after { right: 34px; transform: rotate(4deg); }
+#stage[data-design="paper"] .race-card .kicker { border: 3px solid var(--ink); box-shadow: 4px 4px 0 var(--ink); }
+#stage[data-design="paper"] .race-card .rows li { border-bottom: 2px dashed rgba(30, 35, 39, 0.25); }
+#stage[data-design="paper"] .race-card .rows em { border: 2px solid var(--ink); }
+#stage[data-design="paper"] .race-card .podium li { border: 2px solid var(--ink); background: #fff; }
+
+@keyframes card-in { from { opacity: 0; transform: translate(-50%, -44%) scale(0.92); } to { opacity: 1; transform: translate(-50%, -50%); } }
+@keyframes row-in { from { opacity: 0; transform: translateX(-12px); } }

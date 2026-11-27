@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>debutkit 휴대폰 연결</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/theme.css?fonts=0">
+  <link rel="stylesheet" href="/ui.css">
   <style>
     :root { color-scheme: light; --bg: #ffffff; --panel: #faf7f5; --line: #e3dfdb; --text: #1e2327; --dim: #5b6670; --ok: #1f7a4d; --bad: #b3261e; }
     * { box-sizing: border-box; }
@@ -59,7 +61,7 @@
 <header>
   <img src="/favicon.svg" alt="">
   <h1>debutkit 휴대폰 연결</h1>
-  <a href="/">오버레이 설정 화면</a>
+  <a href="/">시작하기</a>
 </header>
 <main>
   <h2 class="group" id="tracking">휴대폰 얼굴 추적</h2>
@@ -474,5 +476,7 @@
   setInterval(() => document.visibilityState === "visible" && refreshRemote(), 2000);
   window.debutkitPhone = { render, refresh, showCamera, showRemote };  // 시험용
 </script>
+<script src="/theme.js"></script>
+<script src="/ui.js"></script>
 </body>
 </html>

@@ -3,8 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>debutkit 오버레이 설정</title>
+  <title>debutkit 시작하기</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/theme.css?fonts=0">
+  <link rel="stylesheet" href="/ui.css">
   <style>
     :root { color-scheme: light; --bg: #ffffff; --panel: #faf7f5; --line: #e3dfdb; --text: #1e2327; --dim: #5b6670; --link: #bf3b68; }
     * { box-sizing: border-box; }
@@ -13,11 +15,13 @@
     header img { width: 28px; height: 28px; }
     header h1 { font-size: 17px; margin: 0; font-weight: 700; }
     #status { margin-left: auto; color: var(--dim); font-size: 13px; }
+    header .dk-obs { margin-left: auto; }
     main { max-width: 1040px; margin: 0 auto; padding: 24px 24px 56px; }
     .lead { color: var(--dim); margin: 0 0 20px; }
     .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
     section { border: 1px solid var(--line); border-radius: 4px; padding: 18px 20px; }
     h2 { font-size: 16px; margin: 0 0 10px; }
+    h3 { font-size: 14px; margin: 14px 0 4px; }
     .url { display: flex; gap: 6px; margin: 0 0 12px; }
     .url input { flex: 1; min-width: 0; background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 3px; padding: 7px 10px; font: 13px ui-monospace, Consolas, monospace; }
     button { background: var(--text); color: #fff; border: 1px solid var(--text); border-radius: 3px; padding: 7px 14px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
@@ -38,21 +42,107 @@
     .meter span { display: block; height: 100%; width: 0; background: #bf3b68; transition: width 80ms linear; }
     .state { font-size: 13px; color: var(--dim); margin: 6px 0 0; }
     a.button { display: inline-block; background: #fff; color: var(--text); border: 1px solid #c9c3bd; border-radius: 3px; padding: 7px 14px; font-size: 14px; font-weight: 600; text-decoration: none; }
+    /* 시작하기 목록: 진행 막대와 할 일. 첫 항목(debutkit 켜기)은 이미 끝난 상태로 시작 */
+    .start { margin-bottom: 22px; border: 2px solid var(--accent); border-radius: 8px; padding: 16px 20px; background: #fff; }
+    .start-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .start-head h2 { margin: 0; font-size: 18px; }
+    .start-head img.cast { width: 44px; height: 44px; object-fit: contain; margin: -8px -4px -8px -6px; }
+    img.cast-mini { width: 20px; height: 20px; object-fit: contain; vertical-align: -5px; margin-right: 4px; }  /* 마이크 항목은 마이가 담당 */
+    .progress { flex: 1; min-width: 140px; height: 10px; border-radius: 999px; background: var(--panel); border: 1px solid var(--line); overflow: hidden; }
+    .progress span { display: block; height: 100%; width: 0; background: var(--accent); transition: width 0.4s ease; }
+    .start-count { font-weight: 700; color: var(--dim); font-size: 14px; }
+    .steps { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
+    .steps > li { display: grid; grid-template-columns: 28px 1fr; gap: 4px 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
+    .steps > li .mark { grid-row: span 2; width: 26px; height: 26px; border-radius: 50%; border: 2px solid #c9c3bd; background: #fff; color: #fff; display: flex;
+      align-items: center; justify-content: center; font-weight: 800; font-size: 14px; }
+    .steps > li.done .mark { background: var(--ok); border-color: var(--ok); }
+    .steps > li.done .mark::before { content: "✓"; }
+    .steps > li.now { border-color: var(--accent); background: #fff; box-shadow: 0 0 0 1px var(--accent); }
+    .steps > li > b { font-size: 15px; }
+    .steps > li.done > b { color: var(--dim); }
+    .steps > li > .what { color: var(--dim); font-size: 13.5px; }
+    .steps > li .row { margin-top: 6px; }
+    .steps ol.how { margin: 6px 0 0; padding-left: 18px; font-size: 13.5px; color: var(--text); }
+    .start-foot { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 10px; font-size: 13px; color: var(--dim); }
+    .start.closed .steps, .start.closed .start-foot { display: none; }
+    .link-button { background: none; border: 0; padding: 0; color: var(--dim); text-decoration: underline; font-size: 13px; font-weight: 600; cursor: pointer; }
+    details.more { margin-top: 10px; }
+    details.more summary { cursor: pointer; font-size: 13.5px; font-weight: 600; color: var(--dim); }
+    details.more[open] summary { margin-bottom: 8px; }
+    .obs-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 0 0 10px; }
+    /* 방송 직전 점검: 초록 준비됨, 주황 확인 필요, 회색 확인 중 */
+    .check { margin-bottom: 22px; border: 1px solid var(--line); border-radius: 8px; padding: 14px 20px; }
+    .checks { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; }
+    .checks li { display: grid; grid-template-columns: 14px 92px 1fr; gap: 2px 10px; align-items: start; padding: 7px 10px; border-radius: 6px; background: var(--panel); font-size: 14px; }
+    .checks .dot { width: 12px; height: 12px; margin-top: 5px; border-radius: 50%; background: #b9b2ab; }
+    .checks li.ok .dot { background: var(--ok); }
+    .checks li.warn .dot { background: #d9822b; }
+    .checks li.warn { background: #fff7ef; }
+    .checks .text { color: var(--dim); }
+    .checks .fix { grid-column: 3; display: flex; gap: 6px; flex-wrap: wrap; }
+    .checks .fix:empty { display: none; }
+    .checks button { padding: 3px 10px; font-size: 13px; }
   </style>
 </head>
 <body>
 <header>
   <img src="/favicon.svg" alt="">
-  <h1>debutkit 오버레이 설정</h1>
-  <span id="status"></span>
+  <h1>debutkit 시작하기</h1>
 </header>
 <main>
-  <p class="lead">아래 주소를 OBS 브라우저 소스로 추가합니다. <code>debutkit scenes</code>로 만든 장면에는 이미 연결되어 있습니다(캐릭터 화면은 아바타 프로그램을 debutkit으로 선택한 경우).</p>
+  <section class="start" id="start">
+    <div class="start-head">
+      <img class="cast" src="/mascot/debi.png" alt="데비">
+      <h2>방송 준비</h2>
+      <div class="progress" aria-hidden="true"><span id="start-bar"></span></div>
+      <span class="start-count" id="start-count">1/5</span>
+      <button type="button" class="link-button" id="start-toggle">목록 접기</button>
+    </div>
+    <ol class="steps">
+      <li data-step="run" class="done"><span class="mark"></span><b>debutkit 켜기</b><span class="what">방송 화면을 만드는 debutkit이 켜져 있습니다.</span></li>
+      <li data-step="obs"><span class="mark"></span><b><span data-help="OBS">OBS</span> 연결</b>
+        <div class="what"><span id="step-obs-text">OBS 연결을 확인하는 중</span>
+          <ol class="how" id="step-obs-how" hidden>
+            <li>OBS를 켭니다.</li>
+            <li>OBS 위 메뉴의 도구, <span data-help="WebSocket">WebSocket</span> 서버 설정을 엽니다.</li>
+            <li>WebSocket 서버 사용을 켜고, 서버 비밀번호를 설정 마법사의 OBS 장면 단계에 넣습니다.</li>
+          </ol>
+          <div class="row"><button type="button" class="secondary" id="step-obs-check">다시 확인</button></div></div></li>
+      <li data-step="add"><span class="mark"></span><b>채팅창, 알림, 캐릭터를 OBS에 넣기</b>
+        <div class="what">누르면 지금 OBS <span data-help="장면">장면</span>에 들어가고 크기와 알림 소리까지 맞춥니다.
+          <div class="row"><button type="button" class="primary" data-obs="chat" data-obs-from="chat-url">채팅창 넣기</button>
+            <button type="button" class="primary" data-obs="alerts">알림 넣기</button>
+            <button type="button" class="primary" data-obs="character">캐릭터 넣기</button></div></div></li>
+      <li data-step="test"><span class="mark"></span><b>시험 후원으로 확인</b>
+        <div class="what">OBS 화면에 알림이 뜨고 소리가 나는지 봅니다. 방송 플랫폼으로는 보내지 않습니다.
+          <div class="row"><button type="button" id="step-test">시험 후원 보내기</button></div></div></li>
+      <li data-step="look"><span class="mark"></span><b>방송 모양 고르기</b>
+        <div class="what">방송 스타일, 색, 게임에 맞춘 배치를 고릅니다.
+          <div class="row"><a class="button" href="/stage" id="step-look">방송 화면 꾸미기</a></div></div></li>
+    </ol>
+    <div class="start-foot"><span>방송 중에 쓰는 추첨, 뽑기판, 후원 벽, 참여 레이스는 위 메뉴의 방송 중 놀이에 있습니다.</span><span id="status"></span></div>
+  </section>
+
+  <section class="check" id="check">
+    <div class="start-head"><img class="cast" src="/mascot/cue.png" alt="큐"><h2>방송 직전 점검</h2><span class="start-count" id="check-count"></span>
+      <button type="button" class="secondary" id="check-again">다시 점검</button></div>
+    <ul class="checks">
+      <li id="c-obs"><span class="dot"></span><b>OBS</b><span class="text">확인 중</span></li>
+      <li id="c-scene"><span class="dot"></span><b>방송 장면</b><span class="text">확인 중</span><span class="fix" id="c-scene-fix"></span></li>
+      <li id="c-sound"><span class="dot"></span><b>알림 소리</b><span class="text">확인 중</span><span class="fix" id="c-sound-fix"></span></li>
+      <li id="c-chat"><span class="dot"></span><b>채팅 연결</b><span class="text">확인 중</span></li>
+      <li id="c-mic"><span class="dot"></span><b><img class="cast-mini" src="/mascot/mai.png" alt="">마이크</b><span class="text">확인 중</span></li>
+    </ul>
+    <p class="hint">방송을 켜기 전에 한 번 봅니다. 초록은 준비됨, 주황은 확인이 필요한 곳입니다. 단추가 있으면 눌러서 바로 고칩니다.</p>
+  </section>
+
+  <p class="lead">방송 화면마다 OBS에 넣기를 누르면 지금 OBS 장면에 들어갑니다. 직접 넣으려면 주소를 복사해 OBS의 <span data-help="브라우저 소스">브라우저 소스</span>에 붙여 넣습니다.</p>
 
   <div class="grid">
     <section>
       <h2>통합 채팅창</h2>
-      <div class="url"><input id="chat-url" readonly aria-label="채팅창 주소"><button data-copy="chat-url">복사</button></div>
+      <div class="obs-row"><button type="button" class="primary" data-obs="chat" data-obs-from="chat-url">OBS에 넣기</button></div>
+      <div class="url"><input id="chat-url" readonly aria-label="채팅창 주소"><button class="secondary" data-copy="chat-url">주소 복사</button></div>
       <div class="opts">
         <label>표시 형태 <select id="opt-theme">
           <option value="shadow">글자 그림자</option>
@@ -60,25 +150,59 @@
           <option value="card">카드(이름 줄 분리)</option>
           <option value="outline">외곽선 글자</option>
           <option value="light">밝은 말풍선</option>
+          <option value="style">방송 스타일 카드</option>
         </select></label>
         <label>글자 크기(px) <input id="opt-font" type="number" min="12" max="64" value="22"></label>
+      </div>
+      <details class="more"><summary>자세히(카드 스타일, 이름 색, 움직임, 정렬, 줄 수, 사라짐)</summary>
+      <div class="opts">
+        <label>카드 스타일 <select id="opt-look" disabled>
+          <option value="auto">방송 스타일 따르기</option>
+        </select></label>
+        <label>이름 색 <select id="opt-names">
+          <option value="user">시청자가 고른 색</option>
+          <option value="viewer">시청자마다 다른 색</option>
+          <option value="theme">방송 색</option>
+          <option value="platform">플랫폼 색</option>
+        </select></label>
+        <label>등장 움직임 <select id="opt-enter">
+          <option value="rise">아래에서 올라옴</option>
+          <option value="slide">옆에서 밀려옴</option>
+          <option value="pop">톡 튀어나옴</option>
+          <option value="style">방송 스타일 움직임</option>
+          <option value="none">움직임 없음</option>
+        </select></label>
+        <label>정렬 <select id="opt-align">
+          <option value="left">왼쪽</option>
+          <option value="right">오른쪽</option>
+        </select></label>
+        <label>쌓이는 방향 <select id="opt-direction">
+          <option value="up">아래부터 위로</option>
+          <option value="down">위부터 아래로</option>
+        </select></label>
         <label>표시 줄 수 <input id="opt-max" type="number" min="1" max="50" value="12"></label>
         <label>사라짐 시간(초) <input id="opt-fade" type="number" min="0" max="600" value="0"></label>
+        <label>이모티콘 크기(배) <input id="opt-emote" type="number" min="1" max="4" step="0.1" value="1.4"></label>
         <label class="check"><input id="opt-platform" type="checkbox" checked> 플랫폼 표시</label>
+        <label class="check"><input id="opt-roles" type="checkbox" checked> 스트리머, 매니저 표시</label>
       </div>
-      <p class="hint">권장 크기 420x1000. 선택 내용은 위 주소에 반영되며, 사라짐 시간 0은 계속 표시를 의미합니다.</p>
+      <p class="hint">사라짐 시간 0은 계속 표시. 방송 스타일 카드는 방송 화면 꾸미기에서 고른 스타일을 따르고, 카드 스타일을 고르면 채팅창만 다른 스타일로 표시합니다. 직접 넣을 때 크기는 가로 420, 세로 1000.</p>
+      </details>
+      <p class="hint">고른 내용은 바로 위 주소와 OBS에 넣기에 들어갑니다. 이미 넣었다면 OBS에 넣기를 다시 누르면 바뀝니다.</p>
       <div class="preview"><iframe id="chat-preview" title="채팅창 미리보기"></iframe></div>
     </section>
     <section>
       <h2>후원, 구독 알림</h2>
-      <div class="url"><input id="alerts-url" readonly aria-label="알림 주소"><button data-copy="alerts-url">복사</button></div>
-      <p class="hint">권장 크기 1920x1080(방송 화면 전체). 알림 소리를 내보내려면 브라우저 소스 속성의 OBS 오디오 제어 항목을 체크합니다. 표시 시간은 주소에 <code>?seconds=8</code> 형식으로 지정합니다.</p>
+      <div class="obs-row"><button type="button" class="primary" data-obs="alerts">OBS에 넣기</button><a class="button" href="/alerts/control">알림 꾸미기</a></div>
+      <div class="url"><input id="alerts-url" readonly aria-label="알림 주소"><button class="secondary" data-copy="alerts-url">주소 복사</button></div>
+      <p class="hint">OBS에 넣기는 알림 소리도 방송으로 보내고 내 헤드폰에도 들리게 맞춥니다(<span data-help="오디오 모니터링">오디오 모니터링</span>). 모양, 위치, 문구, 효과음, 금액별 그림은 알림 꾸미기에서 정합니다. 직접 넣을 때 크기는 방송 화면 전체(1920x1080)이고 소스 속성의 OBS로 오디오 제어를 켭니다.</p>
       <div class="preview"><iframe id="alerts-preview" title="알림 미리보기"></iframe></div>
     </section>
     <section>
       <h2>캐릭터 화면</h2>
-      <div class="url"><input id="character-url" readonly aria-label="캐릭터 화면 주소"><button data-copy="character-url">복사</button></div>
-      <p class="hint">권장 크기 720x900. 방송에 사용할 캐릭터: <b id="character-name">확인 중</b>. 캐릭터는 설정 마법사 캐릭터 단계 또는 <code>debutkit character use</code>로 바꿉니다.</p>
+      <div class="obs-row"><button type="button" class="primary" data-obs="character">OBS에 넣기</button></div>
+      <div class="url"><input id="character-url" readonly aria-label="캐릭터 화면 주소"><button class="secondary" data-copy="character-url">주소 복사</button></div>
+      <p class="hint">방송에 쓰는 캐릭터: <b id="character-name">확인 중</b>. 캐릭터는 설정 마법사의 캐릭터 단계에서 바꿉니다. VTube Studio 같은 다른 아바타 프로그램을 쓰면 이 화면 대신 그 프로그램 창을 OBS에 넣습니다.</p>
       <div class="meter" aria-hidden="true"><span id="voice-bar"></span></div>
       <p class="state" id="voice-state">OBS 마이크 음량 대기</p>
       <p class="state" id="tracking-state">얼굴 추적 꺼짐</p>
@@ -86,18 +210,43 @@
         <button id="voice-test" class="secondary">말하기 시험(3초)</button>
         <a class="button" href="/tracker" target="_blank" rel="noopener">얼굴 추적 창 열기</a>
         <a class="button" href="/phone" target="_blank" rel="noopener">휴대폰 얼굴 추적</a>
+        <a class="button" href="/vmc" target="_blank" rel="noopener">VMC 송신</a>
       </div>
-      <p class="hint">웹캠 추적은 얼굴 추적 창(일반 브라우저), 아이폰 추적(iFacialMocap, VTube Studio 앱)은 휴대폰 얼굴 추적 화면에서 시작합니다. 휴대폰 값을 받는 중에는 휴대폰 값을 사용합니다.</p>
+      <p class="hint">웹캠으로 얼굴을 따라가려면 얼굴 추적 창(Chrome, Edge에서 열기), 아이폰으로 하려면 휴대폰 얼굴 추적 화면을 엽니다. 둘 다 켜져 있으면 휴대폰 값을 씁니다.</p>
       <p class="state" id="motion-state">등록한 동작 확인 중</p>
       <div class="row" id="motion-buttons"></div>
       <div class="preview"><iframe id="character-preview" title="캐릭터 미리보기"></iframe></div>
     </section>
     <section>
       <h2>후원 추첨</h2>
-      <div class="url"><input id="draw-url" readonly aria-label="후원 추첨 주소"><button data-copy="draw-url">복사</button></div>
-      <p class="hint">권장 크기 1920x1080. 후원이 오면 상품표에서 확률대로 뽑아 카드 뒤집기나 룰렛으로 표시하고, 평소에는 투명합니다.</p>
+      <div class="obs-row"><button type="button" class="primary" data-obs="draw">OBS에 넣기</button></div>
+      <div class="url"><input id="draw-url" readonly aria-label="후원 추첨 주소"><button class="secondary" data-copy="draw-url">주소 복사</button></div>
+      <p class="hint">후원이 오면 상품표에서 확률대로 뽑아 카드 뒤집기나 룰렛으로 보여 주고, 평소에는 투명합니다.</p>
       <p class="state" id="draw-state">설정 확인 중</p>
       <div class="row"><a class="button" href="/draw/control" target="_blank" rel="noopener">추첨 설정과 시험 추첨</a></div>
+    </section>
+    <section>
+      <h2>방송 연출</h2>
+      <p class="hint">쓰고 싶은 것만 OBS에 넣기를 누릅니다. 설정 마법사의 장면 만들기는 이 화면들을 숨긴 채로 넣어 두므로 필요할 때 OBS 소스 목록의 눈 아이콘으로 켭니다. 조작 화면은 OBS 안의 <span data-help="독">독</span>으로도 쓸 수 있습니다.</p>
+      <div class="row"><a class="button" href="/stage" target="_blank" rel="noopener">방송 화면 미리보기와 방송 색</a></div>
+      <h3>뽑기판</h3>
+      <div class="obs-row"><button type="button" class="primary" data-obs="pick">OBS에 넣기</button></div>
+      <div class="url"><input id="pick-url" readonly aria-label="뽑기판 주소"><button class="secondary" data-copy="pick-url">주소 복사</button></div>
+      <div class="row"><a class="button" href="/pick/control" target="_blank" rel="noopener">뽑기판 조작 화면</a></div>
+      <h3>후원 벽, 목표 게이지, 후원 순위</h3>
+      <div class="obs-row"><button type="button" class="primary" data-obs="wall">후원 벽 넣기</button><button type="button" class="primary" data-obs="goal">목표 게이지 넣기</button>
+        <button type="button" class="primary" data-obs="rank">후원 순위 넣기</button></div>
+      <details class="more"><summary>주소 복사</summary>
+      <div class="url"><input id="wall-url" readonly aria-label="후원 벽 주소"><button class="secondary" data-copy="wall-url">복사</button></div>
+      <div class="url"><input id="goal-url" readonly aria-label="목표 게이지 주소"><button class="secondary" data-copy="goal-url">복사</button></div>
+      <div class="url"><input id="rank-url" readonly aria-label="후원 순위 주소"><button class="secondary" data-copy="rank-url">복사</button></div>
+      <p class="hint">직접 넣을 때 크기: 후원 벽 1920x1080, 목표 게이지 1280x240, 후원 순위 560x720.</p>
+      </details>
+      <div class="row"><a class="button" href="/wall/control" target="_blank" rel="noopener">후원 벽 조작 화면</a></div>
+      <h3>참여 레이스</h3>
+      <div class="obs-row"><button type="button" class="primary" data-obs="race">OBS에 넣기</button></div>
+      <div class="url"><input id="race-url" readonly aria-label="참여 레이스 주소"><button class="secondary" data-copy="race-url">주소 복사</button></div>
+      <div class="row"><a class="button" href="/race/control" target="_blank" rel="noopener">레이스 조작 화면</a></div>
     </section>
     <section>
       <h2>휴대폰 카메라 영상</h2>
@@ -107,8 +256,8 @@
   </div>
 
   <section class="test">
-    <h2>테스트 메시지</h2>
-    <p class="hint">방송 없이 표시 형태를 확인합니다. 테스트 메시지는 외부로 전송되지 않으며 이 화면과 OBS에만 표시됩니다. 자동 클립 실행 중에는 스트리머 !clip 버튼으로 클립 저장을 시험할 수 있습니다.</p>
+    <h2>시험 메시지</h2>
+    <p class="hint">방송 없이 모양을 확인합니다. 시험 메시지는 방송 플랫폼으로 보내지 않고 이 화면과 OBS에만 나옵니다. 자동 클립을 켰다면 스트리머 !clip 단추로 클립 저장을 시험합니다.</p>
     <div class="row">
       <button id="test-chat">테스트 채팅</button>
       <button id="test-donation" class="secondary">테스트 후원</button>
@@ -116,6 +265,8 @@
     </div>
   </section>
 </main>
+<script src="/theme.js"></script>
+<script src="/ui.js"></script>
 <script>
   "use strict";
   const base = location.origin;
@@ -125,14 +276,22 @@
     const query = new URLSearchParams();
     const theme = $("opt-theme").value;
     if (theme !== "shadow") query.set("theme", theme);
+    $("opt-look").disabled = theme !== "style";
+    if (theme === "style" && $("opt-look").value !== "auto") query.set("look", $("opt-look").value);
+    // 고른 값이 기본값과 다를 때만 주소에 넣음
+    for (const [name, fallback] of [["names", "user"], ["enter", "rise"], ["align", "left"], ["direction", "up"]]) {
+      const value = $(`opt-${name}`).value;
+      if (value !== fallback) query.set(name, value);
+    }
     // 이름, 기본값, 최솟값, 최댓값
-    for (const [name, fallback, low, high] of [["font", 22, 12, 64], ["max", 12, 1, 50], ["fade", 0, 0, 600]]) {
-      const typed = Math.round(Number($(`opt-${name}`).value));
+    for (const [name, fallback, low, high, step] of [["font", 22, 12, 64, 1], ["max", 12, 1, 50, 1], ["fade", 0, 0, 600, 1], ["emote", 1.4, 1, 4, 10]]) {
+      const typed = Math.round(Number($(`opt-${name}`).value) * step) / step;
       const value = Number.isFinite(typed) ? Math.min(high, Math.max(low, typed)) : fallback;
       $(`opt-${name}`).value = value;
       if (value !== fallback) query.set(name, String(value));
     }
     if (!$("opt-platform").checked) query.set("platform", "0");
+    if (!$("opt-roles").checked) query.set("roles", "0");
     return query;
   };
   const updateChat = () => {
@@ -142,11 +301,20 @@
     query.set("hide", "");  // 미리보기에는 연결 상태, 클립 저장 결과도 표시
     $("chat-preview").src = `/chat?${query.toString()}`;
   };
-  for (const id of ["opt-theme", "opt-font", "opt-max", "opt-fade", "opt-platform"]) $(id).addEventListener("change", updateChat);
+  for (const id of ["opt-theme", "opt-look", "opt-names", "opt-enter", "opt-align", "opt-direction", "opt-font", "opt-max", "opt-fade", "opt-emote", "opt-platform", "opt-roles"]) {
+    $(id).addEventListener("change", updateChat);
+  }
   updateChat();
+  // 카드 스타일 목록은 방송 스타일 묶음(/theme)에서
+  fetch("/theme").then((r) => r.json()).then((theme) => {
+    for (const [key, style] of Object.entries(theme.styles || {})) $("opt-look").append(new Option(style.name, key));
+  }).catch(() => {});
   $("alerts-url").value = `${base}/alerts`;
   $("alerts-preview").src = "/alerts?seconds=4";
   $("draw-url").value = `${base}/draw`;
+  for (const [id, path] of [["pick-url", "/pick"], ["wall-url", "/wall"], ["goal-url", "/wall/goal"], ["rank-url", "/wall/rank"], ["race-url", "/race"]]) {
+    $(id).value = `${base}${path}`;
+  }
   fetch("/draw/config").then((r) => r.json()).then((config) => {
     const style = config.styles[config.style] || config.style;
     $("draw-state").textContent = `${config.enabled ? "사용 중" : "사용 꺼짐"}. 상품 ${config.prizes.length}개, 규칙 ${config.rules.length}개, 연출 ${style}`;
@@ -164,6 +332,7 @@
     $("voice-state").textContent = voice.source
       ? `${voice.source}: ${voice.db} dB, ${voice.talking ? "말하는 중" : "조용함"}`
       : "OBS 마이크 음량 대기(오버레이의 캐릭터 음성 반응과 OBS 연결 확인)";
+    checkMic(voice);
   });
   const tracked = { time: 0, found: false };
   live.addEventListener("tracking", (message) => Object.assign(tracked, { found: false }, JSON.parse(message.data)));
@@ -189,7 +358,7 @@
       ...(list.motions.length ? [motionButton("동작 멈춤", "실행 중인 동작을 멈추고 기본 동작으로", { stop: true })] : []));
     $("motion-state").textContent = list.motions.length
       ? `3D 캐릭터 동작 ${list.motions.length}개, 기본 동작 ${idle ? idle.name : "없음(기본 움직임)"}. 버튼을 누르면 한 번 실행합니다.`
-      : "등록한 동작 없음. 설정 마법사 캐릭터 단계 또는 debutkit motion add로 3D 캐릭터 동작(VRMA, FBX, GLB)을 등록합니다.";
+      : "등록한 동작 없음. 3D 캐릭터의 춤, 인사 같은 동작(VRMA, FBX, GLB 파일)은 설정 마법사의 캐릭터 단계에서 등록합니다.";
   }).catch(() => ($("motion-state").textContent = "동작 목록을 확인하지 못함"));
   for (const button of document.querySelectorAll("[data-copy]")) {
     button.addEventListener("click", async () => {
@@ -201,11 +370,121 @@
     });
   }
   const send = (body) => fetch("/test", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  // 방송 직전 점검: OBS(연결, 장면, 알림 소리), 채팅 연결(/status), 마이크(/live의 voice)
+  const NAMES = { chat: "채팅창", alerts: "알림", character: "캐릭터" };
+  const PLATFORM_NAMES = { "데모": "데모 채팅" };
+  const checks = {};
+  function setCheck(id, state, text, fixes = []) {
+    checks[id] = state;
+    const item = $(id);
+    item.classList.toggle("ok", state === "ok");
+    item.classList.toggle("warn", state === "warn");
+    item.querySelector(".text").textContent = text;
+    const fix = item.querySelector(".fix");
+    if (fix) {
+      fix.replaceChildren(...fixes.map(([kind, label]) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "secondary";
+        button.dataset.obs = kind;
+        if (kind === "chat") button.dataset.obsFrom = "chat-url";
+        button.textContent = label;
+        return button;
+      }));
+    }
+    const values = Object.values(checks);
+    const ready = values.filter((value) => value === "ok").length;
+    $("check-count").textContent = values.length >= 5 ? (ready === values.length ? "준비됨" : `${ready}/${values.length} 준비됨`) : "";
+  }
+  function checkObs(state) {
+    if (!state.connected) {
+      setCheck("c-obs", "warn", `${(state.error || "OBS에 연결하지 못함").split(":")[0]}. 위 방송 준비의 OBS 연결 차례 확인`);
+      setCheck("c-scene", "warn", "OBS에 연결되면 확인합니다");
+      setCheck("c-sound", "warn", "OBS에 연결되면 확인합니다");
+      return;
+    }
+    setCheck("c-obs", "ok", `연결됨. 지금 장면: ${state.scene}`);
+    const inside = state.inside || [];
+    const missing = ["chat", "alerts"].filter((kind) => !inside.includes(kind));
+    setCheck("c-scene", missing.length ? "warn" : "ok",
+      missing.length ? `지금 장면에 없음: ${missing.map((kind) => NAMES[kind]).join(", ")}` : `지금 장면에 ${inside.filter((kind) => NAMES[kind]).map((kind) => NAMES[kind]).join(", ")} 있음`,
+      missing.map((kind) => [kind, `${NAMES[kind]} 넣기`]));
+    const sound = state.alerts_sound || {};
+    if (!sound.exists) setCheck("c-sound", "warn", "OBS에 알림이 없음", [["alerts", "알림 넣기"]]);
+    else if (sound.muted) setCheck("c-sound", "warn", "알림 소스가 음소거됨: OBS 오디오 믹서의 [DK] 후원 알림 스피커 단추로 음소거 해제");
+    else if (!sound.ok) setCheck("c-sound", "warn", "방송에는 나가지만 내 헤드폰으로는 안 들릴 수 있음", [["alerts", "알림 소리 맞추기"]]);
+    else setCheck("c-sound", "ok", "방송으로 나가고 내 헤드폰에도 들림");
+  }
+  function checkChat(sources) {
+    const real = sources.filter((item) => !item.demo);
+    if (!sources.length) return setCheck("c-chat", "warn", "연결한 채팅 채널 없음: 설정 마법사의 채팅과 알림 단계에서 내 채널 입력");
+    if (!real.length) return setCheck("c-chat", "warn", "데모 채팅만 나옴(실제 방송 아님): 설정 마법사의 채팅과 알림 단계에서 내 채널 입력");
+    const bad = real.filter((item) => item.state === "error");
+    const waiting = real.filter((item) => item.state === "connecting");
+    const words = real.map((item) => `${PLATFORM_NAMES[item.label] || item.label} ${item.state === "connected" ? `연결됨(채팅 ${item.events}개)` : item.state === "error" ? "끊김" : "연결 중"}`);
+    if (bad.length) return setCheck("c-chat", "warn", `${words.join(", ")}. ${bad[0].error || ""}`.trim());
+    setCheck("c-chat", waiting.length ? "warn" : "ok", words.join(", "));
+  }
+  let micTimer = 0;
+  function checkMic(voice) {
+    clearTimeout(micTimer);
+    if (!voice.source) setCheck("c-mic", "warn", "OBS 마이크 음량을 받지 못함: OBS 연결과 OBS의 마이크 소스 확인");
+    else if (voice.db !== undefined && voice.db < -60) setCheck("c-mic", "warn", `${voice.source}: 소리가 거의 없음(${voice.db} dB). 마이크 음소거와 OBS 마이크 소스 확인`);
+    else setCheck("c-mic", "ok", `${voice.source}: ${voice.db} dB${voice.talking ? ", 말하는 중" : ""}`);
+    micTimer = setTimeout(() => setCheck("c-mic", "warn", "OBS 마이크 음량을 받지 못함: OBS 연결과 OBS의 마이크 소스 확인"), 8000);
+  }
+  checkMic({});
+  debutkitUi.onObs(checkObs);
+  $("check-again").addEventListener("click", () => { debutkitUi.obsCheck(true); refresh(); });
+
+  // 시작하기 목록: OBS 연결과 OBS에 넣은 화면은 자동 확인, 시험 후원과 모양 고르기는 누르면 끝(이 브라우저에 기억)
+  const START = "debutkit-start";
+  const remembered = (() => { try { return JSON.parse(localStorage.getItem(START) || "{}"); } catch (error) { return {}; } })();
+  const remember = (key, value) => { remembered[key] = value; localStorage.setItem(START, JSON.stringify(remembered)); };
+  const stepState = { run: true, obs: false, add: false, test: Boolean(remembered.test), look: Boolean(remembered.look) };
+  function paintSteps() {
+    const order = ["run", "obs", "add", "test", "look"];
+    const next = order.find((key) => !stepState[key]);
+    for (const key of order) {
+      const item = document.querySelector(`.steps li[data-step="${key}"]`);
+      item.classList.toggle("done", stepState[key]);
+      item.classList.toggle("now", key === next);
+    }
+    const done = order.filter((key) => stepState[key]).length;
+    $("start-count").textContent = `${done}/${order.length}`;
+    $("start-bar").style.width = `${(done / order.length) * 100}%`;
+    if (done === order.length && !remembered.closed) $("start-count").textContent = "준비 끝";
+  }
+  debutkitUi.onObs((state) => {
+    stepState.obs = Boolean(state.connected);
+    stepState.add = Boolean(state.connected && (state.inside || []).includes("chat") && (state.inside || []).includes("alerts"));
+    $("step-obs-text").textContent = state.connected ? `연결됨. 지금 장면: ${state.scene}` : `${(state.error || "OBS에 연결하지 못함").split(":")[0]}. 아래 차례대로 확인합니다.`;
+    $("step-obs-how").hidden = Boolean(state.connected);
+    paintSteps();
+  });
+  $("step-obs-check").addEventListener("click", () => debutkitUi.obsCheck(true));
+  $("step-test").addEventListener("click", async () => {
+    await send({ kind: "donation", text: "시험 후원입니다" });
+    stepState.test = true;
+    remember("test", true);
+    paintSteps();
+    debutkitUi.toast("시험 후원을 보냄: OBS 화면의 알림과 소리 확인");
+  });
+  $("step-look").addEventListener("click", () => remember("look", true));
+  $("start-toggle").addEventListener("click", () => {
+    const closed = !$("start").classList.contains("closed");
+    $("start").classList.toggle("closed", closed);
+    $("start-toggle").textContent = closed ? "목록 보기" : "목록 접기";
+    remember("closed", closed);
+  });
+  if (remembered.closed) { $("start").classList.add("closed"); $("start-toggle").textContent = "목록 보기"; }
+  paintSteps();
   $("test-chat").addEventListener("click", () => send({ kind: "chat", text: "테스트 채팅" }));
   $("test-donation").addEventListener("click", () => send({ kind: "donation", text: "테스트 후원" }));
   $("test-clip").addEventListener("click", () => send({ kind: "chat", role: "owner", text: "!clip" }));
   const refresh = () => fetch("/status").then((r) => r.json()).then((s) => {
-    $("status").textContent = `연결된 화면 ${s.listeners}개`;
+    $("status").textContent = `켜져 있는 방송 화면 ${s.listeners}개`;
+    checkChat(s.sources || []);
   }).catch(() => {});
   refresh();
   setInterval(refresh, 3000);

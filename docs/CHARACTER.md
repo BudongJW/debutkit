@@ -148,6 +148,11 @@
 - 따라서 debutkit은 Live2D 모델을 직접 표시하지 않고 VTube Studio로 전달
 - Live2D 샘플 모델은 재배포 금지. 링크만 안내
 - VRM 사용 조건이 수익 방송이나 법인 사용을 허용하지 않으면 등록 시 경고
+- VRM 모델 점검(`character.vrm_check`, 캐릭터 그림 만들기의 모델 점검)
+  - 표정: 움직이는 것(형태 변형, 재질 색, 텍스처 이동)이 있는 표정만 셈. VRM 0.x 이름은 three-vrm과 같이 1.0 이름으로(joy는 happy, blink_l은 blinkLeft)
+  - 경고: 입 모양(aa)도 턱 뼈도 없음(말해도 입이 안 움직임), 눈 깜빡임 표정 없음, 텍스처가 무거움(가장 큰 그림 4096px 이상 또는 그래픽 메모리 추정 256MB 이상)
+  - 기준 측정(공개 VRM): VRoid 출신은 텍스처 19~30장(2048px 4장), 그래픽 메모리 약 55~145MB, 파일의 58~77%가 텍스처. 100Avatars는 감정 표정 없이 입 모양과 눈 깜빡임만
+- 가벼운 사본(`character.lighten`): 파일 안 PNG, JPEG를 한 변 1024px 이하로(Pillow LANCZOS, 투명도는 미리 곱해 계산), glTF JSON은 위치 값만 바꿈. 새 캐릭터로 등록하고 원본은 그대로. VRM 1.0 `modification`이 prohibited이거나 0.x 라이선스가 ND면 만들지 않음
 - VRM 제작자 정보에 Vket, HIKKY가 있으면 Vket Avatar Maker 약관(저작권 HIKKY, 법인 사용 사전 확인) 경고
 
 ### 제작 기능 관련 약관(2026-11 조사)
@@ -163,4 +168,10 @@
 
 ## 6. debutkit 기본 캐릭터
 
-- 즉시 시험할 수 있도록 debutkit 브랜드 캐릭터(고양이 귀 마이크)를 PNGTuber 형식(SVG 4장)으로 포함. Apache-2.0
+- 즉시 시험할 수 있도록 debutkit 메인 캐릭터 데비를 PNGTuber 형식(PNG 4장: 입 다묾, 입 벌림, 눈 감음, 입 벌리고 눈 감음)으로 포함. Apache-2.0. 그림은 FLUX.1 schnell과 Qwen-Image-Edit(둘 다 Apache-2.0)로 만들고 눈과 입만 바꿔 붙임(생성 기록 character/sample/manifest.json)
+- 기본 3D 캐릭터 데비(`debutkit-3d`, character/debi3d/debi.vrm, VRM 0.x, 약 8MB)
+  - 내 VRM 없이 3D 캐릭터 화면, 캐릭터 그림 만들기, 얼굴 추적, VMC 송신을 시험
+  - 베이스: pixiv VRoid β 샘플 Victoria Rubin(파일 메타 CC0, 모든 사람, 상업 이용 허용). 사이드 포니테일과 리본이 데비와 같은 실루엣
+  - 바꾼 것: 머리 라벤더(머리끝 보라), 눈썹 라벤더, 눈동자 민트, 옷과 신발의 분홍은 라벤더, 리본 노랑(별 머리핀 색), 미리보기 그림, 텍스처 1024px. 모양, 뼈, 표정 18종, 흔들림 뼈는 그대로
+  - 사용 조건: CC0 1.0(베이스와 같음). 다시 만들기는 `python packaging/build_debi3d.py 베이스.vrm 썸네일.png`(베이스는 SHA-256으로 확인, 기록 character/debi3d/manifest.json)
+  - 고유 모델(VRoid Studio로 새로 만든 데비)이 생기면 교체 예정

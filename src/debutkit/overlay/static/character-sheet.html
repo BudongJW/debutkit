@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>debutkit 캐릭터 그림 만들기</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/theme.css?fonts=0">
+  <link rel="stylesheet" href="/ui.css">
+  <script type="importmap">{"imports": {"three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/"}}</script>
+  <style>
+    :root { color-scheme: light; --bg: #ffffff; --panel: #faf7f5; --line: #e3dfdb; --text: #1e2327; --dim: #5b6670; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.6 "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; }
+    header { display: flex; align-items: center; gap: 12px; padding: 14px 24px; border-bottom: 1px solid var(--line); }
+    header img { width: 28px; height: 28px; }
+    header h1 { font-size: 17px; margin: 0; }
+    main { max-width: 1240px; margin: 0 auto; padding: 18px 24px 48px; display: grid; gap: 16px; }
+    section { border: 1px solid var(--line); border-radius: 6px; padding: 14px 18px; }
+    h2 { font-size: 16px; margin: 0 0 8px; }
+    ul.tips { margin: 6px 0 0; padding-left: 18px; color: var(--dim); font-size: 13px; }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    select, input[type=text], input[type=number] { padding: 6px 8px; border: 1px solid #c9c3bd; border-radius: 3px; font: inherit; background: #fff; }
+    button { background: var(--text); color: #fff; border: 1px solid var(--text); border-radius: 3px; padding: 6px 13px; font: inherit; font-weight: 600; cursor: pointer; }
+    button.secondary { background: #fff; color: var(--text); border-color: #c9c3bd; }
+    button:disabled { opacity: 0.45; cursor: default; }
+    canvas.sheet { width: 100%; height: auto; border-radius: 4px; background: #1d1f23; display: block; }
+    .states { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .states figure { margin: 0; text-align: center; font-size: 13px; color: var(--dim); }
+    .states img { width: 100%; aspect-ratio: 1; object-fit: contain; border-radius: 4px;
+      background: repeating-conic-gradient(#e9e4dd 0% 25%, #f6f2ee 0% 50%) 0 0 / 20px 20px; }
+    .state { font-size: 13px; color: var(--dim); }
+    .state.error { color: #b3261e; }
+    .pose-grid { display: grid; grid-template-columns: minmax(220px, 360px) 1fr; gap: 18px; align-items: start; }
+    canvas.pose-shot { width: 100%; height: auto; border-radius: 4px; display: block;
+      background: repeating-conic-gradient(#e9e4dd 0% 25%, #f6f2ee 0% 50%) 0 0 / 20px 20px; }
+    .parts { display: grid; gap: 8px; }
+    .part { display: grid; grid-template-columns: 56px 1fr auto auto; gap: 8px; align-items: center; }
+    button.small { padding: 3px 9px; font-size: 13px; }
+    .gallery { margin-top: 10px; border: 1px solid var(--line); border-radius: 4px; padding: 8px 10px; }
+    .gallery-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 6px; margin-top: 6px; }
+    .gallery-items button.option { background: #fff; color: var(--text); border: 1px solid var(--line); border-radius: 4px; padding: 4px; font-weight: 500;
+      display: grid; gap: 2px; font-size: 12px; }
+    .gallery-items button.option.chosen { border-color: var(--text); box-shadow: 0 0 0 2px var(--text) inset; }
+    .gallery-items img { width: 100%; aspect-ratio: 4 / 5; object-fit: contain; background: repeating-conic-gradient(#e9e4dd 0% 25%, #f6f2ee 0% 50%) 0 0 / 14px 14px; }
+    .part span { font-weight: 600; }
+    label.check { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: var(--dim); }
+    [hidden] { display: none !important; }
+    details.tool { margin-top: 10px; border: 1px solid var(--line); border-radius: 4px; padding: 8px 12px; }
+    details.tool summary { cursor: pointer; font-weight: 600; }
+    details.tool .row { margin-top: 8px; }
+    label.slider { display: grid; grid-template-columns: 84px 1fr 60px; gap: 8px; align-items: center; margin-top: 6px; font-size: 14px; }
+    label.slider output { font-variant-numeric: tabular-nums; color: var(--dim); }
+    ul.facts { margin: 0; padding-left: 18px; font-size: 14px; }
+    ul.facts li.warn { color: #9a4a00; }
+  </style>
+</head>
+<body>
+  <header><img src="/favicon.svg" alt=""><h1>캐릭터 그림 만들기(VRM)</h1></header>
+  <main>
+    <section>
+      <h2>캐릭터 고르기</h2>
+      <div class="row">
+        <select id="pick" aria-label="VRM 캐릭터"></select>
+        <select id="pose" aria-label="추천 자세"></select>
+        <button type="button" id="draw">그리기</button>
+        <span class="state" id="state"></span>
+      </div>
+      <div id="empty"></div>
+      <ul class="tips">
+        <li>등록한 VRM을 이 PC에서 그림(모델 파일은 밖으로 보내지 않음)</li>
+        <li>시트: 정면, 3/4, 얼굴, 표정 7종(기본, 기쁨, 화남, 슬픔, 편안, 아, 눈 감음)</li>
+        <li>추천 자세: 편하게 서기, 손 인사, 허리에 손, 만세, A 자세(정면 확인용). 아래 포즈 그림에서 부위별로 바꾸기</li>
+        <li>VRoid Studio로 만든 VRM이면 그 품질 그대로</li>
+      </ul>
+    </section>
+    <section id="check-box" hidden>
+      <h2>모델 점검</h2>
+      <ul class="facts" id="check"></ul>
+      <div class="row" style="margin-top: 8px">
+        <button type="button" class="secondary" id="lighten" disabled>가벼운 사본 만들기</button>
+        <span class="state" id="light-state"></span>
+      </div>
+      <ul class="tips">
+        <li>가벼운 사본: 텍스처를 1024px 이하로 줄인 새 캐릭터(원본은 그대로, 사용 조건도 그대로)</li>
+        <li>상반신 방송 화면에서는 차이가 거의 보이지 않고 그래픽 메모리는 약 절반(게임과 함께 방송할 때)</li>
+        <li>모델 제작자가 수정을 허용하지 않은 VRM은 만들지 않음</li>
+      </ul>
+    </section>
+    <section>
+      <h2>표정 시트</h2>
+      <canvas class="sheet" id="sheet" width="1600" height="900"></canvas>
+      <div class="row" style="margin-top: 8px"><button type="button" class="secondary" id="save-sheet" disabled>시트 그림 저장</button></div>
+    </section>
+    <section>
+      <h2>포즈 그림</h2>
+      <div class="pose-grid">
+        <canvas class="pose-shot" id="pose-shot" width="480" height="720"></canvas>
+        <div>
+          <div class="parts" id="parts"></div>
+          <div class="gallery" id="part-gallery" hidden><p class="state" id="gallery-title"></p><div class="gallery-items" id="gallery-items"></div></div>
+          <div class="row" style="margin-top: 10px">
+            <button type="button" id="random">랜덤 포즈</button>
+            <label>표정 <select id="pose-face"></select></label>
+            <label>각도 <select id="pose-angle"></select></label>
+            <label class="check"><input type="checkbox" id="pose-bg" checked> 무대 배경</label>
+          </div>
+          <div class="row" style="margin-top: 10px"><button type="button" class="secondary" id="save-pose" disabled>PNG 저장(1024x1536)</button>
+            <button type="button" class="secondary" id="fix-arms">자세 보정(몸에 묻힌 팔 빼기)</button>
+            <button type="button" class="secondary" id="pose-json">자세 파일 저장(JSON)</button></div>
+          <p class="state" id="fix-state"></p>
+          <details class="tool">
+            <summary>관절 직접 돌리기</summary>
+            <div class="row"><select id="joint-bone" aria-label="돌릴 관절"></select>
+              <button type="button" class="secondary" id="joint-reset">이 관절 처음으로</button>
+              <button type="button" class="secondary" id="joint-reset-all">모든 관절 처음으로</button></div>
+            <label class="slider"><span id="joint-x-name">앞뒤</span><input type="range" id="joint-x" min="-90" max="90" value="0"><output id="joint-x-out">0°</output></label>
+            <label class="slider"><span id="joint-y-name">돌기</span><input type="range" id="joint-y" min="-90" max="90" value="0"><output id="joint-y-out">0°</output></label>
+            <label class="slider"><span id="joint-z-name">옆으로</span><input type="range" id="joint-z" min="-90" max="90" value="0"><output id="joint-z-out">0°</output></label>
+          </details>
+          <details class="tool">
+            <summary>자세 파일 불러오기(VRMA, VPD, JSON)</summary>
+            <div class="row"><input type="file" id="pose-file" accept=".vrma,.vpd,.json" aria-label="자세 파일">
+              <button type="button" class="secondary" id="pose-file-off" disabled>파일 자세 끄기</button></div>
+            <label class="slider" id="vrma-time-row" hidden>동작 시점<input type="range" id="vrma-time" min="0" max="1000" value="0"><output id="vrma-time-out">0.0초</output></label>
+            <label class="slider" id="vpd-arm-row" hidden>MMD 팔 각도<input type="range" id="vpd-arm" min="0" max="50" value="35"><output id="vpd-arm-out">35°</output></label>
+            <p class="state" id="pose-file-state"></p>
+          </details>
+          <details class="tool">
+            <summary>내 자세 저장</summary>
+            <div class="row"><input type="text" id="my-pose-name" maxlength="30" placeholder="자세 이름" aria-label="자세 이름" style="flex: 1">
+              <button type="button" class="secondary" id="my-pose-save">지금 자세 저장</button></div>
+            <div class="row"><select id="my-poses" aria-label="저장한 자세" style="flex: 1"></select>
+              <button type="button" class="secondary" id="my-pose-load">불러오기</button>
+              <button type="button" class="secondary" id="my-pose-remove">지우기</button></div>
+            <p class="state" id="my-pose-state"></p>
+          </details>
+          <details class="tool">
+            <summary>VMC로 자세 보내기</summary>
+            <div class="row"><input type="text" id="vmc-host" value="127.0.0.1" aria-label="받는 곳 IP 주소" style="width: 150px">
+              <input type="number" id="vmc-port" value="39539" min="1024" max="65535" aria-label="받는 포트" style="width: 96px">
+              <label class="check"><input type="checkbox" id="vmc-face" checked> 표정도</label>
+              <button type="button" class="secondary" id="vmc-send">보내기 시작</button></div>
+            <p class="state" id="vmc-state"></p>
+          </details>
+          <ul class="tips">
+            <li>부위(허리, 상체, 머리, 왼팔, 오른팔, 왼손, 오른손, 다리)마다 골라 조합. 위의 추천 자세를 고르면 모든 부위가 그 자세로</li>
+            <li>예시: 그 부위의 선택지를 그림으로(손은 손만, 머리는 얼굴만 가까이). 그림을 누르면 고름</li>
+            <li>자세 보정: 팔꿈치나 손목이 몸에 묻힌 팔을 바깥으로 조금씩 돌림(관절 직접 돌리기의 위팔 값에 더함)</li>
+            <li>자세 파일 저장(JSON): three-vrm 자세 형식(뼈 이름과 회전). 다른 VRM에도 불러오기</li>
+            <li>관절 직접 돌리기: 고른 자세 위에 관절 하나씩 더 돌림(손목, 어깨, 무릎 등)</li>
+            <li>자세 파일: VRMA(VRoid 공식 동작 등, 원하는 시점의 자세), MMD 포즈 파일 VPD, 자세 JSON. 파일은 이 브라우저 안에서만 읽음</li>
+            <li>VRoid Studio 포즈 파일(.vroidpose)은 공개 형식 문서를 찾지 못해 읽지 않음</li>
+            <li>MMD 팔 각도: MMD 모델은 팔을 내린 자세가 기준이라 그 각도만큼 고쳐서 적용(팔이 너무 올라가거나 내려가면 조절)</li>
+            <li>VMC로 자세 보내기: Warudo, VSeeFace, VMagicMirror의 VMC 받기(포트 39539)를 켜고 같은 VRM을 불러 두면 지금 자세와 표정이 그대로. 자세를 바꾸면 바로 반영</li>
+            <li>얼굴 추적 VMC 송신(<a href="/vmc">/vmc</a>)이 켜져 있으면 머리와 표정은 얼굴 추적 값. 이 화면을 닫으면 20초 안에 멈춤</li>
+            <li>잠금: 마음에 드는 부위는 두고 나머지만 랜덤</li>
+            <li>왼팔, 오른팔은 캐릭터 기준(정면 그림에서는 왼팔이 화면 오른쪽)</li>
+            <li>무대 배경을 끄면 투명 PNG(썸네일, 방송 화면 꾸미기에)</li>
+            <li>고른 자세는 표정 시트와 PNGTuber 4상태에도 같이 적용</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+    <section>
+      <h2>PNGTuber 4상태</h2>
+      <div class="states" id="states"></div>
+      <div class="row" style="margin-top: 10px">
+        <input type="text" id="name" maxlength="40" placeholder="캐릭터 이름(비우면 원본 이름 + 그림)" aria-label="캐릭터 이름" style="flex: 1">
+        <button type="button" id="register" disabled>PNGTuber로 등록</button>
+      </div>
+      <ul class="tips">
+        <li>입 다묾 = 기본 표정, 입 벌림 = 아, 눈 감음 = 눈 감음, 입 벌리고 눈 감음 = 아 + 눈 감음</li>
+        <li>등록하면 캐릭터 목록에 PNGTuber로 추가(원본 VRM의 사용 조건을 그대로 따름)</li>
+      </ul>
+    </section>
+  </main>
+  <script src="/theme.js"></script>
+  <script src="/ui.js"></script>
+  <script type="module" src="/character/sheet.js"></script>
+</body>
+</html>

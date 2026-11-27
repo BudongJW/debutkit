@@ -1,0 +1,33 @@
+{
+ "source": "assets/brand/mascot/source/debi_1024.png(입 벌림 원본, talk)",
+ "method": "원본 위에 편집본의 눈, 입 부분만 부드럽게 붙임(머리핀, 헤드셋은 모든 상태에서 같음). 투명도는 원본",
+ "edits": {
+  "idle": {
+   "tool": "Hugging Face Space prithivMLmods/Qwen-Image-Edit-2511-LoRAs-Fast",
+   "model": "Qwen-Image-Edit-2511 (Rapid-AIO, 4 steps)",
+   "license": "Apache-2.0",
+   "lora": "prithivMLmods/Qwen-Image-Edit-2511-Anime",
+   "prompt": "Change only her mouth: close it into a small gentle smile. Keep her eyes exactly as they are. Keep everything else exactly the same: the same girl, lavender side ponytail, star hair clip, mint headset, lavender jacket, white tee, the microphone in her hand, pose, framing, thick black outlines, flat cel colors, plain green background.",
+   "seed": 7,
+   "steps": 4
+  },
+  "blink": {
+   "tool": "Hugging Face Space prithivMLmods/Qwen-Image-Edit-2511-LoRAs-Fast",
+   "model": "Qwen-Image-Edit-2511 (Rapid-AIO, 4 steps)",
+   "license": "Apache-2.0",
+   "lora": "prithivMLmods/Qwen-Image-Edit-2511-Anime",
+   "prompt": "Change only her face: close both eyes into happy curved closed-eye lines and close her mouth into a small gentle smile. Keep everything else exactly the same: the same girl, lavender side ponytail, star hair clip, mint headset, lavender jacket, white tee, the microphone in her hand, pose, framing, thick black outlines, flat cel colors, plain green background.",
+   "seed": 7,
+   "steps": 4
+  },
+  "talk_blink": {
+   "tool": "Hugging Face Space prithivMLmods/Qwen-Image-Edit-2511-LoRAs-Fast",
+   "model": "Qwen-Image-Edit-2511 (Rapid-AIO, 4 steps)",
+   "license": "Apache-2.0",
+   "lora": "prithivMLmods/Qwen-Image-Edit-2511-Anime",
+   "prompt": "Change only her eyes: close both eyes into happy curved closed-eye lines. Keep her mouth open exactly as it is. Keep everything else exactly the same: the same girl, lavender side ponytail, star hair clip, mint headset, lavender jacket, white tee, the microphone in her hand, pose, framing, thick black outlines, flat cel colors, plain green background.",
+   "seed": 7,
+   "steps": 4
+  }
+ }
+}

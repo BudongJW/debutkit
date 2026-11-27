@@ -1,9 +1,13 @@
 // debutkit 후원 추첨 연출(OBS 브라우저 소스, 권장 1920x1080). /live?feeds=draw 로 추첨 결과를 받아 차례로 연출한다.
-// 콘셉트 "방송 소품": 고양이 귀 마이크 문양을 찍은 실물 카드와 무대용 상품 룰렛. 소품과 하단 띠만 화면 아래쪽에 놓는다.
+// 콘셉트 "방송 소품": 마스코트 마이(리본 마이크) 문양을 찍은 실물 카드와 무대용 상품 룰렛. 소품과 하단 띠만 화면 아래쪽에 놓는다.
 // 연출 순서: 시작(띠, 소품 등장), 예고(희귀 카드만 금색 빛, 실제 결과와 같음), 공개(일반 카드 빠르게, 희귀 카드 마지막 천천히), 정리(결과 판), 퇴장.
 // 뽑기는 서버가 하고 이 화면은 받은 결과를 보여 주기만 한다(모든 화면이 같은 결과). 글은 textContent로만 넣는다.
 // 시청자 참여 추첨(/live의 raffle): 모집 중에는 하단 모집 띠와 참가자 이름, 결과는 당첨 카드나 순서표로 같은 차례 안에서 연출.
-// 주소: ?style=card, ?style=wheel 연출 고정. ?sample=card(또는 wheel)&count=11&bg=light 미리보기(이 화면에서만). ?sound 효과음 강제
+// 연출: 카드, 룰렛(이 파일), 캡슐 뽑기, 즉석 복권, 티켓 출력, 추첨기, 타로(draw-props.js). 결과 판이 나올 때 고른 효과(EFFECTS),
+// 상품 이름과 안내 글 글꼴, 크기는 결과에 담겨 온 설정을 따른다. 타로의 오늘의 한마디는 서버가 고른 문장만 표시
+// 빠른 모드: 지금 연출을 포함해 FAST_QUEUE개 이상 기다리면 연출 시간을 FAST_RATE배로, 결과 표시를 FAST_HOLD초 이내로 줄인다
+// 주소: ?style=card 처럼 연출 고정. ?sample=capsule&count=11&result=rare(miss, normal)&design=box&effect=stars&bg=light 미리보기
+// (이 화면에서만, 실시간 연결 없음). ?sound 효과음 강제
 "use strict";
 
 (() => {
@@ -11,15 +15,25 @@
   const raffleRoot = document.getElementById("raffle");
   const params = new URLSearchParams(location.search);
   const forced = params.get("style");
-  const STYLES = ["card", "wheel"];
   const PLATFORMS = (window.debutkit && window.debutkit.PLATFORMS) || {};
   const NS = "http://www.w3.org/2000/svg";
   const INK = "#1e2327";
   const PAPER = "#faf7f5";
+  // 방송 색(/theme.css): 화면을 불러올 때의 색. 색을 바꾸면 연출이 없을 때 화면을 새로 불러온다
+  const themed = (name, fallback) => (window.debutkitTheme && window.debutkitTheme.color(name)) || fallback;
+  const GOLD = themed("highlight", "#ffd84d");
+  const PINK = themed("primary", "#ff4f8b");
+  const PINK_LIGHT = themed("primary-light", "#ffb3cb");
+  const FAST_QUEUE = 3;  // 빠른 모드: 기다리는 추첨(지금 연출 포함) 수
+  const FAST_RATE = 0.5;  // 빠른 모드의 연출 시간 배율
+  const FAST_HOLD = 4;  // 빠른 모드의 결과 표시 최대 시간(초)
   const queue = [];
   let busy = false;
+  let pace = 1;  // 연출 시간 배율(빠른 모드 0.5)
+  let sceneScale = 1;
 
   const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  const beat = (ms) => wait(ms * pace);  // 연출 단계 사이 시간(빠른 모드에서 짧아짐)
   const el = (tag, className, text) => {
     const node = document.createElement(tag);
     if (className) node.className = className;
@@ -36,13 +50,18 @@
     ? Promise.all(['40px "Black Han Sans"', '600 20px "Pretendard"', '700 20px "Pretendard"'].map((font) => document.fonts.load(font))).catch(() => null)
     : Promise.resolve();
 
-  // 고양이 귀 마이크 문양(assets/brand의 기호와 같은 도형). 그룹으로 만들어 카드 뒷면과 룰렛 가운데에 사용
-  function emblemShapes(body, eyes) {
+  // 마스코트 마이(리본 마이크) 문양: 꼭대기 불, 둥근 몸, 위쪽 망 두 줄, 눈과 웃는 입, 아래 띠. 몸 색과 무늬 색 두 가지로
+  // (assets/brand의 마이를 줄인 모양, pick.js와 같은 도형). 그룹으로 만들어 카드 뒷면, 룰렛 가운데, 소품에 사용. 가운데는 (60, 45)
+  function emblemShapes(body, ink) {
     const group = svgEl("g");
-    group.appendChild(svgEl("path", { d: "M38 32 L42 9 L56 21 Z M82 32 L78 9 L64 21 Z", fill: body, stroke: body, "stroke-width": 6, "stroke-linejoin": "round" }));
-    group.appendChild(svgEl("rect", { x: 36, y: 18, width: 48, height: 64, rx: 24, fill: body }));
-    group.appendChild(svgEl("rect", { x: 45.5, y: 40, width: 8, height: 13, rx: 4, fill: eyes }));
-    group.appendChild(svgEl("rect", { x: 66.5, y: 40, width: 8, height: 13, rx: 4, fill: eyes }));
+    group.appendChild(svgEl("circle", { cx: 60, cy: 9, r: 4, fill: body }));
+    group.appendChild(svgEl("rect", { x: 36, y: 14, width: 48, height: 68, rx: 24, fill: body }));
+    group.appendChild(svgEl("rect", { x: 43, y: 23, width: 34, height: 3.6, rx: 1.8, fill: ink }));
+    group.appendChild(svgEl("rect", { x: 39.5, y: 30.5, width: 41, height: 3.6, rx: 1.8, fill: ink }));
+    group.appendChild(svgEl("circle", { cx: 50.5, cy: 46, r: 4, fill: ink }));
+    group.appendChild(svgEl("circle", { cx: 69.5, cy: 46, r: 4, fill: ink }));
+    group.appendChild(svgEl("path", { d: "M54.5 53 Q60 59.5 65.5 53", fill: "none", stroke: ink, "stroke-width": 3.4, "stroke-linecap": "round" }));
+    group.appendChild(svgEl("rect", { x: 40, y: 66, width: 40, height: 3.6, rx: 1.8, fill: ink }));
     return group;
   }
 
@@ -54,17 +73,19 @@
 
   // ---------------------------------------------------------------- 효과음(브라우저에서 합성. 음원 파일 없음)
   let audio = null;
+  let noise = null;
   let soundOn = false;
-  function tone(kind) {
+  function tone(kind, seconds = 0.4) {
     if (!soundOn) return;
     try {
       audio = audio || new (window.AudioContext || window.webkitAudioContext)();
       const now = audio.currentTime;
-      const note = (type, frequency, start, length, peak) => {
+      const note = (type, frequency, start, length, peak, to) => {
         const oscillator = audio.createOscillator();
         const gain = audio.createGain();
         oscillator.type = type;
         oscillator.frequency.setValueAtTime(frequency, now + start);
+        if (to) oscillator.frequency.exponentialRampToValueAtTime(to, now + start + length);
         gain.gain.setValueAtTime(0.0001, now + start);
         gain.gain.exponentialRampToValueAtTime(peak, now + start + 0.006);
         gain.gain.exponentialRampToValueAtTime(0.0001, now + start + length);
@@ -72,11 +93,41 @@
         oscillator.start(now + start);
         oscillator.stop(now + start + length + 0.03);
       };
+      // 잡음(긁기, 섞기, 불꽃): 1초짜리 무작위 소리를 한 번 만들어 거름망을 거쳐 사용
+      const hiss = (start, length, peak, frequency, kindOf = "bandpass") => {
+        if (!noise) {
+          noise = audio.createBuffer(1, audio.sampleRate, audio.sampleRate);
+          const data = noise.getChannelData(0);
+          for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+        }
+        const source = audio.createBufferSource();
+        const filter = audio.createBiquadFilter();
+        const gain = audio.createGain();
+        source.buffer = noise;
+        source.loop = true;
+        filter.type = kindOf;
+        filter.frequency.value = frequency;
+        gain.gain.setValueAtTime(0.0001, now + start);
+        gain.gain.exponentialRampToValueAtTime(peak, now + start + 0.01);
+        gain.gain.setValueAtTime(peak, now + start + Math.max(0.01, length - 0.05));
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + start + length);
+        source.connect(filter).connect(gain).connect(audio.destination);
+        source.start(now + start);
+        source.stop(now + start + length + 0.03);
+      };
       if (kind === "tick") note("square", 2300, 0, 0.025, 0.04);
       else if (kind === "start") note("triangle", 520, 0, 0.12, 0.07);
       else if (kind === "flip") { note("triangle", 880, 0, 0.07, 0.06); note("triangle", 1320, 0.035, 0.06, 0.04); }
       else if (kind === "rare") [1318.5, 1975.5, 2637].forEach((frequency, index) => note("sine", frequency, index * 0.09, 1.5, 0.1));
       else if (kind === "done") { note("sine", 784, 0, 0.25, 0.07); note("sine", 1046.5, 0.12, 0.4, 0.07); }
+      else if (kind === "crank") [0, 0.06, 0.12].forEach((start) => note("square", 1500, start, 0.018, 0.035));
+      else if (kind === "drop") { note("triangle", 240, 0, 0.12, 0.09, 120); note("square", 1900, 0, 0.015, 0.03); }
+      else if (kind === "pop") note("sine", 420, 0, 0.12, 0.08, 980);
+      else if (kind === "print") { note("sawtooth", 130, 0, seconds, 0.025); hiss(0, seconds, 0.02, 2400); }
+      else if (kind === "scratch") hiss(0, seconds, 0.05, 3600);
+      else if (kind === "shuffle") for (let i = 0; i < 14; i++) hiss(i * 0.028, 0.02, 0.06, 2800);
+      else if (kind === "bell") [0, 0.32].forEach((start) => [1568, 2349, 3951].forEach((frequency) => note("sine", frequency, start, 0.9, 0.05)));
+      else if (kind === "boom") { hiss(0, 0.3, 0.09, 900, "lowpass"); note("sine", 90, 0, 0.25, 0.08, 45); }
     } catch (error) {
       // 소리를 낼 수 없는 환경
     }
@@ -141,16 +192,15 @@
     return box;
   }
 
-  function confetti(target) {  // 희귀 공개: 금, 핑크, 크림 종이 조각
+  function confetti(target, count = 30, colors = [GOLD, PINK, PAPER, GOLD], power = 1) {  // 희귀 공개: 금, 핑크, 크림 종이 조각
     const box = target.getBoundingClientRect();
     const layer = el("div", "dk-confetti");
     layer.style.setProperty("--cx", `${box.left + box.width / 2}px`);
     layer.style.setProperty("--cy", `${box.top + box.height / 3}px`);
-    const colors = ["#ffd84d", "#ff4f8b", PAPER, "#ffd84d"];
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < count; i++) {
       const bit = el("i");
       const angle = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 0.95;
-      const speed = 150 + Math.random() * 200;
+      const speed = (150 + Math.random() * 200) * power;
       bit.style.setProperty("--x", `${Math.cos(angle) * speed}px`);
       bit.style.setProperty("--peak", `${Math.sin(angle) * speed}px`);
       bit.style.setProperty("--fall", `${260 + Math.random() * 180}px`);
@@ -167,6 +217,148 @@
     scene.classList.remove("shake");
     void scene.offsetWidth;  // 같은 애니메이션 다시 시작
     scene.classList.add("shake");
+  }
+
+  // 공개 순서: 희귀가 아닌 것 먼저, 희귀 마지막(결과는 그대로, 보여 주는 순서만 바꿈)
+  const revealOrder = (draws) => [...draws.keys()].sort((a, b) => Number(draws[a].rare) - Number(draws[b].rare) || a - b);
+
+  // ---------------------------------------------------------------- 글꼴, 크기(설정의 상품 이름, 안내 글). 함께 배포한 글꼴과 운영체제 기본 글꼴만
+  const FONTS = {
+    display: ['"Black Han Sans", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif', 400],
+    text: ['"Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif', 700],
+    gothic: ['"Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", sans-serif', 700],
+    serif: ['"Batang", "바탕", "AppleMyungjo", serif', 700],
+    gungsuh: ['"Gungsuh", "궁서", "GungSeo", "AppleMyungjo", serif', 700],
+  };
+  const SIZES = { small: 0.85, medium: 1, large: 1.18 };
+  // 공통 글꼴 목록(함께 배포한 글꼴, 이 PC 글꼴, 내 글꼴): 결과(result.font_css)와 미리보기 설정(config.font_css)이 [CSS, 굵기]를 보냄
+  const OLD_NAMES = { blackhan: "display", pretendard: "text", malgun: "gothic", batang: "serif" };
+  const face = (key) => FONTS[key] || FONTS[OLD_NAMES[key]];
+
+  function applyLook(scene, result) {
+    Object.assign(FONTS, result.font_css || {});
+    for (const part of ["name", "caption"]) {
+      const [family, weight] = face(result[`${part}_font`]) || FONTS.display;
+      if (document.fonts) document.fonts.load(`${weight} 40px ${family}`, "가A").catch(() => null);
+      scene.style.setProperty(`--${part}-font`, family);
+      scene.style.setProperty(`--${part}-weight`, String(weight));
+      scene.style.setProperty(`--${part}-scale`, String(SIZES[result[`${part}_size`]] || 1));
+    }
+    // 작은 상품 이름: 굵은 제목 글꼴은 획이 뭉치므로 본문 글꼴, 다른 글꼴은 그대로
+    const heavy = ["display", "blackhan"].includes(result.name_font);
+    const small = face(result.name_font) && !heavy ? face(result.name_font) : FONTS.text;
+    scene.style.setProperty("--name-small-font", small[0]);
+    scene.style.setProperty("--name-small-weight", String(small[1]));
+  }
+
+  function adviceLine(text) {  // 타로 오늘의 한마디(서버가 고른 문장)
+    const box = el("div", "dk-advice");
+    const ribbon = el("div", "ribbon");
+    ribbon.append(el("span", "label", "오늘의 한마디"), el("span", "line", text));
+    box.appendChild(ribbon);
+    return box;
+  }
+
+  // ---------------------------------------------------------------- 결과 뒤 효과: 결과 판이 나올 때 한 번(모두 꽝이면 생략). 금색은 희귀 결과가 있을 때만
+  const rand = (min, max) => min + Math.random() * (max - min);
+
+  function fxLayer(name, life) {  // 화면 전체에 고정한 효과 층. 크기는 표시 크기를 따름
+    const node = el("div", `dk-fx ${name}`);
+    node.style.setProperty("--s", String(sceneScale));
+    document.body.appendChild(node);
+    setTimeout(() => node.remove(), life);
+    return node;
+  }
+
+  function place(node, values) {
+    for (const [name, value] of Object.entries(values)) node.style.setProperty(`--${name}`, value);
+    return node;
+  }
+
+  const RIBBON = "M10 2 C 18 18, 2 30, 10 46 S 18 76, 10 92 S 2 122, 10 138";
+  const HEART = "M12 21 C 4 14 1 10 1 6.5 C 1 3.4 3.4 1 6.5 1 C 8.6 1 10.6 2.2 12 4 C 13.4 2.2 15.4 1 17.5 1 C 20.6 1 23 3.4 23 6.5 C 23 10 20 14 12 21 Z";
+  const SPARK = "M12 0 Q 13.6 10.4 24 12 Q 13.6 13.6 12 24 Q 10.4 13.6 0 12 Q 10.4 10.4 12 0 Z";
+
+  function shape(viewBox, path, fill, outline) {
+    const svg = svgEl("svg", { viewBox, "aria-hidden": "true" });
+    svg.appendChild(svgEl("path", { d: path, fill, stroke: INK, "stroke-width": outline, "stroke-linejoin": "round" }));
+    return svg;
+  }
+
+  const EFFECTS = {
+    confetti(box, colors, rare) {  // 종이 조각: 소품 양쪽에서 두 번
+      const bit = { getBoundingClientRect: () => box };
+      confetti(bit, rare ? 46 : 36, colors, 1.3);
+      setTimeout(() => confetti(bit, rare ? 40 : 30, colors, 1.1), 260);
+    },
+    streamers(box, colors) {  // 색 테이프: 아래 양쪽 모서리에서 터지는 곱슬 리본
+      const fx = fxLayer("streamers", 2900);
+      for (let i = 0; i < 18; i++) {
+        const side = i % 2 ? 1 : -1;
+        const ribbon = el("i");
+        const svg = svgEl("svg", { viewBox: "0 0 20 140", "aria-hidden": "true" });
+        svg.append(svgEl("path", { d: RIBBON, fill: "none", stroke: INK, "stroke-width": 8, "stroke-linecap": "round" }),
+          svgEl("path", { d: RIBBON, fill: "none", stroke: colors[i % colors.length], "stroke-width": 4.6, "stroke-linecap": "round" }));
+        ribbon.appendChild(svg);
+        fx.appendChild(place(ribbon, { x: `${side < 0 ? box.left - 10 : box.right + 10}px`, y: `${box.bottom - 20}px`,
+          dx: `${-side * rand(120, 420) * sceneScale}px`, dy: `${-rand(240, 520) * sceneScale}px`, r0: `${side * 40}deg`,
+          r: `${rand(-260, 260).toFixed(0)}deg`, d: `${Math.floor(i / 2) * 55}ms` }));
+      }
+    },
+    fireworks(box, colors) {  // 불꽃놀이: 소품 위 세 곳에서 차례로
+      const fx = fxLayer("fireworks", 2900);
+      [[0.18, 0.05], [0.82, 0.12], [0.5, -0.22]].forEach(([fx_, fy], n) => {
+        const burst = place(el("b"), { x: `${box.left + box.width * fx_}px`, y: `${Math.max(90, box.top + box.height * fy)}px`, d: `${n * 280}ms` });
+        burst.appendChild(place(el("u"), { c: colors[n % colors.length] }));
+        for (let k = 0; k < 16; k++) {
+          burst.appendChild(place(el("i"), { a: `${(k * 360) / 16 + n * 7}deg`, len: `${rand(90, 140) * sceneScale}px`, c: colors[(k + n) % colors.length] }));
+        }
+        fx.appendChild(burst);
+        setTimeout(() => tone("boom"), n * 280);
+      });
+    },
+    spotlight(box) {  // 무대 조명: 위쪽 양옆 조명이 소품을 비춤(소품 뒤에 그림)
+      const fx = fxLayer("spotlight", 3700);
+      const cx = box.left + box.width / 2;
+      const ty = box.top + box.height * 0.55;
+      for (const side of [-1, 1]) {
+        const sx = Math.min(innerWidth - 40, Math.max(40, cx + side * Math.max(380, box.width * 0.75)));
+        const dx = cx - sx;
+        const dy = ty + 30;
+        const angle = (-Math.atan2(dx, dy) * 180) / Math.PI;
+        const values = { x: `${sx}px`, y: "-30px", a: `${angle.toFixed(1)}deg`, from: `${(angle - side * 26).toFixed(1)}deg` };
+        fx.appendChild(place(el("i", "beam"), { ...values, h: `${Math.hypot(dx, dy) * 1.12}px`, w: `${Math.max(260, box.width * 0.62)}px` }));
+        fx.appendChild(place(el("b", "lamp"), values));
+      }
+      fx.appendChild(place(el("u", "pool"), { x: `${cx}px`, y: `${box.bottom - 6}px`, w: `${box.width * 1.15}px` }));
+    },
+    hearts(box, colors) {  // 하트: 결과 판 쪽에서 흔들리며 올라감
+      const fx = fxLayer("hearts", 3500);
+      for (let i = 0; i < 20; i++) {
+        const heart = place(el("i"), { x: `${rand(box.left, box.right)}px`, y: `${box.bottom - rand(0, box.height * 0.3)}px`,
+          rise: `${-rand(240, 460) * sceneScale}px`, sway: `${rand(18, 52) * sceneScale}px`, size: `${rand(24, 40) * sceneScale}px`, d: `${i * 75}ms` });
+        heart.appendChild(shape("-1 -1 26 24", HEART, colors[i % colors.length], 1.8));
+        fx.appendChild(heart);
+      }
+    },
+    stars(box, colors) {  // 반짝이는 별: 소품 둘레 여기저기
+      const fx = fxLayer("stars", 3000);
+      const pad = 60 * sceneScale;
+      for (let i = 0; i < 26; i++) {
+        const star = place(el("i"), { x: `${rand(box.left - pad, box.right + pad)}px`, y: `${rand(box.top - pad, box.bottom)}px`,
+          size: `${rand(16, 44) * sceneScale}px`, d: `${rand(0, 1500).toFixed(0)}ms` });
+        star.appendChild(shape("-2 -2 28 28", SPARK, colors[i % colors.length], 1.6));
+        fx.appendChild(star);
+      }
+    },
+  };
+
+  function effect(kind, scene, rare) {
+    const run = EFFECTS[kind];
+    const props = scene.querySelector(".dk-props");
+    if (!run || !props) return;
+    const box = props.getBoundingClientRect();
+    run(box, rare ? [GOLD, PINK, PAPER, GOLD, PINK_LIGHT] : [PINK, PAPER, PINK_LIGHT, PINK], rare);
   }
 
   // ---------------------------------------------------------------- 카드
@@ -215,7 +407,7 @@
     for (const [name, value] of Object.entries(vars)) node.style.setProperty(name, value);
     const inner = el("div", "inner");
     const back = el("div", "face back");
-    back.appendChild(emblem("#ff4f8b", INK));
+    back.appendChild(emblem(PINK, INK));
     const front = el("div", "face front");
     front.appendChild(el("div", "band", item.band || (item.rare ? "희귀" : item.miss ? "꽝" : "일반")));
     const name = el("div", "dk-name", item.name);
@@ -237,44 +429,42 @@
     const deck = el("div", "dk-deck");
     deck.style.width = `${plan.width}px`;
     deck.style.height = `${plan.height}px`;
-    // 공개 순서: 희귀가 아닌 카드 먼저, 희귀 카드 마지막(결과는 그대로, 보여 주는 순서만 바꿈)
-    const order = [...result.draws.keys()].sort((a, b) => Number(result.draws[a].rare) - Number(result.draws[b].rare) || a - b);
-    const cards = order.map((index, slot) => card(result.draws[index], slot, total, plan, result.show_percent));
+    const cards = revealOrder(result.draws).map((index, slot) => card(result.draws[index], slot, total, plan, result.show_percent));
     deck.append(...cards);
     props.appendChild(deck);
     await wait(60);
     for (const node of cards) node.classList.add("dealt");  // 시작: 더미에서 펼쳐짐
-    await wait(560 + total * 45);
+    await beat(560 + total * 45);
     const rares = cards.filter((node) => node.classList.contains("rare"));
     if (rares.length) {  // 예고: 희귀 카드만 금색 빛
       for (const node of rares) node.classList.add("hint");
-      await wait(1000);
+      await beat(1000);
     } else {
-      await wait(250);
+      await beat(250);
     }
     for (const node of cards) {  // 공개: 일반, 꽝은 빠르게
       if (node.classList.contains("rare")) break;
       node.classList.add("open");
       tone("flip");
-      await wait(total > 12 ? 110 : 220);
+      await beat(total > 12 ? 110 : 220);
     }
     for (const node of rares) {  // 희귀는 하나씩 들어 올려 흔든 뒤 천천히
       node.classList.remove("hint");
       node.classList.add("lift");
-      await wait(500);
+      await beat(500);
       node.classList.add("slow", "open");
       tone("rare");
-      await wait(280);
+      await beat(280);
       confetti(node);
       shake(scene);
-      await wait(900);
+      await beat(900);
       node.classList.remove("lift");
     }
-    await wait(300);
+    await beat(300);
   }
 
   // ---------------------------------------------------------------- 룰렛
-  const FILLS = ["#ff4f8b", PAPER, "#ffb3cb"];
+  const FILLS = [PINK, PAPER, PINK_LIGHT];
 
   function wheelParts(prizes, showPercent) {
     const svg = svgEl("svg", { viewBox: "-120 -120 240 240", class: "wheel-svg", "aria-hidden": "true" });
@@ -301,7 +491,7 @@
     let normal = 0;
     prizes.forEach((prize, index) => {
       const sweep = (prize.percent / total) * 360;
-      let fill = prize.rare ? "#ffd84d" : prize.miss ? "url(#dk-stripes)" : FILLS[normal++ % FILLS.length];
+      let fill = prize.rare ? GOLD : prize.miss ? "url(#dk-stripes)" : FILLS[normal++ % FILLS.length];
       if (!prize.rare && !prize.miss) {  // 이웃 칸, 마지막과 첫 칸이 같은 색이 되지 않게
         const first = segments.length ? segments[0].fill : null;
         if (fill === previous || (index === prizes.length - 1 && fill === first)) fill = FILLS.find((color) => color !== previous && color !== first) || fill;
@@ -345,7 +535,7 @@
     }
     spin.appendChild(svgEl("circle", { r: 100, fill: "none", stroke: INK, "stroke-width": 3 }));
     spin.appendChild(svgEl("circle", { r: 21, fill: PAPER, stroke: INK, "stroke-width": 3 }));
-    const cap = emblemShapes("#ff4f8b", INK);
+    const cap = emblemShapes(PINK, INK);
     cap.setAttribute("transform", "scale(0.3) translate(-60,-45)");
     spin.appendChild(cap);
     svg.appendChild(spin);
@@ -354,7 +544,7 @@
 
   function flapper() {
     const svg = svgEl("svg", { viewBox: "0 0 34 62", class: "flapper", "aria-hidden": "true" });
-    svg.appendChild(svgEl("path", { d: "M17 3 C28 3 31 13 27 23 L19 57 Q17 61 15 57 L7 23 C3 13 6 3 17 3 Z", fill: "#ff4f8b", stroke: INK, "stroke-width": 3,
+    svg.appendChild(svgEl("path", { d: "M17 3 C28 3 31 13 27 23 L19 57 Q17 61 15 57 L7 23 C3 13 6 3 17 3 Z", fill: PINK, stroke: INK, "stroke-width": 3,
       "stroke-linejoin": "round" }));
     svg.appendChild(svgEl("circle", { cx: 17, cy: 11, r: 4, fill: PAPER, stroke: INK, "stroke-width": 2 }));
     return svg;
@@ -445,8 +635,8 @@
     const chips = el("div", "dk-chips");
     props.append(row, chips);
     const state = { angle: 0, spin: parts.spin, flapper: pointer, bulbs: parts.bulbs, segments: parts.segments, zone: -1 };
-    await wait(450);
-    const duration = result.count === 1 ? 5200 : Math.round(Math.max(1500, Math.min(3200, 9500 / result.count)));
+    await beat(450);
+    const duration = pace * (result.count === 1 ? 5200 : Math.round(Math.max(1500, Math.min(3200, 9500 / result.count))));
     for (const item of result.draws) {
       const segment = parts.segments.find((found) => found.name === item.name) || parts.segments[0];
       const target = -(segment.mid + (Math.random() - 0.5) * segment.sweep * 0.6);  // 칸 가운데 근처(경계는 피함)
@@ -460,7 +650,7 @@
       }
       await blink(parts.bulbs, item.rare ? 4 : 2);
       if (result.count > 1) chips.appendChild(el("span", item.rare ? "rare" : item.miss ? "miss" : "", item.name));
-      await wait(item.rare ? 700 : 250);
+      await beat(item.rare ? 700 : 250);
     }
   }
 
@@ -559,9 +749,16 @@
     }
   }
 
+  // ---------------------------------------------------------------- 연출 목록: 카드, 룰렛(이 파일)과 소품 연출(draw-props.js, 이 파일보다 먼저 불러옴)
+  const kit = { el, svgEl, wait, beat, tone, emblem, emblemShapes, confetti, shake, nextFrame, revealOrder, nameSize, INK, PAPER, GOLD, PINK, PINK_LIGHT,
+                scale: () => sceneScale, pace: () => pace };
+  const PLAYERS = { card: playCards, wheel: playWheel, ...(typeof window.debutkitDrawProps === "function" ? window.debutkitDrawProps(kit) : {}) };
+  const STYLES = Object.keys(PLAYERS);
+
   // ---------------------------------------------------------------- 차례로 연출
   async function play(entry) {
     document.body.classList.add("playing");
+    pace = queue.length + 1 >= FAST_QUEUE ? FAST_RATE : 1;  // 빠른 모드(지금 연출 포함 대기 수)
     try {
       if (entry.kind === "raffle") await playRaffleScene(entry.data);
       else await playDraw(entry.data);
@@ -595,21 +792,28 @@
     await fontsReady;
     soundOn = Boolean(result.sound) || params.has("sound");
     root.dataset.position = ["left", "right"].includes(result.position) ? result.position : "center";
+    const style = STYLES.includes(forced) ? forced : STYLES.includes(result.style) ? result.style : "card";
     const scene = el("div", "dk-scene");
-    scene.style.setProperty("--scale", String(Math.max(0.6, Math.min(1.4, (Number(result.scale) || 100) / 100))));
+    sceneScale = Math.max(0.6, Math.min(1.4, (Number(result.scale) || 100) / 100));
+    scene.style.setProperty("--scale", String(sceneScale));
+    scene.style.setProperty("--pace", String(pace));
+    scene.dataset.style = style;
+    applyLook(scene, result);
     const props = el("div", "dk-props");
     const band = strip(result);
     scene.append(props, band);
     root.replaceChildren(scene);
     tone("start");
-    await wait(320);
-    const style = STYLES.includes(forced) ? forced : result.style;
-    if (style === "wheel") await playWheel(result, props, scene);
-    else await playCards(result, props, scene);
+    await beat(320);
+    await PLAYERS[style](result, props, scene);
     scene.insertBefore(plate(result), band);  // 정리: 결과 판
-    root.setAttribute("aria-label", summary(result));
+    if (result.advice) scene.insertBefore(adviceLine(result.advice), band);
+    root.setAttribute("aria-label", summary(result) + (result.advice ? `. 오늘의 한마디 ${result.advice}` : ""));
+    if (!result.draws.every((item) => item.miss)) effect(result.effect, scene, result.draws.some((item) => item.rare));
     if (!result.draws.some((item) => item.rare)) tone("done");
-    await wait(Math.max(2, Number(result.seconds) || 8) * 1000);
+    let hold = Math.max(2, Number(result.seconds) || 8) * 1000;
+    if (queue.length + 1 >= FAST_QUEUE) hold = Math.min(hold, FAST_HOLD * 1000);  // 연출 중에 대기가 늘어난 경우 포함
+    await wait(hold);
     scene.classList.add("leave");  // 퇴장
     await wait(560);
     root.replaceChildren();
@@ -618,12 +822,15 @@
   async function drain() {
     if (busy) return;
     busy = true;
-    while (queue.length) {  // 동시에 여러 후원이 와도 하나씩
+    while (queue.length) {  // 동시에 여러 후원이 와도 하나씩. 뽑기판 결과 등 가운데 연출과는 무대 차례(live.js의 cue)로 번갈아
+      const release = window.debutkitLive && !sample ? await window.debutkitLive.cue("draw") : () => {};
       try {
         await play(queue.shift());
       } catch (error) {
         console.warn("debutkit 추첨 연출", error);
         root.replaceChildren();
+      } finally {
+        release();
       }
     }
     busy = false;
@@ -642,46 +849,56 @@
   }
 
   // 연결할 때(다시 연결 포함) 받는 첫 값: 추첨은 지난 결과라 재생하지 않고, 참여 추첨은 현재 모집 상태라 그대로 표시(참가 알림만 생략)
-  let first = true;
-  let raffleFirst = true;
-  const source = new EventSource("/live?feeds=draw,raffle");
-  source.addEventListener("open", () => {
-    first = true;
-    raffleFirst = true;
-  });
-  source.addEventListener("draw", (message) => {
-    const result = JSON.parse(message.data);
-    if (first) {
-      first = false;
-      return;
-    }
-    accept(result);
-  });
-  source.addEventListener("raffle", (message) => {
-    const data = JSON.parse(message.data);
-    if (data.type === "status") {
-      if (data.open && !raffleBar) refreshDisplay().then(() => raffleStatus(data, raffleFirst));
-      else raffleStatus(data, raffleFirst);
-    } else if (!raffleFirst) {
-      acceptRaffle(data);
-    }
-    raffleFirst = false;
-  });
-
-  // 미리보기(?sample=card 또는 ?sample=wheel): 저장한 설정으로 예시 추첨을 이 화면에서만 표시. OBS와 다른 화면에는 나가지 않음
+  // 미리보기(?sample)는 실시간 연결을 열지 않는다(조작 화면의 미리보기가 OBS 소스와 같은 주소의 동시 연결 수를 나눠 쓰지 않게)
   const sample = params.get("sample");
+  // 공유 연결(live.js): 연결(다시 연결 포함) 직후의 값(initial)은 지난 결과나 현재 상태라 연출하지 않는다
+  if (!sample) {
+    window.debutkitLive.subscribe(["draw", "raffle", "theme"], (feed, data, initial) => {
+      if (feed === "theme") {
+        if (!initial && !busy) location.reload();  // 소품의 색은 불러올 때 정해서 새로 불러옴
+      } else if (feed === "draw") {
+        if (!initial) accept(data);
+      } else if (feed === "raffle") {
+        if (data.type === "status") {
+          if (data.open && !raffleBar) refreshDisplay().then(() => raffleStatus(data, initial));
+          else raffleStatus(data, initial);
+        } else if (!initial) {
+          acceptRaffle(data);
+        }
+      }
+    });
+  }
+
+  // 미리보기(?sample=card, wheel, capsule 등): 저장한 상품표로 예시 추첨을 이 화면에서만 표시. OBS와 다른 화면에는 나가지 않음
+  // 표시 설정은 주소로 바꿔 볼 수 있음(조작 화면의 미리보기가 저장 전 값을 보여 줌): design, effect, name_font, name_size, caption_font,
+  // caption_size, title, position, scale, percent(1, 0), advice(1, 0), advice_text. result=rare(miss, normal)는 결과 종류, 기본은 섞어서
   if (STYLES.includes(sample)) {
     document.body.classList.add("sample");
     if (params.get("bg") === "light") document.body.classList.add("light");
     fetch("/draw/config").then((response) => response.json()).then((config) => {
+      Object.assign(FONTS, config.font_css || {});
       const prizes = config.prizes;
       const rare = prizes.find((prize) => prize.rare) || prizes[prizes.length - 1];
       const others = prizes.filter((prize) => prize !== rare);
+      const kind = params.get("result");
+      const pool = kind === "rare" ? [rare] : kind === "miss" ? prizes.filter((prize) => prize.miss)
+        : kind === "normal" ? prizes.filter((prize) => !prize.rare && !prize.miss) : null;
       const count = Math.max(1, Math.min(30, Number(params.get("count")) || (sample === "wheel" ? 1 : 3)));
-      const draws = count === 1 ? [rare] : Array.from({ length: count }, (_, index) => (index === 1 ? rare : others[index % others.length] || rare));
+      const draws = pool && pool.length ? Array.from({ length: count }, (_, index) => pool[index % pool.length])
+        : count === 1 ? [rare] : Array.from({ length: count }, (_, index) => (index === 1 ? rare : others[index % others.length] || rare));
+      const pick = (name, choices) => (choices && params.get(name) in choices ? params.get(name) : config[name]);
+      const percent = params.get("percent");
+      const advice = params.has("advice") ? params.get("advice") === "1" : config.advice;
+      const title = (params.get("title") || "").trim().slice(0, 20);
+      const scale = Number(params.get("scale"));
       accept({ seq: 1, time: Date.now() / 1000, test: false, name: "고양이집사", platform: "chzzk", kind: "donation", amount: count === 1 ? 1000 : 5000,
-               unit: "원", count, draws, prizes, style: sample, seconds: 600, title: config.title, position: config.position, scale: config.scale,
-               sound: config.sound, show_percent: config.show_percent });
+               unit: "원", count, draws, prizes, style: sample, seconds: 600, title: title || config.title,
+               position: pick("position", config.positions), scale: scale >= 60 && scale <= 140 ? scale : config.scale,
+               sound: params.has("mute") ? false : config.sound,  // 그림 견본(mute)은 소리 없이
+               show_percent: percent === null ? config.show_percent : percent === "1", design: pick("design", (config.designs || {})[sample]),
+               effect: pick("effect", config.effects), name_font: pick("name_font", config.fonts), name_size: pick("name_size", config.sizes),
+               caption_font: pick("caption_font", config.fonts), caption_size: pick("caption_size", config.sizes),
+               advice: sample === "tarot" && advice ? (params.get("advice_text") || config.advice_example).slice(0, 40) : "" });
     });
   }
   // 참여 추첨 미리보기(?sample=raffle 당첨 카드, order 순서표, recruit 모집 띠): 예시 이름으로 이 화면에서만 표시
@@ -704,5 +921,5 @@
       acceptRaffle({ type: "result", seq: 1, mode: sample === "order" ? "order" : "pick", title: "시청자 추첨", total: 37, winners, more: 0 });
     }
   }
-  window.debutkitDraw = { accept, acceptRaffle, queue, summary, layout };  // 시험용
+  window.debutkitDraw = { accept, acceptRaffle, queue, summary, layout, styles: STYLES, pace: () => pace };  // 시험용
 })();

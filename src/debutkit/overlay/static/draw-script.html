@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>debutkit 추첨 대본</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <style>
+    /* 스트리머가 읽는 대본 창(따로 띄우는 창이나 OBS 독). 방송에는 나가지 않는다 */
+    :root { color-scheme: light; --bg: #ffffff; --panel: #faf7f5; --line: #e3dfdb; --text: #1e2327; --dim: #5b6670; --pink: #ff4f8b; --gold: #ffd84d; --size: 36px; }
+    body.dark { color-scheme: dark; --bg: #1e2327; --panel: #262d33; --line: #3a4249; --text: #faf7f5; --dim: #b9c0c6; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.6 "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; }
+    header { display: flex; align-items: center; gap: 8px; padding: 10px 18px; border-bottom: 1px solid var(--line); }
+    header img { width: 22px; height: 22px; }
+    header h1 { font-size: 15px; margin: 0 auto 0 0; }
+    button { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 3px; padding: 4px 10px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+    button:hover { border-color: var(--dim); }
+    main { padding: 18px 22px 40px; }
+    .state { color: var(--dim); font-size: 13px; }
+    .state.error { color: #d9534f; }
+    .latest { border-left: 6px solid var(--pink); padding: 4px 0 8px 18px; }
+    .latest.fresh { animation: fresh 1.6s ease-out; }
+    .meta { color: var(--dim); font-size: 14px; }
+    .who { font-size: calc(var(--size) * 0.8); font-weight: 700; line-height: 1.3; }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+    .chips span { padding: 2px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); font-size: calc(var(--size) * 0.55); font-weight: 700; }
+    .chips span.rare { background: var(--gold); border-color: #c9971c; color: #1e2327; }
+    .chips span.miss { color: var(--dim); font-weight: 600; }
+    .chips small { margin-left: 4px; font-size: 0.75em; color: var(--dim); }
+    .chips span.rare small { color: #5b4a10; }
+    .script { margin: 8px 0 0; font-size: var(--size); line-height: 1.45; font-weight: 700; word-break: keep-all; }
+    .row { display: flex; gap: 8px; align-items: center; margin-top: 12px; }
+    h2 { font-size: 14px; color: var(--dim); margin: 28px 0 6px; }
+    ol { list-style: none; margin: 0; padding: 0; }
+    ol li { border-top: 1px solid var(--line); padding: 10px 0; display: flex; gap: 10px; align-items: flex-start; }
+    ol li p { margin: 0; flex: 1; font-size: calc(var(--size) * 0.5); line-height: 1.5; word-break: keep-all; }
+    ol li .meta { display: block; font-size: 13px; }
+    .empty { color: var(--dim); font-size: 18px; }
+    @keyframes fresh { from { background: rgba(255, 79, 139, 0.18); } to { background: transparent; } }
+  </style>
+</head>
+<body>
+<header>
+  <img src="/favicon.svg" alt="">
+  <h1>추첨 대본</h1>
+  <button id="smaller" aria-label="글자 작게">가-</button>
+  <button id="bigger" aria-label="글자 크게">가+</button>
+  <button id="theme">어둡게</button>
+</header>
+<main>
+  <div id="latest"><p class="empty">아직 추첨 결과가 없습니다. 후원 추첨이 되면 읽을 문장이 여기에 바로 나타납니다.</p></div>
+  <h2>이전 결과</h2>
+  <ol id="older"></ol>
+  <p class="state" id="state"></p>
+</main>
+<script>
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const el = (tag, className, text) => {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  };
+  const PLATFORMS = { chzzk: "치지직", soop: "SOOP", twitch: "Twitch", youtube: "YouTube", demo: "시험" };
+  const results = [];  // 최근 결과(새것부터), 최대 5개
+
+  // 글자 크기, 어둡게: 이 브라우저에만 기억
+  const SIZES = [24, 30, 36, 44, 54, 64];
+  let size = Number(localStorage.getItem("debutkit-draw-script-size")) || 36;
+  const applySize = () => document.documentElement.style.setProperty("--size", `${size}px`);
+  const step = (direction) => {
+    const index = Math.max(0, Math.min(SIZES.length - 1, SIZES.findIndex((value) => value >= size) + direction));
+    size = SIZES[index];
+    localStorage.setItem("debutkit-draw-script-size", String(size));
+    applySize();
+  };
+  $("smaller").addEventListener("click", () => step(-1));
+  $("bigger").addEventListener("click", () => step(1));
+  const applyTheme = (dark) => {
+    document.body.classList.toggle("dark", dark);
+    $("theme").textContent = dark ? "밝게" : "어둡게";
+  };
+  $("theme").addEventListener("click", () => {
+    const dark = !document.body.classList.contains("dark");
+    localStorage.setItem("debutkit-draw-script-dark", dark ? "1" : "");
+    applyTheme(dark);
+  });
+  applySize();
+  applyTheme(Boolean(localStorage.getItem("debutkit-draw-script-dark")));
+
+  function amountText(result) {
+    if (result.kind === "member") return "구독";
+    const count = Number(result.amount).toLocaleString("ko-KR");
+    if (result.unit === "원") return `${count}원`;
+    if (result.unit === "별풍선" || result.unit === "애드벌룬") return `${result.unit} ${count}개`;
+    return `${count} ${result.unit}`.trim();
+  }
+
+  function metaText(result) {
+    const at = new Date(result.time * 1000);
+    const time = [at.getHours(), at.getMinutes(), at.getSeconds()].map((part) => String(part).padStart(2, "0")).join(":");
+    return `${time}, ${PLATFORMS[result.platform] || result.platform}, ${amountText(result)}, 추첨 ${result.count}회${result.test ? ", 시험" : ""}`;
+  }
+
+  function grouped(draws) {  // 같은 상품은 횟수로 묶고 희귀, 일반, 꽝 순서
+    const found = new Map();
+    for (const item of draws) {
+      const entry = found.get(item.name) || { ...item, count: 0 };
+      entry.count += 1;
+      found.set(item.name, entry);
+    }
+    const rank = (item) => (item.rare ? 0 : item.miss ? 2 : 1);
+    return [...found.values()].sort((a, b) => rank(a) - rank(b));
+  }
+
+  async function copy(text, button) {
+    try { await navigator.clipboard.writeText(text); button.textContent = "복사됨"; }
+    catch { button.textContent = "복사 실패"; }
+    setTimeout(() => (button.textContent = "복사"), 1500);
+  }
+
+  function render(fresh) {
+    const [top, ...rest] = results;
+    if (!top) return;
+    const box = el("div", `latest${fresh ? " fresh" : ""}`);
+    box.append(el("div", "meta", metaText(top)), el("div", "who", `${top.name} 님`));
+    const chips = el("div", "chips");
+    for (const item of grouped(top.draws)) {
+      const chip = el("span", item.rare ? "rare" : item.miss ? "miss" : "", item.name);
+      if (item.count > 1) chip.appendChild(el("small", "", `${item.count}회`));
+      chips.appendChild(chip);
+    }
+    box.append(chips, el("p", "script", top.script));
+    const row = el("div", "row");
+    const button = el("button", "", "복사");
+    button.addEventListener("click", () => copy(top.script, button));
+    row.appendChild(button);
+    box.appendChild(row);
+    $("latest").replaceChildren(box);
+    $("older").replaceChildren(...rest.map((result) => {
+      const item = el("li");
+      const text = el("p", "", result.script);
+      text.prepend(el("span", "meta", metaText(result)));
+      const again = el("button", "", "복사");
+      again.addEventListener("click", () => copy(result.script, again));
+      item.append(text, again);
+      return item;
+    }));
+  }
+
+  function add(result, fresh) {
+    if (!result || !result.seq || !Array.isArray(result.draws) || !result.draws.length) return;
+    if (results.some((known) => known.seq === result.seq && known.time === result.time)) return;
+    results.unshift(result);
+    results.sort((a, b) => b.time - a.time);
+    results.length = Math.min(results.length, 5);
+    render(fresh);
+  }
+
+  // 처음에는 최근 결과, 그다음은 실시간(/live?feeds=draw). 연결이 끊기면 브라우저가 다시 연결
+  fetch("/draw/history", { cache: "no-store" }).then((response) => response.json()).then((data) => {
+    for (const result of [...data.results].slice(0, 5).reverse()) add(result, false);
+  }).catch(() => null);
+  // 연결할 때 받는 첫 값은 지난 결과(강조하지 않음)
+  let first = true;
+  const source = new EventSource("/live?feeds=draw");
+  source.addEventListener("open", () => {
+    first = true;
+    $("state").textContent = "";
+  });
+  source.addEventListener("error", () => {
+    $("state").textContent = "오버레이에 연결하지 못함(오버레이 실행 확인). 다시 연결하는 중";
+    $("state").classList.add("error");
+  });
+  source.addEventListener("draw", (message) => {
+    $("state").classList.remove("error");
+    add(JSON.parse(message.data), !first);
+    first = false;
+  });
+</script>
+</body>
+</html>

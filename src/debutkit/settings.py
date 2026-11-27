@@ -29,6 +29,8 @@ FIELDS: dict[str, type] = {
     "demo": bool,
     "clip": bool,
     "clip_dir": str,
+    "clip_gif": bool,  # 자동 클립마다 움짤(GIF)도 만들기(clipfx.py)
+    "clip_shorts": bool,  # 자동 클립마다 세로 쇼츠(1080x1920)도 만들기
     "overlay_port": int,
     "obs_port": int,
     "avatar_app": str,
@@ -53,6 +55,14 @@ FIELDS: dict[str, type] = {
     "draw_scale": int,
     "draw_sound": bool,
     "draw_show_percent": bool,
+    "draw_design": str,  # 연출별 모양
+    "draw_effect": str,  # 결과 뒤 효과
+    "draw_name_font": str,  # 상품 이름 글꼴, 크기
+    "draw_name_size": str,
+    "draw_caption_font": str,  # 안내 글(하단 띠, 한마디) 글꼴, 크기
+    "draw_caption_size": str,
+    "draw_advice": bool,  # 타로 오늘의 한마디
+    "draw_advice_lines": list,
     "chat_commands": bool,  # 스트리머, 매니저 채팅 명령(commands.py)
     "raffle_command": str,  # 시청자 참여 추첨 참가 명령
     "raffle_title": str,
@@ -135,6 +145,32 @@ def save(values: dict[str, Any], path: Path | None = None) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(path.name + ".tmp")
     temporary.write_text(json.dumps({"version": VERSION, "settings": clean(values)}, ensure_ascii=False, indent=2), encoding="utf-8")
+    os.replace(temporary, path)
+    return path
+
+
+def data_path(name: str) -> Path:
+    """설정 파일과 같은 폴더의 기능별 파일(예: ``pick.json``). 뽑기판, 후원 벽처럼 구조가 있는 설정과 기록."""
+    if not name or "/" in name or "\\" in name or name.startswith("."):
+        raise ValueError(f"잘못된 파일 이름: {name}")
+    return settings_path().parent / name
+
+
+def load_data(name: str) -> dict[str, Any]:
+    """기능별 파일 읽기. 없거나 손상되었으면 빈 값(기능이 기본값으로 시작)."""
+    try:
+        data = json.loads(data_path(name).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def save_data(name: str, values: dict[str, Any]) -> Path:
+    """기능별 파일 쓰기(임시 파일에 쓴 뒤 바꿔 중간에 깨지지 않게). API 키, 비밀번호는 넣지 않는다."""
+    path = data_path(name)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(path.name + ".tmp")
+    temporary.write_text(json.dumps(values, ensure_ascii=False, indent=2), encoding="utf-8")
     os.replace(temporary, path)
     return path
 

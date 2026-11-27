@@ -1,0 +1,359 @@
+/* debutkit 후원 벽, 목표 게이지, 후원 순위: "방송 소품" 콘셉트(draw.css와 같은 색과 그림자).
+   잉크 #1e2327, 종이 #faf7f5, 핑크 인쇄, 금박은 가장 높은 단계 전용. 흐림 없는 딱딱한 그림자와 외곽선.
+   벽은 1920x1080 무대를 OBS 소스 크기에 맞춰 줄인다. OBS 28(Chromium 103) 호환: translate, scale 속성, :has, 색 섞기 함수 쓰지 않음.
+   OBS 사용자 지정 CSS로 덮어쓸 수 있음(예: .wl-front { border-radius: 0; }) */
+
+@font-face { font-family: "Black Han Sans"; src: url("/vendor/fonts/BlackHanSans-Regular.woff2") format("woff2"); font-display: block; }
+@font-face { font-family: "Pretendard"; src: url("/vendor/fonts/Pretendard-SemiBold.subset.woff2") format("woff2"); font-weight: 600; font-display: block; }
+@font-face { font-family: "Pretendard"; src: url("/vendor/fonts/Pretendard-Bold.subset.woff2") format("woff2"); font-weight: 700; font-display: block; }
+
+:root {
+  --ink: #1e2327;
+  --ink-soft: #3a4249;
+  --paper: #faf7f5;
+  --paper-dim: #e6e1dc;
+  --pink: var(--dk-primary, #ff4f8b);  /* 방송 색(/theme.css). 이름은 기본 색에서 온 것 */
+  --pink-deep: var(--dk-primary-deep, #bf3b68);
+  --pink-light: var(--dk-primary-light, #ffb3cb);
+  --gold: var(--dk-highlight, #ffd84d);
+  --gold-deep: var(--dk-highlight-deep, #c9971c);
+  --muted: #5b6670;
+  --hard: rgba(30, 35, 39, 0.88);
+  --display: var(--dk-display, "Black Han Sans", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif);  /* 방송 스타일과 고른 글꼴(/theme.css) */
+  --text: var(--dk-text, "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif);
+  --grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.12 0 0 0 0 0.14 0 0 0 0 0.15 0 0 0 0.09 0'/></filter><rect width='120' height='120' filter='url(%23n)'/></svg>");
+  --star: polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%);
+}
+
+body.bg-dark { background: #59626a; }   /* 확인용 배경(?bg=dark) */
+body.bg-light { background: #e9e4dd; }  /* 밝은 게임 화면 위 확인용(?bg=light) */
+#wall-root { position: fixed; inset: 0; overflow: hidden; font-family: var(--text); color: var(--ink); user-select: none; -webkit-user-select: none; }
+
+/* ================================================================ 벽 */
+.wl-stage { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; pointer-events: none; }
+.wl-empty { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 18px 26px; background: rgba(30, 35, 39, 0.82);
+  color: var(--paper); border: 3px dashed rgba(250, 247, 245, 0.7); font: 700 26px/1.4 var(--text); text-align: center; display: none; }
+.edit .wl-empty { display: block; }
+.wl-empty[hidden] { display: none !important; }
+
+.wl-col { position: absolute; pointer-events: auto; visibility: hidden; --w: 200px; --h: 600px;
+  transition: left 0.55s cubic-bezier(0.2, 0.9, 0.3, 1), top 0.55s cubic-bezier(0.2, 0.9, 0.3, 1), width 0.55s cubic-bezier(0.2, 0.9, 0.3, 1), height 0.55s cubic-bezier(0.2, 0.9, 0.3, 1); }
+.wl-col.shown { visibility: visible; }
+.wl-col.dragging { transition: none; z-index: 50; }
+.wl-col.reveal .wl-head { animation: col-in 0.6s cubic-bezier(0.2, 1.3, 0.4, 1) both; }
+.wl-col.leaving { transition: opacity 0.4s ease-in 0.5s; opacity: 0; pointer-events: none; }
+
+/* 칸 머리: 잉크 판 + 핑크 이름표 + 큰 숫자. 시그니처는 그림 액자와 금색 이름표 */
+.wl-head { position: relative; cursor: grab; }
+.wl-plate { position: relative; background: var(--ink); color: var(--paper); border: 3px solid var(--ink); box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.35); padding: 8px 12px 9px; }
+.wl-line { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.wl-tag { padding: 4px 8px 3px; background: var(--pink); color: var(--ink); font: 18px/1 var(--display); font-size: min(18px, calc(var(--w) * 0.11)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wl-count { font: 700 17px/1 var(--text); color: var(--pink-light); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.wl-count.bump { animation: bump 0.45s cubic-bezier(0.2, 1.5, 0.4, 1); }
+.wl-number { margin-top: 7px; font: 42px/1.02 var(--display); white-space: nowrap; overflow: hidden; letter-spacing: -0.01em; }
+.wl-number small { margin-left: 3px; font: 700 0.48em/1 var(--text); color: var(--pink-light); letter-spacing: 0; }
+.wl-title { margin-top: 7px; font: 32px/1.05 var(--display); white-space: nowrap; overflow: hidden; color: var(--gold); }
+.wl-title + .wl-number { margin-top: 2px; }
+.wl-art { position: relative; height: min(calc(var(--w) * 0.5), calc(var(--h) * 0.22)); margin-bottom: 8px; background: var(--paper) var(--grain); border: 3px solid var(--ink);
+  box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.35); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.wl-art img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
+.wl-col[data-kind="sig"] .wl-art { height: min(calc(var(--w) * 0.72), calc(var(--h) * 0.3)); border-color: var(--gold-deep); box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.35), inset 0 0 0 4px var(--gold); }
+.wl-col[data-kind="sig"] .wl-tag { background: var(--gold); }
+.wl-col[data-kind="sig"] .wl-plate { border-color: var(--ink); }
+.wl-col[data-kind="sig"] .wl-plate::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(115deg, transparent 38%, rgba(255, 216, 77, 0.22) 48%, transparent 58%); background-size: 280% 100%; animation: sheen 5s ease-in-out infinite; }
+.wl-col.hit .wl-art, .wl-col.hit .wl-plate { animation: hit 0.6s cubic-bezier(0.2, 1.4, 0.4, 1); }
+.wl-col[data-kind="solo"] .wl-tag { background: var(--paper); }
+
+/* 카드 자리: 오래된 카드 위에 새 카드가 겹쳐 쌓인다(겹치면 이름 줄만 보임) */
+.wl-body { position: absolute; left: 4px; right: 4px; bottom: 0; }
+.wl-more { position: absolute; left: 0; right: 0; top: 0; height: 24px; display: flex; align-items: center; justify-content: center;
+  background: repeating-linear-gradient(135deg, rgba(30, 35, 39, 0.82) 0 6px, rgba(58, 66, 73, 0.82) 6px 12px); color: var(--paper);
+  border: 2px solid var(--ink); font: 700 15px/1 var(--text); }
+.wl-more[hidden] { display: none; }
+.wl-card { position: absolute; left: 0; right: 0; top: 0; height: 64px; transition: top 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.1); }
+.no-names .wl-card { height: 46px; }
+.wl-card.tucked { display: none; }
+.wl-card.leave { transition: transform 0.45s ease-in, opacity 0.45s ease-in; transition-delay: calc(var(--i, 0) * 12ms); transform: translateY(40px) rotate(6deg); opacity: 0; }
+.wl-tilt { position: absolute; inset: 0; transform: rotate(var(--rot, 0deg)); perspective: 700px; }
+.wl-face { position: absolute; inset: 0; transform-style: preserve-3d; }
+.wl-front { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: space-between; padding: 5px 10px 6px 16px;
+  background: var(--paper) var(--grain); border: 3px solid var(--ink); border-radius: 6px; box-shadow: 4px 5px 0 var(--hard); overflow: hidden; box-sizing: border-box; }
+.wl-edge { position: absolute; left: 0; top: 0; bottom: 0; width: 7px; background: var(--platform, var(--pink)); border-right: 2px solid var(--ink); }
+.wl-name { position: relative; font: 700 19px/1.15 var(--text); font-size: min(19px, calc(var(--w) * 0.105)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 2px; }
+.wl-amount { position: relative; align-self: flex-end; max-width: 100%; font: 25px/1 var(--display); font-size: min(25px, calc(var(--w) * 0.135));
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wl-card.covered .wl-amount, .wl-card.covered .wl-test { visibility: hidden; }  /* 겹쳐 가려진 카드는 이름 줄만 */
+.no-names .wl-front { justify-content: center; }
+.no-names .wl-amount { align-self: flex-start; font-size: min(26px, calc(var(--w) * 0.14)); }
+/* 닉네임 숨김: 겹친 카드는 금액을 위쪽에 작게 */
+.no-names .wl-card.covered .wl-front { justify-content: flex-start; padding-top: 3px; }
+.no-names .wl-card.covered .wl-amount { visibility: visible; font-size: min(19px, calc(var(--w) * 0.1)); }
+.no-names .wl-test { top: 50%; transform: translateY(-50%); }
+.wl-card.name-only .wl-front { justify-content: center; }
+.wl-card.name-only .wl-name { font-size: min(21px, calc(var(--w) * 0.115)); }
+.wl-card.test .wl-name { padding-right: 34px; }
+.wl-test { position: absolute; right: 5px; top: 4px; padding: 2px 5px 1px; background: var(--ink); color: var(--gold); font: 700 11px/1 var(--text); }
+.wl-card.fresh .wl-front { animation: fresh 2.4s ease-out both; }
+
+/* ---------------------------------------------------------------- 오라(금액 단계). --aura: 세기 0.3~2 */
+.wl-card.aura .wl-front::before { content: ""; position: absolute; inset: -40%; pointer-events: none; opacity: calc(0.3 * var(--aura, 1));
+  background: radial-gradient(closest-side at 12% 22%, rgba(255, 178, 92, 0.85), transparent), radial-gradient(closest-side at 94% 88%, rgba(255, 79, 139, 0.6), transparent);
+  animation: leak 5s ease-in-out infinite alternate; }
+.wl-card.aura .wl-tilt { filter: drop-shadow(0 0 calc(7px * var(--aura, 1)) rgba(255, 140, 170, calc(0.75 * var(--aura, 1)))); }
+.wl-card.aura-shimmer .wl-front::after, .wl-card.aura-stardust .wl-front::after, .wl-card.aura-gold .wl-front::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; opacity: calc(0.45 + 0.15 * var(--aura, 1));
+  background: linear-gradient(115deg, transparent 34%, rgba(255, 255, 255, 0.8) 46%, rgba(255, 236, 160, 0.45) 52%, transparent 62%); background-size: 280% 100%;
+  animation: sheen calc(3.2s / var(--aura, 1)) ease-in-out infinite; animation-delay: calc(var(--seed, 0) * -3s); }
+.wl-card.aura-stardust .wl-tilt { filter: drop-shadow(0 0 calc(10px * var(--aura, 1)) rgba(255, 216, 77, calc(0.6 * var(--aura, 1)))); }
+.wl-card.aura-gold .wl-front { background: linear-gradient(160deg, #fff1a8, var(--gold) 45%, #f0bd2e) ; border-color: var(--ink); box-shadow: 4px 5px 0 var(--hard), inset 0 0 0 3px #fff4c2; }
+.wl-card.aura-gold .wl-tilt { filter: drop-shadow(0 0 calc(12px * var(--aura, 1)) rgba(255, 216, 77, calc(0.85 * var(--aura, 1)))); }
+.wl-card.aura-gold .wl-edge { border-right-color: var(--ink); }
+.wl-stars { position: absolute; inset: -14px -10px; pointer-events: none; }
+.wl-stars i { position: absolute; width: var(--s, 12px); height: var(--s, 12px); margin: calc(var(--s, 12px) / -2); background: var(--c, var(--gold)); clip-path: var(--star);
+  animation: twinkle calc(1.8s + var(--d, 0s)) ease-in-out infinite; animation-delay: calc(var(--d, 0s) * -2); }
+
+/* ---------------------------------------------------------------- 등장 연출(--speed: 빠른 진행이면 0.42) */
+.wl-card.enter { z-index: 40 !important; }
+.wl-card.enter .wl-face { animation-duration: calc(var(--dur, 800ms) * var(--speed, 1)); animation-fill-mode: both; }
+.in-pop .wl-face { --dur: 700ms; animation-name: in-pop; animation-timing-function: cubic-bezier(0.2, 0.9, 0.3, 1); }
+.in-drop .wl-face { --dur: 900ms; animation-name: in-drop; animation-timing-function: linear; transform-origin: 50% 100%; }
+.in-sparkle .wl-face { --dur: 900ms; animation-name: in-sparkle; animation-timing-function: ease-out; }
+.in-stamp .wl-face { --dur: 700ms; animation-name: in-stamp; animation-timing-function: cubic-bezier(0.3, 0.7, 0.3, 1); }
+.in-unfold .wl-face { --dur: 900ms; animation-name: in-unfold; animation-timing-function: ease-out; transform-origin: 50% 0; }
+.in-jelly .wl-face { --dur: 1000ms; animation-name: in-jelly; animation-timing-function: ease-out; transform-origin: 50% 100%; }
+.in-trace .wl-face { --dur: 1100ms; animation-name: in-trace; animation-timing-function: ease-out; }
+/* 선 그리기: 테두리 선(얼굴 안)은 보이고 카드 종이만 나중에 채워짐 */
+.in-trace .wl-front { animation: in-trace-fill calc(1100ms * var(--speed, 1)) ease-out both; }
+.wl-card.fresh.in-trace .wl-front { animation: in-trace-fill calc(1100ms * var(--speed, 1)) ease-out both, fresh 2.4s ease-out both; }
+.in-bubble .wl-face { --dur: 1200ms; animation-name: in-bubble; animation-timing-function: cubic-bezier(0.3, 0.8, 0.3, 1); }
+.in-flip .wl-face { --dur: 1000ms; animation-name: in-flip; animation-timing-function: ease-in-out; }
+.in-flip .wl-front { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.in-tape .wl-face { --dur: 800ms; animation-name: in-tape; animation-timing-function: cubic-bezier(0.2, 0.9, 0.3, 1.2); transform-origin: 50% 0; }
+
+.wl-burst { position: absolute; left: 50%; top: 50%; width: 0; height: 0; pointer-events: none; }
+.wl-burst i { position: absolute; width: 14px; height: 14px; margin: -7px; background: var(--c, var(--gold)); clip-path: var(--star);
+  animation: burst 0.9s cubic-bezier(0.2, 0.8, 0.3, 1) var(--d, 0ms) both; }
+.wl-ring { position: absolute; inset: -6px; border: 4px solid var(--pink); border-radius: 10px; pointer-events: none; animation: ring 0.7s ease-out 0.35s both; }
+.wl-dust { position: absolute; left: -12px; right: -12px; bottom: -10px; height: 20px; pointer-events: none; }
+.wl-dust i { position: absolute; bottom: 0; width: 22px; height: 12px; border-radius: 50%; background: rgba(250, 247, 245, 0.9); border: 2px solid var(--ink);
+  animation: dust 0.6s ease-out 0.5s both; }
+.wl-dust i:first-child { left: 0; --x: -20px; }
+.wl-dust i:last-child { right: 0; --x: 20px; }
+.wl-crease { position: absolute; inset: 0; border-radius: 6px; pointer-events: none;
+  background: linear-gradient(180deg, rgba(30, 35, 39, 0.35), transparent 30%, rgba(30, 35, 39, 0.18) 50%, transparent 70%); animation: fade-out 0.9s ease-in both; }
+.wl-trace { position: absolute; inset: -4px; width: calc(100% + 8px); height: calc(100% + 8px); overflow: visible; pointer-events: none; }
+.wl-trace rect { fill: none; stroke: var(--pink); stroke-width: 4px; stroke-dasharray: 100; stroke-dashoffset: 100; animation: trace 0.65s ease-in-out both, fade-out 0.4s ease-in 0.9s forwards; }
+.wl-bubble { position: absolute; inset: -16px -12px; border-radius: 999px; pointer-events: none; border: 2px solid rgba(255, 255, 255, 0.85);
+  background: radial-gradient(ellipse at 28% 26%, rgba(255, 255, 255, 0.8) 0 8%, transparent 14%), radial-gradient(ellipse at center, rgba(255, 179, 203, 0.05) 55%, rgba(255, 179, 203, 0.45));
+  animation: bubble 1.2s ease-out both; }
+.wl-drops { position: absolute; left: 50%; top: 50%; width: 0; height: 0; pointer-events: none; }
+.wl-drops i { position: absolute; width: 9px; height: 9px; margin: -4px; border-radius: 50%; background: rgba(255, 255, 255, 0.9); border: 2px solid var(--pink-light);
+  animation: burst 0.55s ease-out 0.8s both; }
+.wl-back { position: absolute; inset: 0; border: 3px solid var(--ink); border-radius: 6px; transform: rotateY(180deg); backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  background: radial-gradient(circle, rgba(255, 79, 139, 0.35) 1.4px, transparent 2px) 0 0 / 10px 10px, var(--ink); box-shadow: 4px 5px 0 var(--hard); }
+.wl-back::before { content: ""; position: absolute; inset: 7px; border: 2px solid var(--pink); border-radius: 4px; }
+.wl-tape { position: absolute; inset: 0; pointer-events: none; animation: fade-out 0.6s ease-in 1.8s forwards; }
+.wl-tape i { position: absolute; top: -9px; width: 52px; height: 20px; background: rgba(255, 179, 203, 0.82); border-left: 2px dashed rgba(255, 255, 255, 0.7); border-right: 2px dashed rgba(255, 255, 255, 0.7);
+  transform: var(--t); animation: tape 0.3s cubic-bezier(0.2, 1.4, 0.4, 1) 0.4s both; }
+.wl-tape i:first-child { left: -14px; --t: rotate(-32deg); }
+.wl-tape i:last-child { right: -14px; --t: rotate(28deg); }
+
+/* ---------------------------------------------------------------- 대기 효과(최근 카드 80장만: .live) */
+.wl-card.settled.live .wl-face { animation-duration: var(--idle-dur, 3.4s); animation-iteration-count: infinite; animation-delay: calc(var(--seed, 0) * -4s); }
+[data-idle="bob"] .wl-card.settled.live .wl-face { --idle-dur: 3.2s; animation-name: idle-bob; animation-timing-function: ease-out; }
+[data-idle="float"] .wl-card.settled.live .wl-face { --idle-dur: 3.6s; animation-name: idle-float; animation-timing-function: ease-in-out; }
+[data-idle="sway"] .wl-card.settled.live .wl-face { --idle-dur: 3.4s; animation-name: idle-sway; animation-timing-function: ease-in-out; transform-origin: 50% -30px; }
+[data-idle="beat"] .wl-card.settled.live .wl-face { --idle-dur: 2.6s; animation-name: idle-beat; animation-timing-function: ease-out; }
+[data-idle="pulse"] .wl-card.settled.live .wl-face::after { content: ""; position: absolute; inset: -3px; border-radius: 9px; pointer-events: none;
+  box-shadow: 0 0 14px 4px rgba(255, 79, 139, 0.7), inset 0 0 0 2px rgba(255, 79, 139, 0.8); animation: idle-pulse 3s ease-in-out infinite; animation-delay: calc(var(--seed, 0) * -3s); }
+.wl-flash { position: absolute; inset: 0; pointer-events: none; overflow: hidden; display: none; }
+[data-idle="flash"] .wl-card.settled.live .wl-flash { display: block; }
+.wl-flash::before { content: ""; position: absolute; top: -20%; bottom: -20%; left: 0; width: 40%; transform: translateX(-120%) skewX(-18deg);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.95), transparent); }
+[data-idle="flash"] .wl-card.settled.live .wl-flash::before { animation: idle-flash 5.5s ease-in-out infinite; animation-delay: calc(var(--seed, 0) * -5.5s); }
+
+/* ---------------------------------------------------------------- 칸 옮기기(OBS 상호작용, 조작 화면 미리보기) */
+.wl-grip { position: absolute; right: -8px; bottom: -8px; width: 22px; height: 22px; background: var(--paper); border: 3px solid var(--ink); cursor: nwse-resize; display: none; z-index: 60;
+  box-shadow: 3px 3px 0 var(--hard); }
+.wl-grip::before { content: ""; position: absolute; inset: 4px; background: linear-gradient(135deg, transparent 45%, var(--ink) 45% 58%, transparent 58%); }
+.edit .wl-col, .wl-stage.hot .wl-col:hover, .wl-col.dragging { outline: 2px dashed rgba(250, 247, 245, 0.9); outline-offset: 5px; }
+.edit .wl-col.pinned, .wl-stage.hot .wl-col.pinned:hover { outline-color: rgba(255, 216, 77, 0.95); }
+.edit .wl-grip, .wl-stage.hot .wl-col:hover .wl-grip, .wl-col.dragging .wl-grip { display: block; }
+.wl-col.dragging .wl-head { cursor: grabbing; }
+
+/* ================================================================ 목표 게이지(설계 폭 1280, 소스 폭에 맞춰 줄임) */
+.wg { position: absolute; left: 0; top: 0; width: 1280px; padding: 18px 26px 0 20px; box-sizing: border-box; transform-origin: 0 0; }
+.wg-plate { position: relative; padding: 16px 22px 14px; background: var(--paper) var(--grain); border: 3px solid var(--ink); box-shadow: 6px 6px 0 var(--hard); }
+.wg-head { display: flex; align-items: center; gap: 18px; }
+.wg-tag { padding: 9px 14px 7px; background: var(--pink); font: 30px/1 var(--display); box-shadow: 3px 3px 0 var(--ink); white-space: nowrap; }
+.wg-value { font: 50px/1 var(--display); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.wg-value small { margin-left: 8px; font: 700 24px/1 var(--text); color: var(--muted); }
+.wg-pct { margin-left: auto; padding: 8px 14px 6px; background: var(--ink); color: var(--paper); font: 34px/1 var(--display); white-space: nowrap; }
+.wg-track { position: relative; height: 40px; margin-top: 16px; border: 3px solid var(--ink); background: repeating-linear-gradient(135deg, var(--paper-dim) 0 12px, #efebe7 12px 24px); }
+.wg-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-right: 3px solid var(--ink); box-sizing: border-box;
+  background: repeating-linear-gradient(135deg, var(--pink) 0 16px, #ff74a3 16px 32px); background-size: 45.25px 45.25px;
+  animation: stripes 1.4s linear infinite; transition: width 1.3s cubic-bezier(0.2, 0.9, 0.3, 1); }
+.wg-fill[data-empty] { border-right: 0; }
+.wg.done .wg-fill { background-image: repeating-linear-gradient(135deg, var(--gold) 0 16px, #ffe680 16px 32px); border-right: 0; }
+.wg.done .wg-pct { background: var(--gold); color: var(--ink); }
+.wg-tick { position: absolute; top: 0; bottom: 0; width: 3px; margin-left: -1.5px; background: var(--ink); }
+.wg-tick.reached { background: var(--paper); box-shadow: 0 0 0 1px var(--ink); }
+.wg-marks { position: relative; height: 34px; margin-top: 8px; }
+.wg-marks.two { height: 66px; }
+.wg-mark { position: absolute; top: 0; transform: translateX(-50%); display: flex; align-items: baseline; gap: 6px; padding: 4px 9px 3px; white-space: nowrap;
+  background: var(--paper); border: 2px solid var(--ink); box-shadow: 3px 3px 0 var(--hard); font: 700 17px/1.1 var(--text); }
+.wg-mark.low { top: 32px; }
+.wg-mark b { font: 19px/1 var(--display); font-weight: 400; }
+.wg-mark.edge-left { transform: none; }
+.wg-mark.edge-right { transform: translateX(-100%); }
+.wg-mark.reached { background: var(--gold); }
+.wg-mark.reached::before { content: ""; align-self: center; width: 10px; height: 6px; border-left: 3px solid var(--ink); border-bottom: 3px solid var(--ink); transform: translateY(-2px) rotate(-45deg); }
+.wg-mark.pop { animation: hit 0.7s cubic-bezier(0.2, 1.5, 0.4, 1); }
+.wg-stamp { position: absolute; right: 22px; top: -26px; padding: 8px 16px 6px; background: var(--gold); border: 3px solid var(--ink); box-shadow: 4px 4px 0 var(--hard);
+  font: 30px/1 var(--display); transform: rotate(6deg); animation: stamp-in 0.55s cubic-bezier(0.3, 0.7, 0.3, 1.3) both; }
+.wg-burst { position: absolute; width: 0; height: 0; pointer-events: none; z-index: 5; }
+.wg-burst i { position: absolute; width: 16px; height: 16px; margin: -8px; background: var(--c, var(--gold)); clip-path: var(--star); animation: burst 0.9s cubic-bezier(0.2, 0.8, 0.3, 1) both; }
+
+/* ================================================================ 후원 순위(설계 폭 560) */
+.wr { position: absolute; left: 0; top: 0; width: 560px; padding: 16px 22px 16px 14px; box-sizing: border-box; transform-origin: 0 0; }
+.wr-head { display: flex; align-items: stretch; background: var(--ink); color: var(--paper); border: 3px solid var(--ink); box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.35); }
+.wr-head .tag { padding: 10px 16px 8px; background: var(--pink); color: var(--ink); font: 28px/1 var(--display); white-space: nowrap; }
+.wr-head .basis { margin-left: auto; align-self: center; padding: 0 14px; font: 600 16px/1 var(--text); color: var(--pink-light); white-space: nowrap; }
+.wr-list { position: relative; margin-top: 12px; transition: height 0.5s ease; }
+.wr-row { position: absolute; left: 0; right: 0; height: 56px; display: flex; align-items: center; gap: 12px; padding-right: 14px; box-sizing: border-box;
+  background: var(--paper) var(--grain); border: 3px solid var(--ink); box-shadow: 4px 4px 0 var(--hard); transition: top 0.7s cubic-bezier(0.2, 0.9, 0.3, 1.1); }
+.wr-row.new { animation: col-in 0.55s cubic-bezier(0.2, 1.3, 0.4, 1) both; }
+.wr-row.gone { transition: opacity 0.4s ease-in; opacity: 0; }
+.wr-rank { align-self: stretch; width: 56px; display: flex; align-items: center; justify-content: center; background: var(--ink); color: var(--paper);
+  font: 28px/1 var(--display); border-right: 3px solid var(--ink); }
+.wr-row.r1 .wr-rank { background: var(--gold); color: var(--ink); }
+.wr-row.r2 .wr-rank { background: var(--paper-dim); color: var(--ink); }
+.wr-row.r3 .wr-rank { background: var(--pink-light); color: var(--ink); }
+.wr-row.r1 { height: 64px; border-color: var(--ink); box-shadow: 4px 4px 0 var(--hard), inset 0 0 0 3px var(--gold); }
+.wr-row.r1::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(115deg, transparent 38%, rgba(255, 236, 160, 0.55) 48%, transparent 58%); background-size: 280% 100%; animation: sheen 4.5s ease-in-out infinite; }
+.wr-dot { flex: none; width: 12px; height: 12px; background: var(--platform, var(--pink)); border: 2px solid var(--ink); }
+.wr-name { flex: 1; min-width: 0; font: 700 23px/1.2 var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wr-row.r1 .wr-name { font-size: 26px; }
+.wr-amount { font: 27px/1 var(--display); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.wr-amount.bump { animation: bump 0.5s cubic-bezier(0.2, 1.5, 0.4, 1); }
+.wr-row.empty { position: relative; justify-content: center; color: var(--muted); font: 700 20px/1 var(--text); padding: 0; }
+.wr-sub { display: inline-block; margin-top: 18px; padding: 6px 12px 5px; background: var(--ink); color: var(--paper); font: 20px/1 var(--display); box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.35); }
+.wr-sub[hidden], .wr-others[hidden] { display: none; }
+.wr-others { margin-top: 10px; }
+.wr-others .wr-row { height: 44px; }
+.wr-others .wr-name { font-size: 19px; }
+.wr-others .wr-amount { font-size: 21px; }
+
+/* ================================================================ 방송 스타일(/theme.css의 --dk-*, theme.js가 html에 data-dk-style)
+   방송 소품(prop)은 위 그대로. 다른 스타일은 카드, 칸 머리, 게이지, 순위 줄의 바탕, 테두리, 모서리, 그림자를 스타일에서 가져온다.
+   카드가 많아 흐림(backdrop-filter)은 쓰지 않음. 밝은 바탕(파스텔, 다이어리)과 어두운 바탕은 보조 글자 색만 다르다 */
+html[data-dk-style]:not([data-dk-style="prop"]) {
+  --wl-radius: min(var(--dk-radius, 10px), 14px);
+  --wl-line: var(--dk-line-width, 3px) var(--dk-line-style, solid) var(--dk-line, var(--ink));
+  --wl-soft: var(--dk-muted, var(--muted));
+}
+html[data-dk-style]:not([data-dk-style="prop"]) .wl-front,
+html[data-dk-style]:not([data-dk-style="prop"]) .wl-plate,
+html[data-dk-style]:not([data-dk-style="prop"]) .wl-art,
+html[data-dk-style]:not([data-dk-style="prop"]) .wg-plate,
+html[data-dk-style]:not([data-dk-style="prop"]) .wr-head,
+html[data-dk-style]:not([data-dk-style="prop"]) .wr-row {
+  background: var(--dk-surface); color: var(--dk-on-surface); border: var(--wl-line); border-radius: var(--wl-radius); box-shadow: var(--dk-shadow);
+}
+html[data-dk-style]:not([data-dk-style="prop"]) .wl-back { border-radius: var(--wl-radius); }
+html[data-dk-style]:not([data-dk-style="prop"]) .wl-edge { border-right: 0; }
+html[data-dk-style]:not([data-dk-style="prop"]) .wl-number,
+html[data-dk-style]:not([data-dk-style="prop"]) .wl-amount,
+html[data-dk-style]:not([data-dk-style="prop"]) .wg-value,
+html[data-dk-style]:not([data-dk-style="prop"]) .wr-amount { text-shadow: var(--dk-glow, none); }
+html[data-dk-style]:not([data-dk-style="prop"]) .wl-tag,
+html[data-dk-style]:not([data-dk-style="prop"]) .wg-tag,
+html[data-dk-style]:not([data-dk-style="prop"]) .wr-head .tag { background: var(--dk-tag-bg, var(--pink)); color: var(--dk-tag-text, var(--ink)); border-radius: calc(var(--wl-radius) * 0.5); }
+html[data-dk-style]:not([data-dk-style="prop"]) .wg-tag { box-shadow: none; }
+html[data-dk-style]:not([data-dk-style="prop"]) .wl-count,
+html[data-dk-style]:not([data-dk-style="prop"]) .wl-number small,
+html[data-dk-style]:not([data-dk-style="prop"]) .wg-value small,
+html[data-dk-style]:not([data-dk-style="prop"]) .wr-head .basis,
+html[data-dk-style]:not([data-dk-style="prop"]) .wr-row.empty { color: var(--wl-soft); }
+html[data-dk-tone="light"]:not([data-dk-style="prop"]) .wl-title { color: var(--pink-deep); }
+/* 시그니처 칸과 금빛 카드, 1등 줄은 스타일 위에서도 금빛 표시 유지 */
+html[data-dk-style]:not([data-dk-style="prop"]) .wl-col[data-kind="sig"] .wl-art { border-color: var(--gold-deep); box-shadow: var(--dk-shadow), inset 0 0 0 4px var(--gold); }
+html[data-dk-style]:not([data-dk-style="prop"]) .wl-col[data-kind="sig"] .wl-tag { background: var(--gold); color: var(--ink); }
+html[data-dk-style]:not([data-dk-style="prop"]) .wl-col[data-kind="solo"] .wl-tag { background: var(--paper); color: var(--ink); }
+html[data-dk-style]:not([data-dk-style="prop"]) .wl-card.aura-gold .wl-front { background: linear-gradient(160deg, #fff1a8, var(--gold) 45%, #f0bd2e); color: var(--ink); text-shadow: none; }
+html[data-dk-style]:not([data-dk-style="prop"]) .wl-card.aura-gold .wl-amount { text-shadow: none; }
+/* 목표 게이지 */
+html[data-dk-style]:not([data-dk-style="prop"]) .wg-pct { border-radius: calc(var(--wl-radius) * 0.6); }
+html[data-dk-style]:not([data-dk-style="prop"]) .wg-track { border: var(--wl-line); border-radius: calc(var(--wl-radius) * 0.6); overflow: hidden;
+  background: repeating-linear-gradient(135deg, rgba(128, 128, 128, 0.22) 0 12px, rgba(128, 128, 128, 0.1) 12px 24px); }
+html[data-dk-style="minimal"] .wg-track { border: 0; }
+html[data-dk-style]:not([data-dk-style="prop"]) .wg-fill { border-right: 0; }
+html[data-dk-style]:not([data-dk-style="prop"]) .wg-tick { background: var(--dk-on-surface); opacity: 0.55; }
+html[data-dk-style]:not([data-dk-style="prop"]) .wg-mark { background: var(--dk-surface); color: var(--dk-on-surface); border: var(--wl-line); border-radius: min(var(--wl-radius), 8px); box-shadow: var(--dk-shadow); }
+html[data-dk-style]:not([data-dk-style="prop"]) .wg-mark.reached { background: var(--gold); color: var(--ink); }
+html[data-dk-style]:not([data-dk-style="prop"]) .wg-stamp { border-radius: calc(var(--wl-radius) * 0.6); }
+/* 후원 순위: 둥근 줄 안에 순위 칸이 맞도록 잘라 냄 */
+html[data-dk-style]:not([data-dk-style="prop"]) .wr-head, html[data-dk-style]:not([data-dk-style="prop"]) .wr-row { overflow: hidden; }
+html[data-dk-style]:not([data-dk-style="prop"]) .wr-rank { border-right: var(--wl-line); }
+html[data-dk-style]:not([data-dk-style="prop"]) .wr-row.r1 { box-shadow: var(--dk-shadow), inset 0 0 0 3px var(--gold); }
+html[data-dk-style]:not([data-dk-style="prop"]) .wr-sub { border-radius: calc(var(--wl-radius) * 0.6); }
+
+/* ================================================================ 움직임 */
+@keyframes col-in { from { transform: translateY(-36px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes bump { 40% { transform: scale(1.35); color: var(--gold); } }
+@keyframes hit { 30% { transform: scale(1.06) rotate(-1deg); } 60% { transform: scale(0.98) rotate(0.5deg); } }
+@keyframes sheen { from { background-position: 120% 0; } to { background-position: -40% 0; } }
+@keyframes fresh { 0% { box-shadow: 4px 5px 0 var(--hard), 0 0 0 4px var(--pink); } 70% { box-shadow: 4px 5px 0 var(--hard), 0 0 0 4px var(--pink); } 100% { box-shadow: 4px 5px 0 var(--hard), 0 0 0 4px transparent; } }
+@keyframes leak { from { transform: translate(-6%, -4%) rotate(0deg); } to { transform: translate(6%, 4%) rotate(8deg); } }
+@keyframes twinkle { 0%, 100% { transform: scale(0.2) rotate(0deg); opacity: 0; } 45% { transform: scale(1) rotate(45deg); opacity: 1; } 70% { transform: scale(0.6) rotate(70deg); opacity: 0.7; } }
+@keyframes fade-out { to { opacity: 0; } }
+@keyframes stripes { to { background-position: 45.25px 0; } }
+@keyframes stamp-in { from { transform: rotate(6deg) scale(2.2); opacity: 0; } to { transform: rotate(6deg) scale(1); opacity: 1; } }
+
+@keyframes in-pop { 0% { transform: scale(0.2) rotate(-9deg); opacity: 0; } 50% { transform: scale(1.12) rotate(2deg); opacity: 1; } 72% { transform: scale(0.95) rotate(-1deg); } 88% { transform: scale(1.02); } 100% { transform: none; } }
+@keyframes in-drop {
+  0% { transform: translateY(-460px); opacity: 0; animation-timing-function: cubic-bezier(0.5, 0, 1, 0.6); }
+  8% { opacity: 1; }
+  55% { transform: translateY(0) scale(1.06, 0.84); animation-timing-function: ease-out; }
+  70% { transform: translateY(-16px) scale(0.98, 1.03); animation-timing-function: ease-in; }
+  84% { transform: translateY(0) scale(1.02, 0.97); }
+  100% { transform: none; }
+}
+@keyframes in-sparkle { 0% { transform: scale(0.86); opacity: 0; filter: brightness(2.2); } 35% { opacity: 1; } 60% { transform: scale(1.04); filter: brightness(1.4); } 100% { transform: none; filter: none; } }
+@keyframes in-stamp { 0% { transform: scale(1.9) rotate(-7deg); opacity: 0; } 50% { transform: scale(0.93) rotate(0deg); opacity: 1; } 68% { transform: scale(1.04); } 100% { transform: none; } }
+@keyframes in-unfold { 0% { transform: perspective(500px) rotateX(-95deg); opacity: 0.2; } 55% { transform: perspective(500px) rotateX(16deg); opacity: 1; } 78% { transform: perspective(500px) rotateX(-6deg); } 100% { transform: none; } }
+@keyframes in-jelly {
+  0% { transform: translateY(-140px) scale(0.9, 1.1); opacity: 0; }
+  35% { transform: translateY(0) scale(1.26, 0.7); opacity: 1; }
+  52% { transform: scale(0.86, 1.16); }
+  68% { transform: scale(1.08, 0.93); }
+  84% { transform: scale(0.98, 1.02); }
+  100% { transform: none; }
+}
+@keyframes in-trace { 0%, 50% { transform: scale(0.98); } 75% { transform: scale(1.03); } 100% { transform: none; } }
+@keyframes in-trace-fill { 0%, 45% { opacity: 0; } 75%, 100% { opacity: 1; } }
+@keyframes in-bubble { 0% { transform: translateY(180px) scale(0.55); opacity: 0; } 15% { opacity: 1; } 62% { transform: translateY(-10px) scale(1.03); } 80% { transform: translateY(2px) scale(0.99); } 100% { transform: none; } }
+@keyframes in-flip {
+  0% { transform: translateY(-40px) rotateY(180deg); }  /* 투명도를 바꾸면 3D가 평면이 되어 앞면이 뒤집혀 보임: 쓰지 않음 */
+  25% { transform: translateY(0) rotateY(180deg); }  /* 뒷면을 잠깐 보여 준 뒤 */
+  70% { transform: translateY(0) rotateY(-12deg); }
+  86% { transform: translateY(0) rotateY(5deg); }
+  100% { transform: none; }
+}
+@keyframes in-tape { 0% { transform: translateY(-60px) rotate(-11deg); opacity: 0; } 45% { transform: translateY(0) rotate(3deg); opacity: 1; } 70% { transform: rotate(-1.5deg); } 100% { transform: none; } }
+
+@keyframes burst { 0% { transform: translate(0, 0) scale(0.3) rotate(0deg); opacity: 1; } 70% { opacity: 1; } 100% { transform: translate(var(--x), var(--y)) scale(1) rotate(160deg); opacity: 0; } }
+@keyframes ring { from { transform: scale(0.85); opacity: 1; } to { transform: scale(1.35, 1.9); opacity: 0; } }
+@keyframes dust { from { transform: translateX(0) scale(0.4); opacity: 1; } to { transform: translateX(var(--x)) scale(1.3); opacity: 0; } }
+@keyframes trace { to { stroke-dashoffset: 0; } }
+@keyframes bubble { 0% { transform: translateY(180px) scale(0.6); opacity: 0; } 15% { opacity: 1; } 62% { transform: translateY(-10px) scale(1.03); opacity: 1; } 70% { transform: scale(1); opacity: 1; } 82% { transform: scale(1.22); opacity: 0; } 100% { opacity: 0; } }
+@keyframes tape { from { opacity: 0; transform: var(--t, none) scale(1.6); } }
+
+@keyframes idle-bob { 0%, 72%, 100% { transform: none; } 80% { transform: translateY(-7px); } 88% { transform: translateY(0) scale(1.02, 0.97); } 94% { transform: translateY(-2px); } }
+@keyframes idle-float { 0%, 100% { transform: translateY(-3px); } 50% { transform: translateY(3px); } }
+@keyframes idle-sway { 0%, 100% { transform: rotate(-1.6deg); } 50% { transform: rotate(1.6deg); } }
+@keyframes idle-beat { 0%, 40%, 100% { transform: none; } 8% { transform: scale(1.045); } 16% { transform: scale(0.99); } 24% { transform: scale(1.03); } }
+@keyframes idle-pulse { 0%, 100% { opacity: 0; } 50% { opacity: 0.9; } }
+@keyframes idle-flash { 0%, 70% { transform: translateX(-120%) skewX(-18deg); } 100% { transform: translateX(330%) skewX(-18deg); } }

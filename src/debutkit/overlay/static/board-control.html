@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>debutkit 주사위 판 조작</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/theme.css?fonts=0">
+  <link rel="stylesheet" href="/ui.css">
+  <style>
+    :root { color-scheme: light; --line: #e3dfdb; --text: #1e2327; --dim: #5b6670; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #fff; color: var(--text); font: 15px/1.6 "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; }
+    header { display: flex; align-items: center; gap: 12px; padding: 14px 24px; border-bottom: 1px solid var(--line); }
+    header img { width: 28px; height: 28px; }
+    header h1 { font-size: 17px; margin: 0; }
+    main { max-width: 1240px; margin: 0 auto; padding: 18px 24px 48px; display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 18px; align-items: start; }
+    section { border: 1px solid var(--line); border-radius: 6px; padding: 14px 18px; margin-bottom: 14px; }
+    h2 { font-size: 16px; margin: 0 0 8px; }
+    .preview { position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 4px; background: repeating-conic-gradient(#e9e4dd 0% 25%, #f6f2ee 0% 50%) 0 0 / 20px 20px; }
+    .preview iframe { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; border: 0; transform-origin: 0 0; }
+    .field { display: grid; gap: 4px; margin-bottom: 10px; font-size: 14px; }
+    .field > span { font-weight: 600; }
+    select, input[type=text], textarea { padding: 6px 8px; border: 1px solid #c9c3bd; border-radius: 3px; font: inherit; background: #fff; width: 100%; }
+    textarea { min-height: 110px; resize: vertical; }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    button { background: var(--text); color: #fff; border: 1px solid var(--text); border-radius: 3px; padding: 7px 14px; font: inherit; font-weight: 600; cursor: pointer; }
+    button.secondary { background: #fff; color: var(--text); border-color: #c9c3bd; }
+    button.big { font-size: 18px; padding: 10px 22px; }
+    label.check { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; }
+    .state { font-size: 13px; color: var(--dim); min-height: 1.3em; }
+    .state.error { color: #b3261e; }
+    ol.log { margin: 6px 0 0; padding-left: 20px; font-size: 14px; color: var(--dim); max-height: 220px; overflow: auto; }
+    ul.tips { margin: 8px 0 0; padding-left: 18px; color: var(--dim); font-size: 13px; }
+    code { background: #faf7f5; border: 1px solid var(--line); border-radius: 3px; padding: 0 5px; font-size: 13px; }
+    @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header><img src="/favicon.svg" alt=""><h1>주사위 판</h1></header>
+  <main>
+    <div>
+      <section>
+        <h2>방송 화면 미리보기</h2>
+        <div class="preview" id="preview"><iframe id="preview-frame" title="주사위 판 미리보기" src="/board?mute"></iframe></div>
+        <div class="row" style="margin-top: 10px">
+          <button type="button" class="big" id="roll">주사위 굴리기</button>
+          <span class="state" id="turn-state"></span>
+        </div>
+        <ol class="log" id="log"></ol>
+      </section>
+      <section>
+        <h2>OBS에 넣기</h2>
+        <div class="row"><input type="text" id="board-url" readonly aria-label="방송 화면 주소" style="flex: 1"><button type="button" class="secondary" id="copy">주소 복사</button><button type="button" class="primary small" data-obs="board">OBS에 넣기</button></div>
+        <ul class="tips">
+          <li>OBS 브라우저 소스에 주소를 넣고 1920x1080. 판 바깥은 투명</li>
+          <li>이 조작 화면은 OBS 독(사용자 지정 브라우저 독)으로도 씀</li>
+        </ul>
+      </section>
+    </div>
+    <div>
+      <section>
+        <h2>게임</h2>
+        <label class="field"><span>참가자(한 줄에 한 명, 최대 8명)</span><textarea id="players" placeholder="고양이집사&#10;별빛구름"></textarea></label>
+        <label class="check"><input type="checkbox" id="use-raffle" checked> 참여 추첨 명단도 넣기(<span id="raffle-count">0</span>명)</label>
+        <div class="row" style="margin-top: 10px"><button type="button" id="start">새 게임 시작</button><button type="button" class="secondary" id="reset">게임 끝내기</button></div>
+        <p class="state" id="game-state"></p>
+      </section>
+      <section>
+        <h2>판</h2>
+        <label class="field"><span>제목</span><input type="text" id="title" maxlength="20"></label>
+        <label class="field"><span>판 크기</span><select id="size"></select></label>
+        <label class="field"><span>디자인</span><select id="design"></select></label>
+        <label class="field"><span>칸 미션(한 줄에 하나, 24자, 비우면 기본 미션)</span><textarea id="cells"></textarea></label>
+        <label class="check"><input type="checkbox" id="chat-roll"> 시청자 굴리기: 차례인 참가자가 채팅에 명령</label>
+        <label class="field" style="margin-top: 8px"><span>굴리기 명령</span><input type="text" id="command" maxlength="11"></label>
+        <div class="row"><button type="button" id="save">판 저장</button></div>
+        <p class="state" id="save-state"></p>
+        <ul class="tips">
+          <li>특별한 칸: 출발, 한 번 더, 뒤로 2칸, 한 번 쉬기, 행운 카드(앞으로 3칸, 출발로, 모두 1칸 앞으로, 자리 바꾸기, 한 번 더 굴리기, 아무 일도 없음)</li>
+          <li>주사위는 이 PC 서버가 굴리고 방송 화면은 그 결과를 그대로 보여 줌</li>
+          <li>시청자 굴리기는 참가자 이름이 채팅 닉네임과 같을 때만(3초 간격)</li>
+        </ul>
+      </section>
+    </div>
+  </main>
+  <script src="/theme.js"></script>
+  <script src="/ui.js"></script>
+  <script src="/live.js"></script>
+  <script>
+    "use strict";
+    const $ = (id) => document.getElementById(id);
+    const post = async (path, body) => {
+      const response = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "요청 실패");
+      return data;
+    };
+    const note = (id, text, error = false) => { $(id).textContent = text; $(id).classList.toggle("error", error); };
+    let filled = false;
+
+    function show(snapshot) {
+      if (!filled && snapshot.config) {  // 입력 칸은 처음 한 번만 채움(고치는 중에 덮어쓰지 않게)
+        const choices = snapshot.choices;
+        $("size").replaceChildren(...Object.entries(choices.sizes).map(([key, label]) => new Option(label, key)));
+        $("design").replaceChildren(...Object.entries(choices.designs).map(([key, label]) => new Option(label, key)));
+        $("title").value = snapshot.config.title;
+        $("size").value = String(snapshot.config.size);
+        $("design").value = snapshot.config.design;
+        $("cells").value = snapshot.config.cells.join("\n");
+        $("cells").placeholder = choices.default_cells.slice(0, 6).join("\n");
+        $("chat-roll").checked = snapshot.config.chat_roll;
+        $("command").value = snapshot.config.command;
+        $("use-raffle").checked = snapshot.config.use_raffle;
+        filled = true;
+      }
+      if (typeof snapshot.raffle === "number") $("raffle-count").textContent = String(snapshot.raffle);
+      const player = snapshot.playing ? snapshot.players[snapshot.turn] : null;
+      $("roll").disabled = !player;
+      note("turn-state", player ? `차례: ${player.name}${player.rest ? "(이번은 쉬기)" : ""}` : "게임 전");
+      $("log").replaceChildren(...(snapshot.log || []).slice(0, 12).map((event) => {
+        const item = document.createElement("li");
+        item.textContent = event.dice ? `${event.name} ${event.dice}: ${event.text}${event.card_text ? `(행운 카드 ${event.card_text})` : ""}` : event.text;
+        return item;
+      }));
+    }
+
+    const refresh = () => fetch("/board/state").then((response) => response.json()).then(show);
+    $("board-url").value = `${location.origin}/board`;
+    $("copy").addEventListener("click", () => navigator.clipboard.writeText($("board-url").value).then(() => window.debutkitUi && window.debutkitUi.toast("주소 복사함")));
+    $("roll").addEventListener("click", async () => {
+      $("roll").disabled = true;
+      try { show(await post("/board/roll")); } catch (error) { note("turn-state", error.message, true); }
+      setTimeout(refresh, 400);
+    });
+    $("start").addEventListener("click", async () => {
+      try {
+        const data = await post("/board/start", { players: $("players").value, use_raffle: $("use-raffle").checked });
+        show(data);
+        note("game-state", `시작: ${data.players.map((player) => player.name).join(", ")}(차례는 섞음)`);
+      } catch (error) { note("game-state", error.message, true); }
+    });
+    $("reset").addEventListener("click", async () => { show(await post("/board/reset")); note("game-state", "게임 끝냄"); });
+    $("save").addEventListener("click", async () => {
+      try {
+        show(await post("/board/config", { title: $("title").value, size: Number($("size").value), design: $("design").value, cells: $("cells").value,
+          chat_roll: $("chat-roll").checked, command: $("command").value.trim(), use_raffle: $("use-raffle").checked }));
+        note("save-state", "저장함");
+      } catch (error) { note("save-state", error.message, true); }
+    });
+    const fit = () => ($("preview-frame").style.transform = `scale(${$("preview").clientWidth / 1920})`);
+    window.addEventListener("resize", fit);
+    fit();
+    window.debutkitLive.subscribe(["board"], () => refresh());
+    refresh();
+  </script>
+</body>
+</html>

@@ -1,0 +1,701 @@
+"""방송 색과 방송 스타일(채널 테마): 모든 방송 화면(채팅, 알림, 추첨, 뽑기판, 후원 벽, 레이스)과 조작 화면이 함께 쓰는 색, 모양, 글꼴.
+
+- ``/theme.css``: 글꼴(함께 배포한 글꼴과 내 글꼴)과 CSS 변수. 화면마다 ``<link rel="stylesheet" href="/theme.css">``
+  - 색: ``--dk-primary`` (주 색), ``--dk-primary-light``, ``--dk-primary-deep``, ``--dk-on-primary`` (주 색 위 글자), ``--dk-highlight`` (강조, 희귀),
+    ``--dk-ink`` (슬레이트 잉크), ``--dk-paper`` (크림 종이)
+  - 방송 스타일(STYLES): ``--dk-surface`` (카드 바탕, background 값), ``--dk-on-surface``, ``--dk-muted``, ``--dk-line``, ``--dk-line-width``,
+    ``--dk-line-style``, ``--dk-radius``, ``--dk-shadow``, ``--dk-glow`` (제목 글자 빛), ``--dk-backdrop`` (뒤 흐림), ``--dk-tag-bg``, ``--dk-tag-text``,
+    ``--dk-enter-ease``, ``--dk-enter-time`` 와 ``@keyframes dk-enter``. ``--dk-style`` 은 스타일 이름, ``--dk-tone`` 은 바탕의 밝기(dark, light)
+  - 글꼴: ``--dk-display`` (제목), ``--dk-text`` (본문). 스타일 기본 글꼴 또는 고른 글꼴
+- ``/theme`` 조회, ``POST /theme`` (``{"primary", "highlight"}``, ``{"preset": "lavender"}``, ``{"from_logo": true}``, ``{"style": "neon"}``,
+  ``{"display_font": "blackhan", "text_font": "local:나눔고딕"}``). ``POST /theme/font`` 내 글꼴 올리기(``{"name", "data"}``, base64),
+  ``POST /theme/font/remove`` (``{"id"}``), ``/theme/font?id=`` 내 글꼴 파일
+- ``/live?feeds=theme`` 로 바뀐 값을 받아 화면이 새로고침 없이 바꾼다(theme.js가 /theme.css 를 다시 읽음)
+- 설정은 설정 폴더의 ``theme.json``, 내 글꼴 파일은 ``fonts`` 폴더(이름은 debutkit이 정함). 로고 만들기의 로고 색을 가져올 수 있다
+"""
+
+from __future__ import annotations
+
+import base64
+import binascii
+import colorsys
+import json
+import re
+import secrets
+from pathlib import Path
+from typing import Any, Callable
+
+from .. import settings
+from . import feature
+
+DATA = "theme.json"
+FONT_FOLDER = "fonts"
+_HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
+#: (이름, 주 색, 강조 색). 첫 항목이 기본(debutkit 핑크와 금박)
+PRESETS: dict[str, tuple[str, str, str]] = {
+    "pink": ("핑크", "#ff4f8b", "#ffd84d"),
+    "coral": ("코랄", "#ff6b5a", "#ffd84d"),
+    "orange": ("귤", "#ff9b2f", "#fff07a"),
+    "lemon": ("레몬", "#f2c200", "#ff4f8b"),
+    "mint": ("민트", "#18c29c", "#ffd84d"),
+    "green": ("새싹", "#4cb050", "#ffe066"),
+    "sky": ("하늘", "#36a3ff", "#ffd84d"),
+    "navy": ("남색", "#3557d6", "#ffd84d"),
+    "lavender": ("라벤더", "#8b6cff", "#ffd84d"),
+    "purple": ("보라", "#a43be0", "#7ef0d0"),
+    "rose": ("장미", "#d6336c", "#ffd84d"),
+    "slate": ("먹색", "#3a4249", "#ff4f8b"),
+}
+INK = "#1e2327"
+PAPER = "#faf7f5"
+#: 방송 화면용 글꼴(함께 배포). 기존 화면(draw.css)과 같은 선언
+FONTS = ('@font-face { font-family: "Black Han Sans"; src: url("/vendor/fonts/BlackHanSans-Regular.woff2") format("woff2"); font-display: block; }\n'
+         '@font-face { font-family: "Pretendard"; src: url("/vendor/fonts/Pretendard-SemiBold.subset.woff2") format("woff2"); font-weight: 600; font-display: block; }\n'
+         '@font-face { font-family: "Pretendard"; src: url("/vendor/fonts/Pretendard-Bold.subset.woff2") format("woff2"); font-weight: 700; font-display: block; }\n'
+         # 레트로 픽셀(갈무리11), 다이어리(개구) 스타일. 브라우저는 그 글꼴을 쓰는 화면에서만 받는다
+         '@font-face { font-family: "Galmuri11"; src: url("/vendor/fonts/Galmuri11.woff2") format("woff2"); font-weight: 400; font-display: block; }\n'
+         '@font-face { font-family: "Galmuri11"; src: url("/vendor/fonts/Galmuri11-Bold.woff2") format("woff2"); font-weight: 700; font-display: block; }\n'
+         '@font-face { font-family: "Gaegu"; src: url("/vendor/fonts/Gaegu-Regular.woff2") format("woff2"); font-weight: 400; font-display: block; }\n'
+         '@font-face { font-family: "Gaegu"; src: url("/vendor/fonts/Gaegu-Bold.woff2") format("woff2"); font-weight: 700; font-display: block; }\n')
+#: 함께 배포한 한글 글꼴(google/fonts, SIL OFL 1.1, 자주 쓰는 한글 2,350자, packaging/build_fonts.py): 이름 -> (CSS 글꼴 이름, 파일, 표시 이름, 설명).
+#: 굵기 하나짜리라 font-weight 100~900 전체에 같은 파일(굵게를 요청해도 가짜 굵게를 덧입히지 않음)
+BUNDLED_FONTS: dict[str, tuple[str, str, str, str]] = {
+    "dohyeon": ("Do Hyeon", "DoHyeon-Regular.subset.woff2", "도현", "굵은 제목"),
+    "jua": ("Jua", "Jua-Regular.subset.woff2", "주아", "둥근 제목"),
+    "bagel": ("Bagel Fat One", "BagelFatOne-Regular.subset.woff2", "베이글 팻 원", "통통한 제목"),
+    "yeonsung": ("Yeon Sung", "YeonSung-Regular.subset.woff2", "연성", "개성 있는 제목"),
+    "gowundodum": ("Gowun Dodum", "GowunDodum-Regular.subset.woff2", "고운 돋움", "부드러운 고딕"),
+    "sunflower": ("Sunflower", "Sunflower-Bold.subset.woff2", "해바라기", "단정한 고딕"),
+    "stylish": ("Stylish", "Stylish-Regular.subset.woff2", "스타일리시", "가는 고딕"),
+    "dongle": ("Dongle", "Dongle-Bold.subset.woff2", "동글", "동글동글한 글씨"),
+    "cute": ("Cute Font", "CuteFont-Regular.subset.woff2", "귀여운 글꼴", "손글씨"),
+    "gamja": ("Gamja Flower", "GamjaFlower-Regular.subset.woff2", "감자꽃", "손글씨"),
+    "kirang": ("Kirang Haerang", "KirangHaerang-Regular.subset.woff2", "기랑해랑", "개성 손글씨"),
+    "eastsea": ("East Sea Dokdo", "EastSeaDokdo-Regular.subset.woff2", "동해 독도", "붓글씨"),
+    "gowunbatang": ("Gowun Batang", "GowunBatang-Bold.subset.woff2", "고운 바탕", "굵은 명조"),
+    "songmyung": ("Song Myung", "SongMyung-Regular.subset.woff2", "송명", "명조"),
+}
+FONTS += "".join(f'@font-face {{ font-family: "{family}"; src: url("/vendor/fonts/{file}") format("woff2"); font-weight: 100 900; font-display: block; }}\n'
+                 for family, file, _, _ in BUNDLED_FONTS.values())
+FALLBACK = '"Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans CJK KR", sans-serif'
+#: 고를 수 있는 글꼴: 이름 -> (표시 이름, CSS 글꼴 목록, 설명). 함께 배포한 글꼴과 운영체제 기본 한글 글꼴.
+#: 그 밖에 "local:글꼴 이름" (이 PC에 설치한 글꼴), "user:번호" (올린 내 글꼴)
+FONT_CHOICES: dict[str, tuple[str, str, str]] = {
+    "blackhan": ("Black Han Sans", f'"Black Han Sans", {FALLBACK}', "굵은 제목(함께 배포)"),
+    "pretendard": ("Pretendard", f'"Pretendard", {FALLBACK}', "깔끔한 고딕(함께 배포)"),
+    "malgun": ("맑은 고딕", f'"Malgun Gothic", {FALLBACK}', "Windows 기본"),
+    "gulim": ("굴림", f'"Gulim", "굴림", {FALLBACK}', "Windows 기본"),
+    "batang": ("바탕(명조)", '"Batang", "바탕", "AppleMyungjo", "Noto Serif CJK KR", serif', "Windows 기본"),
+    "gungsuh": ("궁서", '"Gungsuh", "궁서", "Batang", serif', "Windows 기본"),
+    "galmuri": ("갈무리11", f'"Galmuri11", {FALLBACK}', "도트 글꼴(함께 배포)"),
+    "gaegu": ("개구", f'"Gaegu", "Pretendard", {FALLBACK}', "손글씨(함께 배포)"),
+    **{key: (name, f'"{family}", {FALLBACK}', f"{about}(함께 배포)") for key, (family, _, name, about) in BUNDLED_FONTS.items()},
+    "applesd": ("Apple SD 산돌고딕 Neo", f'"Apple SD Gothic Neo", {FALLBACK}', "macOS 기본"),
+}
+#: 글꼴 고르기의 묶음(조작 화면의 목록 순서와 묶음 이름)
+FONT_GROUPS: dict[str, tuple[str, ...]] = {
+    "제목": ("blackhan", "dohyeon", "jua", "bagel", "yeonsung"),
+    "고딕": ("pretendard", "gowundodum", "sunflower", "stylish", "malgun", "gulim", "applesd"),
+    "손글씨": ("gaegu", "dongle", "cute", "gamja", "kirang", "eastsea"),
+    "명조": ("gowunbatang", "songmyung", "batang", "gungsuh"),
+    "도트": ("galmuri",),
+}
+#: 굵기: 굵기 파일이 따로 없는 제목 글꼴은 보통(가짜 굵게 방지), 나머지는 굵게
+_REGULAR_ONLY = {"blackhan"}
+#: 그림(canvas)에 쓸 때 브라우저가 불러올 파일: 이름 -> (글꼴 이름, 파일). 방송 이미지 만들기가 FontFace로 불러옴
+_FILES = {"blackhan": ("Black Han Sans", "BlackHanSans-Regular.woff2"), "pretendard": ("Pretendard", "Pretendard-Bold.subset.woff2"),
+          "galmuri": ("Galmuri11", "Galmuri11-Bold.woff2"), "gaegu": ("Gaegu", "Gaegu-Bold.woff2"),
+          **{key: (family, file) for key, (family, file, _, _) in BUNDLED_FONTS.items()}}
+_LOCAL_NAME = re.compile(r"^[0-9A-Za-z가-힣 _\-.]{1,40}$")
+#: 내 글꼴 파일: 첫 바이트 -> (확장자, CSS 형식)
+FONT_MAGIC = {b"\x00\x01\x00\x00": ("ttf", "truetype"), b"true": ("ttf", "truetype"), b"OTTO": ("otf", "opentype"), b"wOFF": ("woff", "woff"),
+              b"wOF2": ("woff2", "woff2")}
+FONT_TYPES = {"ttf": "font/ttf", "otf": "font/otf", "woff": "font/woff", "woff2": "font/woff2"}
+MAX_FONT = 20 * 1024 * 1024
+MAX_FONTS = 10
+
+
+class ThemeError(feature.FeatureError):
+    pass
+
+
+def check_color(value: Any, label: str) -> str:
+    text = str(value or "").strip()
+    if not _HEX.match(text):
+        raise ThemeError(f"{label}은 #RRGGBB 형식(예: #ff4f8b)")
+    return text.lower()
+
+
+def _rgb(color: str) -> tuple[float, float, float]:
+    return tuple(int(color[index:index + 2], 16) / 255 for index in (1, 3, 5))  # type: ignore[return-value]
+
+
+def _hex(rgb: tuple[float, float, float]) -> str:
+    return "#" + "".join(f"{round(max(0.0, min(1.0, channel)) * 255):02x}" for channel in rgb)
+
+
+def mix(color: str, other: str, amount: float) -> str:
+    """``color`` 에 ``other`` 를 ``amount`` 만큼 섞는다(0이면 그대로)."""
+    a, b = _rgb(color), _rgb(other)
+    return _hex(tuple(x + (y - x) * amount for x, y in zip(a, b, strict=True)))  # type: ignore[arg-type]
+
+
+def rgba(color: str, alpha: float) -> str:
+    r, g, b = (round(channel * 255) for channel in _rgb(color))
+    return f"rgba({r}, {g}, {b}, {alpha:g})"
+
+
+def luminance(color: str) -> float:
+    def linear(channel: float) -> float:
+        return channel / 12.92 if channel <= 0.04045 else ((channel + 0.055) / 1.055) ** 2.4
+
+    r, g, b = (linear(channel) for channel in _rgb(color))
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def contrast(first: str, second: str) -> float:
+    light, dark = sorted((luminance(first), luminance(second)), reverse=True)
+    return (light + 0.05) / (dark + 0.05)
+
+
+def on_color(color: str) -> str:
+    """색 위에 쓸 글자 색: 잉크와 흰색 중 대비가 큰 쪽."""
+    return INK if contrast(color, INK) >= contrast(color, "#ffffff") else "#ffffff"
+
+
+def deep(color: str) -> str:
+    """같은 색상의 진한 색(테두리, 그림자): 밝기를 낮추고 채도를 조금 올린다."""
+    h, lightness, s = colorsys.rgb_to_hls(*_rgb(color))
+    return _hex(colorsys.hls_to_rgb(h, max(0.18, lightness * 0.62), min(1.0, s * 1.08)))
+
+
+def palette(primary: str, highlight: str) -> dict[str, str]:
+    return {"primary": primary, "primary-light": mix(primary, "#ffffff", 0.55), "primary-deep": deep(primary), "on-primary": on_color(primary),
+            "highlight": highlight, "highlight-deep": deep(highlight), "on-highlight": on_color(highlight), "ink": INK, "paper": PAPER}
+
+
+# --------------------------------------------------------------------------- 방송 스타일
+
+_GRAIN = ("url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence "
+          "type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.12 0 0 0 0 0.14 0 0 0 0 0.15 "
+          "0 0 0 0.09 0'/></filter><rect width='120' height='120' filter='url(%23n)'/></svg>\")")
+_PIXEL_FONT = f'"Galmuri11", "Galmuri9", "DungGeunMo", "Neo둥근모", "Black Han Sans", {FALLBACK}'
+_HAND_FONT = f'"Gaegu", "Nanum Pen Script", "나눔손글씨 펜", "Pretendard", {FALLBACK}'
+#: 게임별 스타일 글꼴. 영문, 숫자는 Windows 기본 글꼴(Bahnschrift 좁은 꼴, Palatino), 한글은 함께 배포한 글꼴. 게임 공식 글꼴은 쓰지 않음
+_CONDENSED = f'"Bahnschrift SemiBold Condensed", "Bahnschrift", "DIN Condensed", "Arial Narrow", "Black Han Sans", {FALLBACK}'
+_CLASSIC = f'"Palatino Linotype", "Book Antiqua", Palatino, Georgia, "Noto Serif KR", "Batang", "바탕", "AppleMyungjo", "Black Han Sans", {FALLBACK}'
+_ROUND = f'"Maplestory", "Maplestory OTF", "Jua", "Black Han Sans", {FALLBACK}'  # 메이플스토리체는 설치한 경우만(함께 배포하지 않음)
+#: 등장 움직임: 이름 -> (키프레임 내용, 시간, 속도 곡선)
+ENTERS: dict[str, tuple[str, str, str]] = {
+    "stamp": ("0% { opacity: 0; transform: translateY(-28px) scale(1.04); } 60% { opacity: 1; } 100% { opacity: 1; transform: none; }",
+              "0.45s", "cubic-bezier(0.2, 1.5, 0.4, 1)"),
+    "float": ("0% { opacity: 0; transform: translateY(18px) scale(0.92); } 70% { opacity: 1; transform: translateY(-4px) scale(1.02); } "
+              "100% { opacity: 1; transform: none; }", "0.6s", "ease-out"),
+    "flicker": ("0% { opacity: 0; } 12% { opacity: 0.85; } 22% { opacity: 0.15; } 36% { opacity: 1; } 46% { opacity: 0.45; } 62%, 100% { opacity: 1; }",
+                "0.7s", "linear"),
+    "steps": ("0% { opacity: 0; transform: translateY(24px); } 100% { opacity: 1; transform: none; }", "0.36s", "steps(4, end)"),
+    "fade": ("0% { opacity: 0; transform: translateY(14px); } 100% { opacity: 1; transform: none; }", "0.5s", "ease-out"),
+    "tape": ("0% { opacity: 0; transform: translateY(-36px) rotate(-6deg); } 70% { opacity: 1; transform: translateY(3px) rotate(-0.5deg); } "
+             "100% { opacity: 1; transform: rotate(-1deg); }", "0.55s", "ease-out"),
+    "twinkle": ("0% { opacity: 0; transform: scale(0.86); filter: brightness(2.2); } 100% { opacity: 1; transform: none; filter: none; }",
+                "0.6s", "ease-out"),
+    "slide": ("0% { opacity: 0; transform: translateX(-36px); } 100% { opacity: 1; transform: none; }", "0.35s", "cubic-bezier(0.2, 0.8, 0.2, 1)"),
+    # 왼쪽에서 오른쪽으로 드러남. 끝 상태도 잘라 내므로 꼬리표, 그림자가 들어가도록 바깥으로 넉넉히
+    "wipe": ("0% { opacity: 0; clip-path: inset(-80px 100% -80px -80px); } 25% { opacity: 1; } "
+             "100% { opacity: 1; clip-path: inset(-80px -80px -80px -80px); }", "0.42s", "cubic-bezier(0.7, 0, 0.2, 1)"),
+    "punch": ("0% { opacity: 0; transform: scale(1.32) skewX(-9deg); } 60% { opacity: 1; transform: scale(0.97) skewX(2deg); } "
+              "100% { opacity: 1; transform: none; }", "0.42s", "cubic-bezier(0.2, 0.9, 0.3, 1.2)"),
+    "flip": ("0% { opacity: 0; transform: perspective(700px) rotateY(80deg); } 60% { opacity: 1; transform: perspective(700px) rotateY(-10deg); } "
+             "100% { opacity: 1; transform: none; }", "0.6s", "ease-out"),
+    "unveil": ("0% { opacity: 0; transform: translateY(10px); filter: brightness(1.9) blur(2px); } 100% { opacity: 1; transform: none; filter: none; }",
+               "0.7s", "ease-out"),
+}
+
+
+def _brackets(color: str, size: int = 16, width: int = 3) -> str:
+    """모서리 꺾쇠(바탕 위 그라데이션 층): 왼쪽 위와 오른쪽 아래."""
+    bar = f"linear-gradient({color}, {color})"
+    return (f"{bar} left top / {size}px {width}px no-repeat, {bar} left top / {width}px {size}px no-repeat, "
+            f"{bar} right bottom / {size}px {width}px no-repeat, {bar} right bottom / {width}px {size}px no-repeat")
+
+
+def _style_tokens(key: str, colors: dict[str, str]) -> dict[str, str]:
+    """방송 스타일 하나의 변수. 색은 방송 색에서 만든다."""
+    p, h = colors["primary"], colors["highlight"]
+    base = {"surface": PAPER, "on-surface": INK, "muted": "#4a535b", "line": INK, "line-width": "3px", "line-style": "solid", "radius": "10px",
+            "shadow": f"0 6px 0 {INK}", "glow": "none", "backdrop": "none", "tag-bg": p, "tag-text": colors["on-primary"],
+            "display": f'"Black Han Sans", {FALLBACK}', "text": f'"Pretendard", {FALLBACK}', "enter": "stamp", "tone": "light"}
+    gold = mix(h, "#8a6a2f", 0.35)  # 금장: 강조 색을 조금 어둡고 누렇게
+    old_gold = mix(h, "#6b5426", 0.45)
+    wood = "#5b3a1e"
+    styles: dict[str, dict[str, str]] = {
+        "prop": {"surface": f"{_GRAIN}, {PAPER}"},
+        "pastel": {"surface": f"linear-gradient(180deg, #ffffff, {mix(p, '#ffffff', 0.84)})", "on-surface": "#4a3f55", "muted": "#7a6f86",
+                   "line": mix(p, "#ffffff", 0.4), "radius": "24px", "shadow": f"0 10px 24px {rgba(p, 0.28)}", "tag-bg": mix(p, "#ffffff", 0.25),
+                   "tag-text": on_color(mix(p, "#ffffff", 0.25)), "display": f'"Pretendard", {FALLBACK}', "enter": "float"},
+        "neon": {"surface": "rgba(12, 10, 28, 0.86)", "on-surface": "#f6f2ff", "muted": "#c3bbdf", "line": p, "line-width": "2px", "radius": "14px",
+                 "shadow": f"0 0 0 1px {p}, 0 0 18px {rgba(p, 0.65)}, inset 0 0 14px {rgba(p, 0.35)}", "glow": f"0 0 6px {p}, 0 0 16px {rgba(p, 0.8)}",
+                 "enter": "flicker", "tone": "dark"},
+        "pixel": {"surface": "#20243f", "on-surface": "#ffffff", "muted": "#c9cde8", "line": "#ffffff", "line-width": "4px", "radius": "0px",
+                  "shadow": "4px 4px 0 #000000, 8px 8px 0 rgba(0, 0, 0, 0.35)", "glow": "2px 2px 0 #000000", "display": _PIXEL_FONT,
+                  "text": _PIXEL_FONT, "enter": "steps", "tone": "dark"},
+        # 흰 글자가 밝은 게임 화면 위에서도 읽히도록 어두운 연기 유리에 위쪽 반사광
+        "glass": {"surface": "linear-gradient(160deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.04) 55%), rgba(18, 22, 30, 0.42)",
+                  "on-surface": "#ffffff", "muted": "rgba(255, 255, 255, 0.88)", "line": "rgba(255, 255, 255, 0.55)",
+                  "line-width": "1.5px", "radius": "20px", "shadow": "0 12px 30px rgba(0, 0, 0, 0.28)", "glow": "0 1px 3px rgba(0, 0, 0, 0.45)",
+                  "backdrop": "blur(14px) saturate(1.3)", "tag-bg": rgba(p, 0.85), "display": f'"Pretendard", {FALLBACK}', "enter": "fade",
+                  "tone": "dark"},
+        "diary": {"surface": f"repeating-linear-gradient(180deg, transparent 0 27px, {rgba('#7fa7d9', 0.35)} 27px 28px), #fffdf6",
+                  "on-surface": "#3b3330", "muted": "#6b5f58", "line": "#3b3330", "line-width": "2px", "line-style": "dashed", "radius": "4px",
+                  "shadow": "3px 4px 0 rgba(59, 51, 48, 0.22)", "tag-bg": rgba(h, 0.8), "tag-text": on_color(h), "display": _HAND_FONT, "text": _HAND_FONT,
+                  "enter": "tape"},
+        "night": {"surface": ("radial-gradient(1.5px 1.5px at 18% 28%, #ffffff, transparent), radial-gradient(1px 1px at 72% 62%, #ffffff, transparent), "
+                              "radial-gradient(1.5px 1.5px at 42% 84%, rgba(255, 255, 255, 0.7), transparent), "
+                              "radial-gradient(1px 1px at 88% 18%, #ffffff, transparent), linear-gradient(160deg, #1b2457, #3a2363)"),
+                  "on-surface": "#fff8e7", "muted": "#d9cfe8", "line": h, "line-width": "2px", "radius": "16px",
+                  "shadow": f"0 0 0 4px {rgba(h, 0.18)}, 0 12px 26px rgba(0, 0, 0, 0.45)", "glow": f"0 0 10px {rgba(h, 0.6)}", "tag-bg": h,
+                  "tag-text": colors["on-highlight"], "enter": "twinkle", "tone": "dark"},
+        "minimal": {"surface": "rgba(18, 20, 24, 0.82)", "on-surface": "#ffffff", "muted": "rgba(255, 255, 255, 0.72)", "line": "transparent",
+                    "line-width": "0px", "radius": "8px", "shadow": f"inset 6px 0 0 {p}", "display": f'"Pretendard", {FALLBACK}', "enter": "slide",
+                    "tone": "dark"},
+        # ---- 게임 장르 스타일(게임 패키지가 고름). 공식 로고, 글꼴, 그림 없이 모양과 색만
+        "tactical": {"surface": f"{_brackets(p)}, linear-gradient(180deg, rgba(20, 27, 35, 0.94), rgba(12, 17, 23, 0.94))",
+                     "on-surface": "#f3f0ea", "muted": "#aab4be", "line": "rgba(243, 240, 234, 0.22)", "line-width": "1px", "radius": "0px",
+                     "shadow": "0 0 0 1px rgba(0, 0, 0, 0.55), 8px 8px 0 rgba(0, 0, 0, 0.28)", "enter": "wipe", "tone": "dark"},
+        "arcane": {"surface": f"radial-gradient(ellipse at 50% -20%, {rgba(p, 0.28)}, transparent 60%), linear-gradient(180deg, rgba(12, 22, 40, 0.95), "
+                              "rgba(5, 11, 24, 0.95))",
+                   "on-surface": "#f0e6d2", "muted": "#b3ab98", "line": gold, "line-width": "1.5px", "radius": "2px",
+                   "shadow": f"0 0 0 3px rgba(5, 11, 24, 0.95), 0 0 0 4px {rgba(gold, 0.6)}, 0 12px 28px rgba(0, 0, 0, 0.55)",
+                   "glow": f"0 0 8px {rgba(gold, 0.5)}", "tag-bg": gold, "tag-text": on_color(gold), "enter": "unveil", "tone": "dark"},
+        "hero": {"surface": f"linear-gradient(105deg, {p} 0 12px, transparent 12px), linear-gradient(180deg, #ffffff, #e8edf4)",
+                 "on-surface": "#1d2733", "muted": "#566577", "line": "rgba(29, 39, 51, 0.14)", "line-width": "2px", "radius": "6px",
+                 "shadow": "0 10px 24px rgba(20, 30, 50, 0.28)", "enter": "punch"},
+        "tavern": {"surface": "radial-gradient(ellipse at 50% 0%, rgba(255, 255, 255, 0.55), transparent 65%), linear-gradient(180deg, #f7e9c8, #e8cf9c)",
+                   "on-surface": "#3a2513", "muted": "#6e5235", "line": "#6b4423", "line-width": "3px", "radius": "14px",
+                   "shadow": f"inset 0 0 0 2px {rgba(h, 0.9)}, 0 0 0 4px {wood}, 0 10px 22px rgba(0, 0, 0, 0.4)", "enter": "flip"},
+        "survival": {"surface": f"repeating-linear-gradient(135deg, {h} 0 9px, #1c1f18 9px 18px) left top / 100% 6px no-repeat, "
+                                "linear-gradient(180deg, rgba(46, 51, 39, 0.95), rgba(29, 32, 25, 0.95))",
+                     "on-surface": "#f0ead6", "muted": "#bdb69e", "line": "rgba(240, 234, 214, 0.28)", "line-width": "2px", "radius": "2px",
+                     "shadow": "5px 5px 0 rgba(0, 0, 0, 0.45)", "tag-bg": h, "tag-text": colors["on-highlight"], "enter": "stamp", "tone": "dark"},
+        "adventure": {"surface": "linear-gradient(180deg, #fffaf0, #ffe8c4)", "on-surface": "#4a2e18", "muted": "#7a5a3c", "line": "#a5682b",
+                      "line-width": "3px", "radius": "18px", "shadow": "0 0 0 3px #fff4dc, 0 0 0 6px #a5682b, 0 9px 0 6px rgba(90, 52, 20, 0.3)",
+                      "enter": "float"},
+        "gothic": {"surface": "radial-gradient(ellipse at 50% 130%, rgba(150, 24, 24, 0.4), transparent 65%), linear-gradient(180deg, rgba(22, 17, 16, 0.96), "
+                              "rgba(10, 8, 8, 0.96))",
+                   "on-surface": "#efe3c8", "muted": "#a99780", "line": old_gold, "line-width": "1px", "radius": "0px",
+                   "shadow": f"0 0 0 1px #000000, 0 0 0 4px rgba(10, 8, 8, 0.96), 0 0 0 5px {rgba(old_gold, 0.55)}, 0 14px 30px rgba(0, 0, 0, 0.6)",
+                   "glow": "0 0 10px rgba(190, 40, 30, 0.55)", "tag-bg": "#7d1d1a", "tag-text": "#ffffff", "enter": "unveil", "tone": "dark"},
+        "sports": {"surface": f"linear-gradient(90deg, {p} 0 10px, {h} 10px 14px, transparent 14px), linear-gradient(180deg, #13315a, #0b1f3b)",
+                   "on-surface": "#ffffff", "muted": "#b9c9de", "line": "transparent", "line-width": "0px", "radius": "4px",
+                   "shadow": "0 8px 18px rgba(0, 0, 0, 0.35)", "tag-bg": h, "tag-text": colors["on-highlight"], "enter": "wipe", "tone": "dark"},
+    }
+    styles.update(_game_tokens())
+    return {**base, **styles.get(key, styles["prop"])}
+
+
+def _cut(color: str, size: int = 16) -> str:
+    """오른쪽 위, 왼쪽 아래 모서리를 비스듬히 자른 판(그라데이션 한 층)."""
+    return f"linear-gradient(225deg, transparent {size}px, {color} {size}px, {color} calc(100% - {size}px), transparent calc(100% - {size}px))"
+
+
+def _game_tokens() -> dict[str, dict[str, str]]:
+    """게임별 스타일(게임 패키지가 고름): 그 게임의 고유 색과 모양 언어. 장식(금장, 보석, 꺾쇠)은 games/look.css가 더한다.
+
+    색은 방송 색과 관계없이 고정(어느 방송 색에서도 그 게임 느낌이 나도록). 공식 로고, 그림, 글꼴은 쓰지 않는다.
+    """
+    navy = "rgba(15, 25, 35, 0.95)"
+    return {
+        # 발로란트: 짙은 남색 판, 붉은 막대, 비스듬히 자른 모서리, 좁고 굵은 대문자
+        "valorant": {"surface": f"linear-gradient(90deg, #ff4655 0 7px, transparent 7px), {_cut(navy, 18)}", "on-surface": "#ece8e1",
+                     "muted": "#a7b0b8", "line": "transparent", "line-width": "0px", "radius": "0px", "shadow": "none",
+                     "tag-bg": "#ff4655", "tag-text": "#ffffff", "display": _CONDENSED, "enter": "wipe", "tone": "dark"},
+        # 리그 오브 레전드: 짙은 남색에 청록 빛, 금빛 테두리와 이중선, 고전 세리프
+        "lol": {"surface": "radial-gradient(ellipse at 50% -30%, rgba(10, 200, 185, 0.22), transparent 62%), "
+                           "linear-gradient(180deg, rgba(10, 20, 40, 0.96), rgba(1, 10, 19, 0.96))",
+                "on-surface": "#f0e6d2", "muted": "#a09b8c", "line": "#c8aa6e", "line-width": "2px", "radius": "0px",
+                "shadow": "0 0 0 3px rgba(1, 10, 19, 0.95), 0 0 0 4px #785a28, 0 12px 28px rgba(0, 0, 0, 0.6)",
+                "glow": "0 0 8px rgba(200, 170, 110, 0.45)", "tag-bg": "#c8aa6e", "tag-text": "#010a13", "display": _CLASSIC, "enter": "unveil",
+                "tone": "dark"},
+        # 오버워치: 밝은 흰 판, 주황 사선 띠, 기울인 굵은 글자, 튀어나오는 등장
+        "overwatch": {"surface": "linear-gradient(105deg, #f99e1a 0 12px, transparent 12px), linear-gradient(180deg, rgba(255, 255, 255, 0.97), "
+                                 "rgba(229, 235, 243, 0.97))",
+                      "on-surface": "#1f2a37", "muted": "#566577", "line": "transparent", "line-width": "0px", "radius": "4px",
+                      "shadow": "0 10px 22px rgba(20, 30, 50, 0.32)", "tag-bg": "#f99e1a", "tag-text": "#1f2a37", "display": _CONDENSED,
+                      "enter": "punch"},
+        # 하스스톤: 양피지 카드, 나무 테두리와 금테, 파란 보석
+        "hearthstone": {"surface": "radial-gradient(ellipse at 50% 0%, rgba(255, 255, 255, 0.55), transparent 65%), "
+                                   "linear-gradient(180deg, #f6e7c4, #e5c78c)",
+                        "on-surface": "#3a2513", "muted": "#6e5235", "line": "#5b3a1e", "line-width": "3px", "radius": "16px",
+                        "shadow": "inset 0 0 0 2px #d4a84b, 0 0 0 5px #5b3a1e, 0 0 0 7px #2a190b, 0 12px 24px rgba(0, 0, 0, 0.45)",
+                        "tag-bg": "#2f7bd8", "tag-text": "#ffffff", "enter": "flip"},
+        # 배틀그라운드: 군용 올리브 판, 노란 막대, 좁은 대문자, 찍히듯 등장
+        "pubg": {"surface": "linear-gradient(90deg, #f2a900 0 8px, transparent 8px), linear-gradient(180deg, rgba(38, 42, 32, 0.95), rgba(22, 25, 19, 0.95))",
+                 "on-surface": "#ede6d3", "muted": "#b9b29a", "line": "rgba(237, 230, 211, 0.22)", "line-width": "1px", "radius": "2px",
+                 "shadow": "5px 5px 0 rgba(0, 0, 0, 0.45)", "tag-bg": "#f2a900", "tag-text": "#1c1f18", "display": _CONDENSED, "enter": "stamp",
+                 "tone": "dark"},
+        # 메이플스토리: 흰 둥근 창, 주황 머리띠, 귀여운 둥근 글자, 말랑한 등장
+        "maplestory": {"surface": "linear-gradient(180deg, #ffb547 0 9px, transparent 9px), linear-gradient(180deg, #ffffff, #fff3dc)",
+                       "on-surface": "#4a3220", "muted": "#8a6a4a", "line": "#f29a2e", "line-width": "3px", "radius": "16px",
+                       "shadow": "0 0 0 3px #ffffff, 0 0 0 6px #c97a1e, 0 8px 0 4px rgba(120, 70, 20, 0.25)", "tag-bg": "#f29a2e",
+                       "tag-text": "#ffffff", "display": _ROUND, "enter": "float"},
+        # 로스트아크: 푸른 검정 판, 금빛 가는 선과 L자 모서리 장식, 아래쪽 금빛, 고전 세리프
+        "lostark": {"surface": "radial-gradient(ellipse at 50% 125%, rgba(201, 160, 99, 0.3), transparent 62%), "
+                               "linear-gradient(180deg, rgba(22, 26, 33, 0.96), rgba(11, 13, 18, 0.96))",
+                    "on-surface": "#f3ead3", "muted": "#b3a88f", "line": "#c9a063", "line-width": "1px", "radius": "0px",
+                    "shadow": "0 0 0 1px #000000, 0 0 0 4px rgba(11, 13, 18, 0.95), 0 0 0 5px rgba(201, 160, 99, 0.65), 0 14px 30px rgba(0, 0, 0, 0.6)",
+                    "glow": "0 0 10px rgba(249, 146, 0, 0.45)", "tag-bg": "#c9a063", "tag-text": "#0b0d12", "display": _CLASSIC, "enter": "unveil",
+                    "tone": "dark"},
+        # FC 온라인: 중계 자막(남색 판, 형광 연두와 초록 막대), 좁은 대문자
+        "fconline": {"surface": "linear-gradient(90deg, #3ba55c 0 6px, #f4f2ec 6px 9px, transparent 9px), linear-gradient(180deg, #171717, #0b0b0b)",
+                     "on-surface": "#f4f2ec", "muted": "#b9c2b9", "line": "transparent", "line-width": "0px", "radius": "2px",
+                     "shadow": "0 8px 18px rgba(0, 0, 0, 0.4)", "tag-bg": "#3ba55c", "tag-text": "#0b0b0b", "display": _CONDENSED, "enter": "wipe",
+                     "tone": "dark"},
+        # 전략적 팀 전투: 보랏빛 밤 판, 금빛 테두리, 육각 장식, 반짝 등장
+        "tft": {"surface": "radial-gradient(ellipse at 50% -20%, rgba(150, 110, 255, 0.38), transparent 62%), "
+                           "linear-gradient(180deg, rgba(30, 22, 62, 0.96), rgba(12, 10, 30, 0.96))",
+                "on-surface": "#f3ead8", "muted": "#b9aecf", "line": "#d9b25f", "line-width": "2px", "radius": "6px",
+                "shadow": "0 0 0 3px rgba(12, 10, 30, 0.95), 0 0 0 4px rgba(217, 178, 95, 0.7), 0 10px 24px rgba(0, 0, 0, 0.55)",
+                "glow": "0 0 8px rgba(217, 178, 95, 0.55)", "tag-bg": "#d9b25f", "tag-text": "#1c143a", "display": _CLASSIC, "enter": "twinkle",
+                "tone": "dark"},
+        # 마인크래프트: 업적 알림 같은 어두운 베벨 판, 도트 글꼴, 회색 글자 그림자, 계단 등장
+        "minecraft": {"surface": "#212121", "on-surface": "#ffffff", "muted": "#c6c6c6", "line": "#000000", "line-width": "3px",
+                      "radius": "0px", "shadow": "inset 4px 4px 0 #5a5a5a, inset -4px -4px 0 #0e0e0e, 6px 6px 0 rgba(0, 0, 0, 0.35)", "glow": "3px 3px 0 #3f3f3f",
+                      "tag-bg": "#5d9c3a", "tag-text": "#ffffff", "display": _PIXEL_FONT, "text": _PIXEL_FONT, "enter": "steps", "tone": "dark"},
+    }
+
+
+#: 방송 스타일: 이름 -> (표시 이름, 설명). 미리보기 색은 info()가 방송 색으로 만든다
+STYLES: dict[str, tuple[str, str]] = {
+    "prop": ("방송 소품", "크림 종이, 잉크 외곽선, 딱딱한 그림자(기본)"),
+    "pastel": ("파스텔 몽글", "흰 바탕에 방송 색 물감, 둥근 모서리, 부드러운 그림자"),
+    "neon": ("네온", "어두운 유리에 빛나는 테두리와 글자"),
+    "pixel": ("레트로 픽셀", "각진 대화 상자, 계단 그림자, 도트 글꼴(갈무리11)"),
+    "glass": ("유리", "뒤가 흐리게 비치는 반투명 판"),
+    "diary": ("다이어리", "줄 노트, 점선 테두리, 마스킹 테이프, 손글씨 글꼴(개구)"),
+    "night": ("밤하늘", "별이 뜬 남보라 하늘, 금빛 테두리"),
+    "minimal": ("미니멀", "어두운 반투명 띠와 방송 색 막대"),
+    "tactical": ("택티컬", "전술 FPS: 어두운 판, 꺾쇠 모서리, 쓱 지나가며 등장"),
+    "arcane": ("마법 금장", "판타지 AOS: 짙은 남색 판, 금빛 이중 테두리"),
+    "hero": ("히어로", "히어로 슈터: 밝은 흰 판, 비스듬한 색 띠, 확 튀어나옴"),
+    "tavern": ("선술집 카드", "카드 게임: 양피지 카드, 금테와 나무 테두리, 카드 뒤집기"),
+    "survival": ("서바이벌", "배틀로얄: 군용 올리브 판, 경고 줄무늬"),
+    "adventure": ("모험 동화", "캐주얼 RPG: 크림 판, 둥근 나무 테두리, 말랑한 등장"),
+    "gothic": ("다크 판타지", "다크 판타지 RPG: 검붉은 판, 낡은 금 테두리"),
+    "sports": ("스포츠 중계", "축구, 야구 게임: 중계 자막 띠, 남색 판"),
+    # ---- 게임별(게임 패키지). 게임 이름은 어떤 게임에 맞춘 모양인지 알리는 데만 씀
+    "valorant": ("발로란트", "짙은 남색, 붉은 막대, 비스듬히 자른 모서리, 좁은 대문자"),
+    "lol": ("리그 오브 레전드", "남색에 청록 빛, 금빛 이중 테두리와 장식, 고전 세리프"),
+    "overwatch": ("오버워치", "흰 판, 주황 사선, 기울인 굵은 글자"),
+    "hearthstone": ("하스스톤", "양피지 카드, 나무 테두리와 금테, 파란 보석"),
+    "pubg": ("배틀그라운드", "올리브 판, 노란 막대와 경고 줄무늬, 좁은 대문자"),
+    "maplestory": ("메이플스토리", "흰 둥근 창, 주황 머리띠, 둥근 글자"),
+    "lostark": ("로스트아크", "푸른 검정 판, 금빛 가는 선과 모서리 장식"),
+    "fconline": ("FC 온라인", "중계 점수판: 검정 판, 잔디 초록과 분필 흰 막대"),
+    "tft": ("전략적 팀 전투", "보랏빛 밤 판, 금빛 테두리, 육각 장식"),
+    "minecraft": ("마인크래프트", "업적 알림 같은 베벨 판, 도트 글자, 글자 그림자"),
+}
+#: 게임 장르 스타일(미리보기에서 따로 묶어 보여 줌). 나머지는 일반 스타일
+GENRE_STYLES = ("tactical", "arcane", "hero", "tavern", "survival", "adventure", "gothic", "sports")
+#: 게임별 스타일(게임 패키지와 같은 이름, 미리보기에서 따로 묶음)
+GAME_LOOKS = ("valorant", "lol", "overwatch", "hearthstone", "pubg", "maplestory", "lostark", "fconline", "tft", "minecraft")
+
+
+# --------------------------------------------------------------------------- 글꼴
+
+
+def check_font(value: Any, fonts: list[dict[str, str]]) -> str:
+    """글꼴 선택: 빈 값(스타일 기본), FONT_CHOICES 이름, ``local:설치한 글꼴 이름``, ``user:번호`` (올린 글꼴)."""
+    text = str(value or "").strip()
+    if not text or text in FONT_CHOICES:
+        return text
+    if text.startswith("local:"):
+        name = text[6:].strip()
+        if not _LOCAL_NAME.match(name):
+            raise ThemeError("설치한 글꼴 이름은 한글, 영문, 숫자, 공백, -, _, . 로 40자 이내(Windows 글꼴 설정에 보이는 이름)")
+        return f"local:{name}"
+    if text.startswith("user:") and any(font["id"] == text[5:] for font in fonts):
+        return text
+    raise ThemeError("없는 글꼴: 목록에서 고르거나 설치한 글꼴 이름을 입력")
+
+
+def font_stack(choice: str, fonts: list[dict[str, str]]) -> str | None:
+    if choice in FONT_CHOICES:
+        return FONT_CHOICES[choice][1]
+    if choice.startswith("local:"):
+        return f'"{choice[6:]}", {FALLBACK}'
+    if choice.startswith("user:") and any(font["id"] == choice[5:] for font in fonts):
+        return f'"dk-user-{choice[5:]}", {FALLBACK}'
+    return None
+
+
+def font_catalog(fonts: list[dict[str, str]] | None = None) -> dict[str, dict[str, Any]]:
+    """모든 도구(뽑기판, 추첨 연출, 레이스, 방송 이미지)가 고르는 글꼴: 묶음 순서의 FONT_CHOICES와 올린 내 글꼴(``user:번호``).
+
+    값은 ``{"name", "about", "group", "css", "weight", "family", "src"}`` (src는 함께 배포한 글꼴과 내 글꼴의 파일 주소, 이 PC 글꼴은 빈 값).
+    ``fonts`` 를 주지 않으면 저장한 내 글꼴을 읽는다.
+    """
+    fonts = load()["fonts"] if fonts is None else fonts
+    catalog: dict[str, dict[str, Any]] = {}
+    for group, keys in FONT_GROUPS.items():
+        for key in keys:
+            name, stack, about = FONT_CHOICES[key]
+            family, file = _FILES.get(key, ("", ""))
+            catalog[key] = {"name": name, "about": about, "group": group, "css": stack, "weight": 400 if key in _REGULAR_ONLY else 700,
+                            "family": family, "src": f"/vendor/fonts/{file}" if file else ""}
+    for font in fonts:
+        catalog[f"user:{font['id']}"] = {"name": font["name"], "about": "내 글꼴", "group": "내 글꼴", "css": f'"dk-user-{font["id"]}", {FALLBACK}',
+                                         "weight": 400, "family": f"dk-user-{font['id']}", "src": f"/theme/font?id={font['id']}"}
+    return catalog
+
+
+def tool_fonts(extra: dict[str, tuple[str, str]] | None = None, fonts: list[dict[str, str]] | None = None) -> dict[str, dict[str, Any]]:
+    """도구(뽑기판, 추첨 연출, 레이스, 방송 이미지)의 글꼴 목록: 카탈로그(내 글꼴 포함) 뒤에 도구만의 이 PC 글꼴(extra: 이름 -> (표시 이름, CSS)).
+
+    값마다 ``label`` (조작 화면 목록에 보이는 "묶음: 이름") 을 더한다.
+    """
+    catalog = font_catalog(fonts)
+    for key, (name, stack) in (extra or {}).items():
+        catalog.setdefault(key, {"name": name, "about": "", "group": "이 PC", "css": stack, "weight": 700})
+    for item in catalog.values():
+        item["label"] = f"{item['group']}: {item['name']}"
+    return catalog
+
+
+def tool_font(value: Any, catalog: dict[str, dict[str, Any]], aliases: dict[str, str] | None = None, default: str = "blackhan") -> str | None:
+    """도구 설정의 글꼴 이름 확인. 예전 이름(aliases)은 새 이름으로, 지운 내 글꼴은 기본 글꼴로, 그 밖에 없는 이름은 None."""
+    key = str(value or "")
+    key = (aliases or {}).get(key, key)
+    if key in catalog:
+        return key
+    if key.startswith("user:"):
+        return default
+    return None
+
+
+def font_face(key: str, catalog: dict[str, dict[str, Any]]) -> list[Any]:
+    """[CSS 글꼴 목록, 굵기]. 없는 이름은 Black Han Sans."""
+    item = catalog.get(key) or catalog["blackhan"]
+    return [item["css"], item["weight"]]
+
+
+def font_folder() -> Path:
+    return settings.data_path(FONT_FOLDER)
+
+
+def user_font_faces(fonts: list[dict[str, str]]) -> str:
+    faces = []
+    for font in fonts:
+        kind = FONT_MAGIC_BY_EXT.get(font.get("ext", ""), "")
+        if kind:
+            faces.append(f'@font-face {{ font-family: "dk-user-{font["id"]}"; src: url("/theme/font?id={font["id"]}") format("{kind}"); '
+                         "font-display: swap; }\n")
+    return "".join(faces)
+
+
+FONT_MAGIC_BY_EXT = {ext: kind for ext, kind in FONT_MAGIC.values()}
+
+
+def decode_font(data: Any) -> tuple[bytes, str]:
+    """올린 글꼴(base64 또는 data URL) 확인: (내용, 확장자). 틀리면 ThemeError."""
+    text = str(data or "")
+    if text.startswith("data:"):
+        text = text.split(",", 1)[-1]
+    try:
+        raw = base64.b64decode(text, validate=True)
+    except (binascii.Error, ValueError):
+        raise ThemeError("글꼴 파일을 읽지 못함") from None
+    if not raw:
+        raise ThemeError("글꼴 파일이 비어 있음")
+    if len(raw) > MAX_FONT:
+        raise ThemeError(f"글꼴 파일은 {MAX_FONT // 1024 // 1024} MB 이하")
+    for magic, (ext, _) in FONT_MAGIC.items():
+        if raw.startswith(magic):
+            return raw, ext
+    raise ThemeError("글꼴 파일이 아님: TTF, OTF, WOFF, WOFF2만")
+
+
+# --------------------------------------------------------------------------- 저장과 CSS
+
+
+def load() -> dict[str, Any]:
+    saved = settings.load_data(DATA)
+    _, primary, highlight = PRESETS["pink"]
+    try:
+        primary = check_color(saved.get("primary", primary), "주 색")
+        highlight = check_color(saved.get("highlight", highlight), "강조 색")
+    except ThemeError:
+        _, primary, highlight = PRESETS["pink"]
+    preset = saved.get("preset") if saved.get("preset") in PRESETS else ""
+    fonts = [font for font in saved.get("fonts") or [] if isinstance(font, dict) and re.fullmatch(r"[0-9a-f]{24}", str(font.get("id", "")))
+             and font.get("ext") in FONT_TYPES][:MAX_FONTS]
+    fonts = [{"id": font["id"], "ext": font["ext"], "name": str(font.get("name") or "내 글꼴")[:40]} for font in fonts]
+    choices = {}
+    for name in ("display_font", "text_font"):
+        try:
+            choices[name] = check_font(saved.get(name, ""), fonts)
+        except ThemeError:
+            choices[name] = ""
+    style = saved.get("style") if saved.get("style") in STYLES else "prop"
+    return {"primary": primary, "highlight": highlight, "preset": preset, "style": style, **choices, "fonts": fonts}
+
+
+def tokens(theme: dict[str, Any] | None = None) -> dict[str, str]:
+    """CSS 변수 값(이름은 --dk- 뒤). 색, 방송 스타일, 글꼴."""
+    theme = theme or load()
+    colors = palette(theme["primary"], theme["highlight"])
+    found = {**colors, **_style_tokens(theme["style"], colors), "style": theme["style"]}
+    for slot, name in (("display", "display_font"), ("text", "text_font")):
+        stack = font_stack(theme.get(name, ""), theme.get("fonts", []))
+        if stack:
+            found[slot] = stack
+    enter = ENTERS[found.pop("enter")]
+    found["enter-time"], found["enter-ease"] = enter[1], enter[2]
+    found["hard-shadow"] = f"0 6px 0 {rgba(INK, 0.88)}"
+    found["grain"] = _GRAIN
+    return found
+
+
+def css(theme: dict[str, Any] | None = None, *, fonts: bool = True) -> str:
+    """``fonts`` 가 False면 함께 배포한 글꼴 선언은 빼고 변수만(조작 화면은 본문을 이 PC 글꼴로 써서 보통 굵기를 유지). 내 글꼴 선언은 넣는다."""
+    theme = theme or load()
+    values = tokens(theme)
+    enter = ENTERS[_style_tokens(theme["style"], palette(theme["primary"], theme["highlight"]))["enter"]][0]
+    variables = "".join(f"  --dk-{key}: {value};\n" for key, value in values.items())
+    return ((FONTS if fonts else "") + user_font_faces(theme.get("fonts", [])) + ":root {\n" + variables + "}\n"
+            + f"@keyframes dk-enter {{ {enter} }}\n")
+
+
+def logo_colors() -> dict[str, str] | None:
+    """마지막으로 저장한 로고의 심볼 주 색(로고 만들기 기록). 없으면 None."""
+    from .. import logo
+
+    try:
+        lines = (logo.logos_dir() / "made.jsonl").read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return None
+    for line in reversed(lines):
+        try:
+            symbol = json.loads(line).get("symbol") or {}
+            return {"primary": check_color(symbol.get("primary"), "주 색")}
+        except (ValueError, ThemeError, AttributeError):
+            continue
+    return None
+
+
+def _feed_value(seq: int) -> dict[str, Any]:
+    """/live 의 theme 항목: 저장 값과 색. 처음 값에도 색이 있어야 theme.js가 기준으로 삼아 다음 스타일 변경을 알아챈다."""
+    current = load()
+    return {"seq": seq, **current, "palette": palette(current["primary"], current["highlight"])}
+
+
+def make_feature(context: feature.Context) -> feature.Feature:
+    channel = feature.Channel(_feed_value(0))
+
+    def info(_: Any = None) -> dict[str, Any]:
+        current = load()
+        colors = palette(current["primary"], current["highlight"])
+        styles = {}
+        for key, (name, about) in STYLES.items():
+            values = _style_tokens(key, colors)
+            styles[key] = {"name": name, "about": about, "surface": values["surface"], "on": values["on-surface"], "line": values["line"],
+                           "radius": values["radius"], "shadow": values["shadow"], "tag": values["tag-bg"], "font": values["display"],
+                           "tone": values["tone"], "group": "title" if key in GAME_LOOKS else "game" if key in GENRE_STYLES else "basic"}
+        return {**current, "palette": colors, "tokens": tokens(current),
+                "presets": {key: {"name": name, "primary": primary, "highlight": highlight} for key, (name, primary, highlight) in PRESETS.items()},
+                "styles": styles, "font_choices": {key: {"name": name, "about": about} for key, (name, _, about) in FONT_CHOICES.items()},
+                "font_catalog": font_catalog(current["fonts"]),
+                "logo": logo_colors()}
+
+    def store(values: dict[str, Any]) -> dict[str, Any]:
+        settings.save_data(DATA, values)
+        channel.publish(_feed_value(channel.current.get("seq", 0) + 1))
+        return info()
+
+    def saved_values() -> dict[str, Any]:
+        current = load()
+        return {key: current[key] for key in ("primary", "highlight", "preset", "style", "display_font", "text_font", "fonts")}
+
+    def save(data: dict[str, Any]) -> dict[str, Any]:
+        values = saved_values()
+        if data.get("preset"):
+            if data["preset"] not in PRESETS:
+                raise ThemeError("없는 색 조합: " + ", ".join(PRESETS))
+            _, values["primary"], values["highlight"] = PRESETS[data["preset"]]
+            values["preset"] = data["preset"]
+        elif data.get("from_logo"):
+            found = logo_colors()
+            if not found:
+                raise ThemeError("저장한 로고 기록 없음: 로고 만들기에서 로고를 저장한 뒤 사용")
+            values["primary"], values["preset"] = found["primary"], ""
+        elif "primary" in data or "highlight" in data:
+            values["primary"] = check_color(data.get("primary", values["primary"]), "주 색")
+            values["highlight"] = check_color(data.get("highlight", values["highlight"]), "강조 색")
+            values["preset"] = ""
+        if "style" in data:
+            if data["style"] not in STYLES:
+                raise ThemeError("방송 스타일은 " + ", ".join(STYLES) + " 중 하나")
+            values["style"] = data["style"]
+        for name in ("display_font", "text_font"):
+            if name in data:
+                values[name] = check_font(data[name], values["fonts"])
+        return store(values)
+
+    def upload_font(data: dict[str, Any]) -> dict[str, Any]:
+        values = saved_values()
+        if len(values["fonts"]) >= MAX_FONTS:
+            raise ThemeError(f"내 글꼴은 {MAX_FONTS}개까지: 쓰지 않는 글꼴을 지운 뒤 올리기")
+        raw, ext = decode_font(data.get("data"))
+        name = re.sub(r"\.(ttf|otf|woff2?)$", "", str(data.get("name") or "내 글꼴").strip(), flags=re.IGNORECASE)[:40] or "내 글꼴"
+        font_id = secrets.token_hex(12)
+        folder = font_folder()
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / f"{font_id}.{ext}").write_bytes(raw)
+        values["fonts"] = [*values["fonts"], {"id": font_id, "ext": ext, "name": name}]
+        for slot in data.get("use") or []:  # 올리면서 바로 쓰기("display", "text")
+            if slot in ("display", "text"):
+                values[f"{slot}_font"] = f"user:{font_id}"
+        answer = store(values)
+        return {**answer, "uploaded": font_id}
+
+    def remove_font(data: dict[str, Any]) -> dict[str, Any]:
+        values = saved_values()
+        font_id = str(data.get("id") or "")
+        found = next((font for font in values["fonts"] if font["id"] == font_id), None)
+        if found is None:
+            raise ThemeError("없는 글꼴", 404)
+        values["fonts"] = [font for font in values["fonts"] if font["id"] != font_id]
+        for name in ("display_font", "text_font"):
+            if values[name] == f"user:{font_id}":
+                values[name] = ""
+        try:
+            (font_folder() / f"{font_id}.{found['ext']}").unlink()
+        except OSError:
+            pass
+        return store(values)
+
+    def font_file(query: feature.Query) -> feature.Raw:
+        font_id = query.get("id", [""])[0]
+        found = next((font for font in load()["fonts"] if font["id"] == font_id), None)
+        if found is None:
+            raise ThemeError("없는 글꼴", 404)
+        try:
+            body = (font_folder() / f"{font_id}.{found['ext']}").read_bytes()
+        except OSError:
+            raise ThemeError("글꼴 파일이 없어짐", 404) from None
+        return feature.Raw(body, FONT_TYPES[found["ext"]], "default-src 'none'; sandbox")
+
+    def stylesheet(query: feature.Query) -> feature.Raw:
+        """``?style=neon`` 은 이 화면만 다른 방송 스타일(알림, 채팅을 따로 꾸밀 때), ``?fonts=0`` 은 함께 배포한 글꼴 선언 빼기."""
+        current = load()
+        style = query.get("style", [""])[0]
+        if style in STYLES:
+            current = {**current, "style": style}
+        for name in ("primary", "highlight"):  # 그림 견본이 다른 색 조합을 보여 줄 때(이 화면만)
+            value = "#" + query.get(name, [""])[0].lower()
+            if _HEX.match(value):
+                current = {**current, name: value}
+        return feature.Raw(css(current, fonts=query.get("fonts", ["1"])[0] != "0").encode("utf-8"), "text/css; charset=utf-8")
+
+    handlers: dict[str, Callable[[Any], Any]] = {"/theme": info, "/theme.css": stylesheet, "/theme/font": font_file}
+    return feature.Feature(name="theme", get=handlers, post={"/theme": save, "/theme/font": upload_font, "/theme/font/remove": remove_font},
+                           feeds={"theme": channel}, body_limit={"/theme/font": MAX_FONT * 4 // 3 + 4096})

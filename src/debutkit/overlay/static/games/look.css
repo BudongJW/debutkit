@@ -1,0 +1,213 @@
+/* debutkit 게임별 스타일의 장식(/games/look.css): 알림, 채팅(방송 스타일 카드), 프레임에 그 게임의 모양 언어를 더한다.
+   색과 바탕은 /theme.css의 --dk-* 변수(theme.py의 게임별 스타일), 여기는 꼬리표 모양, 모서리 장식, 글자 꼴, 대기 화면 배경 그림.
+   html의 data-dk-style이 게임 이름일 때만 적용. 공식 로고, 그림, 글꼴은 쓰지 않음. 장식은 debutkit에서 그린 도형,
+   대기 화면 배경은 공개 모델(FLUX.1 schnell, Apache-2.0)로 만든 일러스트(games/scenes.json에 생성 기록).
+   OBS 28(Chromium 103) 호환: :has, 색 섞기 함수, translate, scale 속성 쓰지 않음 */
+
+/* ================================================================ 공통: 장식 자리(말풍선, 큰 글자 배치는 장식 없이) */
+html[data-dk-style] .alert:not(.layout-bubble):not(.layout-big)::after { content: none; position: absolute; pointer-events: none; }
+
+/* ================================================================ 발로란트: 비스듬한 판, 붉은 막대, 좁은 대문자 */
+html[data-dk-style="valorant"] .alert { filter: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.45)); padding-left: 1.6em;
+  outline: 1px solid rgba(236, 232, 225, 0.22); outline-offset: 5px; }
+html[data-dk-style="valorant"] .alert::before { border: 0; border-radius: 0; padding: 0.16em 1em 0.2em 0.8em; letter-spacing: 0.12em; text-transform: uppercase;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 0.6em) 100%, 0 100%); }
+html[data-dk-style="valorant"] .alert:not(.layout-bubble):not(.layout-big)::after { content: ""; right: 1.4em; top: -0.55em; width: 3.2em; height: 0.2em;
+  background: linear-gradient(90deg, #ece8e1 0 70%, transparent 70% 78%, #ff4655 78%); }
+html[data-dk-style="valorant"] .alert-title, html[data-dk-style="valorant"] .fr-plate, html[data-dk-style="valorant"] .fr-title,
+html[data-dk-style="valorant"] .fr-kicker { text-transform: uppercase; letter-spacing: 0.05em; }
+html[data-dk-style="valorant"] .alert-title .amount { color: #ff4655; }
+html[data-dk-style="valorant"] .alert .platform { border: 0; border-radius: 0; }
+
+/* ================================================================ 리그 오브 레전드: 금빛 테두리와 마름모 장식, 청록 보석 */
+html[data-dk-style="lol"] .alert { padding-top: 1.2em; }
+html[data-dk-style="lol"] .alert::before { border: 1px solid #c8aa6e; border-radius: 0; background: linear-gradient(180deg, #1e2328, #010a13); color: #c8aa6e;
+  letter-spacing: 0.1em; }
+html[data-dk-style="lol"] .alert:not(.layout-bubble):not(.layout-big)::after { content: ""; left: 50%; top: -0.8em; width: 8em; height: 1.5em; margin-left: -4em;
+  background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 30'><path d='M0 15 H58 M102 15 H160' stroke='%23c8aa6e' stroke-width='2'/><path d='M80 1 L96 15 L80 29 L64 15 Z' fill='%23010a13' stroke='%23c8aa6e' stroke-width='2.5'/><path d='M80 8 L87 15 L80 22 L73 15 Z' fill='%230ac8b9'/><circle cx='58' cy='15' r='3' fill='%23c8aa6e'/><circle cx='102' cy='15' r='3' fill='%23c8aa6e'/></svg>") center / contain no-repeat; }
+html[data-dk-style="lol"] .alert-title, html[data-dk-style="lol"] .fr-title, html[data-dk-style="lol"] .fr-plate { font-weight: 700; letter-spacing: 0.03em; }
+html[data-dk-style="lol"] .alert-title .amount { color: #c8aa6e; }
+html[data-dk-style="lol"] .alert-title .who { color: #0ac8b9; }
+
+/* ================================================================ 오버워치: 흰 판, 주황 사선, 기울인 굵은 글자 */
+html[data-dk-style="overwatch"] .alert { padding-left: 1.7em; }
+html[data-dk-style="overwatch"] .alert::before { border: 0; border-radius: 0; padding: 0.14em 1em 0.2em; font-style: italic; letter-spacing: 0.06em;
+  clip-path: polygon(0.5em 0, 100% 0, calc(100% - 0.5em) 100%, 0 100%); }
+html[data-dk-style="overwatch"] .alert:not(.layout-bubble):not(.layout-big)::after { content: ""; right: -0.5em; bottom: -0.45em; width: 4.6em; height: 0.6em;
+  background: repeating-linear-gradient(115deg, #f99e1a 0 0.8em, transparent 0.8em 1.1em); }
+html[data-dk-style="overwatch"] .alert-title, html[data-dk-style="overwatch"] .fr-title, html[data-dk-style="overwatch"] .fr-plate,
+html[data-dk-style="overwatch"] .fr-kicker { font-style: italic; text-transform: uppercase; letter-spacing: 0.03em; }
+html[data-dk-style="overwatch"] .alert-title .who { color: #e8720c; }
+html[data-dk-style="overwatch"] .alert-title .amount { background: linear-gradient(transparent 60%, rgba(249, 158, 26, 0.55) 60%); }
+
+/* ================================================================ 하스스톤: 양피지 카드, 나무 테두리, 파란 보석 */
+html[data-dk-style="hearthstone"] .alert { padding-top: 1.35em; }
+html[data-dk-style="hearthstone"] .alert::before { border: 0.12em solid #d4a84b; border-radius: 1em; box-shadow: 0 0 0 0.12em #2a190b; }
+html[data-dk-style="hearthstone"] .alert:not(.layout-bubble):not(.layout-big)::after { content: ""; left: 50%; top: -1.15em; width: 2.3em; height: 2.3em; margin-left: -1.15em;
+  background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'><circle cx='24' cy='24' r='21' fill='%23d4a84b' stroke='%233b2412' stroke-width='3'/><circle cx='24' cy='24' r='15' fill='%235b3a1e'/><path d='M24 10 L36 24 L24 38 L12 24 Z' fill='%232f7bd8' stroke='%23123e7a' stroke-width='2'/><path d='M24 10 L30 24 L24 24 Z' fill='%2389c2ff'/></svg>") center / contain no-repeat; }
+html[data-dk-style="hearthstone"] .alert-title .who { color: #8a3d12; }
+
+/* ================================================================ 배틀그라운드: 올리브 판, 노란 막대, 경고 줄무늬 */
+html[data-dk-style="pubg"] .alert { padding-left: 1.6em; }
+html[data-dk-style="pubg"] .alert::before { border: 0; border-radius: 0; letter-spacing: 0.1em; text-transform: uppercase; }
+html[data-dk-style="pubg"] .alert:not(.layout-bubble):not(.layout-big)::after { content: ""; left: 0; right: 0; bottom: -0.55em; height: 0.35em;
+  background: repeating-linear-gradient(135deg, #f2a900 0 0.5em, #1c1f18 0.5em 1em); }
+html[data-dk-style="pubg"] .alert-title, html[data-dk-style="pubg"] .fr-plate, html[data-dk-style="pubg"] .fr-title,
+html[data-dk-style="pubg"] .fr-kicker { text-transform: uppercase; letter-spacing: 0.05em; }
+html[data-dk-style="pubg"] .alert-title .amount { color: #f2a900; }
+
+/* ================================================================ 메이플스토리: 흰 둥근 창, 주황 머리띠, 노란 별 */
+html[data-dk-style="maplestory"] .alert { padding-top: 1.25em; }
+html[data-dk-style="maplestory"] .alert::before { border: 0.12em solid #ffffff; border-radius: 1em; box-shadow: 0 0 0 0.1em #c97a1e; }
+html[data-dk-style="maplestory"] .alert:not(.layout-bubble):not(.layout-big)::after { content: ""; right: -0.7em; top: -0.8em; width: 1.9em; height: 1.9em;
+  background: #ffd84d; filter: drop-shadow(0 0 0 #c97a1e);
+  clip-path: polygon(50% 0, 63% 33%, 100% 38%, 72% 62%, 81% 100%, 50% 80%, 19% 100%, 28% 62%, 0 38%, 37% 33%); }
+html[data-dk-style="maplestory"] .alert-title .who { color: #e8720c; }
+
+/* ================================================================ 로스트아크: 푸른 검정 판, 금빛 L자 모서리 장식 */
+html[data-dk-style="lostark"] .alert::before { border: 1px solid #e9d5a5; border-radius: 0; letter-spacing: 0.08em; background: linear-gradient(180deg, #e9d5a5, #c9a063); }
+html[data-dk-style="lostark"] .alert:not(.layout-bubble):not(.layout-big)::after { content: ""; left: -0.55em; top: -0.55em; right: -0.55em; bottom: -0.55em;
+  background:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><path d='M2 38 V2 H38' fill='none' stroke='%23b08d57' stroke-width='2.5'/><path d='M8 30 V8 H30' fill='none' stroke='%23b08d57' stroke-width='1'/><path d='M2 2 L12 12' stroke='%23e8892a' stroke-width='2'/><circle cx='12' cy='12' r='3' fill='%23e8892a'/></svg>") left top / 1.9em no-repeat,
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><path d='M38 38 V2 H2' fill='none' stroke='%23b08d57' stroke-width='2.5'/><path d='M32 30 V8 H10' fill='none' stroke='%23b08d57' stroke-width='1'/><path d='M38 2 L28 12' stroke='%23e8892a' stroke-width='2'/><circle cx='28' cy='12' r='3' fill='%23e8892a'/></svg>") right top / 1.9em no-repeat,
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><path d='M2 2 V38 H38' fill='none' stroke='%23b08d57' stroke-width='2.5'/><path d='M8 10 V32 H30' fill='none' stroke='%23b08d57' stroke-width='1'/><path d='M2 38 L12 28' stroke='%23e8892a' stroke-width='2'/><circle cx='12' cy='28' r='3' fill='%23e8892a'/></svg>") left bottom / 1.9em no-repeat,
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><path d='M38 2 V38 H2' fill='none' stroke='%23b08d57' stroke-width='2.5'/><path d='M32 10 V32 H10' fill='none' stroke='%23b08d57' stroke-width='1'/><path d='M38 38 L28 28' stroke='%23e8892a' stroke-width='2'/><circle cx='28' cy='28' r='3' fill='%23e8892a'/></svg>") right bottom / 1.9em no-repeat; }
+html[data-dk-style="lostark"] .alert-title, html[data-dk-style="lostark"] .fr-title, html[data-dk-style="lostark"] .fr-plate { font-weight: 700; letter-spacing: 0.03em; }
+html[data-dk-style="lostark"] .alert-title .who { color: #f99200; }
+html[data-dk-style="lostark"] .alert-title .amount { color: #e9d5a5; }
+
+/* ================================================================ FC 온라인: 중계 점수판(잔디 초록 끝 막대, 좁은 대문자) */
+html[data-dk-style="fconline"] .alert { padding-left: 1.6em; }
+html[data-dk-style="fconline"] .alert::before { border: 0; border-radius: 0; letter-spacing: 0.1em; text-transform: uppercase;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 0.5em) 100%, 0 100%); }
+html[data-dk-style="fconline"] .alert:not(.layout-bubble):not(.layout-big)::after { content: ""; right: -1.1em; top: 0; bottom: 0; width: 1.2em;
+  background: #3ba55c; clip-path: polygon(0 0, 100% 0, 35% 100%, 0 100%); }
+html[data-dk-style="fconline"] .alert-title, html[data-dk-style="fconline"] .fr-plate, html[data-dk-style="fconline"] .fr-title,
+html[data-dk-style="fconline"] .fr-kicker { text-transform: uppercase; letter-spacing: 0.04em; }
+html[data-dk-style="fconline"] .alert-title .amount { color: #5fd17f; }
+
+/* ================================================================ 전략적 팀 전투: 보랏빛 판, 금빛 육각 장식 */
+html[data-dk-style="tft"] .alert { padding-top: 1.2em; }
+html[data-dk-style="tft"] .alert::before { border: 0; border-radius: 0; clip-path: polygon(0.5em 0, calc(100% - 0.5em) 0, 100% 50%, calc(100% - 0.5em) 100%, 0.5em 100%, 0 50%);
+  padding: 0.12em 1em 0.18em; }
+html[data-dk-style="tft"] .alert:not(.layout-bubble):not(.layout-big)::after { content: ""; left: 50%; top: -0.95em; width: 6em; height: 1.8em; margin-left: -3em;
+  background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 36'><path d='M0 18 H34 M86 18 H120' stroke='%23d9b25f' stroke-width='2'/><path d='M60 2 L74 10 L74 26 L60 34 L46 26 L46 10 Z' fill='%231c143a' stroke='%23d9b25f' stroke-width='2.5'/><path d='M60 10 L67 14 L67 22 L60 26 L53 22 L53 14 Z' fill='%238b6cff'/><path d='M40 18 L34 14 L34 22 Z M80 18 L86 14 L86 22 Z' fill='%23d9b25f'/></svg>") center / contain no-repeat; }
+html[data-dk-style="tft"] .alert-title, html[data-dk-style="tft"] .fr-title, html[data-dk-style="tft"] .fr-plate { font-weight: 700; }
+html[data-dk-style="tft"] .alert-title .amount { color: #f0c96b; }
+html[data-dk-style="tft"] .alert-title .who { color: #b9a2ff; }
+
+/* ================================================================ 마인크래프트: 업적 알림(베벨 판, 노란 제목), 도트 글자, 글자 그림자 */
+html[data-dk-style="minecraft"] .alert::before { border: 0.12em solid #100010; border-radius: 0; box-shadow: inset 0 -0.15em 0 rgba(0, 0, 0, 0.3); }
+html[data-dk-style="minecraft"] .alert .platform { border-radius: 0; }
+html[data-dk-style="minecraft"] .alert-title { color: #ffff55; }
+html[data-dk-style="minecraft"] .alert-title .who { color: #ffffff; }
+html[data-dk-style="minecraft"] .alert-title .amount { color: #ffaa00; }
+html[data-dk-style="minecraft"] .alert-text { color: #aaaaaa; text-shadow: 2px 2px 0 #2a2a2a; }
+
+/* ================================================================ 채팅창(방송 스타일 카드) */
+html[data-dk-style="valorant"] body[data-theme="style"] .name, html[data-dk-style="pubg"] body[data-theme="style"] .name,
+html[data-dk-style="fconline"] body[data-theme="style"] .name, html[data-dk-style="overwatch"] body[data-theme="style"] .name { text-transform: uppercase; letter-spacing: 0.04em; }
+html[data-dk-style="valorant"] body[data-theme="style"] .line { padding-left: 1.1em; }
+html[data-dk-style="pubg"] body[data-theme="style"] .line, html[data-dk-style="fconline"] body[data-theme="style"] .line { padding-left: 1.2em; }
+html[data-dk-style="overwatch"] body[data-theme="style"] .line { padding-left: 1.3em; }
+html[data-dk-style="overwatch"] body[data-theme="style"] .name { font-style: italic; color: #e8720c; }
+html[data-dk-style="lol"] body[data-theme="style"] .name { color: #c8aa6e; }
+html[data-dk-style="tft"] body[data-theme="style"] .name { color: #f0c96b; }
+html[data-dk-style="lostark"] body[data-theme="style"] .name { color: #f99200; }
+html[data-dk-style="minecraft"] body[data-theme="style"] .name { color: #ffff55; }
+html[data-dk-style="minecraft"] body[data-theme="style"] .line { background: rgba(0, 0, 0, 0.45); border: 0; border-radius: 0; box-shadow: none; }
+html[data-dk-style="maplestory"] body[data-theme="style"] .name { color: #e8720c; }
+html[data-dk-style="maplestory"] body[data-theme="style"] .line { background: #ffffff; border: 2px solid #f29a2e; border-radius: 18px; box-shadow: 0 3px 0 rgba(120, 70, 20, 0.25); }
+html[data-dk-style="hearthstone"] body[data-theme="style"] .name { color: #8a3d12; }
+
+/* ================================================================ 프레임: 캐릭터와 캠 테두리, 이름표 */
+/* 발로란트: 가는 흰 선, 붉은 삼각 모서리, 붉은 이름표 */
+html[data-dk-style="valorant"] .fr-box { border: 1px solid rgba(236, 232, 225, 0.45); border-radius: 0; box-shadow: none; }
+html[data-dk-style="valorant"] .fr-box i { width: 44px; height: 44px; background: #ff4655; border: 0; }
+html[data-dk-style="valorant"] .fr-box i.tl { left: -1px; top: -1px; clip-path: polygon(0 0, 100% 0, 0 100%); }
+html[data-dk-style="valorant"] .fr-box i.br { right: -1px; bottom: -1px; clip-path: polygon(100% 0, 100% 100%, 0 100%); }
+html[data-dk-style="valorant"] .fr-box i.tr, html[data-dk-style="valorant"] .fr-box i.bl { width: 64px; height: 3px; background: #ece8e1; }
+html[data-dk-style="valorant"] .fr-box i.tr { right: 18px; top: -10px; }
+html[data-dk-style="valorant"] .fr-box i.bl { left: 18px; bottom: -10px; }
+html[data-dk-style="valorant"] .fr-plate { background: #ff4655; color: #ffffff; border: 0; border-radius: 0; padding-right: 30px;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 16px) 100%, 0 100%); }
+html[data-dk-style="valorant"] .fr-tag { background: #ece8e1; color: #0f1923; border-radius: 0; }
+/* 리그 오브 레전드: 금빛 이중 테두리, 마름모 모서리(청록 보석) */
+html[data-dk-style="lol"] .fr-box { border: 2px solid #c8aa6e; border-radius: 0; box-shadow: 0 0 0 6px rgba(1, 10, 19, 0.85), 0 0 0 8px #785a28, 0 0 26px rgba(0, 0, 0, 0.6); }
+html[data-dk-style="lol"] .fr-box i, html[data-dk-style="tft"] .fr-box i { width: 30px; height: 30px; background: #010a13; border: 2px solid #c8aa6e; transform: rotate(45deg);
+  box-shadow: inset 0 0 0 6px #010a13, inset 0 0 0 14px #0ac8b9; }
+html[data-dk-style="lol"] .fr-plate { background: linear-gradient(180deg, #1e2328, #010a13); color: #f0e6d2; border: 2px solid #c8aa6e; border-radius: 0; }
+html[data-dk-style="lol"] .fr-tag { background: #c8aa6e; color: #010a13; border-radius: 0; }
+/* 오버워치: 굵은 흰 테두리, 주황 사선 모서리, 기울인 흰 이름표 */
+html[data-dk-style="overwatch"] .fr-box { border: 8px solid #ffffff; border-radius: 12px; box-shadow: 0 10px 26px rgba(20, 30, 50, 0.35); }
+html[data-dk-style="overwatch"] .fr-box i { width: 76px; height: 16px; border: 0; background: #f99e1a; transform: skewX(-30deg); }
+html[data-dk-style="overwatch"] .fr-box i.tl, html[data-dk-style="overwatch"] .fr-box i.tr { top: -12px; }
+html[data-dk-style="overwatch"] .fr-box i.bl, html[data-dk-style="overwatch"] .fr-box i.br { bottom: -12px; }
+html[data-dk-style="overwatch"] .fr-plate { border: 0; border-radius: 4px; box-shadow: inset 10px 0 0 #f99e1a, 0 8px 18px rgba(20, 30, 50, 0.3); padding-left: 26px; }
+/* 하스스톤: 나무 테두리와 금테, 파란 보석 모서리 */
+html[data-dk-style="hearthstone"] .fr-box { border: 16px solid #6b4423; border-radius: 26px;
+  box-shadow: inset 0 0 0 3px #d4a84b, 0 0 0 3px #2a190b, 0 12px 26px rgba(0, 0, 0, 0.45); }
+html[data-dk-style="hearthstone"] .fr-box i { width: 38px; height: 38px; border-radius: 50%; border: 3px solid #2a190b;
+  background: radial-gradient(circle at 38% 34%, #b9dcff 0 18%, #2f7bd8 40%, #123e7a 75%); box-shadow: 0 0 0 4px #d4a84b; }
+html[data-dk-style="hearthstone"] .fr-plate { border: 4px solid #6b4423; border-radius: 14px; box-shadow: inset 0 0 0 2px #d4a84b, 0 8px 16px rgba(0, 0, 0, 0.4); }
+html[data-dk-style="hearthstone"] .fr-tag { background: #2f7bd8; color: #ffffff; border: 2px solid #d4a84b; border-radius: 12px; }
+/* 배틀그라운드: 노란 꺾쇠, 경고 줄무늬, 노란 이름표 */
+html[data-dk-style="pubg"] .fr-box { border: 2px solid rgba(237, 230, 211, 0.55); border-radius: 0; box-shadow: none; }
+html[data-dk-style="pubg"] .fr-box i { width: 48px; height: 48px; border: 0 solid #f2a900; }
+html[data-dk-style="pubg"] .fr-box i.tl { border-width: 6px 0 0 6px; left: -6px; top: -6px; }
+html[data-dk-style="pubg"] .fr-box i.tr { width: 150px; height: 12px; right: 30px; top: -6px; background: repeating-linear-gradient(135deg, #f2a900 0 10px, #1c1f18 10px 20px); }
+html[data-dk-style="pubg"] .fr-box i.bl { width: 150px; height: 12px; left: 30px; bottom: -6px; background: repeating-linear-gradient(135deg, #f2a900 0 10px, #1c1f18 10px 20px); }
+html[data-dk-style="pubg"] .fr-box i.br { border-width: 0 6px 6px 0; right: -6px; bottom: -6px; }
+html[data-dk-style="pubg"] .fr-plate { background: #f2a900; color: #1c1f18; border: 0; border-radius: 0; }
+html[data-dk-style="pubg"] .fr-tag { background: #1c1f18; color: #f2a900; border-radius: 0; }
+/* 메이플스토리: 둥근 주황 테두리, 노란 별 모서리, 흰 이름표 */
+html[data-dk-style="maplestory"] .fr-box { border: 9px solid #f29a2e; border-radius: 30px; box-shadow: inset 0 0 0 4px #ffffff, 0 0 0 4px #ffffff, 0 0 0 7px #c97a1e; }
+html[data-dk-style="maplestory"] .fr-box i { width: 40px; height: 40px; border: 0; background: #ffd84d;
+  clip-path: polygon(50% 0, 63% 33%, 100% 38%, 72% 62%, 81% 100%, 50% 80%, 19% 100%, 28% 62%, 0 38%, 37% 33%); }
+html[data-dk-style="maplestory"] .fr-plate { background: #ffffff; border: 4px solid #f29a2e; border-radius: 999px; color: #4a3220; }
+html[data-dk-style="maplestory"] .fr-tag { background: #f29a2e; color: #ffffff; border-radius: 999px; }
+/* 로스트아크: 가는 낡은 금 이중선, 모서리 장식, 검붉은 이름표 */
+html[data-dk-style="lostark"] .fr-box { border: 1px solid #c9a063; border-radius: 0; box-shadow: 0 0 0 6px rgba(11, 13, 18, 0.9), 0 0 0 7px rgba(201, 160, 99, 0.75), 0 0 30px rgba(201, 160, 99, 0.25); }
+html[data-dk-style="lostark"] .fr-box i { width: 46px; height: 46px; border: 0 solid #c9a063; }
+html[data-dk-style="lostark"] .fr-box i.tl { border-width: 3px 0 0 3px; left: -10px; top: -10px; box-shadow: inset 6px 6px 0 -3px #f99200; }
+html[data-dk-style="lostark"] .fr-box i.tr { border-width: 3px 3px 0 0; right: -10px; top: -10px; }
+html[data-dk-style="lostark"] .fr-box i.bl { border-width: 0 0 3px 3px; left: -10px; bottom: -10px; }
+html[data-dk-style="lostark"] .fr-box i.br { border-width: 0 3px 3px 0; right: -10px; bottom: -10px; box-shadow: inset -6px -6px 0 -3px #f99200; }
+html[data-dk-style="lostark"] .fr-plate { background: linear-gradient(180deg, #1d222b, #0b0d12); border: 1px solid #c9a063; border-radius: 0; color: #e9d5a5; }
+/* FC 온라인: 얇은 흰 테두리, 중계 자막 이름표 */
+html[data-dk-style="fconline"] .fr-box { border: 3px solid rgba(255, 255, 255, 0.65); border-radius: 4px; box-shadow: none; }
+html[data-dk-style="fconline"] .fr-box i { display: none; }
+html[data-dk-style="fconline"] .fr-plate { left: 0; bottom: 18px; transform: none; border: 0; border-radius: 0; padding-left: 30px;
+  background: linear-gradient(90deg, #3ba55c 0 8px, #f4f2ec 8px 12px, #0b0b0b 12px); color: #f4f2ec; }
+html[data-dk-style="fconline"] .fr-tag { background: #3ba55c; color: #0b0b0b; border-radius: 0; }
+/* 전략적 팀 전투: 금빛 테두리와 보라 바깥선, 육각 이름표 */
+html[data-dk-style="tft"] .fr-box { border: 2px solid #d9b25f; border-radius: 8px; box-shadow: 0 0 0 6px rgba(28, 20, 58, 0.85), 0 0 0 8px rgba(217, 178, 95, 0.6), 0 0 28px rgba(110, 75, 216, 0.5); }
+html[data-dk-style="tft"] .fr-box i { box-shadow: inset 0 0 0 6px #1c143a, inset 0 0 0 14px #8b6cff; border-color: #d9b25f; background: #1c143a; }
+html[data-dk-style="tft"] .fr-plate { background: linear-gradient(180deg, #2b1f5c, #120c2a); border: 2px solid #d9b25f; border-radius: 0; color: #f3ead8;
+  clip-path: polygon(14px 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 14px 100%, 0 50%); padding-left: 28px; padding-right: 28px; }
+/* 마인크래프트: 칸 테두리(어두운 선과 밝은 안쪽), 풀 블록 모서리, 설명 창 이름표 */
+html[data-dk-style="minecraft"] .fr-box { border: 6px solid #1e1e1e; border-radius: 0; box-shadow: inset 4px 4px 0 #8b8b8b, inset -4px -4px 0 #373737, 6px 6px 0 rgba(0, 0, 0, 0.35); }
+html[data-dk-style="minecraft"] .fr-box i { width: 36px; height: 36px; border: 3px solid #1e1e1e; background: linear-gradient(180deg, #7cbd47 0 35%, #866043 35%); }
+html[data-dk-style="minecraft"] .fr-plate { border-radius: 0; }
+
+/* ================================================================ 대기, 자리 비움, 엔딩 화면: 그 게임 느낌의 배경 그림 */
+html[data-dk-style="valorant"] .fr-panel { background: linear-gradient(90deg, rgba(15, 25, 35, 0.92), rgba(15, 25, 35, 0.55)), url("/games/scene/valorant.jpg") center / cover; }
+html[data-dk-style="lol"] .fr-panel { background: radial-gradient(ellipse at 50% 50%, rgba(1, 10, 19, 0.45), rgba(1, 10, 19, 0.9)), url("/games/scene/lol.jpg") center / cover; }
+html[data-dk-style="overwatch"] .fr-panel { background: linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(229, 235, 243, 0.8)), url("/games/scene/overwatch.jpg") center / cover; }
+html[data-dk-style="hearthstone"] .fr-panel { background: radial-gradient(ellipse at 50% 50%, rgba(246, 231, 196, 0.85), rgba(91, 58, 30, 0.6)), url("/games/scene/hearthstone.jpg") center / cover; }
+html[data-dk-style="pubg"] .fr-panel { background: linear-gradient(180deg, rgba(22, 25, 19, 0.6), rgba(22, 25, 19, 0.88)), url("/games/scene/pubg.jpg") center / cover; }
+html[data-dk-style="maplestory"] .fr-panel { background: linear-gradient(180deg, rgba(255, 255, 255, 0.25), rgba(255, 243, 220, 0.7)), url("/games/scene/maplestory.jpg") center / cover; }
+html[data-dk-style="lostark"] .fr-panel { background: radial-gradient(ellipse at 50% 60%, rgba(11, 13, 18, 0.4), rgba(11, 13, 18, 0.9)), url("/games/scene/lostark.jpg") center / cover; }
+html[data-dk-style="fconline"] .fr-panel { background: linear-gradient(180deg, rgba(11, 11, 11, 0.5), rgba(11, 11, 11, 0.88)), url("/games/scene/fconline.jpg") center / cover; }
+html[data-dk-style="tft"] .fr-panel { background: radial-gradient(ellipse at 50% 50%, rgba(12, 10, 30, 0.4), rgba(12, 10, 30, 0.88)), url("/games/scene/tft.jpg") center / cover; }
+html[data-dk-style="minecraft"] .fr-panel { background: linear-gradient(180deg, rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.55)), url("/games/scene/minecraft.jpg") center / cover; }
+html[data-dk-style="valorant"] .fr-band, html[data-dk-style="lol"] .fr-band, html[data-dk-style="lostark"] .fr-band, html[data-dk-style="tft"] .fr-band,
+html[data-dk-style="hearthstone"] .fr-band, html[data-dk-style="minecraft"] .fr-band { display: none; }
+html[data-dk-style="minecraft"] .fr-title, html[data-dk-style="minecraft"] .fr-name { color: #ffffff; text-shadow: 5px 5px 0 #3f3f3f; }
+/* 그림 배경 위 글자: 어두운 그림자로 읽기 쉽게 */
+html[data-dk-style="valorant"] .fr-title, html[data-dk-style="valorant"] .fr-sub, html[data-dk-style="valorant"] .fr-name,
+html[data-dk-style="lol"] .fr-title, html[data-dk-style="lol"] .fr-sub, html[data-dk-style="lol"] .fr-name,
+html[data-dk-style="pubg"] .fr-title, html[data-dk-style="pubg"] .fr-sub, html[data-dk-style="pubg"] .fr-name,
+html[data-dk-style="lostark"] .fr-title, html[data-dk-style="lostark"] .fr-sub, html[data-dk-style="lostark"] .fr-name,
+html[data-dk-style="fconline"] .fr-title, html[data-dk-style="fconline"] .fr-sub, html[data-dk-style="fconline"] .fr-name,
+html[data-dk-style="tft"] .fr-title, html[data-dk-style="tft"] .fr-sub, html[data-dk-style="tft"] .fr-name { text-shadow: 0 2px 14px rgba(0, 0, 0, 0.85), 0 0 2px rgba(0, 0, 0, 0.6); }

@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>debutkit 팬 커뮤니티</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/theme.css?fonts=0">
+  <link rel="stylesheet" href="/ui.css">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.6 "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; }
+    header { display: flex; align-items: center; gap: 12px; padding: 14px 24px; border-bottom: 1px solid var(--line); }
+    header img { width: 28px; height: 28px; }
+    header h1 { font-size: 17px; margin: 0; }
+    main { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 16px; padding: 18px 24px 48px; max-width: 1300px; margin: 0 auto; align-items: start; }
+    section { border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; }
+    section.wide { grid-column: 1 / -1; }
+    h2 { font-size: 15px; margin: 0 0 8px; }
+    h3 { font-size: 13.5px; margin: 12px 0 4px; }
+    .hint { color: var(--dim); font-size: 13px; margin: 6px 0 0; }
+    .fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px 14px; }
+    label.field { display: grid; gap: 3px; font-size: 13px; font-weight: 600; color: var(--dim); }
+    label.check { display: flex; gap: 8px; align-items: center; font-size: 14px; }
+    input[type=text], input[type=password], input[type=number], input[type=date], input[type=time], select, textarea { padding: 5px 7px; border: 1px solid #c9c3bd; border-radius: 3px;
+      font: inherit; font-size: 14px; background: #fff; color: var(--text); min-width: 0; width: 100%; }
+    textarea { min-height: 80px; }
+    button { background: var(--text); color: #fff; border: 1px solid var(--text); border-radius: 3px; padding: 6px 12px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+    button.secondary { background: #fff; color: var(--text); border-color: #c9c3bd; }
+    button.small { padding: 3px 8px; font-size: 13px; }
+    button:disabled { opacity: 0.5; cursor: default; }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+    .url { display: flex; gap: 6px; }
+    .url input { flex: 1; font-family: ui-monospace, Consolas, monospace; font-size: 13px; background: var(--panel); }
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 8px 0; }
+    .stats div { background: var(--panel); border-radius: 4px; padding: 8px 10px; }
+    .stats b { display: block; font-size: 22px; }
+    .stats small { color: var(--dim); }
+    .warn { color: #b3261e; font-size: 13px; }
+    ol.steps { margin: 6px 0 0; padding-left: 20px; font-size: 14px; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { border-bottom: 1px solid var(--line); padding: 4px 4px; text-align: left; }
+    td input, td select { width: 100%; }
+    code { background: var(--panel); border: 1px solid var(--line); padding: 0 5px; border-radius: 3px; font-size: 13px; }
+    details summary { cursor: pointer; font-weight: 600; font-size: 14px; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <header><img src="/favicon.svg" alt=""><h1>팬 커뮤니티</h1></header>
+  <main>
+    <section class="wide">
+      <h2>내 커뮤니티</h2>
+      <div id="none">
+        <div class="dk-mascot small"><img src="/mascot/bubbles.png" alt="뽀글이들"><p>아직 커뮤니티 없음. 아래 순서대로 만들면 팬들이 모일 자리가 생김</p></div>
+        <p>트게더처럼 내 팬들이 모이는 커뮤니티(공지, 방송 일정, 자유와 팬아트 게시판, 댓글, 출석과 포인트)를 만듭니다. 커뮤니티는 내 Cloudflare 무료 계정에 올라가 PC를 꺼도 열려 있고, debutkit이 방송 중 채팅, 출석, 참여 추첨, 방송 화면과 이어 줍니다.</p>
+        <p class="hint">운영자는 스트리머 본인입니다. 개인정보 처리방침과 이용 규칙은 자동으로 들어가며, 신고된 글 확인과 가리기, 탈퇴와 데이터 내보내기 기능이 있습니다. 회원 정보는 플랫폼 계정 번호와 닉네임만 받고 이메일, 비밀번호, 전화번호는 받지 않습니다.</p>
+      </div>
+      <div id="ready" hidden>
+        <div class="url"><input id="site-url" readonly aria-label="커뮤니티 주소"><button class="secondary" id="copy-site" type="button">복사</button><button id="open-admin" type="button">관리 화면 열기</button></div>
+        <div class="stats">
+          <div><b id="s-users">0</b><small>회원</small></div>
+          <div><b id="s-posts">0</b><small>글</small></div>
+          <div><b id="s-reports">0</b><small>확인할 신고</small></div>
+          <div><b id="s-attended">0</b><small>오늘 출석</small></div>
+        </div>
+        <p class="hint" id="state-line"></p>
+        <p class="warn" id="error-line"></p>
+        <div class="row"><button class="secondary" id="refresh" type="button">새로 확인</button></div>
+      </div>
+    </section>
+
+    <section>
+      <h2 id="deploy-title">커뮤니티 만들기</h2>
+      <ol class="steps">
+        <li><a href="https://dash.cloudflare.com/sign-up" target="_blank" rel="noopener">Cloudflare</a> 무료 계정을 만듭니다(카드 등록 필요 없음).</li>
+        <li>대시보드의 내 프로필, API 토큰에서 토큰 만들기, "Cloudflare Workers 편집" 템플릿을 고르고 권한에 계정 D1 편집을 더해 만듭니다.</li>
+        <li>만든 토큰을 아래에 붙여 넣고 올리기를 누릅니다. 토큰은 이 PC에만 암호화해 보관합니다.</li>
+      </ol>
+      <div class="fields" style="margin-top:10px">
+        <label class="field">커뮤니티 이름<input type="text" id="d-name" maxlength="40" placeholder="예: 도토리네 쉼터"></label>
+        <label class="field">주소 이름(영문 소문자, 숫자, -)<input type="text" id="d-script" maxlength="40" placeholder="예: dotori-fans"></label>
+        <label class="field">스트리머 이름(공지 작성자)<input type="text" id="d-owner" maxlength="20" placeholder="예: 도토리"></label>
+        <label class="field">Cloudflare API 토큰<input type="password" id="d-token" autocomplete="off" placeholder="붙여 넣기"></label>
+        <label class="field">계정 ID(계정이 여럿일 때만)<input type="text" id="d-account" maxlength="40"></label>
+      </div>
+      <details>
+        <summary>플랫폼 로그인(선택)</summary>
+        <p class="hint">방송 채팅 인증(<code>!인증 숫자</code>)은 설정 없이 됩니다. 방송이 없을 때도 가입받으려면 서비스별 개발자 화면에서 앱을 만들고 Client ID와 Secret을 넣습니다. 돌아올 주소는 올린 뒤 아래에 나옵니다. 네이버와 카카오는 검수가 필요해 넣지 않았습니다.</p>
+        <div id="providers"></div>
+      </details>
+      <div class="row"><button id="deploy" type="button">올리기</button><span class="hint" id="deploy-state"></span></div>
+    </section>
+
+    <section>
+      <h2>방송 연동</h2>
+      <label class="check"><input type="checkbox" id="a-verify"> 채팅 <code>!인증 숫자</code>로 가입과 계정 연결</label>
+      <label class="check"><input type="checkbox" id="a-attend"> 채팅 <code>!출석</code>으로 커뮤니티 포인트(하루 한 번)</label>
+      <label class="check"><input type="checkbox" id="a-live"> 채팅이 오면 커뮤니티에 방송 중 표시</label>
+      <label class="check"><input type="checkbox" id="a-raffle"> 참여 추첨 모집을 커뮤니티에도(커뮤니티 참가자를 명단에)</label>
+      <label class="check"><input type="checkbox" id="a-stage"> 커뮤니티의 방송에 띄우기 글을 방송 화면에</label>
+      <div class="fields" style="margin-top:8px">
+        <label class="field">방송 주소(방송 중 표시의 링크)<input type="text" id="o-live-url" placeholder="https://chzzk.naver.com/live/..."></label>
+        <label class="field">방송에 띄우는 시간(초)<input type="number" id="o-seconds" min="4" max="60" value="12"></label>
+      </div>
+      <div class="row"><button id="save-options" type="button">저장</button><button class="secondary" id="live-on" type="button">방송 중 표시</button><button class="secondary" id="live-off" type="button">방송 끝 표시</button></div>
+      <h3>OBS 방송 화면</h3>
+      <div class="url"><input id="overlay-url" readonly aria-label="커뮤니티 방송 화면 주소"><button class="secondary" id="copy-overlay" type="button">복사</button><button type="button" class="primary small" data-obs="community">OBS에 넣기</button></div>
+      <p class="hint">권장 크기 1920x1080. 커뮤니티에서 스트리머나 매니저가 글의 방송에 띄우기를 누르면 차례로 나옵니다(주소 뒤 <code>?position=left</code>, <code>center</code>).</p>
+      <div class="row"><button class="secondary" id="test-stage" type="button">시험 표시</button></div>
+    </section>
+
+    <section>
+      <h2>공지 쓰기</h2>
+      <div class="fields">
+        <label class="field">게시판<select id="n-board"><option value="notice">공지</option><option value="clips">클립</option></select></label>
+        <label class="field">주소(클립, 다시보기 등)<input type="text" id="n-link" placeholder="https://"></label>
+      </div>
+      <label class="field" style="margin-top:8px">제목<input type="text" id="n-title" maxlength="80"></label>
+      <label class="field" style="margin-top:8px">내용<textarea id="n-body" maxlength="5000"></textarea></label>
+      <div class="row"><label class="check"><input type="checkbox" id="n-pin"> 위에 고정</label><button id="post-notice" type="button">올리기</button></div>
+    </section>
+
+    <section>
+      <h2>방송 일정</h2>
+      <table><thead><tr><th>언제</th><th>날짜</th><th>시간</th><th>제목</th><th>메모</th><th>휴방</th><th></th></tr></thead><tbody id="schedule"></tbody></table>
+      <div class="row"><button class="secondary small" id="add-weekly" type="button">매주 일정 추가</button><button class="secondary small" id="add-day" type="button">그날만(특별, 휴방) 추가</button>
+        <button id="save-schedule" type="button">일정 올리기</button></div>
+      <p class="hint">매주 일정과 그날만 일정(특별 방송, 휴방)을 함께 올립니다. 올리면 커뮤니티의 일정 전체가 이 목록으로 바뀝니다.</p>
+    </section>
+
+    <section>
+      <h2>이 PC 연결 지우기</h2>
+      <p class="hint">이 PC에 보관한 Cloudflare 토큰과 커뮤니티 연결 정보만 지웁니다. 커뮤니티와 글은 Cloudflare에 그대로 남으며, 완전히 닫으려면 관리 화면에서 데이터를 내보낸 뒤 Cloudflare 대시보드에서 Worker, D1, KV를 지웁니다.</p>
+      <div class="row"><button class="secondary" id="forget" type="button">연결 지우기</button></div>
+    </section>
+  </main>
+  <script src="/theme.js"></script>
+  <script src="/ui.js"></script>
+  <script>
+    "use strict";
+    const $ = (id) => document.getElementById(id);
+    const DAYS = ["월", "화", "수", "목", "금", "토", "일"];
+    let current = null;
+
+    async function post(path, body) {
+      const response = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "요청 실패");
+      return data;
+    }
+    const act = async (button, work, done) => {
+      button.disabled = true;
+      try { const result = await work(); if (done) debutkitUi.toast(typeof done === "function" ? done(result) : done); return result; }
+      catch (error) { debutkitUi.toast(error.message, true); }
+      finally { button.disabled = false; }
+    };
+
+    function providerFields(config) {
+      $("providers").replaceChildren(...Object.entries(config.provider_names).map(([key, name]) => {
+        const box = document.createElement("div");
+        box.className = "fields";
+        box.style.marginTop = "8px";
+        const id = document.createElement("label");
+        id.className = "field";
+        id.append(`${name} Client ID`, Object.assign(document.createElement("input"), { type: "text", id: `p-${key}-id`, value: (config.provider_ids || {})[key] || "" }));
+        const secret = document.createElement("label");
+        secret.className = "field";
+        secret.append(`${name} Client Secret`, Object.assign(document.createElement("input"), { type: "password", id: `p-${key}-secret`, autocomplete: "off",
+          placeholder: config.keys.secrets.includes(key) ? "저장됨(바꿀 때만 입력)" : "" }));
+        const back = document.createElement("label");
+        back.className = "field";
+        back.append("돌아올 주소(앱에 등록)", Object.assign(document.createElement("input"), { type: "text", readOnly: true, value: config.redirect_uris[key] || "올린 뒤 표시" }));
+        box.append(id, secret, back);
+        return box;
+      }));
+    }
+
+    function scheduleRow(item = {}) {
+      const row = document.createElement("tr");
+      const when = document.createElement("select");
+      when.append(new Option("그날만", "-1"), ...DAYS.map((d, i) => new Option(`매주 ${d}`, String(i))));
+      when.value = String(item.day ?? -1);
+      const cell = (node) => { const td = document.createElement("td"); td.appendChild(node); return td; };
+      const input = (type, value, extra = {}) => Object.assign(document.createElement("input"), { type, value: value || "", ...extra });
+      const off = input("checkbox", "", { checked: Boolean(item.off) });
+      const remove = Object.assign(document.createElement("button"), { type: "button", className: "secondary small", textContent: "빼기" });
+      remove.addEventListener("click", () => row.remove());
+      row.append(cell(when), cell(input("date", item.date)), cell(input("time", item.time)), cell(input("text", item.title, { maxLength: 80 })),
+        cell(input("text", item.note, { maxLength: 60 })), cell(off), cell(remove));
+      $("schedule").appendChild(row);
+    }
+    function scheduleItems() {
+      return [...$("schedule").children].map((row) => {
+        const [when, date, time, title, note, off] = row.querySelectorAll("select, input");
+        const day = Number(when.value);
+        return { day, date: day >= 0 ? "" : date.value, time: time.value, title: title.value.trim(), note: note.value.trim(), off: off.checked };
+      });
+    }
+
+    // full: 입력 칸까지 다시 채움(처음, 올린 뒤, 지운 뒤). 15초마다 새로 볼 때는 상태 숫자만
+    function show(config, full = true) {
+      current = config;
+      const ready = Boolean(config.url);
+      $("none").hidden = ready;
+      $("ready").hidden = !ready;
+      $("deploy-title").textContent = ready ? "다시 올리기(고치기)" : "커뮤니티 만들기";
+      $("deploy").textContent = ready ? "다시 올리기" : "올리기";
+      $("site-url").value = config.url;
+      if (full) {
+        $("d-name").value = config.name || "";
+        $("d-script").value = config.script || "";
+        $("d-token").placeholder = config.keys.cloudflare ? "저장됨(바꿀 때만 입력)" : "붙여 넣기";
+        $("d-account").value = config.account || "";
+        for (const key of ["verify", "attend", "live", "raffle", "stage"]) $(`a-${key}`).checked = Boolean(config.auto[key]);
+        $("o-live-url").value = config.live_url || "";
+        $("o-seconds").value = config.stage_seconds;
+        providerFields(config);
+        if (!$("schedule").children.length) (config.schedule.length ? config.schedule : [{ day: 0, time: "20:00", title: "" }]).forEach(scheduleRow);
+      }
+      const state = config.status.state;
+      if (state) {
+        $("s-users").textContent = state.users;
+        $("s-posts").textContent = state.posts;
+        $("s-reports").textContent = state.reports;
+        $("s-attended").textContent = state.attended;
+      }
+      const checked = config.status.checked ? new Date(config.status.checked * 1000).toLocaleTimeString("ko-KR") : "";
+      $("state-line").textContent = ready ? `${(state && state.live ? Boolean(state.live.live) : config.status.live) ? "방송 중 표시 켜짐" : "방송 중 표시 꺼짐"}. 채팅 인증 ${config.status.verified || 0}번, 채팅 출석 ${config.status.attended || 0}번${checked ? `, 마지막 확인 ${checked}` : ""}. 로그인: 방송 채팅 인증${config.providers.length ? ", " + config.providers.map((key) => config.provider_names[key]).join(", ") : ""}` : "";
+      $("error-line").textContent = config.status.error || "";
+    }
+
+    const load = (full = false) => fetch("/community/config").then((r) => r.json()).then((config) => show(config, full));
+    $("overlay-url").value = `${location.origin}/community`;
+    $("copy-site").addEventListener("click", () => navigator.clipboard.writeText($("site-url").value).then(() => debutkitUi.toast("주소를 복사함")));
+    $("copy-overlay").addEventListener("click", () => navigator.clipboard.writeText($("overlay-url").value).then(() => debutkitUi.toast("주소를 복사함")));
+    $("open-admin").addEventListener("click", () => act($("open-admin"), async () => { const { url } = await post("/community/owner-link"); window.open(url, "_blank", "noopener"); }, "관리 화면을 새 창으로 엶(주소는 10분 동안 한 번만)"));
+    $("refresh").addEventListener("click", () => act($("refresh"), async () => show(await post("/community/refresh"), false), "확인함"));
+    $("deploy").addEventListener("click", () => act($("deploy"), async () => {
+      $("deploy-state").textContent = "올리는 중(30초쯤)";
+      const providers = {};
+      for (const key of Object.keys(current.provider_names)) providers[key] = { id: $(`p-${key}-id`).value.trim(), secret: $(`p-${key}-secret`).value.trim() };
+      try {
+        const result = await post("/community/deploy", { name: $("d-name").value, script: $("d-script").value, owner_name: $("d-owner").value,
+          cloudflare_token: $("d-token").value, account: $("d-account").value, providers });
+        $("d-token").value = "";
+        show(result);
+        $("deploy-state").textContent = result.note || "올림";
+        return result;
+      } catch (error) {
+        $("deploy-state").textContent = "";
+        throw error;
+      }
+    }, "커뮤니티를 올림"));
+    $("save-options").addEventListener("click", () => act($("save-options"), async () => show(await post("/community/options", {
+      auto: Object.fromEntries(["verify", "attend", "live", "raffle", "stage"].map((key) => [key, $(`a-${key}`).checked])),
+      live_url: $("o-live-url").value.trim(), stage_seconds: Number($("o-seconds").value) }), false), "저장함"));
+    $("live-on").addEventListener("click", () => act($("live-on"), () => post("/community/live", { live: true }).then(() => load(false)), "커뮤니티에 방송 중 표시"));
+    $("live-off").addEventListener("click", () => act($("live-off"), () => post("/community/live", { live: false }).then(() => load(false)), "커뮤니티의 방송 중 표시를 끔"));
+    $("test-stage").addEventListener("click", () => act($("test-stage"), () => post("/community/test-stage", {}), "방송 화면에 시험 표시"));
+    $("post-notice").addEventListener("click", () => act($("post-notice"), async () => {
+      const result = await post("/community/notice", { board: $("n-board").value, title: $("n-title").value, body: $("n-body").value, link: $("n-link").value.trim(), pinned: $("n-pin").checked });
+      $("n-title").value = ""; $("n-body").value = ""; $("n-link").value = "";
+      return result;
+    }, "커뮤니티에 올림"));
+    $("add-weekly").addEventListener("click", () => scheduleRow({ day: 0, time: "20:00" }));
+    $("add-day").addEventListener("click", () => scheduleRow({ day: -1 }));
+    $("save-schedule").addEventListener("click", () => act($("save-schedule"), () => post("/community/schedule", { items: scheduleItems() }), "일정을 올림"));
+    $("forget").addEventListener("click", () => {
+      if (!confirm("이 PC의 커뮤니티 연결 정보와 Cloudflare 토큰을 지울까요? 커뮤니티는 Cloudflare에 그대로 남습니다.")) return;
+      act($("forget"), async () => { $("schedule").replaceChildren(); show(await post("/community/forget")); }, "연결을 지움");
+    });
+    load(true);
+    setInterval(() => load(false), 15000);
+  </script>
+</body>
+</html>

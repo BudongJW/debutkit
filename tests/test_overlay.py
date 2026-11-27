@@ -248,8 +248,12 @@ def test_settings_page_has_theme_picker_and_youtube_badge(server):
     conn = http.client.HTTPConnection("127.0.0.1", server.port, timeout=5)
     conn.request("GET", "/")
     page = conn.getresponse().read().decode("utf-8")
-    for theme in ("shadow", "bubble", "card", "outline", "light"):
+    for theme in ("shadow", "bubble", "card", "outline", "light", "style"):
         assert f'value="{theme}"' in page
+    # 채팅창 꾸미기(카드 스타일, 이름 색, 등장, 정렬, 쌓이는 방향, 이모티콘 크기, 역할 표시)와 알림 꾸미기 화면
+    for option in ("opt-look", "opt-names", "opt-enter", "opt-align", "opt-direction", "opt-emote", "opt-roles"):
+        assert f'id="{option}"' in page, option
+    assert 'href="/alerts/control"' in page
     conn = http.client.HTTPConnection("127.0.0.1", server.port, timeout=5)
     conn.request("GET", "/overlay.js")
     script = conn.getresponse().read().decode("utf-8")

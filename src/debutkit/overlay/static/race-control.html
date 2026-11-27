@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>debutkit 참여 레이스</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/theme.css?fonts=0">
+  <link rel="stylesheet" href="/ui.css">
+  <style>
+    :root { color-scheme: light; --bg: #ffffff; --panel: #faf7f5; --line: #e3dfdb; --text: #1e2327; --dim: #5b6670; --link: #bf3b68; --gold: #b58500; }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.6 "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; }
+    header { display: flex; align-items: center; gap: 12px; padding: 14px 24px; border-bottom: 1px solid var(--line); }
+    header img { width: 28px; height: 28px; }
+    header h1 { font-size: 17px; margin: 0; }
+    header a { margin-left: auto; color: var(--dim); font-size: 13px; }
+    main { max-width: 1180px; margin: 0 auto; padding: 20px 24px 56px; }
+    .lead { color: var(--dim); margin: 0 0 18px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 20px; align-items: start; }
+    section { border: 1px solid var(--line); border-radius: 6px; padding: 16px 18px; min-width: 0; }
+    section.wide { grid-column: 1 / -1; }
+    h2 { font-size: 16px; margin: 0 0 10px; }
+    h3 { font-size: 14px; margin: 16px 0 6px; }
+    .hint { color: var(--dim); font-size: 13px; margin: 6px 0 0; }
+    .url { display: flex; gap: 6px; margin: 6px 0; }
+    .url input { flex: 1; min-width: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 3px; padding: 6px 9px; font: 13px ui-monospace, Consolas, monospace; color: var(--text); }
+    button { background: var(--text); color: #fff; border: 1px solid var(--text); border-radius: 3px; padding: 6px 13px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+    button.secondary { background: #fff; color: var(--text); border-color: #c9c3bd; }
+    button.small { padding: 3px 9px; font-size: 13px; }
+    button.big { padding: 10px 20px; font-size: 16px; }
+    button.accent { background: var(--link); border-color: var(--link); }
+    button:hover { opacity: 0.88; }
+    button:disabled { opacity: 0.4; cursor: default; }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+    label.check { display: inline-flex; gap: 7px; align-items: center; font-weight: 600; }
+    select, input[type=number], input[type=text], textarea { padding: 5px 7px; border: 1px solid #c9c3bd; border-radius: 3px; font: inherit; background: #fff; color: var(--text); }
+    textarea { width: 100%; min-height: 110px; resize: vertical; font-size: 14px; }
+    input[type=range] { width: 170px; vertical-align: middle; accent-color: var(--link); }
+    .state { font-size: 13px; color: var(--dim); }
+    .state.error { color: #b3261e; }
+    .state.ok { color: #1f7a4d; }
+    .preview { position: relative; height: 0; padding-top: 56.25%; margin-top: 10px; border-radius: 3px; overflow: hidden;
+      background: repeating-conic-gradient(#30373c 0% 25%, #2a3035 0% 50%) 0 0 / 20px 20px; }
+    .preview iframe { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; border: 0; transform-origin: 0 0; color-scheme: normal; }
+    .presets { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin: 0 0 4px; font-size: 13px; color: var(--dim); }
+    .swatches { display: flex; flex-wrap: wrap; gap: 6px; }
+    .swatches button { width: 30px; height: 30px; padding: 0; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px #c9c3bd; }
+    .swatches button[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--text); }
+    .events { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 6px; }
+    .events label { font-weight: 500; }
+    .summary { margin-top: 8px; padding: 8px 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 3px; font-size: 14px; }
+    .summary b { font-size: 17px; }
+    .summary ul { margin: 4px 0 0; padding-left: 18px; color: var(--dim); font-size: 13px; }
+    .status { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; font-size: 15px; }
+    .status b { font-size: 18px; }
+    .pill { display: inline-block; padding: 0 8px; border-radius: 999px; font-size: 12px; font-weight: 700; background: var(--panel); border: 1px solid var(--line); }
+    .pill.live { background: #ffe3ec; border-color: #f4a9c2; color: #8c2049; }
+    .pill.practice { background: #fff6cc; border-color: #e8c34a; color: #6b4e00; }
+    ol.heats { list-style: none; margin: 10px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; }
+    ol.heats li { border: 1px solid var(--line); border-radius: 4px; padding: 7px 10px; font-size: 13px; }
+    ol.heats li.now { border-color: var(--link); }
+    ol.heats li b { display: block; font-size: 14px; }
+    ol.heats li .adv { color: var(--link); font-weight: 700; }
+    .winner { font-size: 22px; font-weight: 800; }
+    ol.standing { margin: 8px 0 0; padding-left: 34px; columns: 3 200px; font-size: 14px; max-height: 360px; overflow: auto; }
+    ol.standing li.win { color: var(--link); font-weight: 800; }
+    ol.standing small { color: var(--dim); }
+    @media (max-width: 480px) { main { padding: 12px; } }
+  </style>
+</head>
+<body>
+<header>
+  <img src="/favicon.svg" alt="">
+  <h1>debutkit 참여 레이스</h1>
+  <a href="/">시작하기</a>
+</header>
+<main>
+  <p class="lead">시청자 이름이 방송 화면에서 경주합니다. 참가자는 시청자 참여 추첨 명단(채팅 참가 명령, 후원 참가, 직접 추가)과 붙여 넣은 이름입니다. 순위는 시작할 때 이 PC의 debutkit이 운영체제 난수로 정하고, 방송 화면과 미리보기는 같은 결과를 그립니다. 명단과 결과는 파일로 저장하지 않습니다.</p>
+  <div class="grid">
+    <section>
+      <h2>방송 화면</h2>
+      <div class="url"><input id="race-url" readonly aria-label="방송 화면 주소"><button class="secondary" data-copy="race-url">복사</button><button type="button" class="primary small" data-obs="race">OBS에 넣기</button></div>
+      <p class="hint">OBS 브라우저 소스로 추가합니다. 크기 1920x1080. 평소에는 투명하고 레이스를 시작하면 나타납니다. 경기 중에 연 화면은 지금 장면부터 이어서 그립니다.</p>
+      <div class="row">
+        <button class="secondary small" id="preview-toggle">미리보기 켜기</button>
+        <label class="check"><input type="checkbox" id="listen"> 이 화면에서 효과음 듣기</label>
+      </div>
+      <div class="preview" id="preview" hidden><iframe id="preview-frame" title="참여 레이스 미리보기" allow="autoplay"></iframe></div>
+      <p class="hint">미리보기에는 연습 경기도 나타납니다(방송 화면에는 나가지 않음). 방송 화면의 효과음은 OBS 브라우저 소스 속성의 OBS 오디오 제어를 켠 경우 방송에 나갑니다.</p>
+      <h3>OBS 안에서 조작</h3>
+      <div class="url"><input id="control-url" readonly aria-label="조작 화면 주소"><button data-copy="control-url">복사</button></div>
+      <p class="hint">OBS 독 메뉴의 사용자 지정 브라우저 독에 이 주소를 넣으면 OBS 안에서 이 화면을 사용할 수 있습니다.</p>
+    </section>
+
+    <section>
+      <h2>게임</h2>
+      <div class="presets" id="presets">추천:</div>
+      <div id="games"></div>
+      <div id="course-row"><h3>코스</h3><div id="course-tiles"></div><select id="course" aria-label="구슬 코스" hidden></select></div>
+      <div class="row" id="format-row"><label>경기 방식 <select id="format" aria-label="경기 방식"></select></label></div>
+      <p class="hint" id="game-hint"></p>
+      <h3>당첨과 길이</h3>
+      <div class="row">
+        <label>당첨 <select id="rank" aria-label="당첨 순위"></select></label>
+        <label id="custom-wrap"><input id="custom-rank" type="number" min="1" max="100" step="1" style="width:64px" aria-label="지정 순위">등</label>
+        <label>길이 <select id="length" aria-label="경주 길이"></select></label>
+      </div>
+      <details class="dk-more">
+      <summary>자세히: 재생 속도, 깜짝 요소</summary>
+      <div class="row">
+        <label>재생 속도 <input id="speed" type="range" min="0.7" max="2.2" step="0.1" aria-label="재생 속도"> <b id="speed-value"></b></label>
+      </div>
+      <h3>깜짝 요소</h3>
+      <div class="row"><select id="surprise" aria-label="깜짝 요소 정도"></select><span class="hint" style="margin:0">순위는 시작할 때 정해지며 깜짝 요소는 중간 장면만 바꿉니다.</span></div>
+      <div class="events" id="events"></div>
+      </details>
+      <div class="row"><button type="button" class="secondary small" id="reset">처음 상태로</button></div>
+      <p class="hint">바꾸면 바로 저장합니다. 처음 상태로는 게임과 꾸미기를 처음 값으로 돌립니다(참가자 설정은 그대로).</p>
+    </section>
+
+    <section>
+      <h2>꾸미기</h2>
+      <div id="design-tiles"></div>
+      <select id="design" aria-label="디자인" hidden></select>
+      <h3>색</h3>
+      <div class="swatches" id="colors"></div>
+      <p class="hint">고른 색 하나에서 테두리, 강조, 참가자 색을 만듭니다.</p>
+      <div class="row"><label>글꼴 <select id="font" aria-label="글꼴"></select></label></div>
+      <h3>효과음</h3>
+      <div class="row">
+        <label class="check"><input type="checkbox" id="sound"> 효과음</label>
+        <label>크기 <input id="volume" type="range" min="0" max="100" step="5" aria-label="효과음 크기"> <b id="volume-value"></b></label>
+      </div>
+      <p class="state" id="save-state"></p>
+    </section>
+
+    <section class="wide">
+      <h2>참가자</h2>
+      <div class="row">
+        <label class="check"><input type="checkbox" id="use-raffle"> 시청자 참여 추첨 명단 사용</label>
+        <span class="state" id="raffle-state"></span>
+        <button class="secondary small" id="raffle-start">모집 시작(명단 새로)</button>
+        <button class="secondary small" id="raffle-stop">모집 마감</button>
+        <a href="/draw/control" target="_blank" rel="noopener" class="hint" style="margin:0">참가 명령과 후원 참가 설정</a>
+      </div>
+      <p class="hint">모집 중에 치지직, SOOP, YouTube, Twitch 채팅에서 참가 명령을 입력하거나 정한 금액 이상 후원한 시청자가 들어옵니다(플랫폼과 닉네임 기준 1번).</p>
+      <h3>이름 붙여 넣기</h3>
+      <textarea id="paste" placeholder="한 줄에 한 명(쉼표로 구분해도 됨). 이름*3은 3번 참가"></textarea>
+      <div class="row">
+        <label class="check"><input type="checkbox" id="dedupe"> 같은 이름은 한 번만</label>
+        <label>연습 인원 <input id="practice-count" type="number" min="2" max="100" step="1" style="width:70px">명</label>
+      </div>
+      <p class="hint">같은 이름이 여러 번이면 화면에는 이름, 이름#2, 이름#3으로 구분하고 들어간 만큼 당첨 기회가 늘어납니다. 같은 이름은 한 번만을 켜면 이름*N과 여러 플랫폼의 같은 닉네임도 1명으로 셉니다. 한 판에 100명까지.</p>
+      <div class="summary" id="summary">참가자 확인 중</div>
+    </section>
+
+    <section class="wide">
+      <h2>진행</h2>
+      <div class="row">
+        <button class="big accent" id="start">레이스 시작</button>
+        <button class="big secondary" id="practice">연습(방송에 나가지 않음)</button>
+        <button class="big" id="next" disabled>다음 조 시작</button>
+        <button class="secondary" id="stop">방송 화면에서 내리기</button>
+      </div>
+      <div class="row status" id="status"></div>
+      <ol class="heats" id="heats"></ol>
+    </section>
+
+    <section class="wide">
+      <h2>결과</h2>
+      <div id="result"><p class="hint">레이스가 끝나면 당첨, 전체 순위, 경기 기록이 여기에 나옵니다. 채팅창에도 debutkit 안내로 한 줄 남깁니다.</p></div>
+      <div class="row">
+        <button class="secondary" id="save-text" disabled>텍스트 파일로 저장</button>
+        <button class="secondary" id="copy-text" disabled>결과 복사</button>
+        <span class="state" id="result-state"></span>
+      </div>
+    </section>
+  </div>
+</main>
+<script src="/theme.js"></script>
+<script src="/ui.js"></script>
+<script>
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const el = (tag, className, text) => {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  };
+  const post = (path, body) => fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) })
+    .then(async (response) => ({ ok: response.ok, data: await response.json().catch(() => ({})) }));
+  const note = (id, text, kind) => {
+    $(id).textContent = text;
+    $(id).classList.toggle("error", kind === "error");
+    $(id).classList.toggle("ok", kind === "ok");
+  };
+  const GAME_HINTS = {
+    marble: "구슬이 핀과 레일을 지나 굴러 내려갑니다. 100명까지 한 판.",
+    run: "마스코트 마이(리본 마이크)가 줄마다 달립니다. 8명씩 조별 경기 뒤 결승(다음 조는 버튼으로 시작) 또는 30명까지 모두 함께.",
+    swim: "위에서 내려다보는 8레인 수영장에서 헤엄칩니다. 스퍼트, 잠영 대시, 물살, 다리 쥐. 8명씩 조별 경기 뒤 결승 또는 30명까지 모두 함께.",
+    survival: "원형 경기장에서 부딪히며 마지막 한 명이 남습니다. 100명까지 한 판.",
+  };
+  let choices = null;
+  let options = null;
+
+  $("race-url").value = `${location.origin}/race`;
+  $("control-url").value = `${location.origin}/race/control`;
+  const fit = () => ($("preview-frame").style.transform = `scale(${$("preview").clientWidth / 1920})`);
+  window.addEventListener("resize", fit);
+  $("preview-toggle").addEventListener("click", () => {
+    const opening = $("preview").hidden;
+    $("preview").hidden = !opening;
+    $("preview-frame").src = opening ? "/race?preview=1" : "about:blank";
+    $("preview-toggle").textContent = opening ? "미리보기 끄기" : "미리보기 켜기";
+    fit();
+  });
+  for (const button of document.querySelectorAll("[data-copy]")) {
+    button.addEventListener("click", async () => {
+      const input = $(button.dataset.copy);
+      input.select();
+      try { await navigator.clipboard.writeText(input.value); } catch { document.execCommand("copy"); }
+      button.textContent = "복사됨";
+      setTimeout(() => (button.textContent = "복사"), 1500);
+    });
+  }
+
+  // ---------------------------------------------------------------- 설정(바꾸면 바로 저장)
+  function fillSelect(id, table, value) {
+    $(id).replaceChildren(...Object.entries(table).map(([key, label]) => {
+      const option = el("option", "", typeof label === "string" ? label : label.label);
+      option.value = key;
+      return option;
+    }));
+    $(id).value = value;
+  }
+  // 그림 견본: 저장한 설정의 예시 장면을 경주 중간에 멈춰 그린다(?sample&still, 소리 없음)
+  const STILL_AT = { marble: 10, run: 6, swim: 7, survival: 14 };
+  const sampleSrc = (values) => {
+    const merged = { ...options, ...values };
+    return `/race?${new URLSearchParams({ sample: merged.game, still: "1", mute: "1", t: String(STILL_AT[merged.game] || 8), n: "12",
+      course: merged.course, design: merged.design, color: merged.color, format: merged.format })}`;
+  };
+  function renderGames() {
+    debutkitUi.looks($("games"), Object.entries(choices.games).map(([key, label]) => ({ key, label, src: sampleSrc({ game: key }),
+      about: { marble: "핀과 레일", run: "줄 달리기", swim: "8레인 수영", survival: "마지막 한 명" }[key] || "" })), options.game,
+    (key) => { options.game = key; renderGames(); renderGameParts(); changed(); });
+    debutkitUi.looks($("course-tiles"), Object.entries(choices.courses).map(([key, label]) => ({ key, label, src: sampleSrc({ game: "marble", course: key }) })),
+      options.course, (key) => { options.course = key; $("course").value = key; renderGames(); changed(); });
+    debutkitUi.looks($("design-tiles"), Object.entries(choices.designs).map(([key, label]) => ({ key, label, src: sampleSrc({ design: key }) })),
+      options.design, (key) => { options.design = key; $("design").value = key; renderGames(); changed(); });
+  }
+  //: 추천 설정: [이름, 바꿀 값]. 참가자 설정은 그대로
+  const PRESETS = [
+    ["가볍게 한 판", { game: "marble", course: "zigzag", length: "short", surprise: "some", speed: 1.0, design: "wood" }],
+    ["빠른 달리기", { game: "run", format: "all", length: "short", surprise: "some", speed: 1.3, design: "metal" }],
+    ["끝까지 긴장", { game: "survival", length: "long", surprise: "many", speed: 1.0, design: "paper" }],
+  ];
+  $("presets").append(...PRESETS.map(([name, values]) => {
+    const button = el("button", "secondary small", name);
+    button.type = "button";
+    button.addEventListener("click", () => {
+      if (!options) return;
+      Object.assign(options, values);
+      fill();
+      changed();
+      debutkitUi.toast(`${name}으로 바꿈`);
+    });
+    return button;
+  }));
+  const LOOK_KEYS = ["game", "course", "format", "surprise", "events", "rank", "custom_rank", "length", "speed", "design", "color", "font", "sound", "volume"];
+  let defaults = null;
+  $("reset").addEventListener("click", () => {
+    if (!options || !defaults) return;
+    if (!confirm("게임과 꾸미기 설정을 처음 값으로 돌립니다(참가자 설정은 그대로).")) return;
+    for (const key of LOOK_KEYS) options[key] = JSON.parse(JSON.stringify(defaults[key]));
+    fill();
+    changed();
+    debutkitUi.toast("처음 상태로 돌림");
+  });
+  function renderGameParts() {
+    const game = options.game;
+    $("course-row").hidden = game !== "marble";
+    $("format-row").hidden = !["run", "swim"].includes(game);
+    $("game-hint").textContent = GAME_HINTS[game] || "";
+    $("events").replaceChildren(...Object.entries(choices.events[game]).map(([key, label]) => {
+      const item = el("label", "check");
+      const input = el("input");
+      input.type = "checkbox";
+      input.checked = options.events[game].includes(key);
+      input.addEventListener("change", () => {
+        const set = new Set(options.events[game]);
+        if (input.checked) set.add(key); else set.delete(key);
+        options.events[game] = Object.keys(choices.events[game]).filter((kind) => set.has(kind));
+        changed();
+      });
+      item.append(input, document.createTextNode(label));
+      return item;
+    }));
+    $("events").style.opacity = options.surprise === "none" ? "0.45" : "1";
+    $("custom-wrap").hidden = options.rank !== "custom";
+  }
+  function renderColors() {
+    $("colors").replaceChildren(...Object.entries(choices.colors).map(([key, color]) => {
+      const button = el("button");
+      button.type = "button";
+      button.style.background = color.hex;
+      button.title = color.label;
+      button.setAttribute("aria-label", color.label);
+      button.setAttribute("aria-pressed", String(options.color === key));
+      button.addEventListener("click", () => { options.color = key; renderColors(); renderGames(); changed(); });
+      return button;
+    }));
+  }
+  function fill() {
+    renderGames();
+    fillSelect("course", choices.courses, options.course);
+    fillSelect("format", choices.formats, options.format);
+    fillSelect("rank", choices.ranks, options.rank);
+    fillSelect("length", choices.lengths, options.length);
+    fillSelect("surprise", choices.surprises, options.surprise);
+    fillSelect("design", choices.designs, options.design);
+    fillSelect("font", choices.fonts, options.font);
+    $("custom-rank").value = options.custom_rank;
+    $("speed").value = options.speed;
+    $("speed-value").textContent = `${Number(options.speed).toFixed(1)}배`;
+    $("volume").value = options.volume;
+    $("volume-value").textContent = `${options.volume}%`;
+    $("sound").checked = options.sound;
+    $("listen").checked = options.listen;
+    $("use-raffle").checked = options.use_raffle;
+    $("dedupe").checked = options.dedupe;
+    $("practice-count").value = options.practice_count;
+    renderColors();
+    renderGameParts();
+  }
+  function collect() {
+    return { ...options, custom_rank: Number($("custom-rank").value), practice_count: Number($("practice-count").value) };
+  }
+  let saveTimer = 0;
+  function changed() {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(async () => {
+      const { ok, data } = await post("/race/config", collect());
+      if (!ok) return note("save-state", `저장하지 못함: ${data.error || "알 수 없는 오류"}`, "error");
+      options = data.options;
+      note("save-state", "설정을 저장했습니다. 다음 레이스부터 적용합니다(효과음은 바로).", "ok");
+      checkEntries();
+    }, 350);
+  }
+  for (const [id, key] of [["course", "course"], ["format", "format"], ["rank", "rank"], ["length", "length"], ["surprise", "surprise"], ["design", "design"], ["font", "font"]]) {
+    $(id).addEventListener("change", () => { options[key] = $(id).value; renderGameParts(); changed(); });
+  }
+  for (const [id, key] of [["sound", "sound"], ["listen", "listen"], ["use-raffle", "use_raffle"], ["dedupe", "dedupe"]]) {
+    $(id).addEventListener("change", () => { options[key] = $(id).checked; changed(); });
+  }
+  $("speed").addEventListener("input", () => {
+    options.speed = Number($("speed").value);
+    $("speed-value").textContent = `${options.speed.toFixed(1)}배`;
+    changed();
+  });
+  $("volume").addEventListener("input", () => {
+    options.volume = Number($("volume").value);
+    $("volume-value").textContent = `${options.volume}%`;
+    changed();
+  });
+  $("custom-rank").addEventListener("change", changed);
+  $("practice-count").addEventListener("change", changed);
+
+  // ---------------------------------------------------------------- 참가자 확인
+  const SOURCES = { chat: "채팅", donation: "후원", manual: "직접", paste: "붙여넣기", practice: "연습" };
+  let entryTimer = 0;
+  function checkEntries() {
+    clearTimeout(entryTimer);
+    entryTimer = setTimeout(async () => {
+      if (!options) return;
+      const { ok, data } = await post("/race/entries", { ...collect(), paste: $("paste").value });
+      const box = $("summary");
+      box.replaceChildren();
+      if (!ok) {
+        box.append(el("span", "state error", data.error || "확인하지 못함"));
+        return;
+      }
+      const head = el("div");
+      head.append(el("b", "", `참가 ${data.count}명`));
+      const parts = Object.entries(data.sources).map(([source, count]) => `${SOURCES[source] || source} ${count}`);
+      if (parts.length) head.append(document.createTextNode(` (${parts.join(", ")})`));
+      box.append(head);
+      // 빈 화면: 뽀글이들(시청자 역할)이 할 일 안내
+      if (!data.count && window.debutkitUi) box.append(debutkitUi.mascot("bubbles", "아직 참가자 없음. 모집 시작으로 채팅 참가를 받거나 이름을 붙여 넣기", true));
+      const notes = [...data.notes];
+      if (data.problem) notes.unshift(data.problem);
+      if (notes.length) {
+        const list = el("ul");
+        for (const line of notes) list.append(el("li", "", line));
+        box.append(list);
+      }
+    }, 300);
+  }
+  $("paste").addEventListener("input", checkEntries);
+
+  async function raffleRefresh() {
+    try {
+      const status = await (await fetch("/raffle", { cache: "no-store" })).json();
+      note("raffle-state", `${status.open ? `모집 중(${status.keyword})` : "모집 마감"}, ${status.count}명`);
+    } catch {
+      note("raffle-state", "오버레이에 연결하지 못함", "error");
+    }
+  }
+  $("raffle-start").addEventListener("click", async () => {
+    const { ok, data } = await post("/raffle/start", {});
+    if (!ok) note("raffle-state", data.error || "모집을 시작하지 못함", "error");
+    raffleRefresh();
+    checkEntries();
+  });
+  $("raffle-stop").addEventListener("click", async () => {
+    await post("/raffle/stop");
+    raffleRefresh();
+  });
+
+  // ---------------------------------------------------------------- 진행, 결과(1초마다 확인)
+  let shownResult = "";
+  let lastResult = null;
+  async function act(path, body) {
+    const { ok, data } = await post(path, body);
+    if (!ok) {
+      renderStatusError(data.error || "요청 실패");
+      return null;
+    }
+    render(data);
+    return data;
+  }
+  function renderStatusError(text) {
+    const box = $("status");
+    box.replaceChildren(el("span", "state error", text));
+  }
+  function start(practice) {
+    return act("/race/start", { ...collect(), paste: $("paste").value, practice });
+  }
+  $("start").addEventListener("click", () => start(false));
+  $("practice").addEventListener("click", () => start(true));
+  $("next").addEventListener("click", () => act("/race/next"));
+  $("stop").addEventListener("click", () => act("/race/stop"));
+
+  function render(state) {
+    const box = $("status");
+    box.replaceChildren();
+    const heats = state.heats || [];
+    const current = heats[state.heat] || null;
+    const label = current ? current.label : "";
+    if (state.state === "idle") {
+      box.append(el("b", "", "대기 중"), el("span", "state", "레이스 시작을 누르면 방송 화면에 나타납니다."));
+    } else {
+      if (state.race.practice) box.append(el("span", "pill practice", "연습"));
+      else box.append(el("span", "pill live", "방송 중"));
+      box.append(el("b", "", `${state.race.game_label}${label && label !== "경기" ? `, ${label}` : ""}`));
+      if (state.state === "running") {
+        const left = Math.max(0, Math.ceil(state.heat_end - state.now));
+        box.append(el("span", "state", `진행 중, 약 ${left}초 남음`));
+      } else if (state.state === "between") {
+        box.append(el("span", "state", `끝. 다음 경기(${heats[state.heat + 1].label})는 다음 조 시작 버튼으로 진행`));
+      } else {
+        box.append(el("span", "state ok", "모든 경기 끝"));
+      }
+      box.append(el("span", "state", `참가 ${state.race.count}명, 시드 ${state.race.seed}`));
+    }
+    $("next").disabled = state.state !== "between";
+    $("heats").replaceChildren(...(heats.length > 1 ? heats.map((heat, index) => {
+      const item = el("li", index === state.heat && state.state === "running" ? "now" : "");
+      item.append(el("b", "", heat.label));
+      if (heat.rows) {
+        const winners = heat.rows.filter((row) => row.advance).map((row) => row.name);
+        item.append(el("span", "", `1위 ${heat.rows[0].name}`));
+        if (winners.length) {
+          item.append(el("br"), el("span", "adv", `진출 ${winners.join(", ")}`));
+        }
+      } else {
+        item.append(el("span", "state", index === state.heat && state.state === "running" ? "진행 중" : `${heat.names.length}명 대기`));
+      }
+      return item;
+    }) : []));
+    renderResult(state.last_result);
+  }
+  function renderResult(result) {
+    const mark = result ? `${result.id}:${result.time}` : "";
+    if (mark === shownResult) return;
+    shownResult = mark;
+    lastResult = result;
+    $("save-text").disabled = !result;
+    $("copy-text").disabled = !result;
+    if (!result) return;
+    const box = $("result");
+    box.replaceChildren();
+    const head = el("div", "winner", `${result.rank_label}: ${result.winner.name}`);
+    box.append(head);
+    const at = new Date(result.time * 1000);
+    const time = [at.getHours(), at.getMinutes()].map((part) => String(part).padStart(2, "0")).join(":");
+    box.append(el("p", "hint", `${time}, ${result.game_label}${result.course_label ? `(${result.course_label})` : ""}, 참가 ${result.count}명, 시드 ${result.seed}${result.practice ? ", 연습" : ""}`));
+    box.append(el("h3", "", "전체 순위"));
+    const list = el("ol", "standing");
+    for (const row of result.standing) {
+      const item = el("li", row.name === result.winner.name ? "win" : "");
+      item.append(document.createTextNode(row.name));
+      if (row.from) item.append(el("small", "", ` ${row.from}`));
+      list.append(item);
+    }
+    box.append(list);
+    if (result.heats.length > 1) {
+      box.append(el("h3", "", "경기 기록"));
+      const records = el("ol", "heats");
+      for (const heat of result.heats) {
+        const item = el("li");
+        item.append(el("b", "", heat.label));
+        item.append(el("span", "", heat.rows.map((row) => `${row.place} ${row.name} ${row.time.toFixed(2)}초${row.advance ? "(진출)" : ""}`).join(", ")));
+        records.append(item);
+      }
+      box.append(records);
+    }
+  }
+  $("save-text").addEventListener("click", () => {
+    if (!lastResult) return;
+    const at = new Date(lastResult.time * 1000);
+    const stamp = [at.getFullYear(), at.getMonth() + 1, at.getDate()].map((part) => String(part).padStart(2, "0")).join("")
+      + "-" + [at.getHours(), at.getMinutes()].map((part) => String(part).padStart(2, "0")).join("");
+    const link = el("a");
+    link.href = URL.createObjectURL(new Blob(["﻿" + lastResult.text], { type: "text/plain;charset=utf-8" }));
+    link.download = `debutkit-race-${stamp}.txt`;
+    document.body.append(link);
+    link.click();
+    setTimeout(() => { URL.revokeObjectURL(link.href); link.remove(); }, 1000);
+    note("result-state", `${link.download} 파일로 저장`, "ok");
+  });
+  $("copy-text").addEventListener("click", async () => {
+    if (!lastResult) return;
+    try {
+      await navigator.clipboard.writeText(lastResult.text);
+      note("result-state", "결과를 복사했습니다", "ok");
+    } catch {
+      note("result-state", "복사하지 못함", "error");
+    }
+  });
+
+  async function refresh() {
+    try {
+      render(await (await fetch("/race/state", { cache: "no-store" })).json());
+    } catch {
+      renderStatusError("오버레이에 연결하지 못함(오버레이 실행 확인)");
+    }
+  }
+  fetch("/race/config").then((response) => response.json()).then((data) => {
+    choices = data.choices;
+    options = data.options;
+    defaults = data.defaults;
+    fill();
+    checkEntries();
+  }).catch(() => note("save-state", "설정을 불러오지 못함", "error"));
+  refresh();
+  raffleRefresh();
+  setInterval(refresh, 1000);
+  setInterval(() => { raffleRefresh(); if ($("use-raffle").checked) checkEntries(); }, 3000);
+</script>
+</body>
+</html>

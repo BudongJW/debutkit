@@ -282,7 +282,7 @@ def test_overlay_motion_reaction_option_and_saved_setting():
 
 def test_character_page_plays_motions_and_vendor_is_bundled():
     script = (STATIC / "character.js").read_text(encoding="utf-8")
-    assert "/motion/list" in script and "three-vrm-animation.module.min.js" in script and 'addEventListener("motion"' in script
+    assert "/motion/list" in script and "three-vrm-animation.module.min.js" in script and "debutkitLive.subscribe" in script and '"motion"' in script
     assert "VRMExpression_" in script and all(name in script for name in motion.DRIVEN_EXPRESSIONS)
     vendor = STATIC / "vendor" / "three-vrm-animation"
     assert (vendor / "three-vrm-animation.module.min.js").is_file() and (vendor / "LICENSE").is_file()

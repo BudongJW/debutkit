@@ -9,7 +9,7 @@ import pytest
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 pytest.importorskip("PySide6.QtWidgets")
 
-from PySide6.QtWidgets import QApplication, QPushButton  # noqa: E402
+from PySide6.QtWidgets import QApplication, QLabel, QPushButton  # noqa: E402
 
 from debutkit.doctor import FAIL, OK, WARN, Check  # noqa: E402
 from debutkit.gui.app import Backend, Wizard, style_sheet  # noqa: E402
@@ -88,6 +88,10 @@ def test_checks_run_on_open_and_show_states(app):
         assert names == ["StateOk", "StateWarn", "StateMissing"]
         assert "조치: 정리" in window.check_rows.itemAtPosition(2, 2).widget().text()
         assert not window.ffmpeg_button.isVisibleTo(window)  # ffmpeg 항목이 없으면 버튼도 없음
+        # 마스코트 안내: 첫 페이지(점검)는 무대 감독 큐, 마무리는 데비
+        for name in ("Mascot-cue", "Mascot-debi"):
+            face = window.findChild(QLabel, name)
+            assert face is not None and not face.pixmap().isNull(), name
     finally:
         window.close()
 
@@ -397,22 +401,24 @@ def test_character_page_add_make_use_send_and_preview(app, tmp_path):
     window = Wizard(calls.backend(pick_character=lambda: picks["file"], pick_folder=lambda title: picks["folder"],
                                   pick_png=lambda: ("Cat", {"idle": png(tmp_path / "i.png"), "talk": png(tmp_path / "t.png")})))
     try:
-        assert window.characters.count() == 1 and "[방송 사용 중]" in window.characters.item(0).text()  # 기본 캐릭터
+        assert window.characters.count() == 2 and "[방송 사용 중]" in window.characters.item(0).text()  # 기본 캐릭터(2D, 3D 데비)
         assert not window.remove_button.isEnabled() and not window.send_button.isEnabled()
+        window.characters.setCurrentRow(1)
+        assert window.selected_character().id == character.SAMPLE_3D_ID and not window.remove_button.isEnabled()
         window.add_character()
         assert window.selected_character().kind == "vrm" and "Warudo로 보내기" == window.send_button.text()
         assert "상업적 이용: 법인 포함 가능" in window.character_detail.text()
         window.use_character()
         assert character.active().kind == "vrm" and window.avatar_app.currentData() == "debutkit"
         window.make_png_character()
-        assert window.selected_character().id == "cat" and window.characters.count() == 3
+        assert window.selected_character().id == "cat" and window.characters.count() == 4
         picks["file"] = str(live2d(tmp_path / "l2d" / "hiyori") / "hiyori.model3.json")
         window.add_character()
         window.send_character()  # 자동으로 찾지 못하면 폴더를 물어본다
         assert (folder / window.selected_character().id / "hiyori.model3.json").is_file() and "VTube Studio로 복사" in window.character_detail.text()
         window.use_character()
         assert window.avatar_app.currentData() == "vts"
-        window.characters.setCurrentRow(2)
+        window.characters.setCurrentRow(3)  # Live2D(hiyori)
         window.preview_character()
         assert "오버레이를 시작한 뒤" in window.character_detail.text()
         window.open_tracker()
@@ -674,4 +680,109 @@ def test_phone_camera_button_shows_connection_and_qr(app):
         assert wait_for(app, lambda: "실패" in window.camera_result.text())
         assert "연결하지 못함" in window.camera_result.text()
     finally:
+        window.close()
+
+
+def test_launch_card_runs_watches_starts_overlay_and_ends(app):
+    from debutkit import launcher
+
+    config = launcher.Config([launcher.Profile("방송", stop=["Discord.exe"], overlay=True), launcher.Profile("게임")], "방송")
+    saved, runs, watchers, edits = [], [], [], []
+
+    class FakeLauncher:
+        def __init__(self, config, report):
+            self.report = report
+
+        def run(self, name):
+            runs.append(("run", name))
+            step = launcher.Step("stopped", "Discord.exe")
+            self.report(step)
+            return [step]
+
+        def end(self, name):
+            runs.append(("end", name))
+            step = launcher.Step("restored", "Discord.exe")
+            self.report(step)
+            return [step]
+
+    class FakeWatcher:
+        def __init__(self, profile, config, notify):
+            self.notify, self.stopped = notify, False
+            watchers.append(self)
+
+        def start(self):
+            return self
+
+        def stop(self):
+            self.stopped = True
+
+    window = Wizard(Calls().backend(load_launcher=lambda: config, save_launcher=saved.append, make_launcher=FakeLauncher, make_watcher=FakeWatcher,
+                                    edit_launcher=lambda parent: edits.append(parent) or True))
+    try:
+        window.port.setValue(18791)
+        assert [window.launch_profiles.itemText(i) for i in range(window.launch_profiles.count())] == ["방송", "게임"]
+        window.launch_button.click()
+        assert wait_for(app, lambda: "감시 중" in window.launch_state.text())
+        assert runs == [("run", "방송")] and "끔: Discord.exe" in window.launch_state.text() and window.server is not None  # 켠 뒤 오버레이 시작
+        watchers[0].notify("꺼 둔 프로그램이 다시 켜짐: Discord.exe")
+        assert wait_for(app, lambda: "다시 켜짐: Discord.exe" in window.launch_state.text())
+        window.launch_end_button.click()
+        assert wait_for(app, lambda: "다시 켬: Discord.exe" in window.launch_state.text() and window.launch_button.isEnabled())
+        assert watchers[0].stopped and runs[-1] == ("end", "방송")
+        window.launch_profiles.setCurrentText("게임")
+        window.launch_button.click()
+        assert wait_for(app, lambda: runs[-1] == ("run", "게임")) and saved and saved[-1].active == "게임"
+        [button for button in window.findChildren(QPushButton) if button.text() == "세팅 편집"][0].click()
+        assert edits and "세팅을 저장" in window.launch_state.text()
+    finally:
+        window.close()
+
+
+def test_launch_dialog_edits_and_saves(app, tmp_path, monkeypatch):
+    from debutkit import launcher
+    from debutkit.gui.launch_dialog import LaunchDialog
+
+    stored = []
+    program = tmp_path / "tool.exe"
+    program.write_bytes(b"MZ")
+    dialog = LaunchDialog(load=launcher.load, save=stored.append, processes=lambda: [launcher.Proc(1, "KakaoTalk.exe"), launcher.Proc(2, "explorer.exe")],
+                          resolve=lambda path: "C:/Apps/Discord/Discord.exe",
+                          remember=lambda config, name: [launcher.Step("placed", "tool.exe", "0,0 800x600")])
+    try:
+        dialog.add_start([str(program), "https://studio.chzzk.naver.com", str(tmp_path)])
+        assert [item.kind for item in dialog.profile.start] == ["program", "url", "folder"]
+        dialog.start_list.setCurrentRow(0)
+        dialog.delay.setValue(5.5)
+        dialog.move(1)
+        assert [item.kind for item in dialog.profile.start] == ["url", "program", "folder"] and dialog.profile.start[1].delay == 5.5
+        dialog.add_stop(["C:/Users/me/Desktop/Discord.lnk", "explorer.exe", "Discord.exe"])
+        assert dialog.profile.stop == ["Discord.exe"] and "끌 수 없는" in dialog.state.text()
+        monkeypatch.setattr("debutkit.gui.launch_dialog.QInputDialog.getItem", lambda *a, **k: ("KakaoTalk.exe", True))
+        dialog.pick_running()
+        assert dialog.profile.stop == ["Discord.exe", "KakaoTalk.exe"]
+        dialog.checks["watch"].setChecked(False)
+        assert not dialog.profile.watch and not dialog.checks["rekill"].isEnabled()
+        monkeypatch.setattr("debutkit.gui.launch_dialog.QInputDialog.getText", lambda *a, **k: ("게임", True))
+        dialog.copy_profile()
+        assert dialog.current == "게임" and dialog.profiles.currentText() == "게임" and dialog.profile.stop == ["Discord.exe", "KakaoTalk.exe"]
+        dialog.remember_windows()
+        assert "창 위치 맞춤: tool.exe" in dialog.state.text()
+        dialog.save_and_close()
+        assert stored and stored[-1].active == "게임" and [p.name for p in stored[-1].profiles] == ["방송", "게임"]
+    finally:
+        dialog.close()
+
+
+def test_saving_keeps_settings_the_wizard_does_not_manage(app):
+    calls = Calls()
+    calls.stored = {"chzzk": ["old"], "draw_design": "night", "draw_effect": "confetti", "youtube_interval": 15.0, "raffle_title": "참여"}
+    window = Wizard(calls.backend(save_settings=lambda values: calls.saves.append(values)))
+    try:
+        window.chzzk.setText("")  # 비운 입력 칸은 저장하지 않음(마법사가 다루는 항목)
+        window.remember()
+        saved = calls.saves[-1]
+        assert "chzzk" not in saved and saved["draw_design"] == "night" and saved["draw_effect"] == "confetti"
+        assert saved["youtube_interval"] == 15.0 and saved["raffle_title"] == "참여"
+    finally:
+        window._keep_settings = False
         window.close()

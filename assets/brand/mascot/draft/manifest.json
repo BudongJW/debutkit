@@ -1,0 +1,98 @@
+{
+ "debi": {
+  "draft": "cast-a2-lavender-s7",
+  "model": "FLUX.1 schnell",
+  "service": "AI Horde (Flux.1-Schnell fp8 (Compact))",
+  "license": "FLUX.1 schnell: Apache-2.0",
+  "prompt": "character design of an original cute chibi anime girl mascot for a streaming app, upper body, lavender hair in a side ponytail with a golden star hair clip, sparkling mint eyes, confident cheerful smile, cropped lavender stage jacket with coral and mint trim over a white tee, holding a retro stage microphone, thick clean black outlines, flat cel shading, glossy sticker illustration, plain pale cream background, no text",
+  "seed": 7,
+  "worker": "Wanabeelee 4090N",
+  "background": "테두리와 이어진 배경 #ffffff 지움",
+  "made": "2026-11-26",
+  "status": "시안 v0.1(사람 손질 전)"
+ },
+ "mai": {
+  "draft": "cast-b4-ribbonmic-s7",
+  "model": "FLUX.1 schnell",
+  "service": "AI Horde (Flux.1-Schnell fp8 (Compact))",
+  "license": "FLUX.1 schnell: Apache-2.0",
+  "prompt": "character design of an original kawaii mascot for a streaming app: a living 1950s chrome ribbon microphone, pill-shaped head with horizontal chrome bars like hair, a cute face drawn on the lavender metal band just below the bars, round curved sound-wave shapes as ears, a small red ON AIR lamp on its forehead, slim handle body, tiny arms, a cable tail ending in a little plug, lavender, mint and yellow palette, thick clean black outlines, flat cel shading, glossy sticker illustration, plain pale cream background, no text",
+  "seed": 7,
+  "worker": "tazlin-larger-machine-2",
+  "background": "테두리와 이어진 배경 #fffffb 지움",
+  "made": "2026-11-26",
+  "status": "시안 v0.1(사람 손질 전)"
+ },
+ "cue": {
+  "draft": "mascot-c-director-s7",
+  "model": "FLUX.1 schnell",
+  "service": "AI Horde (Flux.1-Schnell fp8 (Compact))",
+  "license": "FLUX.1 schnell: Apache-2.0",
+  "prompt": "character design of an original cute chibi anime boy mascot for a streaming app, upper body, fluffy mint green hair, navy beret with a golden star pin, headset microphone, pink scarf, holding a small clapperboard, friendly grin, thick clean black outlines, flat cel shading, glossy sticker illustration, vibrant colors, plain pale cream background, no text",
+  "seed": 7,
+  "worker": "Labyrinth-RX9070XT",
+  "background": "테두리와 이어진 배경 #fdfdfd 지움",
+  "made": "2026-11-26",
+  "status": "시안 v0.1(사람 손질 전)"
+ },
+ "bubbles": {
+  "draft": "cast-bubbles-s7",
+  "model": "FLUX.1 schnell",
+  "service": "AI Horde (Flux.1-Schnell fp8 (Compact))",
+  "license": "FLUX.1 schnell: Apache-2.0",
+  "prompt": "character design sheet of a group of five original kawaii mascot creatures for a streaming app: round fluffy cloud-shaped speech bubble creatures with a pointed speech tail, dot eyes and tiny mouths, each a different pastel color (white, sky blue, mint, lavender, lemon), bouncing happily together, thick clean black outlines, flat cel shading, glossy sticker illustration, plain pale cream background, no text",
+  "seed": 7,
+  "worker": "Labyrinth-RX9070XT",
+  "background": "테두리와 이어진 배경 #fefefe 지움",
+  "made": "2026-11-26",
+  "status": "시안 v0.1(사람 손질 전)"
+ },
+ "capsule": {
+  "draft": "cast-capsule-s7",
+  "model": "FLUX.1 schnell",
+  "service": "AI Horde (Flux.1-Schnell fp8 (Compact))",
+  "license": "FLUX.1 schnell: Apache-2.0",
+  "prompt": "character design of an original kawaii mascot for a streaming app: a round gacha capsule fairy, the top half is clear and shows a twinkling golden star inside, the bottom half is sunny yellow and orange with a cute face on the seam, tiny arms and feet, small sparkles around, thick clean black outlines, flat cel shading, glossy sticker illustration, plain pale cream background, no text",
+  "seed": 7,
+  "worker": "tazlin-larger-machine-2",
+  "background": "테두리와 이어진 배경 #ffffff 지움",
+  "made": "2026-11-26",
+  "status": "시안 v0.1(사람 손질 전)"
+ },
+ "cuckoo": {
+  "draft": "cast-cuckoo-s7",
+  "model": "FLUX.1 schnell",
+  "service": "AI Horde (Flux.1-Schnell fp8 (Compact))",
+  "license": "FLUX.1 schnell: Apache-2.0",
+  "prompt": "character design of an original kawaii mascot for a streaming app: a small round cuckoo bird popping out of a cute house-shaped wooden cuckoo clock, the bird is coral red with a cream belly and a tiny countdown clock face on its chest, cheerful open beak, thick clean black outlines, flat cel shading, glossy sticker illustration, plain pale cream background, no text",
+  "seed": 7,
+  "worker": "tazlin-larger-machine-2",
+  "background": "테두리와 이어진 배경 #ffffff 지움",
+  "made": "2026-11-26",
+  "status": "시안 v0.1(사람 손질 전)"
+ },
+ "dessaengi": {
+  "draft": "cast-mannequin-s7",
+  "model": "FLUX.1 schnell",
+  "service": "AI Horde (Flux.1-Schnell fp8 (Compact))",
+  "license": "FLUX.1 schnell: Apache-2.0",
+  "prompt": "character design of an original cute chibi wooden art mannequin mascot for a streaming app, beige and light gray wooden joints, round head with a simple friendly face, holding a pencil and a blank sketch card, waving, thick clean black outlines, flat cel shading, glossy sticker illustration, plain pale cream background, no text",
+  "seed": 7,
+  "worker": "tazlin-larger-machine-2",
+  "background": "테두리와 이어진 배경 #fefdf7 지움",
+  "made": "2026-11-26",
+  "status": "시안 v0.1(사람 손질 전)"
+ },
+ "pad": {
+  "draft": "cast-pad-raccoon-s7",
+  "model": "FLUX.1 schnell",
+  "service": "AI Horde (Flux.1-Schnell fp8 (Compact))",
+  "license": "FLUX.1 schnell: Apache-2.0",
+  "prompt": "character design of an original cute chibi raccoon mascot for a streaming app, holding a game controller, gamer headset, navy hoodie with orange stripes, striped fluffy tail, mask markings around the eyes, determined happy grin, thick clean black outlines, flat cel shading, glossy sticker illustration, plain pale cream background, no text",
+  "seed": 7,
+  "worker": "Wanabeelee 4090N",
+  "background": "테두리와 이어진 배경 #ffffff 지움",
+  "made": "2026-11-26",
+  "status": "시안 v0.1(사람 손질 전)"
+ }
+}

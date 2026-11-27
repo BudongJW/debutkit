@@ -12,6 +12,8 @@
     #character { left: 60px; top: 90px; width: 900px; height: 990px; }
     #chat { left: 1440px; top: 32px; width: 450px; height: 1016px; }
     #camera { left: 40px; top: 40px; width: 1040px; height: 585px; border-radius: 8px; }
+    #goal { left: 33px; top: 24px; width: 576px; height: 108px; }
+    #rank { left: 33px; top: 151px; width: 288px; height: 389px; }
     .with-camera #character { left: 980px; top: 360px; width: 520px; height: 720px; }
     #title { position: absolute; left: 60px; top: 40px; font: 700 44px/1.2 "Pretendard", "Malgun Gothic", sans-serif; color: #fff; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6); }
     .with-camera #title { display: none; }
@@ -26,6 +28,8 @@
     // debutkit 송출 화면(OBS 없이 바로 방송, broadcast.py): 캐릭터, 채팅, 알림, 추첨, 휴대폰 카메라(앱)를 한 화면에 모은다.
     // 주소 뒤 ?camera=1 휴대폰 카메라(앱) 영상을 크게, ?bg=2a1f3d 배경색(16진수), ?title=문구 왼쪽 위 글자
     // ?window=표식 은 debutkit이 연 송출 창의 제목 표식(program_window.py가 창을 찾을 때 사용)
+    // ?layers=wall,goal,rank,pick,race 넣을 방송 연출(방송 조작 화면에서 고름). 후원 벽은 캐릭터 뒤, 나머지는 캐릭터 앞
+    // 모든 화면은 공유 연결(live.js) 하나로 서버 값을 받아 브라우저의 같은 주소 동시 연결 수 제한에 걸리지 않는다
     const params = new URLSearchParams(location.search);
     const token = (params.get("window") || "").replace(/[^0-9a-z]/g, "").slice(0, 16);
     if (token) document.title = `debutkit program ${token}`;
@@ -35,9 +39,15 @@
     if (color.length === 6) stage.style.setProperty("--bg", `#${color}`);
     document.getElementById("title").textContent = (params.get("title") || "").slice(0, 40);
     if (camera) stage.classList.add("with-camera");
+    const extra = new Set((params.get("layers") || "").split(","));
     const layers = [
       ...(camera ? [["camera", "/camera/view?fit=cover"]] : []),
+      ...(extra.has("wall") ? [["wall", "/wall", true]] : []),
       ["character", "/character"],
+      ...(extra.has("pick") ? [["pick", "/pick", true]] : []),
+      ...(extra.has("race") ? [["race", "/race", true]] : []),
+      ...(extra.has("goal") ? [["goal", "/wall/goal"]] : []),
+      ...(extra.has("rank") ? [["rank", "/wall/rank"]] : []),
       ["chat", "/chat"],
       ["alerts", "/alerts", true],
       ["draw", "/draw", true],

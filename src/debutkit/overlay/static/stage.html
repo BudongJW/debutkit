@@ -1,0 +1,591 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>debutkit 방송 화면 미리보기</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/theme.css?fonts=0">
+  <link rel="stylesheet" href="/ui.css">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.6 "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; }
+    header { display: flex; align-items: center; gap: 12px; padding: 14px 24px; border-bottom: 1px solid var(--line); }
+    header img { width: 28px; height: 28px; }
+    header h1 { font-size: 17px; margin: 0; }
+    main { display: grid; grid-template-columns: 340px 1fr; gap: 20px; padding: 18px 24px 40px; align-items: start; }
+    aside { display: grid; gap: 14px; }
+    section { border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; }
+    h2 { font-size: 15px; margin: 0 0 8px; }
+    .hint { color: var(--dim); font-size: 13px; margin: 6px 0 0; }
+    label.check { display: flex; gap: 8px; align-items: center; font-size: 14px; padding: 2px 0; }
+    label.check small { margin-left: auto; color: var(--dim); font-size: 12px; }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+    select, input[type=number], input[type=text] { padding: 5px 7px; border: 1px solid #c9c3bd; border-radius: 3px; font: inherit; font-size: 14px; background: #fff; min-width: 0; }
+    input[type=number] { width: 96px; }
+    input[type=text] { flex: 1; }
+    button { background: var(--text); color: #fff; border: 1px solid var(--text); border-radius: 3px; padding: 6px 12px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+    button.secondary { background: #fff; color: var(--text); border-color: #c9c3bd; }
+    button:hover { opacity: 0.88; }
+    .swatches { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+    .swatches button { height: 34px; padding: 0; border-radius: 4px; border: 2px solid transparent; position: relative; background: var(--sw); overflow: hidden; }
+    .swatches button::after { content: ""; position: absolute; right: 0; bottom: 0; width: 40%; height: 40%; background: var(--hl); border-top-left-radius: 4px; }
+    .swatches button[aria-pressed="true"] { border-color: var(--text); box-shadow: 0 0 0 2px #fff inset; }
+    .styles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .styles button { display: grid; align-content: start; gap: 1px; padding: 6px 6px 8px; text-align: left; border: 2px solid transparent; background: var(--panel);
+      color: var(--text); font-size: 13px; font-weight: 700; line-height: 1.35; }
+    .styles button .dk-thumb { margin-bottom: 4px; }
+    .styles button small { display: block; font-weight: 400; color: var(--dim); font-size: 11.5px; }
+    .styles button[aria-pressed="true"] { border-color: var(--text); }
+    .combos { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .combos button { display: grid; gap: 5px; padding: 6px 6px 7px; text-align: left; border: 2px solid transparent; background: var(--panel); color: var(--text);
+      font-size: 13px; font-weight: 700; line-height: 1.3; }
+    .combos button[aria-pressed="true"] { border-color: var(--text); }
+    .styles h3 { grid-column: 1 / -1; margin: 4px 0 0; font-size: 13px; color: var(--dim); font-weight: 700; }
+    .games { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin-top: 8px; }
+    .games button { position: relative; text-align: left; padding: 7px 10px; background: var(--panel); color: var(--text); border: 2px solid transparent;
+      font-size: 13px; font-weight: 700; line-height: 1.3; }
+    .games button small { display: block; font-weight: 400; color: var(--dim); font-size: 11.5px; }
+    /* 게임 패키지 배치 그림: 회색 점선은 게임 HUD, 색 상자는 캐릭터(강조 색), 채팅(주 색), 목표와 순위(옅은 주 색) */
+    .games .dk-thumb { margin-bottom: 5px; background: linear-gradient(160deg, #39414a, #1f252b); }
+    .games img.shot { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 4px; margin-bottom: 5px; background: #1f252b; }
+    ul.tips { margin: 8px 0 0; padding-left: 18px; color: var(--dim); font-size: 13px; line-height: 1.5; }
+    ul.tips:empty { display: none; }
+    .bg.scene { background-size: cover; background-position: center; }
+    .games .dk-thumb i { position: absolute; box-sizing: border-box; border-radius: 2px; }
+    .games .dk-thumb i.hud { border: 1px dashed rgba(255, 255, 255, 0.75); background: rgba(255, 255, 255, 0.12); }
+    .games button[aria-pressed="true"] { border-color: var(--text); }
+    .games button[data-applied="true"]::after { content: "적용됨"; position: absolute; right: 6px; top: 6px; padding: 1px 5px; border-radius: 3px;
+      background: var(--text); color: #fff; font-size: 10.5px; font-weight: 700; }
+    .parts { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 8px; font-size: 13px; }
+    .hud-box { position: absolute; box-sizing: border-box; padding: 6px 10px; border: 3px dashed rgba(255, 255, 255, 0.9); background: rgba(20, 24, 28, 0.42);
+      color: #fff; font: 700 24px/1.2 "Pretendard", "Malgun Gothic", sans-serif; text-shadow: 0 1px 3px #000; pointer-events: none; }
+    .fonts { display: grid; gap: 8px; }
+    .fonts label { display: grid; gap: 2px; font-size: 13px; color: var(--dim); }
+    .fonts .local { display: flex; gap: 6px; }
+    .colors { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+    .colors label { display: grid; gap: 2px; font-size: 13px; color: var(--dim); }
+    .colors input[type=color] { width: 100%; height: 32px; padding: 0 2px; border: 1px solid #c9c3bd; border-radius: 3px; background: #fff; }
+    .viewer { position: sticky; top: 12px; }
+    .screen { position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 4px; background: #222; box-shadow: 0 0 0 1px var(--line); }
+    .canvas { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; }
+    .canvas iframe { position: absolute; border: 0; background: transparent; color-scheme: normal; }
+    .bg { position: absolute; inset: 0; }
+    .bg.game { background:
+      radial-gradient(ellipse 260px 90px at 1150px 860px, rgba(0,0,0,.18), transparent 70%),
+      radial-gradient(circle at 1150px 700px, #c7743a 0 120px, transparent 121px),
+      radial-gradient(circle at 420px 260px, #fff8 0 60px, transparent 61px),
+      linear-gradient(180deg, #6fb7e8 0%, #a9d8f2 52%, #79b86c 52%, #4f8c4f 100%); }
+    .bg.dark { background: linear-gradient(135deg, #20262b, #39424a); }
+    .bg.light { background: linear-gradient(135deg, #f2eee9, #dcd6cf); }
+    .bg.check { background: repeating-conic-gradient(#30373c 0% 25%, #2a3035 0% 50%) 0 0 / 40px 40px; }
+    .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; font-size: 13px; color: var(--dim); }
+    .legend b { color: var(--text); }
+    @media (max-width: 900px) { main { grid-template-columns: 1fr; } .viewer { position: static; } }
+  </style>
+</head>
+<body>
+  <header><img src="/favicon.svg" alt=""><h1>방송 화면 미리보기</h1></header>
+  <main>
+    <aside>
+      <section>
+        <h2>추천 조합</h2>
+        <div class="combos" id="combos"></div>
+        <p class="hint">그림은 이 조합의 후원 알림입니다. 누르면 방송 스타일과 색이 함께 바뀌고 OBS 화면에도 바로 나옵니다. 마음에 드는 조합에서 시작해 아래에서 색, 글꼴, 게임 배치를 고칩니다.</p>
+        <div class="row"><button class="secondary" id="combo-reset" type="button">처음 상태로(방송 소품, 핑크)</button></div>
+      </section>
+      <section>
+        <h2>방송 화면에 놓을 것</h2>
+        <div id="layers"></div>
+        <p class="hint">OBS 장면 만들기와 같은 자리입니다. 후원 벽, 뽑기판, 레이스는 장면에 숨긴 채로 들어 있어 쓸 때 OBS에서 켭니다.</p>
+      </section>
+      <section>
+        <h2>시험 후원, 채팅</h2>
+        <div class="row">
+          <select id="unit" aria-label="후원 단위"></select>
+          <input id="amount" type="number" min="1" aria-label="금액이나 개수">
+        </div>
+        <div class="row">
+          <input id="donor" type="text" value="시험 시청자" aria-label="이름">
+          <button id="send-donation">시험 후원</button>
+        </div>
+        <div class="row">
+          <input id="chat" type="text" value="!참가" aria-label="채팅 내용">
+          <button class="secondary" id="send-chat">시험 채팅</button>
+          <button class="secondary" id="send-member">구독</button>
+        </div>
+        <p class="hint">후원 하나가 알림, 후원 추첨, 후원 벽, 뽑기판, 참여 추첨에 함께 어떻게 나오는지 확인합니다. 시험 사건은 방송 플랫폼으로 보내지 않습니다.</p>
+      </section>
+      <section>
+        <h2>게임 패키지</h2>
+        <ul class="tips">
+          <li>패키지 = 그 게임 느낌의 방송 스타일 + 색 + HUD를 피한 배치 + 프레임과 대기 화면</li>
+          <li>그림은 실제 캐릭터 프레임, 채팅창, 알림을 게임 느낌 배경에 놓은 모습</li>
+          <li>고르면 오른쪽 미리보기가 그 게임 모습으로 바뀜(적용 전까지 저장 안 함)</li>
+        </ul>
+        <div class="games" id="games"></div>
+        <ul class="tips" id="game-tip"></ul>
+        <div class="parts">
+          <label class="check"><input type="checkbox" id="part-style" checked> 방송 스타일과 색</label>
+          <label class="check"><input type="checkbox" id="part-alerts" checked> 알림 위치</label>
+          <label class="check"><input type="checkbox" id="part-layout" checked> 장면 배치와 프레임</label>
+        </div>
+        <div class="row">
+          <button id="apply-game" type="button">패키지 적용</button>
+          <button class="secondary" id="clear-game" type="button">기본 배치로</button>
+          <label class="check"><input type="checkbox" id="show-hud"> HUD 자리 점선</label>
+        </div>
+        <ul class="tips">
+          <li>장면 배치: 설정 마법사의 장면 만들기에서 씀</li>
+          <li>HUD 자리: 기본 HUD 설정 기준. 게임에서 HUD를 옮겼다면 OBS에서 소스도 옮기기</li>
+          <li>그림과 장식은 모두 debutkit에서 그린 것(게임 회사의 로고, 그림, 글꼴 없음)</li>
+          <li>팬이 만든 꾸미기이며 게임 회사와 관계없음. 게임 이름은 각 회사의 상표</li>
+        </ul>
+      </section>
+      <section>
+        <h2>프레임</h2>
+        <div class="fonts">
+          <label>이름표(캐릭터 프레임, 대기 화면)<input type="text" id="frame-name" maxlength="30" placeholder="예: 채널 이름"></label>
+          <label>대기 문구<input type="text" id="frame-starting" maxlength="40" placeholder="곧 방송을 시작합니다"></label>
+          <label>자리 비움 문구<input type="text" id="frame-brb" maxlength="40" placeholder="잠시 자리를 비웠습니다"></label>
+          <label>엔딩 문구<input type="text" id="frame-ending" maxlength="40" placeholder="시청해 주셔서 감사합니다"></label>
+          <label>아래 한 줄(방송 일정, SNS)<input type="text" id="frame-note" maxlength="60"></label>
+          <label>대기 시간(분, 0은 표시 안 함)<input type="number" id="frame-minutes" min="0" max="120" value="0"></label>
+          <label>대기, 자리 비움, 엔딩 화면 그림<select id="frame-art"><option value="">없음</option><option value="debi">데비(손 인사, 조는 모습, 만세)</option><option value="character">방송 캐릭터 그림</option></select></label>
+        </div>
+        <div class="row"><button id="save-frames" type="button">프레임 문구 저장</button></div>
+        <p class="hint">프레임은 방송 스타일마다 모서리 장식이 다릅니다. OBS 주소 <code>/frame?kind=cam</code>(캐릭터 테두리), <code>screen</code>(게임 화면 테두리), <code>starting</code>, <code>brb</code>, <code>ending</code>(대기, 자리 비움, 엔딩 화면).</p>
+      </section>
+      <section>
+        <h2>방송 색</h2>
+        <div class="swatches" id="swatches"></div>
+        <div class="colors">
+          <label>주 색<input type="color" id="primary"></label>
+          <label>강조 색(희귀, 금박)<input type="color" id="highlight"></label>
+        </div>
+        <div class="row">
+          <button class="primary" id="save-theme">색 적용</button>
+          <button class="secondary" id="from-logo">로고 색 가져오기</button>
+        </div>
+        <p class="hint">채팅, 알림, 추첨, 뽑기판, 후원 벽, 레이스와 조작 화면이 같은 색을 씁니다. 화면마다 따로 고른 색이 있으면 그 색이 우선합니다.</p>
+      </section>
+      <section>
+        <h2>방송 스타일</h2>
+        <div class="styles" id="styles"></div>
+        <p class="hint">모양(모서리, 테두리, 그림자), 바탕(종이, 반투명, 빛), 글꼴, 등장 움직임을 함께 바꿉니다. 알림, 채팅(방송 스타일 카드), 후원 벽, 목표 게이지, 순위가 따라갑니다.</p>
+      </section>
+      <section>
+        <h2>글꼴</h2>
+        <div class="fonts">
+          <label>제목 글꼴(이름, 금액, 제목)<select id="display-font"></select></label>
+          <label>본문 글꼴(메시지, 설명)<select id="text-font"></select></label>
+          <label>이 PC에 설치한 글꼴 이름
+            <span class="local"><input type="text" id="local-font" placeholder="예: 나눔스퀘어라운드"><button class="secondary" id="use-local" type="button">제목에</button><button class="secondary" id="use-local-text" type="button">본문에</button></span>
+          </label>
+          <label>내 글꼴 올리기(TTF, OTF, WOFF, WOFF2)<input type="file" id="font-file" accept=".ttf,.otf,.woff,.woff2,font/*"></label>
+          <div class="row" id="user-fonts"></div>
+        </div>
+        <p class="hint">스타일 기본은 스타일마다 어울리는 글꼴입니다(레트로 픽셀은 갈무리11, 다이어리는 개구를 함께 배포). 올린 글꼴은 이 PC의 설정 폴더에만 보관하며, 방송에 쓸 수 있는 라이선스인지 확인하십시오.</p>
+      </section>
+      <section>
+        <h2>배경</h2>
+        <div class="row">
+          <select id="background" aria-label="미리보기 배경">
+            <option value="game">게임 화면 흉내</option>
+            <option value="dark">어두운 화면</option>
+            <option value="light">밝은 화면</option>
+            <option value="check">투명(체크무늬)</option>
+          </select>
+          <button class="secondary" id="reload">화면 새로고침</button>
+        </div>
+      </section>
+    </aside>
+    <div class="viewer">
+      <div class="screen" id="screen"><div class="canvas" id="canvas"><div class="bg game" id="bg"></div><div id="hud"></div></div></div>
+      <div class="legend" id="legend"></div>
+    </div>
+  </main>
+  <script src="/theme.js"></script>
+  <script src="/ui.js"></script>
+  <script>
+    "use strict";
+    const $ = (id) => document.getElementById(id);
+    // 아래에서 위 순서(OBS 장면과 같음). [id, 이름, 주소, 자리(왼쪽, 위, 가로, 세로), 처음에 켬]
+    // 후원 벽은 벽지처럼 캐릭터 뒤, 목표 게이지와 순위는 왼쪽 위(알림이 뜨는 가운데 위와 겹치지 않게)
+    const LAYERS = [
+      ["starting", "대기 화면 프레임", "/frame?kind=starting", null, false],
+      ["wall", "후원 벽", "/wall", null, false],
+      ["character", "캐릭터", "/character", [0, 410, 614, 670], true],
+      ["frame", "캐릭터 프레임", "/frame?kind=cam", [0, 410, 614, 670], false],
+      ["pick", "뽑기판", "/pick", null, false],
+      ["race", "참여 레이스", "/race", null, false],
+      ["goal", "목표 게이지", "/wall/goal", [33, 24, 576, 108], false],
+      ["rank", "후원 순위", "/wall/rank", [33, 151, 288, 389], false],
+      ["chat", "채팅", "/chat", [1466, 32, 422, 1016], true],
+      ["alerts", "후원 알림", "/alerts", null, true],
+      ["draw", "후원 추첨", "/draw", null, true],
+    ];
+    const STORE = "debutkit-stage";
+    const saved = (() => { try { return JSON.parse(localStorage.getItem(STORE) || "{}"); } catch (error) { return {}; } })();
+    const state = { layers: { ...Object.fromEntries(LAYERS.map(([id, , , , on]) => [id, on])), ...(saved.layers || {}) }, background: saved.background || "game",
+      game: saved.game || "", hud: saved.hud === true };
+    // 게임 패키지: 고른 게임의 자리(캐릭터, 채팅, 목표 게이지, 순위)로 옮겨 보고 HUD 자리를 점선 상자로
+    let games = {};
+    let applied = "";
+    const SPOTS = { character: "character", frame: "character", chat: "chat", goal: "goal", rank: "rank" };
+    function rectOf(id) {
+      const game = games[state.game];
+      if (game && SPOTS[id]) return game[SPOTS[id]];
+      return LAYERS.find((layer) => layer[0] === id)[3];
+    }
+    const store = () => localStorage.setItem(STORE, JSON.stringify(state));
+    const canvas = $("canvas");
+    const frames = {};
+
+    // 게임을 골랐고 아직 적용하지 않았으면 알림, 채팅, 프레임을 그 게임 스타일과 색으로 보여 줌(이 미리보기에서만, 저장 안 함)
+    function srcOf(id) {
+      const src = LAYERS.find((layer) => layer[0] === id)[2];
+      const game = games[state.game];
+      if (!game || state.game === applied || !["alerts", "chat", "frame", "starting"].includes(id)) return src;
+      const url = new URL(src, location.origin);
+      const look = { primary: game.primary.slice(1), highlight: game.highlight.slice(1) };
+      if (id === "alerts") Object.assign(look, { style: game.look, position: game.alert });
+      else if (id === "chat") Object.assign(look, { theme: "style", look: game.look });
+      else Object.assign(look, { look: game.look });
+      for (const [name, value] of Object.entries(look)) url.searchParams.set(name, value);
+      return url.pathname + url.search;
+    }
+    function frame(id) {
+      const [, label] = LAYERS.find((layer) => layer[0] === id);
+      const node = document.createElement("iframe");
+      node.title = label;
+      node.src = srcOf(id);
+      node.allow = "autoplay";
+      return node;
+    }
+    function place(id, node) {
+      const [x, y, w, h] = rectOf(id) || [0, 0, 1920, 1080];
+      Object.assign(node.style, { left: `${x}px`, top: `${y}px`, width: `${w}px`, height: `${h}px` });
+    }
+    function showHud() {
+      const game = games[state.game];
+      $("hud").replaceChildren(...(game && state.hud ? game.hud : []).map((box) => {
+        const node = document.createElement("div");
+        node.className = "hud-box";
+        node.textContent = box.label;
+        const [x, y, w, h] = box.rect;
+        Object.assign(node.style, { left: `${x}px`, top: `${y}px`, width: `${w}px`, height: `${h}px` });
+        return node;
+      }));
+    }
+
+    function render() {
+      for (const [id] of LAYERS) {
+        const on = Boolean(state.layers[id]);
+        if (on && !frames[id]) {
+          frames[id] = frame(id);
+          // 순서 유지: 뒤에 오는 켜진 층 앞에 넣는다
+          const after = LAYERS.slice(LAYERS.findIndex((layer) => layer[0] === id) + 1).map(([other]) => frames[other]).find(Boolean);
+          canvas.insertBefore(frames[id], after || $("hud"));
+        } else if (!on && frames[id]) {
+          frames[id].remove();
+          delete frames[id];
+        }
+        if (frames[id]) {
+          place(id, frames[id]);
+          const src = srcOf(id);
+          if (frames[id].getAttribute("src") !== src) frames[id].src = src;
+        }
+      }
+      showHud();
+      // 배경: 게임 화면 흉내를 고르고 게임 패키지를 골랐으면 그 게임 느낌의 배경 그림
+      const scene = state.background === "game" && games[state.game];
+      $("bg").className = `bg ${scene ? "scene" : state.background}`;
+      $("bg").style.backgroundImage = scene ? `url("/games/scene/${state.game}.jpg")` : "";
+      $("legend").replaceChildren(...LAYERS.filter(([id]) => state.layers[id]).map(([, label, src]) => {
+        const item = document.createElement("span");
+        const name = document.createElement("b");
+        name.textContent = label;
+        item.append(name, ` ${location.origin}${src}`);
+        return item;
+      }));
+    }
+
+    for (const [id, label, src] of LAYERS) {
+      const row = document.createElement("label");
+      row.className = "check";
+      const box = document.createElement("input");
+      box.type = "checkbox";
+      box.checked = Boolean(state.layers[id]);
+      box.addEventListener("change", () => { state.layers[id] = box.checked; store(); render(); });
+      const path = document.createElement("small");
+      path.textContent = src;
+      row.append(box, label, path);
+      $("layers").appendChild(row);
+    }
+    $("background").value = state.background;
+    $("background").addEventListener("change", () => { state.background = $("background").value; store(); render(); });
+    $("reload").addEventListener("click", () => { for (const node of Object.values(frames)) node.src = node.src; });
+
+    function fit() {
+      canvas.style.transform = `scale(${$("screen").clientWidth / 1920})`;
+    }
+    addEventListener("resize", fit);
+
+    async function post(path, body) {
+      const response = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "요청 실패");
+      return data;
+    }
+    const report = (promise, done) => promise.then(() => debutkitUi.toast(done)).catch((error) => debutkitUi.toast(error.message, true));
+
+    fetch("/stage/units").then((r) => r.json()).then((units) => {
+      for (const [key, unit] of Object.entries(units)) {
+        const option = new Option(unit.name, key);
+        option.dataset.amount = unit.amount;
+        $("unit").add(option);
+      }
+      $("amount").value = $("unit").selectedOptions[0].dataset.amount;
+    });
+    $("unit").addEventListener("change", () => { $("amount").value = $("unit").selectedOptions[0].dataset.amount; });
+    $("send-donation").addEventListener("click", () => report(post("/stage/test", {
+      kind: "donation", unit: $("unit").value, amount: Number($("amount").value), name: $("donor").value }), "시험 후원을 보냄"));
+    $("send-chat").addEventListener("click", () => report(post("/stage/test", { kind: "chat", text: $("chat").value, name: $("donor").value }), "시험 채팅을 보냄"));
+    $("send-member").addEventListener("click", () => report(post("/stage/test", { kind: "member", name: $("donor").value }), "시험 구독을 보냄"));
+
+    // 방송 색
+    let presets = {};
+    function fontOptions(select, theme, value) {
+      const items = [new Option("스타일 기본", "")];
+      for (const [key, font] of Object.entries(theme.font_choices || {})) items.push(new Option(`${font.name} (${font.about})`, key));
+      for (const font of theme.fonts || []) items.push(new Option(`내 글꼴: ${font.name}`, `user:${font.id}`));
+      if (value && value.startsWith("local:")) items.push(new Option(`설치한 글꼴: ${value.slice(6)}`, value));
+      select.replaceChildren(...items);
+      select.value = value || "";
+    }
+    function styleGroup(title) {
+      const heading = document.createElement("h3");
+      heading.textContent = title;
+      return heading;
+    }
+    // 그림 견본은 색이 바뀔 때만 다시 그린다(누를 때마다 16개를 다시 부르지 않게)
+    let stylesDrawn = "";
+    function showStyles(theme) {
+      const entries = Object.entries(theme.styles || {});
+      const drawn = `${theme.primary}|${theme.highlight}|${entries.map(([key]) => key)}`;
+      if (drawn === stylesDrawn) {
+        for (const button of $("styles").querySelectorAll("button")) button.setAttribute("aria-pressed", String(theme.style === button.dataset.style));
+      } else {
+        stylesDrawn = drawn;
+        const cards = (group) => entries.filter(([, style]) => (style.group || "basic") === group).map(([key, style]) => {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.dataset.style = key;
+          button.setAttribute("aria-pressed", String(theme.style === key));
+          const name = document.createElement("span");
+          name.textContent = style.name;
+          name.style.fontFamily = style.font;
+          const about = document.createElement("small");
+          about.textContent = style.about;
+          const query = new URLSearchParams({ still: "1", layout: "card", position: "center", scale: "100", style: key,
+            primary: theme.primary.slice(1), highlight: theme.highlight.slice(1) });
+          button.append(debutkitUi.thumb(`/alerts?${query}`, `${style.name} 그림`, 760), name, about);
+          button.addEventListener("click", () => saveTheme({ style: key }, "방송 스타일을 바꿈"));
+          return button;
+        });
+        $("styles").replaceChildren(styleGroup("일반"), ...cards("basic"), styleGroup("게임 장르"), ...cards("game"));
+      }
+      fontOptions($("display-font"), theme, theme.display_font);
+      fontOptions($("text-font"), theme, theme.text_font);
+      $("user-fonts").replaceChildren(...(theme.fonts || []).map((font) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "secondary small";
+        button.textContent = `${font.name} 지우기`;
+        button.addEventListener("click", async () => {
+          try { showTheme(await post("/theme/font/remove", { id: font.id })); debutkitUi.toast("글꼴을 지움"); } catch (error) { debutkitUi.toast(error.message, true); }
+        });
+        return button;
+      }));
+    }
+    //: 추천 조합: [이름, 방송 스타일, 색 조합]
+    const COMBOS = [["귀여운 파스텔", "pastel", "pink"], ["깔끔한 미니멀", "minimal", "sky"], ["네온 게이머", "neon", "purple"],
+      ["아늑한 다이어리", "diary", "coral"], ["별빛 밤하늘", "night", "lavender"], ["레트로 게임", "pixel", "mint"]];
+    function showCombos(theme) {
+      if ($("combos").children.length) {
+        for (const button of $("combos").children) button.setAttribute("aria-pressed", String(theme.style === button.dataset.style && theme.preset === button.dataset.preset));
+        return;
+      }
+      $("combos").replaceChildren(...COMBOS.map(([name, style, preset]) => {
+        const look = (theme.styles || {})[style];
+        const colors = (theme.presets || {})[preset];
+        if (!look || !colors) return document.createTextNode("");
+        const button = document.createElement("button");
+        button.type = "button";
+        button.dataset.style = style;
+        button.dataset.preset = preset;
+        button.setAttribute("aria-pressed", String(theme.style === style && theme.preset === preset));
+        // 그림 견본: 이 조합의 후원 알림(가운데만 잘라 크게)
+        const query = new URLSearchParams({ still: "1", layout: "card", position: "center", scale: "100", style,
+          primary: colors.primary.slice(1), highlight: colors.highlight.slice(1) });
+        button.append(debutkitUi.thumb(`/alerts?${query}`, `${name} 그림`, 760), name);
+        button.addEventListener("click", () => saveTheme({ style, preset }, `${name} 조합으로 바꿈`));
+        return button;
+      }));
+    }
+    function showTheme(theme) {
+      showCombos(theme);
+      showStyles(theme);
+      $("primary").value = theme.primary;
+      $("highlight").value = theme.highlight;
+      for (const button of $("swatches").children) button.setAttribute("aria-pressed", String(button.dataset.preset === theme.preset));
+      debutkitTheme.apply(theme);
+      $("from-logo").disabled = !theme.logo;
+      $("from-logo").title = theme.logo ? `로고 주 색 ${theme.logo.primary}` : "로고 만들기에서 저장한 로고가 없음";
+    }
+    async function saveTheme(body, done = "방송 색을 바꿈") {
+      try {
+        showTheme(await post("/theme", body));
+        debutkitUi.toast(done);
+      } catch (error) {
+        debutkitUi.toast(error.message, true);
+      }
+    }
+    fetch("/theme").then((r) => r.json()).then((theme) => {
+      presets = theme.presets;
+      for (const [key, preset] of Object.entries(presets)) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.dataset.preset = key;
+        button.title = preset.name;
+        button.setAttribute("aria-label", preset.name);
+        button.style.setProperty("--sw", preset.primary);
+        button.style.setProperty("--hl", preset.highlight);
+        button.addEventListener("click", () => saveTheme({ preset: key }));
+        $("swatches").appendChild(button);
+      }
+      showTheme(theme);
+    });
+    $("save-theme").addEventListener("click", () => saveTheme({ primary: $("primary").value, highlight: $("highlight").value }));
+    $("combo-reset").addEventListener("click", () => saveTheme({ style: "prop", preset: "pink", display_font: "", text_font: "" }, "처음 상태로 돌림"));
+    $("from-logo").addEventListener("click", () => saveTheme({ from_logo: true }));
+    $("display-font").addEventListener("change", () => saveTheme({ display_font: $("display-font").value }, "제목 글꼴을 바꿈"));
+    $("text-font").addEventListener("change", () => saveTheme({ text_font: $("text-font").value }, "본문 글꼴을 바꿈"));
+    $("use-local").addEventListener("click", () => saveTheme({ display_font: `local:${$("local-font").value.trim()}` }, "제목 글꼴을 바꿈"));
+    $("use-local-text").addEventListener("click", () => saveTheme({ text_font: `local:${$("local-font").value.trim()}` }, "본문 글꼴을 바꿈"));
+    $("font-file").addEventListener("change", async () => {
+      const file = $("font-file").files[0];
+      if (!file) return;
+      if (file.size > 20 * 1024 * 1024) { debutkitUi.toast("글꼴 파일은 20MB 이하", true); return; }
+      const data = await new Promise((resolve) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.readAsDataURL(file); });
+      try {
+        showTheme(await post("/theme/font", { name: file.name, data, use: ["display"] }));
+        debutkitUi.toast("글꼴을 올리고 제목 글꼴로 정함");
+      } catch (error) {
+        debutkitUi.toast(error.message, true);
+      }
+      $("font-file").value = "";
+    });
+
+    // 게임 패키지와 프레임 문구
+    // 배치 그림: 1920x1080 자리를 비율로 줄여 그린다(iframe 없이)
+    function layoutThumb(game) {
+      const box = document.createElement("span");
+      box.className = "dk-thumb";
+      const put = (rect, className, color) => {
+        if (!rect) return;
+        const [x, y, w, h] = rect;
+        const node = document.createElement("i");
+        if (className) node.className = className;
+        Object.assign(node.style, { left: `${x / 19.2}%`, top: `${y / 10.8}%`, width: `${w / 19.2}%`, height: `${h / 10.8}%` });
+        if (color) node.style.background = color;
+        box.appendChild(node);
+      };
+      for (const hud of game.hud || []) put(hud.rect, "hud");
+      put(game.goal, "", `${game.primary}99`);
+      put(game.rank, "", `${game.primary}99`);
+      put(game.chat, "", game.primary);
+      put(game.character, "", game.highlight);
+      return box;
+    }
+    function showGames() {
+      $("games").replaceChildren(...Object.entries(games).map(([key, game]) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.setAttribute("aria-pressed", String(state.game === key));
+        button.dataset.applied = String(applied === key);
+        const genre = document.createElement("small");
+        genre.textContent = game.genre;
+        // 그림 견본: 그 게임 느낌 배경 + 실제 프레임, 채팅, 알림(찍어 둔 그림). 그림이 없으면 배치 그림
+        const shot = document.createElement("img");
+        shot.className = "shot";
+        shot.src = `/games/thumb/${key}.jpg`;
+        shot.alt = "";
+        shot.loading = "lazy";
+        shot.addEventListener("error", () => shot.replaceWith(layoutThumb(game)));
+        button.append(shot, game.name, genre);
+        button.addEventListener("click", () => { state.game = key; store(); showGames(); render(); });
+        return button;
+      }));
+      const game = games[state.game];
+      $("game-tip").replaceChildren(...(game ? [`${game.name}${applied === state.game ? " (적용됨)" : " (미리보기 중, 적용 전)"}`, ...game.tips] : []).map((text) => {
+        const item = document.createElement("li");
+        item.textContent = text;
+        return item;
+      }));
+    }
+    const FRAME_FIELDS = ["name", "starting", "brb", "ending", "note"];
+    function showGameInfo(info) {
+      games = info.games || {};
+      applied = info.game || "";
+      if (!games[state.game]) state.game = applied;
+      for (const field of FRAME_FIELDS) $(`frame-${field}`).value = (info.frames || {})[field] || "";
+      $("frame-minutes").value = (info.frames || {}).minutes || 0;
+      $("frame-art").value = (info.frames || {}).art || "";
+      showGames();
+      render();
+    }
+    fetch("/games").then((r) => r.json()).then(showGameInfo).catch(() => {});
+    $("apply-game").addEventListener("click", async () => {
+      if (!games[state.game]) { debutkitUi.toast("먼저 게임을 고름", true); return; }
+      const parts = ["style", "alerts", "layout"].filter((part) => $(`part-${part}`).checked);
+      if (!parts.length) { debutkitUi.toast("적용할 항목을 하나 이상 고름", true); return; }
+      try {
+        showGameInfo(await post("/games/apply", { game: state.game, parts }));
+        if (parts.includes("style")) showTheme(await (await fetch("/theme")).json());
+        debutkitUi.toast(`${games[state.game].name} 패키지를 적용함`);
+      } catch (error) {
+        debutkitUi.toast(error.message, true);
+      }
+    });
+    $("clear-game").addEventListener("click", async () => {
+      try {
+        state.game = "";
+        store();
+        showGameInfo(await post("/games/apply", { game: "" }));
+        debutkitUi.toast("기본 배치로 돌림(방송 스타일과 색은 그대로)");
+      } catch (error) {
+        debutkitUi.toast(error.message, true);
+      }
+    });
+    $("show-hud").checked = state.hud;
+    $("show-hud").addEventListener("change", () => { state.hud = $("show-hud").checked; store(); showHud(); });
+    $("save-frames").addEventListener("click", async () => {
+      const body = Object.fromEntries(FRAME_FIELDS.map((field) => [field, $(`frame-${field}`).value]));
+      body.minutes = Math.max(0, Math.min(120, Math.round(Number($("frame-minutes").value) || 0)));
+      body.art = $("frame-art").value;
+      try {
+        showGameInfo(await post("/games/frames", body));
+        debutkitUi.toast("프레임 문구를 저장함");
+      } catch (error) {
+        debutkitUi.toast(error.message, true);
+      }
+    });
+
+    render();
+    fit();
+    requestAnimationFrame(fit);
+  </script>
+</body>
+</html>

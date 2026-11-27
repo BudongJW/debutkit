@@ -1,0 +1,799 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>debutkit 뽑기판</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/theme.css?fonts=0">
+  <link rel="stylesheet" href="/ui.css">
+  <style>
+    :root { color-scheme: light; --bg: #ffffff; --panel: #faf7f5; --line: #e3dfdb; --text: #1e2327; --dim: #5b6670; --link: #bf3b68; --gold: #b58500;
+      --gold-bg: #fff3c4; --win-bg: #ffe3ec; --danger: #b3261e; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.55 "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; }
+    header { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 10px; padding: 10px 16px; background: var(--bg); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+    header img { width: 24px; height: 24px; }
+    header h1 { font-size: 16px; margin: 0; white-space: nowrap; }
+    header select { max-width: 220px; }
+    header a { margin-left: auto; color: var(--dim); font-size: 13px; }
+    main { max-width: 1180px; margin: 0 auto; padding: 14px 16px 90px; }
+    .lead { color: var(--dim); margin: 0 0 12px; font-size: 13px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 14px; align-items: start; }
+    .col { display: grid; gap: 14px; }
+    section { border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; min-width: 0; }
+    h2 { font-size: 15px; margin: 0 0 8px; display: flex; align-items: center; gap: 8px; }
+    h2 .state { font-weight: 400; }
+    h3 { font-size: 13px; margin: 12px 0 4px; color: var(--dim); }
+    .hint { color: var(--dim); font-size: 12.5px; margin: 6px 0 0; }
+    .warn { margin: 6px 0; padding: 6px 10px; background: var(--win-bg); border: 1px solid #f3b6ca; border-radius: 3px; font-size: 13px; font-weight: 600; }
+    .url { display: flex; gap: 6px; margin: 6px 0; }
+    .url input { flex: 1; min-width: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 3px; padding: 5px 8px; font: 12.5px ui-monospace, Consolas, monospace; color: var(--text); }
+    button { background: var(--text); color: #fff; border: 1px solid var(--text); border-radius: 3px; padding: 5px 11px; font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+    button.secondary { background: #fff; color: var(--text); border-color: #c9c3bd; }
+    button.danger { background: #fff; color: var(--danger); border-color: #e3a19c; }
+    button.armed { background: var(--danger); color: #fff; border-color: var(--danger); }
+    button.small { padding: 2px 8px; font-size: 12.5px; }
+    button:hover { opacity: 0.88; }
+    button:disabled { opacity: 0.4; cursor: default; }
+    .row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+    .row.tight { margin-top: 4px; }
+    label.check { display: inline-flex; gap: 6px; align-items: center; font-weight: 600; }
+    input, select, textarea { padding: 4px 7px; border: 1px solid #c9c3bd; border-radius: 3px; font: inherit; background: #fff; color: var(--text); min-width: 0; }
+    input[type=number] { width: 74px; }
+    input[type=color] { width: 34px; height: 28px; padding: 1px 2px; }
+    input[type=checkbox] { width: auto; }
+    textarea { width: 100%; resize: vertical; }
+    .field { display: grid; grid-template-columns: 92px 1fr; gap: 4px 8px; align-items: center; margin-top: 6px; }
+    .field > span { color: var(--dim); font-size: 13px; }
+    .field input:not([type=checkbox]):not([type=color]):not([type=number]), .field select { width: 100%; }
+    .state { font-size: 13px; color: var(--dim); }
+    .state.error { color: var(--danger); }
+    .state.ok { color: #1f7a4a; }
+    .status { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+    .status b { font-size: 15px; }
+    .pill { padding: 0 8px; border-radius: 999px; font-size: 12px; font-weight: 700; border: 1px solid var(--line); background: var(--panel); }
+    .pill.off { background: #fff; color: var(--danger); border-color: #e3a19c; }
+    .pill.done { background: var(--text); color: #fff; border-color: var(--text); }
+    /* 칸: 번호, 열린 칸은 상품, 배치 보기는 흐린 상품 */
+    .cells { display: grid; grid-template-columns: repeat(var(--cols, 5), minmax(0, 1fr)); gap: 4px; margin-top: 8px; }
+    .cells button { position: relative; min-height: 44px; padding: 14px 3px 4px; background: #fff; color: var(--text); border: 1.5px solid #c9c3bd; border-radius: 4px;
+      font-size: 12px; font-weight: 700; line-height: 1.2; white-space: normal; word-break: keep-all; overflow-wrap: anywhere; text-align: center; }
+    .cells button .n { position: absolute; left: 4px; top: 1px; font-size: 11px; color: var(--dim); font-weight: 700; }
+    .cells button .p { display: block; }
+    .cells button.closed { background: #2a3035; border-color: #1e2327; color: #fff; }
+    .cells button.closed .n { color: #c9c3bd; }
+    .cells button.closed .big { font-size: 16px; }
+    .cells button.closed:hover { background: #bf3b68; border-color: #bf3b68; opacity: 1; }
+    .cells button.closed .peek { display: block; font-size: 11px; font-weight: 600; color: #c9c3bd; font-style: italic; }
+    .cells button.closed .peek.t-rare { color: #ffd84d; }
+    .cells button.closed .peek.t-win { color: #ffb3cb; }
+    .cells button.open { cursor: default; }
+    .cells button.open.t-win { background: var(--win-bg); border-color: #f3b6ca; }
+    .cells button.open.t-rare { background: var(--gold-bg); border-color: #e8c34a; }
+    .cells button.open.t-miss { background: var(--panel); color: var(--dim); font-weight: 600; }
+    .cells button.revealed { background: #fff; border-style: dashed; color: var(--dim); font-weight: 600; }
+    /* 기록 */
+    ol.log { list-style: none; margin: 8px 0 0; padding: 0; max-height: 420px; overflow: auto; }
+    ol.log li { border-top: 1px solid var(--line); padding: 7px 0; }
+    ol.log li.undone { opacity: 0.55; }
+    ol.log li.undone .script p { text-decoration: line-through; }
+    .meta { font-size: 12px; color: var(--dim); }
+    .chip { display: inline-block; padding: 0 8px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); font-size: 12.5px; font-weight: 700; margin-right: 4px; }
+    .chip.t-rare { border-color: #e8c34a; background: var(--gold-bg); }
+    .chip.t-win { border-color: #f3b6ca; background: var(--win-bg); }
+    .chip.t-miss { color: var(--dim); }
+    .script { display: flex; gap: 6px; align-items: flex-start; margin-top: 2px; }
+    .script p { margin: 0; flex: 1; font-size: 13.5px; }
+    /* 설정 */
+    details { border-top: 1px solid var(--line); padding: 6px 0; }
+    details:first-of-type { border-top: 0; }
+    summary { cursor: pointer; font-weight: 700; padding: 2px 0; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 6px; }
+    th, td { text-align: left; padding: 3px 2px; border-bottom: 1px solid var(--line); }
+    th { color: var(--dim); font-weight: 600; font-size: 12px; }
+    td input { width: 100%; }
+    td.num { width: 64px; }
+    td.num input { width: 58px; }
+    td.rare { width: 42px; text-align: center; }
+    td.act { width: 46px; text-align: right; }
+    .swatches { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
+    .swatches button { width: 30px; height: 30px; padding: 0; border: 2px solid #1e2327; border-radius: 50%; background: var(--c); }
+    .swatches button.on { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #1e2327; }
+    .parts { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 4px 10px; margin-top: 4px; }
+    .parts label { display: flex; align-items: center; gap: 5px; font-size: 13px; }
+    .styles { display: grid; grid-template-columns: auto repeat(4, auto); gap: 4px 6px; align-items: center; margin-top: 4px; font-size: 13px; }
+    .styles span { color: var(--dim); }
+    .savebar { position: sticky; bottom: 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 10px -14px -12px; padding: 9px 14px;
+      background: var(--panel); border-top: 1px solid var(--line); border-radius: 0 0 6px 6px; }
+    .savebar.dirty { background: var(--win-bg); }
+    ol.boards { list-style: none; margin: 6px 0 0; padding: 0; }
+    ol.boards li { display: flex; align-items: center; gap: 6px; padding: 5px 0; border-top: 1px solid var(--line); flex-wrap: wrap; }
+    ol.boards li.active b::after { content: " (사용 중)"; color: var(--link); font-weight: 600; font-size: 12px; }
+    ol.boards li .meta { margin-right: auto; }
+    .preview { position: relative; height: 0; padding-top: 56.25%; margin-top: 8px; border-radius: 3px; overflow: hidden;
+      background: repeating-conic-gradient(#30373c 0% 25%, #2a3035 0% 50%) 0 0 / 20px 20px; }
+    .preview iframe { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; border: 0; transform-origin: 0 0; color-scheme: normal; }
+    code { font-size: 12.5px; }
+    .mono { font-family: ui-monospace, Consolas, monospace; font-size: 12px; word-break: break-all; }
+    ol.rounds { margin: 6px 0 0; padding-left: 18px; font-size: 12.5px; }
+    ol.rounds li { margin-bottom: 6px; }
+  </style>
+</head>
+<body>
+<header>
+  <img src="/favicon.svg" alt="">
+  <h1>debutkit 뽑기판</h1>
+  <select id="board-select" aria-label="사용할 판"></select>
+  <a href="/">시작하기</a>
+</header>
+<main>
+  <p class="lead">칸을 누르면 방송 화면에서 그 칸이 열립니다. 상품 배치는 판을 만들 때 이 PC의 debutkit이 무작위로 정하며, 방송 화면에는 열린 칸의 상품만 전달됩니다.</p>
+  <div class="grid">
+    <div class="col">
+      <section id="play">
+        <div class="status"><b id="board-name">뽑기판</b><span id="progress" class="state"></span><span class="pill" id="visible-pill"></span></div>
+        <div class="row">
+          <label class="check"><input type="checkbox" id="peek"> 배치 보기(이 화면에만)</label>
+          <button class="secondary small" id="visible">방송에서 숨기기</button>
+        </div>
+        <p class="warn" id="peek-warn" hidden>배치가 보이는 중입니다. 이 화면이 방송에 나가지 않도록 주의.</p>
+        <div class="cells" id="cells"></div>
+        <div class="row">
+          <input id="by" maxlength="40" placeholder="연 사람(선택)" aria-label="연 사람 이름" style="width:130px">
+          <button id="random">무작위로 열기</button>
+          <button class="secondary" id="undo">되돌리기</button>
+          <button class="secondary" id="replay">결과 다시 보이기</button>
+        </div>
+        <div class="row">
+          <button class="secondary" id="reshuffle" data-confirm>남은 칸 섞기</button>
+          <button class="secondary" id="finish" data-confirm>끝내고 배치 공개</button>
+          <button class="danger" id="reset" data-confirm>처음부터 다시</button>
+        </div>
+        <p class="state" id="play-state"></p>
+        <p class="hint">되돌리기는 마지막으로 연 칸을 다시 덮습니다(기록에는 취소로 남음). 섞기, 처음부터 다시는 새 배치와 새 확인 값을 만듭니다. 위험한 버튼은 두 번 눌러야 실행됩니다.</p>
+      </section>
+
+      <section>
+        <h2>기록 <span class="state" id="log-count"></span></h2>
+        <div class="row tight">
+          <button class="secondary small" id="copy-all">대본 모두 복사</button>
+          <button class="secondary small" id="clear-log" data-confirm>기록 비우기</button>
+        </div>
+        <ol class="log" id="log"></ol>
+      </section>
+
+      <section>
+        <h2>공정성 확인</h2>
+        <p class="hint" style="margin-top:0">판을 만들 때 방송 화면에 SHA-256 값을 공개합니다. 판이 끝나면 소금값과 배치로 만든 확인 문자열을 공개하므로, 누구나 그 문자열의 SHA-256이 처음 값과 같은지 확인할 수 있습니다.</p>
+        <div class="url"><input id="hash" readonly aria-label="공개한 SHA-256"><button class="secondary small" data-copy="hash">복사</button></div>
+        <div id="reveal" hidden>
+          <h3>확인 문자열(첫 줄 소금값, 다음 줄부터 번호:내용)</h3>
+          <textarea id="reveal-text" rows="5" readonly class="mono"></textarea>
+          <div class="row tight"><button class="secondary small" data-copy="reveal-text">복사</button><span class="state" id="verify-state"></span></div>
+        </div>
+        <details id="rounds-box" hidden><summary>지난 배치 <span id="rounds-count"></span></summary><ol class="rounds" id="rounds"></ol></details>
+      </section>
+    </div>
+
+    <div class="col">
+      <section id="settings">
+        <h2>설정 <span class="state" id="settings-board"></span></h2>
+        <details open>
+          <summary>판과 상품</summary>
+          <div class="field"><span>제목</span><input id="title" maxlength="30"></div>
+          <div class="field"><span>설명</span><textarea id="caption" rows="2" maxlength="80" placeholder="예: 7번 칸에는 무엇이 있을까"></textarea></div>
+          <div class="field"><span>칸 수</span><div><input id="cells-count" type="number" min="4" max="100"> <span class="state">열 수</span> <input id="columns" type="number" min="0" max="20"> <span class="state">0은 자동</span></div></div>
+          <table>
+            <thead><tr><th>상품</th><th>수량</th><th>금색</th><th></th></tr></thead>
+            <tbody id="prizes"></tbody>
+          </table>
+          <div class="row tight"><button class="secondary small" id="add-prize">상품 추가</button><span class="state" id="prize-total"></span></div>
+          <div class="field"><span>빈칸 이름</span><input id="blank" maxlength="24" placeholder="꽝"></div>
+          <p class="hint">남는 칸은 빈칸 이름으로 채웁니다. 이름에 꽝이 들어간 상품도 꽝으로 표시합니다. 금색은 희귀 상품 강조입니다. 열린 칸이 있을 때 상품을 바꾸면 남은 칸만 새로 채워 섞습니다.</p>
+        </details>
+        <details>
+          <summary>디자인</summary>
+          <div id="theme-tiles"></div>
+          <select id="theme" aria-label="디자인" hidden></select>
+          <div class="field"><span>테마 색</span><div><div class="swatches" id="swatches"></div>
+            <div class="row tight"><label class="check"><input type="checkbox" id="color-custom"> 직접</label><input type="color" id="color-hex" value="#ff4f8b" aria-label="테마 색 직접 지정"></div></div></div>
+          <h3>색 직접 지정(선택하지 않으면 테마 색에 맞춤)</h3>
+          <div class="parts" id="color-parts"></div>
+          <h3>덮개 무늬</h3>
+          <div id="cover-tiles"></div>
+          <select id="cover" aria-label="덮개 무늬" hidden></select>
+          <p class="hint">그림은 저장한 색과 글꼴로 그린 예시 판입니다(3번 당첨, 8번 꽝이 열린 모습).</p>
+          <div class="field"><span>글꼴</span><select id="font"></select></div>
+          <div class="field"><span>위치</span><div><select id="position"></select> <span class="state">크기</span> <input id="scale" type="number" min="40" max="130" step="5">%</div></div>
+          <div class="row"><label class="check"><input type="checkbox" id="frame"> 판 바탕</label><label class="check"><input type="checkbox" id="show-numbers"> 칸 번호</label></div>
+        </details>
+        <details>
+          <summary>글자</summary>
+          <div class="styles" id="styles"></div>
+          <p class="hint">크기는 1920x1080 기준 px(결과 카드는 %), 줄 간격은 %입니다. 색을 고르지 않으면 판에 맞춥니다.</p>
+        </details>
+        <details>
+          <summary>연출과 소리</summary>
+          <div class="field"><span>당첨 효과</span><select id="effect"></select></div>
+          <div class="field"><span>꽝 효과</span><select id="miss-effect"></select></div>
+          <div class="field"><span>결과 표시</span><div><input id="seconds" type="number" min="2" max="30">초</div></div>
+          <div class="row"><label class="check"><input type="checkbox" id="sound"> 효과음</label><span class="state">음량</span><input id="volume" type="range" min="0" max="100" style="width:120px"></div>
+          <div class="field"><span>당첨 소리</span><div><select id="win-sound"></select> <button class="secondary small" id="hear-win">듣기</button></div></div>
+          <div class="field"><span>꽝 소리</span><div><select id="miss-sound"></select> <button class="secondary small" id="hear-miss">듣기</button></div></div>
+          <p class="hint">듣기는 이 화면에서만 재생합니다. 방송에는 OBS 브라우저 소스 속성의 OBS 오디오 제어를 켠 경우 나갑니다.</p>
+        </details>
+        <details>
+          <summary>방송 화면 표시</summary>
+          <div class="row"><label class="check"><input type="checkbox" id="show-remaining"> 남은 상품 요약(이름과 개수)</label></div>
+          <div class="row"><label class="check"><input type="checkbox" id="show-hash"> 공정성 확인 값(SHA-256)</label></div>
+          <div class="row"><label class="check"><input type="checkbox" id="show-help"> 시청자 참여 안내</label></div>
+        </details>
+        <details id="viewers-box">
+          <summary>시청자 참여(치지직, SOOP, YouTube, Twitch)</summary>
+          <div class="row"><label class="check"><input type="checkbox" id="viewers-on"> 시청자가 칸 열기</label></div>
+          <div class="field"><span>열 수 있는 사람</span><select id="who"></select></div>
+          <div class="field"><span>채팅 명령</span><input id="command" maxlength="20" placeholder="!뽑기"></div>
+          <div class="field"><span>후원으로 열기</span><div><input id="donation-min" type="number" min="0" step="1000" style="width:100px" placeholder="사용 안 함">원 이상</div></div>
+          <div class="row"><label class="check"><input type="checkbox" id="repeat"> 최소 금액의 배수만큼 여러 칸(최대 10칸)</label></div>
+          <div class="field"><span>대기 시간</span><div><input id="cooldown" type="number" min="0" max="3600">초 <span class="state">판마다</span> <input id="per-viewer" type="number" min="0" max="100">칸 <span class="state">0은 제한 없음</span></div></div>
+          <div class="row" id="platforms"></div>
+          <p class="hint">채팅에 명령과 번호를 입력하면 그 칸을 엽니다(예: !뽑기 7, 번호가 없으면 남은 칸 중 무작위). 후원은 원 기준(별풍선 1개 100원)이며 메시지의 번호(예: 7번)를 엽니다. 대기 시간과 판마다 칸 수는 시청자 한 명 기준이며 스트리머와 매니저에게는 적용하지 않습니다. 판을 숨긴 동안에는 열리지 않습니다.</p>
+          <h3>참여 시험(저장한 설정, 시험 플랫폼으로 처리)</h3>
+          <div class="row tight">
+            <input id="test-name" maxlength="40" value="시험 시청자" style="width:110px" aria-label="시험 이름">
+            <select id="test-role" aria-label="시험 역할"><option value="">시청자</option><option value="moderator">매니저</option><option value="owner">스트리머</option></select>
+            <input id="test-text" maxlength="100" value="!뽑기" style="width:110px" aria-label="시험 메시지">
+          </div>
+          <div class="row tight">
+            <button class="secondary small" id="test-chat">시험 채팅</button>
+            <input id="test-amount" type="number" min="0" step="1000" value="1000" style="width:90px" aria-label="시험 후원 금액">원
+            <button class="secondary small" id="test-donation">시험 후원</button>
+          </div>
+          <p class="state" id="test-state"></p>
+        </details>
+        <div class="savebar" id="savebar"><button id="save">저장</button><button class="secondary" id="revert">되돌리기</button><button type="button" class="secondary" id="reset">처음 상태로</button><span class="state" id="save-state"></span></div>
+      </section>
+
+      <section>
+        <h2>판 목록 <span class="state" id="boards-count"></span></h2>
+        <ol class="boards" id="boards"></ol>
+        <div class="row">
+          <input id="new-name" maxlength="20" placeholder="새 판 이름" style="width:130px" aria-label="새 판 이름">
+          <button class="secondary small" id="new-copy">지금 설정으로 새 판</button>
+          <button class="secondary small" id="new-empty">기본 설정으로 새 판</button>
+        </div>
+        <p class="hint">판마다 설정, 배치, 열린 칸, 기록을 따로 저장합니다. 판을 바꾸면 방송 화면도 바로 바뀝니다.</p>
+      </section>
+
+      <section>
+        <h2>방송 화면</h2>
+        <div class="url"><input id="overlay-url" readonly aria-label="방송 화면 주소"><button class="secondary small" data-copy="overlay-url">복사</button><button type="button" class="primary small" data-obs="pick">OBS에 넣기</button></div>
+        <p class="hint">OBS에 넣기를 누르면 지금 OBS 장면에 들어갑니다. 배경은 투명합니다(직접 넣을 때 크기 1920x1080).</p>
+        <div class="url"><input id="control-url" readonly aria-label="조작 화면 주소"><button class="secondary small" data-copy="control-url">복사</button></div>
+        <p class="hint">OBS 독 메뉴의 사용자 지정 브라우저 독에 이 주소를 넣으면 OBS 안에서 이 화면을 쓸 수 있습니다. 배치 보기를 켠 독은 방송에 나가지 않도록 주의.</p>
+        <div class="row"><button class="secondary small" id="preview-toggle">미리보기 켜기</button></div>
+        <div class="preview" id="preview" hidden><iframe id="preview-frame" title="뽑기판 미리보기"></iframe></div>
+      </section>
+    </div>
+  </div>
+</main>
+<script src="/pick.js"></script>
+<script src="/theme.js"></script>
+<script src="/ui.js"></script>
+<script>
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const el = (tag, className, text) => {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  };
+  const option = (value, label) => {
+    const node = el("option", "", label);
+    node.value = value;
+    return node;
+  };
+  const post = (path, body) => fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) })
+    .then(async (response) => ({ ok: response.ok, data: await response.json().catch(() => ({})) }))
+    .catch(() => ({ ok: false, data: { error: "오버레이에 연결하지 못함(오버레이 실행 확인)" } }));
+  const PLATFORMS = { chzzk: "치지직", soop: "SOOP", twitch: "Twitch", youtube: "YouTube", demo: "시험" };
+  const TIER = { win: "당첨", rare: "금색", miss: "꽝" };
+  const ASPECT = { card: 63 / 88, ticket: 1.22, envelope: 1.42, capsule: 1, door: 0.74, sticker: 1, memo: 1 };
+  let data = null;
+  let shownVersion = -1;
+  let filledFor = "";
+  let dirty = false;
+
+  function note(id, text, kind) {
+    $(id).textContent = text;
+    $(id).classList.toggle("error", kind === "error");
+    $(id).classList.toggle("ok", kind === "ok");
+  }
+
+  async function copyText(text, button) {
+    const label = button.textContent;
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (error) {  // OBS 독 등 클립보드 권한이 없는 화면
+      const area = el("textarea");
+      area.value = text;
+      document.body.appendChild(area);
+      area.select();
+      document.execCommand("copy");
+      area.remove();
+    }
+    button.textContent = "복사됨";
+    setTimeout(() => (button.textContent = label), 1400);
+  }
+
+  // 위험한 버튼은 두 번 눌러야 실행(OBS 독에서는 확인 창이 뜨지 않을 수 있음)
+  function guarded(button, run) {
+    const label = button.textContent;
+    let timer = null;
+    button.addEventListener("click", () => {
+      if (button.hasAttribute("data-confirm") && !button.classList.contains("armed")) {
+        button.classList.add("armed");
+        button.textContent = "한 번 더 누르면 실행";
+        timer = setTimeout(() => { button.classList.remove("armed"); button.textContent = label; }, 3000);
+        return;
+      }
+      clearTimeout(timer);
+      button.classList.remove("armed");
+      button.textContent = label;
+      run();
+    });
+  }
+
+  async function action(path, body, done) {
+    const { ok, data: answer } = await post(path, body);
+    if (!ok) note("play-state", answer.error || "요청 실패", "error");
+    else if (done) note("play-state", typeof done === "function" ? done(answer) : done, "ok");
+    refresh(true);
+    return ok;
+  }
+
+  // ---------------------------------------------------------------- 판 조작
+  function autoColumns(count, aspect) {  // 방송 화면(pick.js)과 같은 방식의 자동 열 수
+    let best = null;
+    for (let cols = 1; cols <= Math.min(count, 20); cols++) {
+      const rows = Math.ceil(count / cols);
+      const w = Math.min(1690 / (cols + (cols - 1) * 0.13), (600 / (rows + (rows - 1) * 0.13)) * aspect, 250 * Math.min(1, aspect));
+      const score = w - (cols * rows - count) * 0.8;
+      if (!best || score > best.score) best = { cols, score };
+    }
+    return best.cols;
+  }
+
+  function renderPlay() {
+    const config = data.config;
+    $("board-name").textContent = data.board.name;
+    note("progress", `${data.opened}/${data.total} 열림${data.commit.round > 1 ? `, 배치 ${data.commit.round}` : ""}`);
+    $("visible-pill").textContent = data.finished ? "끝난 판" : data.visible ? "방송에 표시 중" : "방송에서 숨김";
+    $("visible-pill").className = `pill${data.finished ? " done" : data.visible ? "" : " off"}`;
+    $("visible").textContent = data.visible ? "방송에서 숨기기" : "방송에 보이기";
+    const peek = $("peek").checked;
+    $("peek-warn").hidden = !peek;
+    const cols = Math.min(config.columns || autoColumns(data.total, ASPECT[config.theme] || 1), Math.max(4, Math.floor($("cells").clientWidth / 46) || 10));
+    $("cells").style.setProperty("--cols", cols);
+    $("cells").replaceChildren(...data.layout.map((cell) => {
+      const button = el("button");
+      button.type = "button";
+      button.appendChild(el("span", "n", String(cell.n)));
+      if (cell.open || data.finished) {
+        button.className = `${cell.open ? "open" : "revealed"} t-${cell.tier}`;
+        button.appendChild(el("span", "p", cell.prize));
+        button.title = `${cell.n}번 ${cell.prize}`;
+      } else {
+        button.className = "closed";
+        if (peek) button.appendChild(el("span", `peek t-${cell.tier}`, cell.prize));
+        else button.appendChild(el("span", "big", String(cell.n)));
+        button.title = `${cell.n}번 열기`;
+        button.addEventListener("click", () => action("/pick/open", { cell: cell.n, by: $("by").value.trim() }, (answer) => answer.entry.script));
+      }
+      return button;
+    }));
+    $("random").disabled = $("reshuffle").disabled = $("finish").disabled = data.finished;
+    $("undo").disabled = !data.opened || (data.finished && data.opened < data.total);
+    $("replay").disabled = !data.opened;
+  }
+
+  function time(seconds) {
+    const at = new Date(seconds * 1000);
+    return [at.getHours(), at.getMinutes(), at.getSeconds()].map((part) => String(part).padStart(2, "0")).join(":");
+  }
+
+  function renderLog() {
+    note("log-count", `${data.log.length}개`);
+    $("log").replaceChildren(...data.log.map((entry) => {
+      const item = el("li", entry.undone ? "undone" : "");
+      const head = el("div");
+      head.append(el("span", `chip t-${entry.tier}`, `${entry.cell}번 ${entry.prize}`));
+      const who = [entry.by, PLATFORMS[entry.platform], data.options.sources[entry.source], time(entry.time), entry.undone ? "취소" : ""].filter(Boolean).join(", ");
+      head.appendChild(el("span", "meta", who));
+      const line = el("div", "script");
+      line.appendChild(el("p", "", entry.script));
+      const copy = el("button", "secondary small", "복사");
+      copy.addEventListener("click", () => copyText(entry.script, copy));
+      line.appendChild(copy);
+      item.append(head, line);
+      return item;
+    }));
+  }
+
+  function renderProof() {
+    const commit = data.commit;
+    $("hash").value = commit.hash;
+    $("reveal").hidden = !commit.revealed;
+    if (commit.revealed) {
+      $("reveal-text").value = commit.text;
+      verify(commit.text, commit.hash, "verify-state");
+    }
+    $("rounds-box").hidden = !data.rounds.length;
+    $("rounds-count").textContent = `(${data.rounds.length})`;
+    const reasons = { reshuffle: "남은 칸 섞기", reset: "처음부터 다시", config: "상품 변경" };
+    $("rounds").replaceChildren(...[...data.rounds].reverse().map((round) => {
+      const item = el("li");
+      item.appendChild(el("div", "meta", `배치 ${round.round}, ${reasons[round.reason] || round.reason}, ${time(round.time)}`));
+      item.appendChild(el("div", "mono", `SHA-256 ${round.hash}`));
+      const copy = el("button", "secondary small", "확인 문자열 복사");
+      copy.addEventListener("click", () => copyText(round.text, copy));
+      item.appendChild(copy);
+      return item;
+    }));
+  }
+
+  async function verify(text, hash, target) {  // 이 브라우저에서 직접 SHA-256 계산
+    try {
+      const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+      const hex = [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+      note(target, hex === hash ? "확인: 공개한 SHA-256과 일치" : "확인: 일치하지 않음", hex === hash ? "ok" : "error");
+    } catch (error) {
+      note(target, "이 화면에서는 SHA-256을 계산할 수 없음");
+    }
+  }
+
+  function renderBoards() {
+    note("boards-count", `${data.boards.length}/${data.options.limits.boards}개`);
+    $("board-select").replaceChildren(...data.boards.map((board) => option(board.id, `${board.name} (${board.opened}/${board.total})`)));
+    $("board-select").value = data.board.id;
+    $("boards").replaceChildren(...data.boards.map((board) => {
+      const item = el("li", board.active ? "active" : "");
+      item.appendChild(el("b", "", board.name));
+      item.appendChild(el("span", "meta", `${board.opened}/${board.total} 열림${board.finished ? ", 끝남" : ""}`));
+      if (!board.active) {
+        const use = el("button", "secondary small", "사용");
+        use.addEventListener("click", () => action("/pick/board/switch", { id: board.id }, `${board.name} 판으로 바꿈`));
+        item.appendChild(use);
+      }
+      const rename = el("button", "secondary small", "이름 바꾸기");
+      rename.addEventListener("click", () => {
+        const name = $("new-name").value.trim();
+        if (!name) return note("play-state", "새 판 이름 칸에 바꿀 이름을 입력한 뒤 누르기", "error");
+        action("/pick/board/rename", { id: board.id, name }, "이름을 바꿈").then((ok) => ok && ($("new-name").value = ""));
+      });
+      const remove = el("button", "danger small", "삭제");
+      remove.setAttribute("data-confirm", "");
+      guarded(remove, () => action("/pick/board/delete", { id: board.id }, `${board.name} 판 삭제`));
+      item.append(rename, remove);
+      return item;
+    }));
+  }
+
+  // ---------------------------------------------------------------- 설정 양식
+  function fillSelect(id, options, value) {
+    $(id).replaceChildren(...Object.entries(options).map(([key, label]) => option(key, label)));
+    $(id).value = value;
+  }
+
+  function prizeRow(prize) {
+    const row = el("tr");
+    const name = el("input", "name");
+    name.maxLength = 24;
+    name.value = prize.name || "";
+    name.setAttribute("aria-label", "상품 이름");
+    const count = el("input", "count");
+    count.type = "number";
+    count.min = "1";
+    count.max = "100";
+    count.value = prize.count || 1;
+    count.setAttribute("aria-label", "수량");
+    const rare = el("input", "rare");
+    rare.type = "checkbox";
+    rare.checked = Boolean(prize.rare);
+    rare.setAttribute("aria-label", "금색(희귀)");
+    const remove = el("button", "secondary small", "삭제");
+    remove.type = "button";
+    remove.addEventListener("click", () => { row.remove(); changed(); });
+    const cells = [[name, ""], [count, "num"], [rare, "rare"], [remove, "act"]].map(([input, className]) => {
+      const cell = el("td", className);
+      cell.appendChild(input);
+      return cell;
+    });
+    row.append(...cells);
+    return row;
+  }
+
+  function prizeTotal() {
+    const total = [...$("prizes").children].reduce((sum, row) => sum + Math.max(0, Number(row.querySelector(".count").value) || 0), 0);
+    const cells = Number($("cells-count").value) || 0;
+    note("prize-total", `상품 ${total}칸, 빈칸 ${Math.max(0, cells - total)}칸`, total > cells ? "error" : "");
+  }
+
+  function fill(config) {
+    const options = data.options;
+    $("title").value = config.title;
+    $("caption").value = config.caption;
+    $("cells-count").value = config.cells;
+    $("columns").value = config.columns;
+    $("prizes").replaceChildren(...config.prizes.map(prizeRow));
+    $("blank").value = config.blank;
+    fillSelect("theme", options.themes, config.theme);
+    $("swatches").replaceChildren(...Object.entries(options.colors).map(([key, item]) => {
+      const button = el("button");
+      button.type = "button";
+      button.title = item.label;
+      button.setAttribute("aria-label", item.label);
+      button.dataset.key = key;
+      button.style.setProperty("--c", item.hex);
+      button.classList.toggle("on", config.color === key);
+      button.addEventListener("click", () => {
+        for (const other of $("swatches").children) other.classList.toggle("on", other === button);
+        $("color-custom").checked = false;
+        changed();
+      });
+      return button;
+    }));
+    $("color-custom").checked = config.color.startsWith("#");
+    $("color-hex").value = config.color.startsWith("#") ? config.color : config.palette.base;
+    $("color-parts").replaceChildren(...Object.entries(options.color_parts).map(([part, label]) => {
+      const row = el("label");
+      const use = el("input");
+      use.type = "checkbox";
+      use.dataset.part = part;
+      use.checked = Boolean(config.colors[part]);
+      const picker = el("input");
+      picker.type = "color";
+      picker.dataset.pick = part;
+      picker.value = config.colors[part] || config.palette[{ cover: "cover", board: "board", text: "text", win: "win" }[part]];
+      picker.addEventListener("input", () => (use.checked = true));
+      row.append(use, picker, document.createTextNode(label));
+      return row;
+    }));
+    fillSelect("cover", options.covers, config.cover);
+    lookTiles();
+    fillSelect("font", options.fonts, config.font);
+    fillSelect("position", options.positions, config.position);
+    $("scale").value = config.scale;
+    $("frame").checked = config.frame;
+    $("show-numbers").checked = config.show_numbers;
+    const styles = $("styles");
+    styles.replaceChildren(el("span", "", ""), el("span", "", "크기"), el("span", "", "줄 간격"), el("span", "", "색"), el("span", "", "정렬"));
+    for (const [part, label] of [["title", "제목"], ["caption", "설명"], ["result", "결과 카드"]]) {
+      const style = config.styles[part];
+      const range = options.style_ranges[part];
+      const size = el("input");
+      size.type = "number";
+      size.min = range.size[0];
+      size.max = range.size[1];
+      size.value = style.size;
+      size.dataset.style = `${part}.size`;
+      let line = el("span", "", "");
+      if (range.line) {
+        line = el("input");
+        line.type = "number";
+        line.min = range.line[0];
+        line.max = range.line[1];
+        line.step = "5";
+        line.value = style.line;
+        line.dataset.style = `${part}.line`;
+      }
+      const color = el("label");
+      const use = el("input");
+      use.type = "checkbox";
+      use.dataset.style = `${part}.use`;
+      use.checked = Boolean(style.color);
+      use.title = "색 직접 지정";
+      const picker = el("input");
+      picker.type = "color";
+      picker.dataset.style = `${part}.color`;
+      picker.value = style.color || "#1e2327";
+      picker.addEventListener("input", () => (use.checked = true));
+      color.append(use, picker);
+      const align = el("select");
+      align.dataset.style = `${part}.align`;
+      align.append(...Object.entries(options.aligns).map(([key, name]) => option(key, name)));
+      align.value = style.align;
+      styles.append(el("span", "", label), size, line, color, align);
+    }
+    fillSelect("effect", options.effects, config.effect);
+    fillSelect("miss-effect", options.miss_effects, config.miss_effect);
+    $("seconds").value = config.seconds;
+    $("sound").checked = config.sound;
+    $("volume").value = config.volume;
+    fillSelect("win-sound", options.win_sounds, config.win_sound);
+    fillSelect("miss-sound", options.miss_sounds, config.miss_sound);
+    $("show-remaining").checked = config.show_remaining;
+    $("show-hash").checked = config.show_hash;
+    $("show-help").checked = config.show_help;
+    const viewers = config.viewers;
+    $("viewers-on").checked = viewers.enabled;
+    fillSelect("who", options.who, viewers.who);
+    $("command").value = viewers.command;
+    $("donation-min").value = viewers.donation_min ?? "";
+    $("repeat").checked = viewers.repeat;
+    $("cooldown").value = viewers.cooldown;
+    $("per-viewer").value = viewers.per_viewer;
+    $("platforms").replaceChildren(...Object.entries(options.platforms).map(([key, label]) => {
+      const row = el("label", "check");
+      const box = el("input");
+      box.type = "checkbox";
+      box.dataset.platform = key;
+      box.checked = viewers.platforms.includes(key);
+      row.append(box, document.createTextNode(label));
+      return row;
+    }));
+    note("settings-board", data.board.name);
+    prizeTotal();
+    setDirty(false);
+  }
+
+  function collect() {
+    const swatch = [...$("swatches").children].find((button) => button.classList.contains("on"));
+    const colors = {};
+    for (const use of $("color-parts").querySelectorAll("input[data-part]")) {
+      colors[use.dataset.part] = use.checked ? $("color-parts").querySelector(`input[data-pick="${use.dataset.part}"]`).value : "";
+    }
+    const styles = {};
+    for (const part of ["title", "caption", "result"]) {
+      const value = (name) => document.querySelector(`[data-style="${part}.${name}"]`);
+      styles[part] = { size: Number(value("size").value), color: value("use").checked ? value("color").value : "", align: value("align").value };
+      if (value("line")) styles[part].line = Number(value("line").value);
+    }
+    const minimum = $("donation-min").value.trim();
+    return {
+      title: $("title").value.trim(), caption: $("caption").value, cells: Number($("cells-count").value), columns: Number($("columns").value || 0),
+      prizes: [...$("prizes").children].map((row) => ({ name: row.querySelector(".name").value.trim(), count: Number(row.querySelector(".count").value),
+                                                         rare: row.querySelector(".rare").checked })),
+      blank: $("blank").value.trim(), theme: $("theme").value,
+      color: $("color-custom").checked ? $("color-hex").value : (swatch ? swatch.dataset.key : data.config.color), colors,
+      cover: $("cover").value, font: $("font").value, position: $("position").value, scale: Number($("scale").value), frame: $("frame").checked,
+      show_numbers: $("show-numbers").checked, styles, effect: $("effect").value, miss_effect: $("miss-effect").value, seconds: Number($("seconds").value),
+      sound: $("sound").checked, volume: Number($("volume").value), win_sound: $("win-sound").value, miss_sound: $("miss-sound").value,
+      show_remaining: $("show-remaining").checked, show_hash: $("show-hash").checked, show_help: $("show-help").checked,
+      viewers: { enabled: $("viewers-on").checked, who: $("who").value, command: $("command").value.trim(), donation_min: minimum === "" ? null : Number(minimum),
+                 repeat: $("repeat").checked, cooldown: Number($("cooldown").value), per_viewer: Number($("per-viewer").value),
+                 platforms: [...$("platforms").querySelectorAll("input[data-platform]")].filter((box) => box.checked).map((box) => box.dataset.platform) },
+    };
+  }
+
+  function setDirty(value) {
+    dirty = value;
+    $("savebar").classList.toggle("dirty", value);
+    if (value) note("save-state", "저장하지 않은 변경 있음");
+  }
+
+  function changed() {
+    prizeTotal();
+    setDirty(true);
+  }
+
+  $("settings").addEventListener("input", (event) => {
+    if (!event.target.closest(".savebar") && !event.target.id.startsWith("test-")) changed();
+  });
+  $("settings").addEventListener("change", (event) => {
+    if (!event.target.closest(".savebar") && !event.target.id.startsWith("test-")) changed();
+  });
+  $("color-hex").addEventListener("input", () => {
+    $("color-custom").checked = true;
+    for (const button of $("swatches").children) button.classList.remove("on");
+  });
+  $("add-prize").addEventListener("click", () => { $("prizes").appendChild(prizeRow({ name: "", count: 1 })); changed(); });
+  $("save").addEventListener("click", async () => {
+    const { ok, data: answer } = await post("/pick/config", collect());
+    if (!ok) return note("save-state", `저장하지 못함: ${answer.error || "알 수 없는 오류"}`, "error");
+    data = answer;
+    shownVersion = -1;
+    filledFor = `${data.board.id}:${JSON.stringify(data.config)}`;
+    fill(data.config);
+    note("save-state", "저장했습니다. 방송 화면에 바로 적용됩니다.", "ok");
+    refresh(true);
+  });
+  $("revert").addEventListener("click", () => { fill(data.config); note("save-state", "저장한 설정으로 되돌림"); });
+  // 디자인과 덮개 무늬 그림: 예시 판(?sample)
+  const sampleSrc = (theme, cover) => `/pick?${new URLSearchParams({ sample: "1", theme, cover, mute: "1" })}`;
+  const choose = (id, key) => { $(id).value = key; $(id).dispatchEvent(new Event("change", { bubbles: true })); };
+  function lookTiles() {
+    const options = data.options;
+    debutkitUi.looks($("theme-tiles"), Object.entries(options.themes).map(([key, label]) => ({ key, label, src: sampleSrc(key, $("cover").value) })),
+      $("theme").value, (key) => choose("theme", key));
+    debutkitUi.looks($("cover-tiles"), Object.entries(options.covers).map(([key, label]) => ({ key, label, src: sampleSrc($("theme").value, key) })),
+      $("cover").value, (key) => choose("cover", key));
+  }
+  $("theme").addEventListener("change", lookTiles);
+  $("cover").addEventListener("change", lookTiles);
+  // 처음 상태로: 디자인, 글자, 연출과 소리, 방송 화면 표시만(판과 상품, 시청자 참여는 그대로). 저장해야 반영
+  const LOOK_KEYS = ["theme", "color", "colors", "cover", "font", "styles", "effect", "miss_effect", "sound", "volume", "win_sound", "miss_sound", "seconds",
+                     "position", "scale", "frame", "show_numbers", "show_remaining", "show_hash"];
+  $("reset").addEventListener("click", () => {
+    if (!data || !data.defaults) return;
+    const base = Object.fromEntries(LOOK_KEYS.map((key) => [key, data.defaults[key]]));
+    fill({ ...data.config, ...collect(), ...base, palette: data.defaults.palette });
+    changed();
+    note("save-state", "처음 상태로 채움(판과 상품, 시청자 참여는 그대로). 확인한 뒤 저장");
+  });
+  $("hear-win").addEventListener("click", () => window.debutkitPick && window.debutkitPick.preview($("win-sound").value, $("volume").value));
+  $("hear-miss").addEventListener("click", () => window.debutkitPick && window.debutkitPick.preview($("miss-sound").value, $("volume").value));
+
+  async function testEvent(kind) {
+    const body = { kind, name: $("test-name").value.trim(), text: $("test-text").value, role: $("test-role").value, amount: Number($("test-amount").value) };
+    const { ok, data: answer } = await post("/pick/test", body);
+    if (!ok) return note("test-state", answer.error || "시험 실패", "error");
+    note("test-state", answer.opened.length ? answer.opened.map((entry) => entry.script).join(" / ") : `열지 않음: ${answer.reason}`,
+         answer.opened.length ? "ok" : "error");
+    refresh(true);
+  }
+  $("test-chat").addEventListener("click", () => testEvent("chat"));
+  $("test-donation").addEventListener("click", () => testEvent("donation"));
+
+  // ---------------------------------------------------------------- 버튼
+  $("random").addEventListener("click", () => action("/pick/open", { by: $("by").value.trim() }, (answer) => answer.entry.script));
+  $("undo").addEventListener("click", () => action("/pick/undo", {}, "마지막 칸을 다시 덮음"));
+  $("replay").addEventListener("click", () => action("/pick/replay", {}, "결과 카드를 다시 표시"));
+  guarded($("reshuffle"), () => action("/pick/reshuffle", {}, "남은 칸을 섞음(새 확인 값)"));
+  guarded($("finish"), () => action("/pick/finish", {}, "판을 끝내고 배치를 공개함"));
+  guarded($("reset"), () => action("/pick/reset", {}, "처음부터 다시 섞음(새 확인 값)"));
+  guarded($("clear-log"), () => action("/pick/log/clear", {}, "기록을 비움"));
+  $("visible").addEventListener("click", () => action("/pick/visible", { visible: !data.visible }));
+  $("peek").addEventListener("change", () => data && renderPlay());
+  $("board-select").addEventListener("change", () => action("/pick/board/switch", { id: $("board-select").value }, "판을 바꿈"));
+  $("new-copy").addEventListener("click", () => action("/pick/board/new", { name: $("new-name").value.trim(), copy: true }, "새 판을 만듦")
+    .then((ok) => ok && ($("new-name").value = "")));
+  $("new-empty").addEventListener("click", () => action("/pick/board/new", { name: $("new-name").value.trim(), copy: false }, "새 판을 만듦")
+    .then((ok) => ok && ($("new-name").value = "")));
+  $("copy-all").addEventListener("click", () => {
+    const lines = data.log.filter((entry) => !entry.undone).map((entry) => entry.script).reverse();
+    copyText(lines.join("\n"), $("copy-all"));
+  });
+  for (const button of document.querySelectorAll("[data-copy]")) button.addEventListener("click", () => copyText($(button.dataset.copy).value, button));
+
+  $("overlay-url").value = `${location.origin}/pick`;
+  $("control-url").value = `${location.origin}/pick/control`;
+  // 미리보기는 필요할 때만(방송 화면처럼 연결을 하나 쓰므로. 같은 주소의 동시 연결 수 제한은 OBS 소스와 공유)
+  const fit = () => ($("preview-frame").style.transform = `scale(${$("preview").clientWidth / 1920})`);
+  window.addEventListener("resize", () => { fit(); if (data) renderPlay(); });
+  $("preview-toggle").addEventListener("click", () => {
+    const opening = $("preview").hidden;
+    $("preview").hidden = !opening;
+    $("preview-frame").src = opening ? "/pick?mute" : "about:blank";
+    $("preview-toggle").textContent = opening ? "미리보기 끄기" : "미리보기 켜기";
+    fit();
+  });
+
+  // ---------------------------------------------------------------- 상태 확인(1.2초마다, 바뀐 경우에만 다시 그림)
+  async function refresh(force) {
+    try {
+      const answer = await (await fetch("/pick/secret", { cache: "no-store" })).json();
+      const boardChanged = !data || answer.board.id !== data.board.id;
+      data = answer;
+      if (!force && data.version === shownVersion) return;
+      shownVersion = data.version;
+      renderPlay();
+      renderLog();
+      renderProof();
+      renderBoards();
+      const key = `${data.board.id}:${JSON.stringify(data.config)}`;
+      if (boardChanged || (!dirty && key !== filledFor)) {  // 입력 중인 설정은 덮어쓰지 않음(다른 화면, 명령줄에서 바꾼 설정은 반영)
+        filledFor = key;
+        fill(data.config);
+      }
+    } catch (error) {
+      note("play-state", "오버레이에 연결하지 못함(오버레이 실행 확인)", "error");
+    }
+  }
+  refresh(true);
+  setInterval(() => refresh(false), 1200);
+</script>
+</body>
+</html>

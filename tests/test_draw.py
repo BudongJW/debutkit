@@ -3,8 +3,10 @@
 import http.client
 import json
 import random
+import re
 import time
 from collections import Counter
+from pathlib import Path
 
 import pytest
 
@@ -272,3 +274,143 @@ def test_fonts_are_bundled_and_served(server):
         assert status == 200 and kind == "font/woff2" and body[:4] == b"wOF2", name
     for license_ in ("OFL-BlackHanSans.txt", "OFL-Pretendard.txt"):
         assert b"SIL Open Font License" in request(server, "GET", f"/vendor/fonts/{license_}")[2]
+
+
+# --------------------------------------------------------------------------- 연출 추가: 모양, 효과, 글꼴, 한마디, 대본 창, 기록 창
+
+
+def test_look_defaults_and_round_trip():
+    first = draw.load_config()
+    assert (first.design, first.effect, first.name_font, first.name_size, first.caption_font, first.caption_size, first.advice, first.advice_lines) == (
+        "basic", "none", "blackhan", "medium", "blackhan", "medium", True, [])
+    draw.save_config(config(style="capsule", design="box", effect="stars", name_font="batang", name_size="large", caption_font="gungsuh",
+                            caption_size="small", advice=False, advice_lines=[" 물 한 잔 ", "", "물 한 잔", "오늘도 좋은 날"]))
+    saved = settings.load()
+    assert (saved["draw_style"], saved["draw_design"], saved["draw_effect"], saved["draw_name_font"], saved["draw_name_size"]) == (
+        "capsule", "box", "stars", "batang", "large")
+    assert (saved["draw_caption_font"], saved["draw_caption_size"], saved["draw_advice"], saved["draw_advice_lines"]) == (
+        "gungsuh", "small", False, ["물 한 잔", "오늘도 좋은 날"])
+    loaded = draw.load_config()
+    assert loaded.to_settings() == {key: value for key, value in saved.items() if key.startswith("draw_")}
+    shown = loaded.to_dict()
+    assert shown["designs"]["capsule"]["box"] == "네모 유리창" and shown["effects"]["none"] == "없음" and shown["sizes"]["large"] == "크게"
+    assert {"blackhan", "pretendard", "batang", "gungsuh", "jua", "galmuri"} <= set(shown["fonts"]) and len(shown["fonts"]) >= 20  # 공통 글꼴 목록
+    assert shown["font_css"]["jua"][0].startswith('"Jua"') and shown["advice_example"] == "물 한 잔"
+    assert draw.load_config({"draw_name_font": "serif", "draw_caption_font": "text"}).name_font == "batang"  # 예전 이름은 새 이름으로
+    assert set(draw.DESIGNS) == set(draw.STYLES) and all(len(draw.DESIGNS[style]) >= 3 for style in draw.STYLES if style not in ("card", "wheel"))
+    assert len([effect for effect in draw.EFFECTS if effect != "none"]) >= 5
+
+
+def test_saved_settings_from_before_load_unchanged():
+    old = {"draw_enabled": True, "draw_prizes": ["90:꽝", "10:사진"], "draw_rules": ["0:1"], "draw_style": "wheel", "draw_seconds": 5, "draw_title": "벌칙 룰렛",
+           "draw_position": "left", "draw_scale": 120, "draw_sound": True, "draw_show_percent": True}
+    loaded = draw.load_config(old)
+    assert (loaded.style, loaded.seconds, loaded.title, loaded.position, loaded.scale, loaded.sound, loaded.show_percent) == ("wheel", 5, "벌칙 룰렛", "left", 120, True, True)
+    assert (loaded.design, loaded.effect, loaded.name_font, loaded.advice) == ("basic", "none", "blackhan", True)  # 예전 이름 display도
+    broken = draw.load_config({"draw_style": "drum", "draw_design": "box", "draw_effect": "boom", "draw_name_font": "Comic Sans", "draw_name_size": "huge",
+                               "draw_caption_font": 3, "draw_advice_lines": ["가" * 41, "좋은 날", 7]})
+    assert (broken.design, broken.effect, broken.name_font, broken.name_size, broken.caption_font, broken.advice_lines) == (
+        "classic", "none", "blackhan", "medium", "blackhan", ["좋은 날"])
+
+
+@pytest.mark.parametrize("changes, message", [
+    ({"style": "capsule", "design": "basic"}, "캡슐 뽑기 모양은 round"),
+    ({"style": "drum", "design": "box"}, "추첨기 모양은 classic"),
+    ({"effect": "boom"}, "효과는 none"),
+    ({"name_font": "Comic Sans"}, "상품 이름 글꼴은 목록에서"),
+    ({"caption_font": None}, "안내 글꼴은"),
+    ({"name_size": "huge"}, "상품 이름 크기는 small"),
+    ({"caption_size": 3}, "안내 글 크기는"),
+    ({"advice_lines": [f"문장 {i}" for i in range(31)]}, "30개까지"),
+    ({"advice_lines": ["가" * 41]}, "40자 이내"),
+    ({"advice_lines": [3]}, "문장 목록"),
+    ({"style": "fireworks"}, "tarot"),
+])
+def test_look_settings_are_explained(changes, message):
+    with pytest.raises(draw.DrawError, match=message):
+        config(**changes)
+
+
+def test_missing_look_keys_keep_saved_values():
+    draw.save_config(config(style="tarot", design="sun", effect="hearts", name_font="text", advice_lines=["좋은 날"]))
+    kept = config(style="tarot", title="타로 추첨")  # 이 항목을 모르는 명령줄처럼
+    assert (kept.design, kept.effect, kept.name_font, kept.advice_lines, kept.title) == ("sun", "hearts", "pretendard", ["좋은 날"], "타로 추첨")
+    moved = config(style="scratch")  # 저장한 모양이 새 연출에 없으면 그 연출의 기본 모양
+    assert moved.design == "classic" and moved.effect == "hearts"
+    assert config(style="ticket", design="").design == "stub" and config(advice_lines="첫 줄\n\n둘째 줄").advice_lines == ["첫 줄", "둘째 줄"]
+
+
+def test_results_carry_look_and_tarot_advice():
+    state = draw.DrawState(rng=random.Random(5))
+    tarot = config(style="tarot", design="pink", effect="fireworks", caption_font="serif", advice_lines=["하나", "둘"])
+    result = state.run(tarot, name="a", platform="chzzk", kind="donation", amount=1000, unit="원", count=3)
+    assert (result["style"], result["design"], result["effect"], result["caption_font"], result["name_size"]) == ("tarot", "pink", "fireworks", "batang", "medium")
+    assert result["advice"] in ("하나", "둘") and result["script"].endswith(f". 오늘의 한마디 {result['advice']}")
+    assert state.run(config(style="tarot"), name="a", platform="chzzk", kind="donation", amount=1000, unit="원", count=1)["advice"] in draw.ADVICE
+    assert state.run(config(style="tarot", advice=False), name="a", platform="chzzk", kind="donation", amount=1000, unit="원", count=1)["advice"] == ""
+    plain = state.run(config(style="capsule", advice_lines=["하나"]), name="a", platform="chzzk", kind="donation", amount=1000, unit="원", count=1)
+    assert plain["advice"] == "" and "한마디" not in plain["script"]
+    assert all(0 < len(line) <= draw.MAX_ADVICE_LENGTH for line in draw.ADVICE)
+
+
+def test_every_style_design_effect_and_font_has_page_code(server):
+    script = request(server, "GET", "/draw.js")[2].decode() + request(server, "GET", "/draw-props.js")[2].decode()
+    css = request(server, "GET", "/draw.css")[2].decode()
+    page = request(server, "GET", "/draw")[2].decode()
+    assert page.index("/draw-props.js") < page.index("/draw.js")  # 소품 연출을 먼저 불러와야 draw.js가 목록에 넣음
+    for style, designs in draw.DESIGNS.items():
+        assert re.search(rf"\b{style}: play\w+", script), style
+        for design in designs if style not in ("card", "wheel") else ():
+            assert f'"{design}"' in script, (style, design)
+    for effect in draw.EFFECTS:
+        assert effect == "none" or re.search(rf"\n    {effect}\(", script), effect
+        assert effect in ("none", "confetti") or f".dk-fx.{effect}" in css, effect
+    # 글꼴은 서버가 보낸 CSS(공통 글꼴 목록)로. 예전 이름(display, text, gothic, serif)은 서버가 새 이름으로 바꿔 보냄
+    assert "result.font_css" in script and "config.font_css" in script
+    assert all(key in draw.FONTS for key in ("blackhan", "pretendard", "jua", "gowunbatang", "galmuri"))
+    for size in draw.SIZES:
+        assert f"{size}: " in script, size
+
+
+def test_script_and_log_pages(server):
+    status, kind, body = request(server, "GET", "/draw/script")
+    assert status == 200 and kind.startswith("text/html") and b"/live?feeds=draw" in body and "추첨 대본".encode() in body
+    status, kind, body = request(server, "GET", "/draw/log")
+    assert status == 200 and kind.startswith("text/html") and b"/draw/history" in body and "상품별 합계".encode() in body
+    for page in (body, request(server, "GET", "/draw/script")[2]):
+        assert b"innerHTML" not in page  # 글은 textContent로만
+    control = request(server, "GET", "/draw/control")[2].decode()
+    assert "/draw/script" in control and "/draw/log" in control and 'id="sample-frame"' in control and 'id="design"' in control
+    status, _, body = request(server, "POST", "/draw/config", {"enabled": False, "prizes": [{"name": "스티커", "weight": 1}],
+                                                               "rules": [{"min_won": 0, "draws": 1}], "style": "drum", "design": "wood",
+                                                               "effect": "spotlight", "advice_lines": ["좋은 날"]})
+    assert status == 200 and json.loads(body)["design"] == "wood" and settings.load()["draw_effect"] == "spotlight"
+    status, _, body = request(server, "POST", "/draw/config", {"prizes": [{"name": "a", "weight": 1}], "rules": [{"min_won": 0, "draws": 1}],
+                                                               "style": "drum", "design": "night", "effect": "boom"})
+    assert status == 400 and "효과는" in json.loads(body)["error"]
+    result = json.loads(request(server, "POST", "/draw/test", {"amount": 0})[2])
+    assert result["design"] == "wood" and result["effect"] == "spotlight" and result["advice"] == ""
+
+
+def test_more_designs_for_every_prop():
+    """미타도네이션 대응: 연출 디자인 32종(캡슐 8, 복권 6, 티켓 8, 추첨기 5, 타로 3, 카드와 룰렛 1). 새 디자인마다 그림 코드나 CSS."""
+    import re
+
+    sizes = {style: len(designs) for style, designs in draw.DESIGNS.items()}
+    assert sizes == {"card": 1, "wheel": 1, "capsule": 8, "scratch": 6, "ticket": 8, "drum": 5, "tarot": 3} and sum(sizes.values()) == 32
+    static = Path(__file__).resolve().parent.parent / "src" / "debutkit" / "overlay" / "static"
+    props = (static / "draw-props.js").read_text(encoding="utf-8")
+    css = (static / "draw.css").read_text(encoding="utf-8")
+    capsule = props.split("const CAPSULE_LOOK = {", 1)[1].split("};", 1)[0]
+    drum = props.split("const DRUM_LOOK = {", 1)[1].split("};", 1)[0]
+    base = dict(re.findall(r'(\w+): "(\w+)"', props.split("const TICKET_BASE = {", 1)[1].split("};", 1)[0]))
+    for design in draw.DESIGNS["capsule"]:
+        assert f"{design}: {{" in capsule, design
+    for design in draw.DESIGNS["drum"]:
+        assert f"{design}: {{" in drum, design
+    assert set(base) == set(draw.DESIGNS["ticket"]) and set(base.values()) == {"stub", "receipt", "coupon"}
+    for design in ("concert", "movie", "boarding", "gift", "shop"):
+        assert f".dk-ticket.{base[design]}.{design}" in css and f'.dk-printer[data-design="{design}"]' in css, design
+    for design in ("pastel", "gold", "mint"):
+        assert f'.dk-lotto[data-design="{design}"]' in css, design
+    assert 'design === "gold" ? COATS.gold : COATS.silver' in props  # 금박 복권은 금색 막

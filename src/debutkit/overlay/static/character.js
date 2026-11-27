@@ -24,18 +24,18 @@ function show(text) {
 }
 
 function listen() {
-  // 브라우저의 같은 주소 동시 연결 수 제한(6개, OBS 브라우저 소스끼리 공유) 때문에 연결 하나로 받는다
-  const source = new EventSource("/live");
-  source.addEventListener("tracking", (message) => Object.assign(tracked, { found: false }, JSON.parse(message.data)));
-  source.addEventListener("motion", (message) => motionRequests.handler?.(JSON.parse(message.data)));
+  // 브라우저의 같은 주소 동시 연결 수 제한(6개, OBS 브라우저 소스끼리 공유) 때문에 다른 방송 화면과 공유 연결(live.js) 하나로 받는다
+  window.debutkitLive.subscribe(demo ? ["tracking", "motion"] : ["voice", "tracking", "motion"], (feed, data) => {
+    if (feed === "tracking") Object.assign(tracked, { found: false }, data);
+    else if (feed === "motion") motionRequests.handler?.(data);
+    else if (feed === "voice") Object.assign(voice, data);
+  });
   if (demo) {  // 말하기 시험: 0.6초 말하고 0.6초 쉼
     setInterval(() => {
       voice.talking = !voice.talking;
       voice.level = voice.talking ? 0.75 : 0;
     }, 600);
-    return;
   }
-  source.addEventListener("voice", (message) => Object.assign(voice, JSON.parse(message.data)));
 }
 
 function scheduleBlink(blink) {
@@ -575,6 +575,8 @@ async function start3d(info) {
   const perfect = vrm.expressionManager ? perfectSyncMap(vrm.expressionManager.expressions.map((item) => item.expressionName)) : new Map();
   const perfectSync = perfect.size >= PERFECT_SYNC_MIN;
   const shapes = Object.fromEntries([...perfect.keys()].map((name) => [name, 0]));
+  const blinkBoth = Boolean(vrm.expressionManager?.getExpression("blink"));  // 두 눈을 함께 감는 표정
+  const blinkSides = Boolean(vrm.expressionManager?.getExpression("blinkLeft") && vrm.expressionManager.getExpression("blinkRight"));
   window.debutkitCharacter.perfectSync = perfectSync ? Object.fromEntries(perfect) : null;  // 시험용
   const animate = (timestamp) => {
     timer.update(timestamp);
@@ -605,17 +607,14 @@ async function start3d(info) {
       for (const name of ["aa", "blink", "blinkLeft", "blinkRight", "happy"]) expressions.setValue(name, 0);
     } else if (expressions) {
       expressions.setValue("aa", Math.min(1, mouth));
-      if (face) {  // 추적 중: 양쪽 눈 따로, 웃음
-        expressions.setValue("blink", 0);
-        expressions.setValue("blinkLeft", pose.blinkLeft);
-        expressions.setValue("blinkRight", pose.blinkRight);
-        expressions.setValue("happy", Math.min(1, pose.smile * 0.8));
-      } else {
-        expressions.setValue("blink", Math.max(blink, (pose.blinkLeft + pose.blinkRight) / 2));
-        expressions.setValue("blinkLeft", 0);
-        expressions.setValue("blinkRight", 0);
-        expressions.setValue("happy", pose.smile * 0.8);
-      }
+      // 눈: 추적 중이면 양쪽 따로, 아니면 깜빡임. 좌우 표정만 있는 모델(100Avatars 등)은 좌우로, 두 눈 표정만 있으면 평균으로
+      const left = face ? pose.blinkLeft : Math.max(blink, (pose.blinkLeft + pose.blinkRight) / 2);
+      const right = face ? pose.blinkRight : left;
+      const split = blinkSides && (Boolean(face) || !blinkBoth);
+      expressions.setValue("blink", split ? 0 : (left + right) / 2);
+      expressions.setValue("blinkLeft", split ? left : 0);
+      expressions.setValue("blinkRight", split ? right : 0);
+      expressions.setValue("happy", Math.min(1, pose.smile * 0.8));
     }
     if (spine) spine.rotation.x = Math.sin(t * 1.6) * 0.015 * flip;  // 호흡
     const idle = face ? 0 : 1;  // 추적이 없을 때만 기본 흔들림

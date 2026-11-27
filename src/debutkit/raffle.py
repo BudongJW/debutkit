@@ -13,7 +13,7 @@ import queue
 import random
 import threading
 import time
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from typing import Any
 
 from . import settings
@@ -24,6 +24,9 @@ DEFAULT_TITLE = "시청자 추첨"
 MAX_ENTRIES = 1000
 MAX_WINNERS = 30
 MAX_TITLE = 20
+#: 후원 참가자의 한마디: 후원 뒤 이 시간(초) 안에 처음 쓴 채팅(명령 빼고), 최대 글자 수
+COMMENT_WAIT = 300
+MAX_COMMENT = 40
 MODES = {"pick": "당첨자 뽑기", "order": "순서 정하기"}
 
 
@@ -37,6 +40,7 @@ class Entry:
     platform: str
     source: str  # chat, donation, manual
     time: float
+    comment: str = ""  # 후원 참가자가 후원 뒤 처음 쓴 채팅(레이스 당첨 화면)
 
     @property
     def key(self) -> str:
@@ -69,6 +73,7 @@ class Raffle:
         self._lock = threading.Lock()
         self._subscribers: list[Any] = []
         self._entries: dict[str, Entry] = {}
+        self._awaiting: dict[str, float] = {}  # 한마디를 기다리는 후원 참가자: 키 -> 마감 시각
         self._rng = rng or random.SystemRandom()
         self._seq = 0
         options = saved_options()
@@ -142,6 +147,7 @@ class Raffle:
     def clear(self) -> dict[str, Any]:
         with self._lock:
             self._entries.clear()
+            self._awaiting.clear()
             self.last_result = None
             self._send(self._status_event(), status=True)
         return self.status()
@@ -156,7 +162,26 @@ class Raffle:
             if (source != "manual" and not self.open) or entry.key in self._entries or len(self._entries) >= MAX_ENTRIES:
                 return False
             self._entries[entry.key] = entry
+            if source == "donation":
+                self._awaiting[entry.key] = time.time() + COMMENT_WAIT
             self._send(self._status_event(entry), status=True)
+        return True
+
+    def comment(self, name: str, platform: str, text: str) -> bool:
+        """후원으로 참가한 시청자가 후원 뒤 처음 쓴 채팅을 한마디로(명령, 빈 글은 넘김). 넣었으면 True."""
+        text = " ".join(str(text or "").split())[:MAX_COMMENT]
+        key = f"{platform or 'manual'}:{str(name or '').strip()[:40]}"
+        if not text or text.startswith("!"):
+            return False
+        with self._lock:
+            deadline = self._awaiting.get(key)
+            if deadline is None or key not in self._entries:
+                return False
+            del self._awaiting[key]
+            if time.time() > deadline:
+                return False
+            self._entries[key] = replace(self._entries[key], comment=text)
+            self._send(self._status_event(), status=True)
         return True
 
     def remove(self, key: str) -> bool:
@@ -222,11 +247,17 @@ class RaffleReactor:
     def __call__(self, event: Any) -> None:
         raffle = self.raffle
         platform = str(getattr(event, "platform", ""))
-        if not raffle.open or platform == "system":
+        if platform == "system":
             return
         kind = getattr(event, "kind", "")
         name = str(getattr(event, "name", ""))
-        if kind == "chat" and matches(str(getattr(event, "text", "")), raffle.keyword):
+        text = str(getattr(event, "text", ""))
+        if kind == "chat" and not (raffle.open and matches(text, raffle.keyword)):
+            raffle.comment(name, platform, text)  # 후원 참가자의 한마디(모집을 마감한 뒤에도 기다리는 동안은)
+            return
+        if not raffle.open:
+            return
+        if kind == "chat":
             raffle.add(name, platform, "chat")
         elif kind == "donation" and raffle.donation_min is not None:
             rate = WON_PER_UNIT.get(str(getattr(event, "unit", "") or ""))
