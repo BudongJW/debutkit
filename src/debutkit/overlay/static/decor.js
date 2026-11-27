@@ -15,6 +15,9 @@
   let phase = null;  // 움짤 장면 위치(0에서 1, 한 바퀴). null이면 멈춘 그림
   const GIF_FRAMES = 24, GIF_DELAY = 80, GIF_MS = GIF_FRAMES * GIF_DELAY;
   const strokesByFormat = {};  // 손그림: 그림 종류별 획
+  let photos = [];  // 네컷 사진 칸마다 올린 사진(Image, 브라우저 안에서만)
+  //: 크기가 고른 값에 따라 바뀌는 그림(단추에 크기를 적지 않음)
+  const VARIABLE = ["cheki", "soop-link", "fourcut", "bangsel", "custom"];
   const wave = (offset = 0) => (phase === null ? 0 : Math.sin((phase + offset) * Math.PI * 2));
 
   const css = (name, fallback) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
@@ -67,6 +70,13 @@
   }
 
   const filling = () => media && $("place").value === "fill";
+
+  // 그림을 칸에 꽉 차게(넘치는 곳은 잘림)
+  function cover(image, x, y, w, h) {
+    const iw = image.videoWidth || image.width, ih = image.videoHeight || image.height;
+    const scale = Math.max(w / iw, h / ih);
+    ctx.drawImage(image, x + (w - iw * scale) / 2, y + (h - ih * scale) / 2, iw * scale, ih * scale);
+  }
 
   function background(c, width, height, pattern) {
     if (filling()) {  // 올린 그림, 움짤, 영상으로 바탕을 꽉 채움(자유 편집)
@@ -216,8 +226,8 @@
   // 시그니처 풍선 그림: 둥근 카드(방송 색)에 빛살, 캐릭터, 이름 띠, 큰 금액. 카드 바깥은 투명
   function drawSignature(c, width, height, scale) {
     ctx.clearRect(0, 0, width, height);
-    const pad = width * 0.04, radius = width * 0.14;
-    const card = { type: "rect", x: pad, y: pad, w: width - pad * 2, h: height - pad * 2, r: radius };
+    const pad = width * 0.04;
+    const card = fx.shapeOf($("sig-shape").value, width / 2, height / 2, width / 2 - pad);
     ctx.save();
     fx.outline(ctx, card);
     ctx.clip();
@@ -317,6 +327,9 @@
     if (format === "signature") drawSignature(c, width, height, scale);
     else if (format === "cheki") drawCheki(c, width, height, scale);
     else if (format === "profile") drawProfile(c, width, height, scale, guide);
+    else if (format === "shorts") drawShorts(c, width, height, scale, guide);
+    else if (format === "fourcut") drawFourcut(c, width, height, scale);
+    else if (format === "bangsel") drawBangsel(c, width, height, scale);
     else drawBanner(c, width, height, scale, guide);
     fx.strokes(ctx, strokesByFormat[format] || [], width, height);
   }
@@ -362,9 +375,114 @@
       ctx.strokeRect(safe.x, safe.y, safe.w, safe.h);
       ctx.restore();
     }
+    if (guide && format === "soop-link") {  // 나뉘는 자리(배너 한 장 720x150)
+      ctx.save();
+      ctx.setLineDash([12, 8]);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.9)";
+      for (let y = 150; y < height; y += 150) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke(); }
+      ctx.restore();
+    }
   }
 
-  const size = () => (format === "cheki" ? chekiLayout() : formats[format]);
+  // 쇼츠 커버(세로 1080x1920): 위에 제목, 아래 캐릭터. 안내선은 쇼츠 버튼과 설명이 덮는 오른쪽, 아래
+  function drawShorts(c, width, height, scale, guide) {
+    background(c, width, height, $("pattern").value);
+    figure(width / 2, height * 0.97, height * 0.62 * scale);
+    fx.particles(ctx, $("particles").value, width, height, c, phase);
+    texts(c, width / 2, height * 0.17, width * 0.86, width * 0.16, "center");
+    fx.border(ctx, $("border").value, { type: "rect", x: 0, y: 0, w: width, h: height, r: 0 }, c, phase);
+    if (guide) {
+      ctx.save();
+      ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
+      ctx.fillRect(0, height * 0.8, width, height * 0.2);
+      ctx.fillRect(width * 0.84, height * 0.42, width * 0.16, height * 0.38);
+      ctx.restore();
+    }
+  }
+
+  // 네컷 사진: 1x4(600x1800) 또는 2x2(1200x1600). 칸마다 올린 사진, 없으면 캐릭터(칸마다 다른 크기와 자리). 아래 띠에 채널 이름과 날짜
+  function drawFourcut(c, width, height, scale) {
+    const paper = { white: "#ffffff", color: c.deep, black: "#18161c" }[$("fourcut-paper").value] || "#ffffff";
+    const ink = paper === "#ffffff" ? c.ink : "#ffffff";
+    ctx.fillStyle = paper;
+    ctx.fillRect(0, 0, width, height);
+    const grid = $("fourcut-layout").value === "2x2";
+    const m = width * (grid ? 0.04 : 0.06), gap = m * 0.6, band = height * 0.1;
+    const cols = grid ? 2 : 1, rows = grid ? 2 : 4;
+    const cellW = (width - m * 2 - gap * (cols - 1)) / cols, cellH = (height - m - band - gap * (rows - 1)) / rows;
+    const looks = [[1, 0.5], [1.35, 0.42], [0.9, 0.62], [1.15, 0.5]];  // 칸마다 크기, 가로 자리
+    for (let k = 0; k < 4; k += 1) {
+      const x = m + (k % cols) * (cellW + gap), y = m + Math.floor(k / cols) * (cellH + gap);
+      ctx.save();
+      fx.outline(ctx, { type: "rect", x, y, w: cellW, h: cellH, r: width * 0.012 });
+      ctx.clip();
+      ctx.translate(x, y);
+      if (photos[k]) {
+        cover(photos[k], 0, 0, cellW, cellH);
+      } else {
+        background(c, cellW, cellH, $("pattern").value);
+        const [zoom, at] = looks[k];
+        figure(cellW * at, cellH * (zoom > 1 ? 1.12 : 1), Math.min(cellH * 0.95, cellW * 1.2) * scale * zoom);
+      }
+      fx.particles(ctx, $("particles").value, cellW, cellH, c, phase, k + 3);
+      ctx.restore();
+    }
+    const name = $("name").value.trim();
+    const title = face("title-font", "blackhan");
+    const bandTop = height - band;
+    ctx.textAlign = "center";
+    ctx.fillStyle = ink;
+    if (name) {
+      fitText(name, title.css, band * 0.42, width * 0.86, String(title.weight));
+      ctx.fillText(name, width / 2, bandTop + band * 0.5);
+    }
+    const now = new Date();
+    const date = `${now.getFullYear()}. ${now.getMonth() + 1}. ${now.getDate()}.`;
+    const text = face("text-font", "pretendard");
+    fitText(date, text.css, band * 0.2, width * 0.8, String(text.weight));
+    ctx.globalAlpha = 0.75;
+    ctx.fillText(date, width / 2, bandTop + band * 0.82);
+    ctx.globalAlpha = 1;
+  }
+
+  // 방셀 꾸미기: 액자 둘레(fx.frame)와 사진 자리. 올린 그림, 움짤, 영상이 있으면 사진 자리를 꽉 채움, 없으면 방송 색 바탕과 캐릭터
+  function drawBangsel(c, width, height, scale) {
+    const kind = $("bangsel-frame").value;
+    const rect = fx.frameLayout(kind, width, height);
+    ctx.save();
+    fx.framePath(ctx, rect);
+    ctx.clip();
+    ctx.translate(rect.x, rect.y);
+    if (media && uploaded) cover(current(), 0, 0, rect.w, rect.h);
+    else {
+      background(c, rect.w, rect.h, $("pattern").value);
+      figure(rect.w / 2, rect.h, Math.min(rect.h * 0.95, rect.w * 0.9) * scale);
+    }
+    fx.particles(ctx, $("particles").value, rect.w, rect.h, c, phase);
+    ctx.restore();
+    const paper = fx.frame(ctx, kind, width, height, rect, c, phase);
+    const line = kind === "film" ? "" : $("line").value.trim();  // 필름은 여백이 구멍 자리
+    if (line) {  // 아래 여백 한 줄
+      const font = face("text-font", "pretendard");
+      const dark = ["#1b1b1f", "#1f5c3d", "#151a3a"].includes(paper);
+      const room = height - rect.y - rect.h;
+      const px = fitText(line, font.css, Math.min(room * 0.5, width * 0.05), width * 0.8, String(font.weight));
+      ctx.textAlign = "center";
+      ctx.fillStyle = dark ? "#ffffff" : c.ink;
+      if (room > px) ctx.fillText(line, width / 2, rect.y + rect.h + room / 2 + px * 0.35);
+    }
+  }
+
+  const whole = (id, low, high, fallback) => Math.min(high, Math.max(low, Math.round(Number($(id).value)) || fallback));
+  function size() {
+    if (format === "cheki") return chekiLayout();
+    if (format === "soop-link") return { width: 720, height: 150 * Number($("link-count").value) };
+    if (format === "fourcut") return $("fourcut-layout").value === "2x2" ? { width: 1200, height: 1600 } : { width: 600, height: 1800 };
+    if (format === "bangsel") return $("bangsel-orient").value === "tall" ? { width: 1080, height: 1920 } : { width: 1920, height: 1080 };
+    if (format === "custom") return { width: whole("custom-w", 64, 4096, 1280), height: whole("custom-h", 64, 4096, 720) };
+    return formats[format];
+  }
 
   function redraw() {
     draw($("guide").checked);
@@ -442,13 +560,13 @@
     $("formats").replaceChildren(...Object.entries(formats).map(([key, spec]) => {
       const button = document.createElement("button");
       button.type = "button";
-      button.textContent = key === "cheki" ? spec.name : `${spec.name} ${spec.width}x${spec.height}`;
+      button.textContent = VARIABLE.includes(key) ? spec.name : `${spec.name} ${spec.width}x${spec.height}`;
       button.setAttribute("aria-pressed", String(key === format));
       button.addEventListener("click", () => {
         format = key;
         for (const other of $("formats").children) other.setAttribute("aria-pressed", String(other === button));
         $("format-note").textContent = spec.note;
-        $("side").value = ["profile", "signature", "cheki"].includes(key) ? "center" : "right";
+        $("side").value = ["profile", "signature", "cheki", "shorts", "fourcut", "bangsel"].includes(key) ? "center" : "right";
         fields();
         redraw();
       });
@@ -464,12 +582,18 @@
     const cheki = format === "cheki";
     $("sig-fields").hidden = !signature;
     $("cheki-fields").hidden = !cheki;
+    $("link-fields").hidden = format !== "soop-link";
+    $("fourcut-fields").hidden = format !== "fourcut";
+    $("bangsel-fields").hidden = format !== "bangsel";
+    $("custom-fields").hidden = format !== "custom";
+    $("save-gif").hidden = format === "soop-link";
+    const centered = ["shorts", "fourcut", "bangsel"].includes(format);
     $("to-wall").hidden = !signature;
     $("wall-gif-row").hidden = !signature;
-    $("name").closest("label").hidden = signature || cheki;
-    $("line").closest("label").hidden = signature;
-    $("caption").closest("label").hidden = signature || cheki;
-    $("side").closest("label").hidden = signature || cheki;
+    $("name").closest("label").hidden = signature || cheki || format === "bangsel";
+    $("line").closest("label").hidden = signature || format === "fourcut";
+    $("caption").closest("label").hidden = signature || cheki || format === "fourcut" || format === "bangsel";
+    $("side").closest("label").hidden = signature || cheki || centered;
   }
 
   function download(href, name) {
@@ -548,7 +672,35 @@
     }
   }
 
+  // SOOP 연결 배너: 큰 그림을 720x150 배너 3장이나 6장으로 나눠 위에서부터 차례로 저장(장마다 JPEG 200KB 이하)
+  async function saveLinked() {
+    draw(false);
+    const piece = document.createElement("canvas");
+    piece.width = 720;
+    piece.height = 150;
+    const pieceCtx = piece.getContext("2d");
+    const count = canvas.height / 150;
+    const sizes = [];
+    for (let index = 0; index < count; index += 1) {
+      pieceCtx.drawImage(canvas, 0, index * 150, 720, 150, 0, 0, 720, 150);
+      let data = null;
+      for (let quality = 0.92; quality >= 0.5; quality -= 0.06) {
+        data = await new Promise((resolve) => piece.toBlob(resolve, "image/jpeg", quality));
+        if (data.size <= 200 * 1024) break;
+      }
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(data);
+      link.download = `debutkit-soop-link-${index + 1}-of-${count}.jpg`;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(link.href), 5000);
+      sizes.push(Math.round(data.size / 1024));
+    }
+    $("save-state").textContent = `저장함: 배너 ${count}장(${sizes.map((kb) => `${kb}KB`).join(", ")}). 방송국에 1번부터 차례로 올리기`;
+    redraw();
+  }
+
   async function save() {
+    if (format === "soop-link") return saveLinked();
     const spec = size();
     draw(false);
     const blob = (type, quality) => new Promise((resolve) => canvas.toBlob(resolve, type, quality));
@@ -615,6 +767,8 @@
     fillSelect("caption", fx.CAPTIONS, "band");
     fillSelect("motion", fx.MOTIONS, "float");
     fillSelect("pen", fx.PENS, "pen");
+    fillSelect("sig-shape", fx.SHAPES, "card");
+    fillSelect("bangsel-frame", fx.FRAMES, "gold");
     $("preset").replaceChildren(new Option("직접 고르기", ""), ...Object.entries(fx.PRESETS).map(([key, item]) => new Option(item.name, key)));
     const data = await (await fetch("/decor/characters")).json();
     formats = data.formats;
@@ -637,7 +791,16 @@
     choose();
   });
   for (const id of ["name", "line", "sig-amount", "sig-title"]) $(id).addEventListener("input", redraw);
-  for (const id of ["pattern", "scale", "side", "guide", "sig-unit", "border", "particles", "caption", "motion", "place", "cheki-ratio", "cheki-date"]) {
+  $("photos").addEventListener("change", async () => {  // 네컷 사진(앞에서부터 4장)
+    for (const photo of photos) URL.revokeObjectURL(photo.src);
+    photos = [];
+    for (const file of [...$("photos").files].slice(0, 4)) {
+      try { photos.push(await load(URL.createObjectURL(file))); } catch (error) { /* 그림이 아니면 건너뜀 */ }
+    }
+    redraw();
+  });
+  for (const id of ["pattern", "scale", "side", "guide", "sig-unit", "border", "particles", "caption", "motion", "place", "cheki-ratio", "cheki-date",
+                    "sig-shape", "link-count", "fourcut-layout", "fourcut-paper", "bangsel-frame", "bangsel-orient", "custom-w", "custom-h"]) {
     $(id).addEventListener("input", () => { $("preset").value = ""; redraw(); });
   }
   for (const id of ["title-font", "text-font"]) $(id).addEventListener("change", async () => { await loadFont(catalog[$(id).value]); redraw(); });

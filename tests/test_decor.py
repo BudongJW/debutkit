@@ -35,7 +35,8 @@ def test_formats_and_character_pictures(server):
     assert status == 200
     sizes = {key: (item["width"], item["height"]) for key, item in data["formats"].items()}
     assert sizes == {"profile": (1024, 1024), "thumbnail": (1280, 720), "youtube": (2560, 1440), "twitch": (1200, 480), "soop": (720, 150),
-                     "signature": (512, 512), "cheki": (1080, 1350)}
+                     "signature": (512, 512), "cheki": (1080, 1350), "soop-link": (720, 450), "shorts": (1080, 1920), "fourcut": (600, 1800),
+                     "bangsel": (1920, 1080), "custom": (1280, 720)}
     pictures = {item["id"]: item for item in data["characters"]}
     # 2D 데비는 입 다문 그림, 3D 데비는 미리보기 그림. 방송에 쓰는 캐릭터 표시
     assert pictures[character.SAMPLE_ID]["picture"] == "/character/files/debutkit/idle.png" and pictures[character.SAMPLE_ID]["active"]
@@ -171,3 +172,23 @@ def test_decorations_presets_and_pens():
     script = (STATIC / "decor.js").read_text(encoding="utf-8")
     assert "new ImageDecoder(" in script and 'document.createElement("video")' in script and "transparent" in script
     assert "innerHTML" not in script and "innerHTML" not in fx and "https://" not in fx
+
+
+def test_more_formats_frames_and_shapes():
+    """미타크래프트 대응: SOOP 연결 배너(720x150 3장, 6장으로 나눠 JPEG 200KB 이하), 쇼츠 커버, 네컷(1x4, 2x2), 방셀 액자 10종, 원하는 크기, 시그니처 판 모양 5종."""
+    fx = (STATIC / "decor-fx.js").read_text(encoding="utf-8")
+    shapes, frames = _js_table(fx, "SHAPES"), _js_table(fx, "FRAMES")
+    assert shapes == ["card", "circle", "heart", "star", "badge"] and len(frames) == 10
+    papers = fx.split("const papers = {")[1].split("};")[0]
+    for kind in frames:  # 액자마다 바탕 색과 꾸밈 코드
+        assert f"{kind}:" in papers and f'kind === "{kind}"' in fx, kind
+    script = (STATIC / "decor.js").read_text(encoding="utf-8")
+    assert "async function saveLinked()" in script and "piece.width = 720;" in script and "piece.height = 150;" in script
+    assert 'piece.toBlob(resolve, "image/jpeg", quality)' in script and "data.size <= 200 * 1024" in script
+    assert 'whole("custom-w", 64, 4096, 1280)' in script and "slice(0, 4)" in script
+    for key in ("soop-link", "shorts", "fourcut", "bangsel", "custom"):
+        assert key in decor.FORMATS, key
+    page = (STATIC / "decor.html").read_text(encoding="utf-8")
+    for element in ('id="link-count"', 'id="fourcut-layout"', 'id="fourcut-paper"', 'id="photos" multiple', 'id="bangsel-frame"',
+                    'id="bangsel-orient"', 'id="custom-w"', 'id="custom-h"', 'id="sig-shape"'):
+        assert element in page, element

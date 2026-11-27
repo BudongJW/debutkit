@@ -33,7 +33,7 @@
     .formats button[aria-pressed="true"] { background: var(--text); color: #fff; border-color: var(--text); }
     .field { display: grid; gap: 4px; margin-bottom: 10px; font-size: 14px; }
     .field > span { font-weight: 600; }
-    select, input[type=text] { padding: 6px 8px; border: 1px solid #c9c3bd; border-radius: 3px; font: inherit; background: #fff; width: 100%; }
+    select, input[type=text], input[type=number] { padding: 6px 8px; border: 1px solid #c9c3bd; border-radius: 3px; font: inherit; background: #fff; width: 100%; }
     input[type=range] { width: 100%; }
     label.check { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; }
     button.primary { background: var(--text); color: #fff; border: 1px solid var(--text); border-radius: 3px; padding: 7px 14px; font: inherit; font-weight: 600; cursor: pointer; }
@@ -66,9 +66,26 @@
         <label class="field"><span>시그니처 단위</span><select id="sig-unit"><option value="별풍선">별풍선(개)</option><option value="애드벌룬">애드벌룬(개)</option><option value="원">원(치지직 치즈, 슈퍼챗)</option><option value="bits">bits</option></select></label>
         <label class="field"><span>시그니처 금액</span><input type="text" id="sig-amount" inputmode="numeric" maxlength="9" value="1004"></label>
         <label class="field"><span>시그니처 이름</span><input type="text" id="sig-title" maxlength="20" value="천사 풍선"></label>
+        <label class="field"><span>판 모양</span><select id="sig-shape"></select></label>
       </div>
       <label class="field"><span>제목 글꼴(채널 이름, 금액)</span><select id="title-font"></select></label>
       <label class="field"><span>글 글꼴(한 줄 소개, 시그니처 이름)</span><select id="text-font"></select></label>
+      <div id="link-fields" hidden>
+        <label class="field"><span>배너 장수(한 장 720x150)</span><select id="link-count"><option value="3">3장(720x450)</option><option value="6">6장(720x900)</option></select></label>
+      </div>
+      <div id="fourcut-fields" hidden>
+        <label class="field"><span>네컷 배치</span><select id="fourcut-layout"><option value="1x4">세로 한 줄(600x1800)</option><option value="2x2">2x2(1200x1600)</option></select></label>
+        <label class="field"><span>테 색</span><select id="fourcut-paper"><option value="white">흰색</option><option value="color">방송 색</option><option value="black">검정</option></select></label>
+        <label class="field"><span>칸 사진(최대 4장, 없는 칸은 캐릭터)</span><input type="file" id="photos" multiple accept="image/png,image/jpeg,image/webp,image/gif"></label>
+      </div>
+      <div id="bangsel-fields" hidden>
+        <label class="field"><span>액자</span><select id="bangsel-frame"></select></label>
+        <label class="field"><span>방향</span><select id="bangsel-orient"><option value="wide">가로(1920x1080)</option><option value="tall">세로(1080x1920)</option></select></label>
+      </div>
+      <div id="custom-fields" hidden>
+        <label class="field"><span>가로(px)</span><input type="number" id="custom-w" min="64" max="4096" value="1280"></label>
+        <label class="field"><span>세로(px)</span><input type="number" id="custom-h" min="64" max="4096" value="720"></label>
+      </div>
       <div id="cheki-fields" hidden>
         <label class="field"><span>사진 비율</span><select id="cheki-ratio"><option value="3:4">3:4</option><option value="2:3">2:3</option><option value="1:1">1:1</option><option value="4:5">4:5</option><option value="4:3">4:3</option><option value="16:9">16:9</option></select></label>
         <label class="check" style="margin-bottom: 10px"><input type="checkbox" id="cheki-date" checked> 날짜 도장</label>
@@ -106,6 +123,10 @@
         <li>체키: 폴라로이드 사진(비율 6가지), 아래 여백에 한 줄 소개를 손글씨로. 글 글꼴을 손글씨(감자꽃, 개구 등)로 고르면 어울림</li>
         <li>올린 움짤과 영상: 움짤 저장에서 같이 움직임. 바탕 꽉 채우기를 고르면 그 위에 자막, 파티클, 손그림을 얹는 자유 편집</li>
         <li>손그림: 펜, 형광펜, 네온, 크림, 점선. 그림 종류마다 따로 남음</li>
+        <li>SOOP 연결 배너: 큰 그림 한 장을 720x150 배너 3장이나 6장으로 나눠 저장(장마다 JPEG 200KB 이하). 방송국에 1번부터 차례로 올리면 이어진 그림. 올린 그림을 바탕 꽉 채우기로 놓으면 배너 자르기</li>
+        <li>방셀 꾸미기: 방송 화면 캡쳐나 사진을 올리면 액자(10종) 안에. 아래 여백에 한 줄 소개</li>
+        <li>네컷 사진: 칸 사진을 최대 4장 고르기(사진은 브라우저 안에서만), 아래 띠에 채널 이름과 날짜</li>
+        <li>SOOP 방송국 타이틀, 세로 배너처럼 규격을 확인하지 못한 그림은 원하는 크기로(플랫폼 올리기 화면의 안내 크기를 입력)</li>
         <li>시그니처 풍선 그림: 등록하면 후원 벽의 그 금액 칸에 이 그림(같은 금액이 있으면 그림과 이름만 바꿈). 움짤 저장 뒤 방금 만든 움짤로 등록을 켜면 움직이는 시그니처(바깥 투명)</li>
       </ul>
     </section>
