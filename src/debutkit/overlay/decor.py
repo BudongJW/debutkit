@@ -3,7 +3,8 @@
 - 그리기는 브라우저 캔버스(방송 색, 함께 배포한 글꼴). 올린 그림은 브라우저 안에서만 쓰고, 움짤 만들기와 후원 벽 시그니처 등록 때만
   그린 결과(PNG)를 이 PC 서버로 보낸다
 - ``/decor/characters``: 그림으로 쓸 수 있는 캐릭터(PNGTuber는 입 다문 그림, 3D는 미리보기 그림)
-- ``POST /decor/animate`` (``{"frames": ["data:image/png;base64,..", ...], "delay": 80}``): 장면 그림들을 GIF 움짤로(Pillow 필요)
+- ``POST /decor/animate`` (``{"frames": ["data:image/png;base64,..", ...], "delay": 80, "transparent": false}``): 장면 그림들을 GIF 움짤로(Pillow 필요).
+  transparent면 반쯤 넘게 투명한 곳을 GIF 투명색으로(시그니처 풍선 그림의 카드 바깥)
 """
 
 from __future__ import annotations
@@ -31,6 +32,7 @@ FORMATS = {
     "twitch": ("Twitch 프로필 배너", 1200, 480, "채널 위쪽 배너"),
     "soop": ("SOOP 방송국 배너", 720, 150, "JPEG 200KB 이하로 저장"),
     "signature": ("시그니처 풍선 그림", 512, 512, "후원 벽의 시그니처 칸 그림. 금액, 이름, 캐릭터(바깥은 투명)"),
+    "cheki": ("체키", 1080, 1350, "폴라로이드 사진: 가로 1080, 세로는 사진 비율에 따라. 아래 여백에 손글씨 문구"),
 }
 
 
@@ -57,7 +59,7 @@ def characters(_: Any = None) -> dict[str, Any]:
 
 
 def animate(data: dict[str, Any]) -> dict[str, Any]:
-    """브라우저가 그린 장면 PNG들을 GIF 움짤로(되풀이). 투명한 곳이 없는 프사용이라 투명도는 쓰지 않음."""
+    """브라우저가 그린 장면 PNG들을 GIF 움짤로(되풀이). ``transparent`` 면 알파 128 미만을 투명색(색표의 마지막 칸)으로."""
     try:
         from PIL import Image
     except ImportError:
@@ -81,21 +83,30 @@ def animate(data: dict[str, Any]) -> dict[str, Any]:
         with Image.open(io.BytesIO(raw)) as picture:
             if max(picture.size) > 1024:
                 raise feature.FeatureError("장면 그림은 한 변 1024px 이하")
-            pictures.append(picture.convert("RGB"))
+            pictures.append(picture.convert("RGBA"))
+    transparent = data.get("transparent") is True
     if len({picture.size for picture in pictures}) > 1:
         raise feature.FeatureError("장면 그림의 크기가 모두 같아야 함")
     # 모든 장면을 이어 붙인 그림에서 색표 하나를 뽑아 모든 장면에 써서 색이 깜박이지 않게
     width, height = pictures[0].size
     combined = Image.new("RGB", (width, height * len(pictures)))
     for index, picture in enumerate(pictures):
-        combined.paste(picture, (0, height * index))
-    palette = combined.quantize(colors=255, method=Image.Quantize.MEDIANCUT)
+        combined.paste(picture.convert("RGB"), (0, height * index))
+    palette = combined.quantize(colors=255, method=Image.Quantize.MEDIANCUT)  # 0~254번, 255번은 투명색 자리
     out = io.BytesIO()
-    first, *rest = [picture.quantize(palette=palette, dither=Image.Dither.FLOYDSTEINBERG) for picture in pictures]
-    first.save(out, "GIF", save_all=True, append_images=rest, duration=delay, loop=0, optimize=False, disposal=1)
+    quantized = []
+    for picture in pictures:
+        frame = picture.convert("RGB").quantize(palette=palette, dither=Image.Dither.FLOYDSTEINBERG)
+        if transparent:
+            frame.paste(255, mask=picture.getchannel("A").point(lambda alpha: 255 if alpha < 128 else 0))
+        quantized.append(frame)
+    first, *rest = quantized
+    extra = {"transparency": 255, "disposal": 2} if transparent else {"disposal": 1}
+    first.save(out, "GIF", save_all=True, append_images=rest, duration=delay, loop=0, optimize=False, **extra)
     return {"gif": "data:image/gif;base64," + base64.b64encode(out.getvalue()).decode(), "bytes": out.tell()}
 
 
 def make_feature(context: feature.Context) -> feature.Feature:
-    return feature.Feature(name="decor", static={"/decor": "decor.html", "/decor.js": "decor.js"}, get={"/decor/characters": characters},
+    return feature.Feature(name="decor", static={"/decor": "decor.html", "/decor.js": "decor.js", "/decor-fx.js": "decor-fx.js"},
+                           get={"/decor/characters": characters},
                            post={"/decor/animate": animate}, body_limit={"/decor/animate": MAX_FRAMES * MAX_FRAME_BYTES * 4 // 3 + 65536})

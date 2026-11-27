@@ -35,7 +35,7 @@ def test_formats_and_character_pictures(server):
     assert status == 200
     sizes = {key: (item["width"], item["height"]) for key, item in data["formats"].items()}
     assert sizes == {"profile": (1024, 1024), "thumbnail": (1280, 720), "youtube": (2560, 1440), "twitch": (1200, 480), "soop": (720, 150),
-                     "signature": (512, 512)}
+                     "signature": (512, 512), "cheki": (1080, 1350)}
     pictures = {item["id"]: item for item in data["characters"]}
     # 2D 데비는 입 다문 그림, 3D 데비는 미리보기 그림. 방송에 쓰는 캐릭터 표시
     assert pictures[character.SAMPLE_ID]["picture"] == "/character/files/debutkit/idle.png" and pictures[character.SAMPLE_ID]["active"]
@@ -103,3 +103,71 @@ def test_page_draws_locally_and_is_in_the_menu(server):
     assert '"/decor/animate"' in script and '"/wall/signature"' in script and "body.id = existing.id" in script
     menu = (STATIC / "ui.js").read_text(encoding="utf-8")
     assert '["/decor", "방송 이미지"' in menu and '["/character/sheet", "캐릭터 그림"' in menu
+
+
+def _card_url(size=64, shift=0):
+    """가운데만 칠하고 바깥은 투명한 PNG(시그니처 카드처럼). 같은 장면은 Pillow가 하나로 합치므로 shift로 다르게."""
+    import base64
+    import io
+
+    from PIL import Image, ImageDraw
+
+    picture = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    ImageDraw.Draw(picture).rectangle((size // 4 + shift, size // 4, size * 3 // 4 + shift, size * 3 // 4), fill=(169, 139, 247, 255))
+    out = io.BytesIO()
+    picture.save(out, "PNG")
+    return "data:image/png;base64," + base64.b64encode(out.getvalue()).decode()
+
+
+def test_signature_gif_keeps_the_outside_transparent(server):
+    import base64
+    import io
+
+    image_module = pytest.importorskip("PIL.Image")
+    status, data = post(server, "/decor/animate", {"frames": [_card_url(), _card_url(shift=6)], "delay": 80, "transparent": True})
+    assert status == 200
+    with image_module.open(io.BytesIO(base64.b64decode(data["gif"].split(",", 1)[1]))) as picture:
+        assert picture.info.get("transparency") == 255
+        assert picture.getpixel((1, 1)) == 255 and picture.getpixel((32, 32)) != 255  # 바깥은 투명, 카드는 색
+        picture.seek(1)  # 둘째 장부터 Pillow는 RGBA로 풀어 줌
+        assert picture.convert("RGBA").getpixel((1, 1))[3] == 0 and picture.convert("RGBA").getpixel((40, 32))[3] == 255
+    status, data = post(server, "/decor/animate", {"frames": [_card_url(), _card_url(shift=6)], "delay": 80})
+    with image_module.open(io.BytesIO(base64.b64decode(data["gif"].split(",", 1)[1]))) as picture:
+        assert "transparency" not in picture.info  # 프사, 배너는 투명 없음
+
+
+def _js_table(script, name):
+    import re
+
+    body = re.search(rf"const {name} = \{{(.*?)\}};", script, re.S).group(1)
+    return re.findall(r"(\w+): ", body)
+
+
+def test_decorations_presets_and_pens():
+    """미타데코 대응: 테두리 12종과 없음, 파티클 9종, 자막 10종, 움직임 7종, 완성 프리셋 9종, 손그림 펜 5종, 체키, 움짤과 영상 입력."""
+    import re
+
+    from debutkit.overlay import theme
+
+    fx = (STATIC / "decor-fx.js").read_text(encoding="utf-8")
+    borders, particles, captions = _js_table(fx, "BORDERS"), _js_table(fx, "PARTICLES"), _js_table(fx, "CAPTIONS")
+    motions, pens = _js_table(fx, "MOTIONS"), _js_table(fx, "PENS")
+    assert len(borders) == 13 and "none" in borders and {"wreath", "snowcrown", "neon", "hearts"} <= set(borders)
+    assert len(particles) == 10 and len(captions) == 10 and len(motions) == 8 and pens == ["pen", "highlighter", "neon", "cream", "dotted"]
+    presets = re.findall(r'(\w+): \{ name: "([^"]+)", border: "(\w+)", particles: "(\w+)", caption: "(\w+)", motion: "(\w+)", pattern: "(\w+)", '
+                         r'title: "(\w+)", text: "(\w+)" \}', fx)
+    assert len(presets) == 9
+    for _, name, border, particle, caption, motion, pattern, title, text in presets:
+        assert border in borders and particle in particles and caption in captions and motion in motions, name
+        assert pattern in ("stars", "dots", "stripes", "none") and title in theme.FONT_CHOICES and text in theme.FONT_CHOICES, name
+    for kind in borders:  # 테두리마다 그리는 코드
+        assert kind == "none" or f'"{kind}"' in fx.split("function border(")[1].split("function bow(")[0], kind
+    page = (STATIC / "decor.html").read_text(encoding="utf-8")
+    for element in ('id="preset"', 'id="border"', 'id="particles"', 'id="caption"', 'id="motion"', 'id="cheki-ratio"', 'id="cheki-date"',
+                    'id="pen-on"', 'id="pen"', 'id="pen-color"', 'id="pen-undo"', 'id="pen-clear"', 'id="place"', 'id="wall-gif"',
+                    "image/gif,video/mp4,video/webm", '<script src="/decor-fx.js"></script>'):
+        assert element in page, element
+    assert page.index("/decor-fx.js") < page.index('src="/decor.js"')
+    script = (STATIC / "decor.js").read_text(encoding="utf-8")
+    assert "new ImageDecoder(" in script and 'document.createElement("video")' in script and "transparent" in script
+    assert "innerHTML" not in script and "innerHTML" not in fx and "https://" not in fx
