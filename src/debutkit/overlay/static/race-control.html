@@ -200,6 +200,7 @@
   const GAME_HINTS = {
     marble: "구슬이 핀과 레일을 지나 굴러 내려갑니다. 100명까지 한 판.",
     run: "마스코트 마이(리본 마이크)가 줄마다 달립니다. 8명씩 조별 경기 뒤 결승(다음 조는 버튼으로 시작) 또는 30명까지 모두 함께.",
+    swim: "위에서 내려다보는 8레인 수영장에서 헤엄칩니다. 스퍼트, 잠영 대시, 물살, 다리 쥐. 8명씩 조별 경기 뒤 결승 또는 30명까지 모두 함께.",
     survival: "원형 경기장에서 부딪히며 마지막 한 명이 남습니다. 100명까지 한 판.",
   };
   let choices = null;
@@ -236,7 +237,7 @@
     $(id).value = value;
   }
   // 그림 견본: 저장한 설정의 예시 장면을 경주 중간에 멈춰 그린다(?sample&still, 소리 없음)
-  const STILL_AT = { marble: 10, run: 6, survival: 14 };
+  const STILL_AT = { marble: 10, run: 6, swim: 7, survival: 14 };
   const sampleSrc = (values) => {
     const merged = { ...options, ...values };
     return `/race?${new URLSearchParams({ sample: merged.game, still: "1", mute: "1", t: String(STILL_AT[merged.game] || 8), n: "12",
@@ -244,7 +245,7 @@
   };
   function renderGames() {
     debutkitUi.looks($("games"), Object.entries(choices.games).map(([key, label]) => ({ key, label, src: sampleSrc({ game: key }),
-      about: { marble: "핀과 레일", run: "줄 달리기", survival: "마지막 한 명" }[key] || "" })), options.game,
+      about: { marble: "핀과 레일", run: "줄 달리기", swim: "8레인 수영", survival: "마지막 한 명" }[key] || "" })), options.game,
     (key) => { options.game = key; renderGames(); renderGameParts(); changed(); });
     debutkitUi.looks($("course-tiles"), Object.entries(choices.courses).map(([key, label]) => ({ key, label, src: sampleSrc({ game: "marble", course: key }) })),
       options.course, (key) => { options.course = key; $("course").value = key; renderGames(); changed(); });
@@ -282,7 +283,7 @@
   function renderGameParts() {
     const game = options.game;
     $("course-row").hidden = game !== "marble";
-    $("format-row").hidden = game !== "run";
+    $("format-row").hidden = !["run", "swim"].includes(game);
     $("game-hint").textContent = GAME_HINTS[game] || "";
     $("events").replaceChildren(...Object.entries(choices.events[game]).map(([key, label]) => {
       const item = el("label", "check");

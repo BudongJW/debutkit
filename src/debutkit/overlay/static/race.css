@@ -27,6 +27,10 @@ body.sample { background: #59626a; }  /* 미리보기(?sample) 배경 */
 .race-card .kicker { display: inline-block; padding: 8px 22px 6px; background: var(--accent); color: var(--on-accent); font: 34px/1.1 var(--font); }
 .race-card .name { margin: 18px 0 6px; font: 96px/1.08 var(--font); word-break: keep-all; overflow-wrap: anywhere; }
 .race-card .meta { font: 700 24px/1.3 var(--text); opacity: 0.75; }
+.race-card .comment { position: relative; display: inline-block; max-width: 900px; margin: 4px auto 14px; padding: 10px 24px 9px; border-radius: 22px;
+  background: rgba(255, 255, 255, 0.92); color: #1e2327; font: 700 30px/1.3 var(--text); word-break: keep-all; overflow-wrap: anywhere; }
+.race-card .comment::before { content: ""; position: absolute; left: 50%; top: -12px; margin-left: -12px; border: 12px solid transparent; border-top: 0;
+  border-bottom-color: rgba(255, 255, 255, 0.92); }
 .race-card .meta span + span::before { content: ""; display: inline-block; width: 6px; height: 6px; margin: 0 12px; border-radius: 50%; background: currentColor; vertical-align: middle; }
 .race-card .podium { list-style: none; margin: 22px auto 0; padding: 0; display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; max-width: 1060px; }
 .race-card .podium li { display: flex; align-items: baseline; gap: 8px; padding: 6px 14px 4px; font: 700 22px/1.2 var(--text); }

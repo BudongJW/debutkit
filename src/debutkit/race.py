@@ -1,11 +1,12 @@
-"""참여 레이스: 시청자 이름이 방송 화면에서 경주하는 게임(구슬 레이스, 달리기 경주, 서바이벌).
+"""참여 레이스: 시청자 이름이 방송 화면에서 경주하는 게임(구슬 레이스, 달리기 경주, 수영, 서바이벌).
 
 - 참가자는 시청자 참여 추첨 명단(채팅 ``!참가``, 후원 참가, 직접 추가. 치지직, SOOP, YouTube, Twitch)과 붙여 넣은 이름.
   ``이름*3`` 은 3번 참가(화면에는 이름, 이름#2, 이름#3). 한 판에 최대 100명. 연습은 예시 이름으로 방송 화면에 나가지 않음
 - 순위는 시작할 때 서버가 정한다: 운영체제 난수(``random.SystemRandom``)로 시드(6자리)를 고르고 그 시드로 섞은 순서가 전체 순위.
   같은 시드와 같은 명단이면 언제나 같은 순위. 계획(게임, 시드, 순위, 시작 시각, 길이, 재생 속도, 연출 설정)을 한 번 보내고
   방송 화면(``/race``)과 조작 화면의 미리보기는 (시드, 순위, 경과 시간)만으로 같은 장면을 그린다. 중간에 연 화면은 지금 장면부터
-- 달리기 경주는 8명씩 조별 경기 뒤 결승(또는 30명까지 모두 함께). 다음 조는 스트리머가 시작
+- 달리기 경주와 수영(위에서 보는 8레인)은 8명씩 조별 경기 뒤 결승(또는 30명까지 모두 함께). 다음 조는 스트리머가 시작
+- 후원으로 참가한 시청자가 후원 뒤 처음 쓴 채팅(참여 추첨의 한마디)은 당첨 화면에 함께
 - 당첨 순위는 1등, 꼴찌, 지정 순위. 꼴찌 당첨이면 조별 경기에서 느린 참가자가 꼴찌 결승에 진출
 - 설정은 race.json(settings.save_data). 참가 명단과 결과는 메모리에만(결과는 조작 화면에서 텍스트 파일로 저장)
 """
@@ -25,22 +26,24 @@ from . import settings
 from .overlay.feature import Channel, Feature, FeatureError
 
 DATA_FILE = "race.json"
-GAMES = {"marble": "구슬 레이스", "run": "달리기 경주", "survival": "서바이벌"}
+GAMES = {"marble": "구슬 레이스", "run": "달리기 경주", "swim": "수영", "survival": "서바이벌"}
 #: 줄(레인)을 나눠 달리는 게임: 8명씩 조별 경기 뒤 결승
-LANE_GAMES = ("run",)
-COURSES = {"zigzag": "지그재그 경사로", "pegs": "핀 숲", "stairs": "계단 폭포"}
+LANE_GAMES = ("run", "swim")
+COURSES = {"zigzag": "지그재그 경사로", "pegs": "핀 숲", "stairs": "계단 폭포", "mix": "계단과 핀"}
 FORMATS = {"heats": "8명씩 조별 경기 뒤 결승", "all": "모두 함께(30명까지)"}
 SURPRISES = {"none": "없음", "some": "조금", "many": "많이"}
 EVENTS = {
     "marble": {"wind": "바람", "lightning": "번개", "quake": "지진", "comeback": "꼴찌 가속", "check": "선두 견제", "item": "아이템 상자",
                "gate": "운명의 문", "switch": "갈림길 전환"},
     "run": {"sprint": "질주", "stumble": "넘어짐", "dive": "막판 다이빙", "cramp": "다리 쥐"},
+    "swim": {"sprint": "스퍼트", "dive": "잠영 대시", "wave": "물살", "cramp": "다리 쥐"},
     "survival": {"heal": "회복", "shield": "보호막", "power": "힘 키우기", "spikes": "가시 함정", "zone": "좁아지는 구역"},
 }
 RANKS = {"first": "1등", "last": "꼴찌", "custom": "지정 순위"}
 LENGTHS = {"short": "짧게", "normal": "보통", "long": "길게"}
 #: 1배속 기준 경주 시간(초). 구슬, 서바이벌은 한 판, 달리기는 한 조
 SECONDS = {"marble": {"short": 24, "normal": 36, "long": 54}, "run": {"short": 11, "normal": 16, "long": 24},
+           "swim": {"short": 13, "normal": 19, "long": 28},
            "survival": {"short": 26, "normal": 40, "long": 60}}
 SPEED = (0.7, 2.2)
 DESIGNS = {"wood": "나무 장난감", "metal": "유리와 금속", "paper": "종이 공작"}
@@ -77,6 +80,7 @@ MAX_AT_ONCE = 30
 MAX_REPEAT = 10
 MAX_NAME = 40
 MAX_PASTE = 20000
+MAX_COMMENT = 40
 #: 출발 전 숫자 세기(실제 초, 재생 속도와 무관)
 COUNTDOWN = 3.0
 #: 마지막 도착 뒤 결과 확정까지(실제 초)
@@ -238,13 +242,14 @@ def make_tickets(pasted: list[tuple[str, int]], entries: Any = (), *, dedupe: bo
 
     ``dedupe`` 이면 같은 이름은 한 장만(``이름*N`` 과 여러 플랫폼의 같은 닉네임도 1장).
     """
-    raw = [(str(entry.get("name", "")), str(entry.get("source", "chat")), str(entry.get("platform", ""))) for entry in entries or ()]
-    raw += [(name, "paste", "") for name, count in pasted for _ in range(count)]
+    raw = [(str(entry.get("name", "")), str(entry.get("source", "chat")), str(entry.get("platform", "")), str(entry.get("comment", "") or ""))
+           for entry in entries or ()]
+    raw += [(name, "paste", "", "") for name, count in pasted for _ in range(count)]
     tickets: list[dict[str, Any]] = []
     seen: Counter[str] = Counter()
     used: set[str] = set()
     merged = 0
-    for name, source, platform in raw:
+    for name, source, platform, comment in raw:
         name = name.strip()[:MAX_NAME]
         if not name:
             continue
@@ -258,7 +263,10 @@ def make_tickets(pasted: list[tuple[str, int]], entries: Any = (), *, dedupe: bo
             number += 1
             display = f"{name}#{number}"
         used.add(display)
-        tickets.append({"name": display, "base": name, "source": source, "platform": "" if platform == "manual" else platform})
+        ticket = {"name": display, "base": name, "source": source, "platform": "" if platform == "manual" else platform}
+        if comment:
+            ticket["comment"] = comment[:MAX_COMMENT]
+        tickets.append(ticket)
     notes = []
     if merged:
         notes.append(f"같은 이름 {merged}개는 한 번만 넣음")
@@ -570,6 +578,8 @@ class RaceState:
                            "color": options["color"], "color_hex": chosen_hex, "font": options["font"], "font_css": _font_css(options["font"]),
                            "speed": options["speed"], "length": options["length"]}
         plan["notes"] = notes
+        winner = next((ticket for ticket in tickets if ticket["name"] == plan["winner"]["name"]), None)
+        plan["winner"]["comment"] = (winner or {}).get("comment", "")  # 후원 뒤 처음 쓴 채팅(당첨 화면)
         with self._lock:
             self._cancel()
             self.options = options
@@ -694,7 +704,7 @@ class RaceState:
                 except ValueError as error:
                     raise RaceError("재생 속도는 숫자") from error
         options = check_options(changes, self.options)
-        defaults = {"marble": 24, "run": 8, "survival": 30}
+        defaults = {"marble": 24, "run": 8, "swim": 8, "survival": 30}
         try:
             count = int(value("n", defaults[options["game"]]))
             seed = int(value("seed", 482913))

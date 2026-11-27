@@ -250,3 +250,29 @@ def test_overlay_page_handles_raffle():
     assert 'id="raffle"' in (static / "draw.html").read_text(encoding="utf-8")
     control = (static / "draw-control.html").read_text(encoding="utf-8")
     assert "/raffle/start" in control and "/raffle/draw" in control and "!모집" in control
+
+
+def test_donor_first_chat_becomes_the_comment(monkeypatch):
+    """후원으로 참가한 시청자가 후원 뒤 처음 쓴 채팅(명령 빼고)이 한마디. 채팅 참가자, 두 번째 채팅, 시간이 지난 채팅은 아님."""
+    box = raffle.Raffle(rng=random.Random(1))
+    box.start(keyword="!참가", donation_min=0)
+    reactor = raffle.RaffleReactor(box)
+    reactor(OverlayEvent("soop", "donation", "후원자", (), amount=10.0, unit="별풍선"))
+    reactor(chat("!참가", name="후원자", platform="soop"))  # 명령은 한마디가 아님
+    reactor(chat("  우승하면   노래할게요  ", name="후원자", platform="soop"))
+    reactor(chat("두 번째 말", name="후원자", platform="soop"))
+    reactor(chat("!참가", name="채팅참가"))
+    reactor(chat("나도 한마디", name="채팅참가"))
+    entries = {entry["name"]: entry for entry in box.status()["entries"]}
+    assert entries["후원자"]["comment"] == "우승하면 노래할게요" and entries["채팅참가"]["comment"] == ""
+    box.stop()  # 모집을 마감해도 기다리는 동안은 받음
+    reactor(OverlayEvent("chzzk", "donation", "늦은후원", (), amount=1000.0, unit="원"))
+    assert "chzzk:늦은후원" not in {entry["key"] for entry in box.status()["entries"]}  # 마감 뒤 후원은 참가 아님
+    box.start(keyword="!참가", donation_min=0)
+    reactor(OverlayEvent("chzzk", "donation", "늦은후원", (), amount=1000.0, unit="원"))
+    box.stop()
+    clock = [raffle.time.time() + raffle.COMMENT_WAIT + 1]
+    monkeypatch.setattr(raffle.time, "time", lambda: clock[0])
+    reactor(chat("너무 늦은 한마디" * 5, name="늦은후원"))
+    assert {entry["name"]: entry for entry in box.status()["entries"]}["늦은후원"]["comment"] == ""
+    assert box.comment("없는사람", "chzzk", "안녕") is False

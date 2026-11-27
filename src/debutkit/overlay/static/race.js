@@ -25,6 +25,8 @@
   const UI = '"Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif';
   const DISPLAY = '"Black Han Sans", "Malgun Gothic", sans-serif';
   const INK = "#1e2327";
+  //: 줄을 나눠 겨루는 게임(달리기, 수영): 조별 경기와 같은 그리기
+  const LANE_GAMES = ["run", "swim"];
 
   // ---------------------------------------------------------------- 화면 맞춤(OBS 1920x1080은 그대로, 미리보기 창은 비율 유지 축소)
   function fit() {
@@ -463,6 +465,7 @@
         note("triangle", 1320, 0, 0.36, 0.06);
       } else if (kind === "tick") note("triangle", 1700 + Math.random() * 1100, 0, 0.035, 0.03);
       else if (kind === "step") note("sine", 150 + Math.random() * 40, 0, 0.06, 0.05);
+      else if (kind === "splash") noise(0, 0.22, 0.12, 1400 + Math.random() * 900);
       else if (kind === "whoosh") noise(0, 0.7, 0.18, 700);
       else if (kind === "zap") {
         noise(0, 0.35, 0.3, 4000);
@@ -633,6 +636,7 @@
     const kinds = env.events;
     if (!kinds.length) return [];
     const { rng, heat } = env;
+    const swim = env.race.game === "swim";
     const count = env.level === "many" ? 4 : env.level === "some" ? 2 : 0;
     const horizon = Math.min(...profile.times);
     const used = new Set();
@@ -647,7 +651,7 @@
       const event = { kind, t, dur: 1.5, targets: [lane], factors: [1], text: "", sound: "whoosh", seed: Math.floor(rng() * 1e9) };
       if (kind === "sprint") {
         event.factors = [1.85];
-        event.text = `${name} 질주!`;
+        event.text = swim ? `${name} 스퍼트!` : `${name} 질주!`;
         event.sound = "boost";
       } else if (kind === "stumble") {
         event.dur = 1.15;
@@ -659,6 +663,16 @@
         event.factors = [0.45];
         event.text = `${name} 다리에 쥐!`;
         event.sound = "slow";
+      } else if (kind === "wave") {
+        event.dur = 1.6;
+        event.factors = [0.4];
+        event.text = `${name} 물살에 밀림!`;
+        event.sound = "splash";
+      } else if (kind === "dive" && swim) {  // 잠영 대시: 물속으로 빠르게
+        event.dur = 1.0;
+        event.factors = [1.7];
+        event.text = `${name} 잠영 대시!`;
+        event.sound = "boost";
       } else if (kind === "dive") {
         t = Math.max(0.5, profile.times[lane] - 0.75);
         event.t = t;
@@ -723,6 +737,15 @@
       segs.push(rail(731, 672, 1320, 722));
       segs.push(bend(1320, 792, 70, -Math.PI / 2, Math.PI / 2));
       segs.push(rail(1320, 862, 250, 912));
+    } else if (kind === "mix") {  // 계단, 레일, 굽은 길, 핀 숲을 차례로
+      hopper = { x: 62, ...H0, exit: [244, 278] };
+      segs.push({ kind: "hopper", len: 150, end: [244, 300] });
+      segs.push(steps(244, 300, 860, 470, 7));
+      segs.push(rail(860, 470, 1320, 520));
+      segs.push(bend(1320, 590, 70, -Math.PI / 2, Math.PI / 2));
+      segs.push(rail(1320, 660, 820, 690));
+      segs.push(pegField(820, 690, 862, 4));
+      segs.push(rail(820, 862, 250, 918));
     } else if (kind === "stairs") {
       hopper = { x: 62, ...H0, exit: [244, 278] };
       segs.push({ kind: "hopper", len: 150, end: [244, 302] });
@@ -753,6 +776,8 @@
       ? { cloud: [1110, 215], vane: [1330, 200], items: [[1372, 330], [1372, 420], [1372, 510]], gate: [560, 900], lever: [1395, 792] }
       : kind === "stairs"
         ? { cloud: [1100, 225], vane: [1330, 200], items: [[560, 250], [780, 300], [1000, 350]], gate: [790, 795], lever: [1395, 607] }
+        : kind === "mix"
+          ? { cloud: [1100, 215], vane: [1330, 200], items: [[950, 480], [1100, 496], [1250, 512]], gate: [520, 889], lever: [1395, 590] }
         : { cloud: [1100, 215], vane: [1330, 200], items: [[520, 402], [760, 420], [1000, 438]], gate: [760, 705], lever: [125, 610] };
     return { kind, segs, starts, total, hopper, finish: [fx, fy], anchors };
   }
@@ -1933,6 +1958,158 @@
     }
   }
 
+  // ---------------------------------------------------------------- 수영: 위에서 본 수영 선수(오른쪽으로 헤엄). cy는 줄 가운데, L은 줄 높이
+  function drawSwimmer(g, P, x, cy, L, color, phase, pose, t, number, font) {
+    const u = L * 0.42;  // 몸 길이의 반
+    const stroke = phase * 0.9;
+    const suit = color.fill || color, edge = color.dark || "rgba(30, 35, 39, 0.55)", mark = color.text || "#ffffff";  // 참가자 색
+    g.save();
+    if (pose === "dive") g.globalAlpha = 0.45;  // 잠영: 물속이라 흐리게
+    // 물보라와 물결(헤엄치는 중)
+    if (pose === "run" || pose === "sprint" || pose === "wave") {
+      g.save();
+      g.globalAlpha = pose === "wave" ? 0.85 : 0.55;
+      g.strokeStyle = "rgba(255, 255, 255, 0.85)";
+      g.lineWidth = Math.max(1.5, L * 0.03);
+      for (let k = 1; k <= 3; k++) {  // 뒤로 퍼지는 물결
+        const back = x - u * (1.2 + k * 0.7);
+        const spread = u * (0.25 + k * 0.12);
+        g.beginPath();
+        g.moveTo(back + u * 0.35, cy - spread * 0.5);
+        g.quadraticCurveTo(back, cy, back + u * 0.35, cy + spread * 0.5);
+        g.stroke();
+      }
+      g.fillStyle = "#ffffff";
+      for (let k = 0; k < (pose === "wave" ? 9 : 5); k++) {  // 발차기 물방울
+        const a = stroke * 2 + k * 1.7;
+        const r = L * (0.03 + 0.025 * Math.abs(Math.sin(a)));
+        g.beginPath();
+        g.arc(x - u * (1.45 + 0.25 * Math.sin(a * 1.3)), cy + Math.sin(a) * u * 0.28, r, 0, TAU);
+        g.fill();
+      }
+      g.restore();
+    }
+    if (pose === "dive") {  // 공기 방울
+      g.fillStyle = "rgba(255, 255, 255, 0.9)";
+      for (let k = 0; k < 4; k++) {
+        const b = (t * 1.7 + k * 0.27) % 1;
+        g.beginPath();
+        g.arc(x - u * (0.2 + b * 1.4), cy - u * 0.2 + Math.sin(k + t * 4) * u * 0.18, L * 0.025 * (1 + b), 0, TAU);
+        g.fill();
+      }
+    }
+    // 팔(자유형): 두 팔이 번갈아 앞으로 뻗었다가 뒤로
+    const shoulderX = x - u * 0.15;
+    const arm = (side, angle) => {
+      const reach = pose === "idle" ? 1 : Math.cos(angle);
+      const hx = shoulderX + u * (0.15 + 0.85 * reach);
+      const hy = cy + side * u * (0.3 + 0.12 * Math.abs(Math.sin(angle)));
+      g.strokeStyle = "#f2c9a8";
+      g.lineWidth = L * 0.09;
+      g.lineCap = "round";
+      g.beginPath();
+      g.moveTo(shoulderX, cy + side * u * 0.26);
+      g.lineTo(hx, hy);
+      g.stroke();
+    };
+    if (pose === "cheer") {  // 도착: 한 팔을 들어 흔듦
+      arm(-1, Math.PI);
+      g.strokeStyle = "#f2c9a8";
+      g.lineWidth = L * 0.09;
+      g.beginPath();
+      g.moveTo(shoulderX, cy - u * 0.26);
+      g.lineTo(shoulderX + u * 0.2, cy - u * (0.75 + 0.1 * Math.sin(t * 8)));
+      g.stroke();
+    } else if (pose === "idle") {
+      arm(-1, 0);
+      arm(1, 0);
+    } else {
+      arm(-1, stroke);
+      arm(1, stroke + Math.PI);
+    }
+    // 몸(수영복 색)과 다리
+    g.fillStyle = "#f2c9a8";
+    for (const side of [-1, 1]) {
+      g.beginPath();
+      g.ellipse(x - u * 1.05, cy + side * u * 0.13 + (pose === "limp" ? 0 : Math.sin(stroke * 2 + side) * u * 0.04), u * 0.38, u * 0.09, 0, 0, TAU);
+      g.fill();
+    }
+    g.fillStyle = suit;
+    g.beginPath();
+    g.ellipse(x - u * 0.45, cy, u * 0.62, u * 0.3, 0, 0, TAU);
+    g.fill();
+    g.strokeStyle = edge;
+    g.lineWidth = 1.5;
+    g.stroke();
+    // 머리(수영모와 물안경)
+    g.fillStyle = suit;
+    g.beginPath();
+    g.arc(x + u * 0.2, cy, u * 0.27, 0, TAU);
+    g.fill();
+    g.stroke();
+    g.fillStyle = "rgba(255, 255, 255, 0.55)";
+    g.beginPath();
+    g.arc(x + u * 0.14, cy - u * 0.1, u * 0.08, 0, TAU);
+    g.fill();
+    g.fillStyle = "#1e2327";
+    for (const side of [-1, 1]) {
+      g.beginPath();
+      g.arc(x + u * 0.36, cy + side * u * 0.11, u * 0.06, 0, TAU);
+      g.fill();
+    }
+    if (pose === "limp") {  // 다리 쥐: 땀방울
+      g.fillStyle = "#7cc6f2";
+      g.beginPath();
+      g.arc(x + u * 0.5, cy - u * 0.45, u * 0.08, 0, TAU);
+      g.fill();
+    }
+    if (L >= 40) {  // 수영모의 번호
+      g.fillStyle = mark;
+      g.font = `${Math.round(u * 0.26)}px ${font}`;
+      g.textAlign = "center";
+      g.textBaseline = "middle";
+      g.fillText(String(number), x + u * 0.12, cy + u * 0.02);
+    }
+    g.restore();
+  }
+
+  // 수영장 줄: 물, 줄 사이 부표 줄, 줄 가운데 바닥 선(T자 끝)
+  function drawPool(g, P, n, laneY, laneH, x0, x1, finishX) {
+    const water = P.design === "metal" ? ["#0f3e5c", "#124a6c"] : P.design === "paper" ? ["#bfe6f5", "#ade0f2"] : ["#3fb6d9", "#37a9cc"];
+    for (let i = 0; i < n; i++) {
+      const y = laneY(i);
+      const grad = g.createLinearGradient(0, y, 0, y + laneH);
+      grad.addColorStop(0, water[i % 2]);
+      grad.addColorStop(1, water[(i + 1) % 2]);
+      g.fillStyle = grad;
+      g.fillRect(x0, y, x1 - x0, laneH);
+      g.fillStyle = P.design === "metal" ? "rgba(255, 255, 255, 0.12)" : "rgba(15, 50, 80, 0.32)";  // 바닥 선
+      const lineH = Math.max(3, laneH * 0.07);
+      g.fillRect(x0 + 60, y + laneH / 2 - lineH / 2, finishX - x0 - 100, lineH);
+      g.fillRect(finishX - 46, y + laneH * 0.3, lineH, laneH * 0.4);
+      g.strokeStyle = "rgba(255, 255, 255, 0.16)";  // 물결 빛
+      g.lineWidth = 2;
+      for (let k = 0; k < 7; k++) {
+        const wx = x0 + 120 + ((k * 263 + i * 97) % (x1 - x0 - 200));
+        g.beginPath();
+        g.moveTo(wx, y + laneH * 0.25);
+        g.quadraticCurveTo(wx + 30, y + laneH * 0.12, wx + 60, y + laneH * 0.25);
+        g.stroke();
+      }
+    }
+    const buoy = Math.max(3, Math.min(9, laneH * 0.09));
+    for (let i = 0; i <= n; i++) {  // 부표 줄(끝 쪽은 진한 색)
+      const y = laneY(i);
+      for (let bx = x0 + buoy; bx < x1; bx += buoy * 2.4) {
+        const near = bx < x0 + 160 || bx > finishX - 160;
+        g.fillStyle = near ? P.accent : bx % (buoy * 4.8) < buoy * 2.4 ? "#ffffff" : P.accentLight;
+        g.beginPath();
+        g.arc(bx, y, buoy, 0, TAU);
+        g.fill();
+      }
+    }
+  }
+
   function runSim(env) {
     const { heat, P, colors, rng, font } = env;
     const n = heat.names.length;
@@ -1949,9 +2126,24 @@
     heat.order.forEach((lane, index) => (place[lane] = index));
     const laneY = (i) => lanesTop + i * laneH;
     const nameSize = clamp(Math.round(laneH * 0.52), 15, 30);
+    const swim = env.race.game === "swim";
 
     function drawStatic(g) {
       panel(g, P, 40, 112, 1840, 940, { seed: 21, screws: true, fill: P.plate, tape: true });
+      if (swim) {  // 수영장: 물, 부표 줄, 출발대, 도착 벽
+        g.save();
+        drawPool(g, P, n, laneY, laneH, startX - 46, endX, finishX);
+        g.fillStyle = P.design === "metal" ? "#dfe5ea" : "#fffaf0";
+        g.fillRect(startX - 60, laneY(0), 14, laneH * n);
+        finishBand(g, finishX, laneY(0) + (laneH * n) / 2, 0, laneH * n, 18);
+        g.font = `22px ${font}`;
+        g.fillStyle = P.text;
+        g.textAlign = "center";
+        g.fillText("출발", startX - 53, laneY(0) - 14);
+        g.fillText("도착", finishX, laneY(0) - 14);
+        g.restore();
+        return;
+      }
       g.save();
       // 줄
       for (let i = 0; i < n; i++) {
@@ -2020,7 +2212,7 @@
         } else {
           for (const event of events) {
             if (event.targets[0] !== i || t < event.t || t > event.t + event.dur) continue;
-            pose = { sprint: "sprint", stumble: "fallen", cramp: "limp", dive: "dive" }[event.kind] || pose;
+            pose = { sprint: "sprint", stumble: "fallen", cramp: "limp", dive: "dive", wave: "wave" }[event.kind] || pose;
           }
         }
         // 줄 이름 칸
@@ -2062,7 +2254,8 @@
           g.fillRect(startX - 46, y, endX - startX + 46, laneH);
           g.restore();
         }
-        drawRunner(g, P, x, y + laneH * 0.9, S, colors[i], phase, pose, t, i + 1, font);
+        if (swim) drawSwimmer(g, P, x, y + laneH / 2, laneH, colors[i], phase, pose, t, i + 1, font);
+        else drawRunner(g, P, x, y + laneH * 0.9, S, colors[i], phase, pose, t, i + 1, font);
       }
       // 도착 순위(결승선 옆)
       for (let i = 0; i < n; i++) {
@@ -2088,7 +2281,7 @@
       }
     }
 
-    return { drawStatic, draw, shake: () => [0, 0], events, end: heat.end, finishes: heat.order.map((lane) => profile.times[lane]), tick: "step" };
+    return { drawStatic, draw, shake: () => [0, 0], events, end: heat.end, finishes: heat.order.map((lane) => profile.times[lane]), tick: swim ? "splash" : "step" };
   }
 
   // ---------------------------------------------------------------- 서바이벌: 원형 경기장, 좁아지는 구역, 말랑이
@@ -2693,7 +2886,7 @@
       const number = Math.ceil(remain);
       const u = 1 - (remain - Math.floor(remain));
       g.save();
-      g.translate(W / 2 - (cur.race.game === "run" ? 0 : 235), H / 2 + 20);
+      g.translate(W / 2 - (LANE_GAMES.includes(cur.race.game) ? 0 : 235), H / 2 + 20);
       g.scale(1 + 0.15 * (1 - u), 1 + 0.15 * (1 - u));
       g.fillStyle = cur.env.P.design === "paper" ? "#fffdf8" : "rgba(20, 24, 28, 0.86)";
       g.beginPath();
@@ -2721,7 +2914,7 @@
       const u = t / (0.9 * cur.speed);
       g.save();
       g.globalAlpha = 1 - smooth((u - 0.6) / 0.4);
-      g.translate(W / 2 - (cur.race.game === "run" ? 0 : 235), H / 2 + 20);
+      g.translate(W / 2 - (LANE_GAMES.includes(cur.race.game) ? 0 : 235), H / 2 + 20);
       g.scale(1 + u * 0.3, 1 + u * 0.3);
       g.font = `150px ${cur.env.font}`;
       g.textAlign = "center";
@@ -2741,7 +2934,7 @@
       g.font = `30px ${cur.env.font}`;
       const text = fitText(g, event.text, 980);
       const w = g.measureText(text).width + 60;
-      const x = (cur.race.game === "run" ? W / 2 : 745) - w / 2;
+      const x = (LANE_GAMES.includes(cur.race.game) ? W / 2 : 745) - w / 2;
       const y = 126 + index * 62 - (1 - smooth(u / 0.2)) * 14;
       if (P.design === "paper") {
         g.fillStyle = INK;
@@ -2818,6 +3011,7 @@
       return;
     }
     winCard.append(el("div", "kicker", race.rank_label), el("div", "name", race.winner.name));
+    if (race.winner.comment) winCard.append(el("div", "comment", race.winner.comment));  // 후원 뒤 처음 쓴 채팅
     const meta = el("div", "meta");
     for (const part of [race.practice ? "연습" : "", race.game_label, race.course_label, `${race.count}명`, `시드 ${race.seed}`].filter(Boolean)) {
       meta.append(el("span", "", part));
@@ -2867,7 +3061,7 @@
       race, heat, index, P, font, colors: runnerColors(P, heat.names.length), rng: mulberry32(hashOf(race.seed, index, race.game, heat.names.length)),
       events: options.surprise === "none" ? [] : options.events || [], level: options.surprise || "none",
     };
-    const sim = race.game === "marble" ? marbleSim(env) : race.game === "run" ? runSim(env) : survivalSim(env);
+    const sim = race.game === "marble" ? marbleSim(env) : LANE_GAMES.includes(race.game) ? runSim(env) : survivalSim(env);
     const board = document.createElement("canvas");
     board.width = W;
     board.height = H;

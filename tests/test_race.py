@@ -3,12 +3,13 @@
 import http.client
 import json
 import random
+from pathlib import Path
 
 import pytest
 
 from debutkit import race, raffle, settings
 from debutkit.overlay import feature
-from debutkit.overlay.events import system_event
+from debutkit.overlay.events import OverlayEvent, system_event
 from debutkit.overlay.server import OverlayServer
 
 NAMES = [f"시청자{index}" for index in range(30)]
@@ -360,3 +361,38 @@ def test_start_live_feed_mid_race_join_and_chat_notice(server):
     assert seen and seen[-1].platform == "system" and seen[-1].text.startswith("참여 레이스 우승: ")
     assert seen[-1].text == system_event(done["last_result"]["line"]).text
     assert json.loads(request(server, "POST", "/race/stop", {})[2])["state"] == "idle"
+
+
+def test_swim_is_a_lane_game_with_heats():
+    assert race.GAMES["swim"] == "수영" and "swim" in race.LANE_GAMES and set(race.EVENTS["swim"]) == {"sprint", "dive", "wave", "cramp"}
+    plan = race.build_plan("swim", NAMES[:20], options(game="swim"), 5)
+    assert [heat["label"] for heat in plan["heats"]] == ["1조", "2조", "3조", "결승"] and plan["format"] == "heats"
+    together = race.build_plan("swim", NAMES, options(game="swim", format="all"), 5)
+    assert len(together["heats"]) == 1 and race.SECONDS["swim"]["normal"] > race.SECONDS["run"]["normal"]
+    assert race.COURSES["mix"] == "계단과 핀"
+    static = Path(__file__).resolve().parent.parent / "src" / "debutkit" / "overlay" / "static"
+    script = (static / "race.js").read_text(encoding="utf-8")
+    for code in ("function drawSwimmer(", "function drawPool(", 'const LANE_GAMES = ["run", "swim"]', 'kind === "mix"', 'kind === "wave"',
+                 'el("div", "comment", race.winner.comment)', 'tick: swim ? "splash" : "step"'):
+        assert code in script, code
+    assert ".race-card .comment" in (static / "race.css").read_text(encoding="utf-8")
+    control = (static / "race-control.html").read_text(encoding="utf-8")
+    assert 'swim: "위에서 내려다보는 8레인' in control and '["run", "swim"].includes(game)' in control
+
+
+def test_winner_comment_comes_from_the_raffle():
+    box = raffle.Raffle(rng=random.Random(1))
+    box.start(keyword="!참가", donation_min=0)
+    reactor = raffle.RaffleReactor(box)
+    reactor(OverlayEvent("soop", "donation", "후원자", (), amount=10.0, unit="별풍선"))
+    reactor(OverlayEvent("soop", "chat", "후원자", (("text", "꼭 이길게요"),)))
+    tickets, _ = race.make_tickets([], box.status()["entries"])
+    assert tickets[0]["comment"] == "꼭 이길게요"
+    state = race.RaceState(raffle=box, rng=random.Random(2), timers=False)
+    for _ in range(40):  # 후원자가 이길 때까지(시드는 운영체제 난수가 아니라 고정 난수)
+        state.start({"paste": "다른시청자", "game": "swim", "format": "all"})
+        if state.race["winner"]["name"] == "후원자":
+            break
+    assert state.race["winner"] == {"name": "후원자", "place": 1, "comment": "꼭 이길게요"}
+    state.start({"paste": "다른시청자\n또다른", "use_raffle": False})
+    assert state.race["winner"]["comment"] == ""
