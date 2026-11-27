@@ -243,7 +243,7 @@ def test_pose_maker_joints_pose_files_and_saved_poses():
     """미타포즈 수준: 관절 직접 돌리기, 자세 파일(VRMA 원하는 시점, MMD VPD), 내 자세 저장. 파일은 브라우저 안에서만 읽음."""
     sheet = (STATIC / "character-sheet.js").read_text(encoding="utf-8")
     page = (STATIC / "character-sheet.html").read_text(encoding="utf-8")
-    for element in ('id="joint-bone"', 'id="joint-x"', 'id="joint-y"', 'id="joint-z"', 'id="joint-reset-all"', 'id="pose-file"', 'accept=".vrma,.vpd"',
+    for element in ('id="joint-bone"', 'id="joint-x"', 'id="joint-y"', 'id="joint-z"', 'id="joint-reset-all"', 'id="pose-file"', 'accept=".vrma,.vpd,.json"',
                     'id="vrma-time"', 'id="vpd-arm"', 'id="pose-file-off"', 'id="my-pose-name"', 'id="my-pose-save"', 'id="my-poses"',
                     'id="my-pose-load"', 'id="my-pose-remove"'):
         assert element in page, element
@@ -271,3 +271,44 @@ def test_pose_maker_sends_the_pose_over_vmc():
     assert '"/vmc/pose"' in sheet and '"/vmc/pose/stop"' in sheet and "keepalive: true" in sheet and "setInterval(vmcSend, 5000)" in sheet
     assert "if (vmcOn) vmcSend();" in sheet  # 다시 그릴 때(부위, 관절, 자세 파일, 표정) 같이 보냄
     assert "[q.x * flip, q.y, q.z * flip, q.w, p.x * flip, p.y, p.z * flip]" in sheet  # VRM 0.x도 VRM 1.0 방향으로
+
+
+def test_pose_parts_hands_presets_and_helpers():
+    """포즈 3차: 부위 8개(허리, 상체, 머리, 팔, 손, 다리), 손 모양 8종, 추천 자세 10종이 모두 있는 선택지, 예시 그림, 자세 보정, 자세 JSON."""
+    import re
+
+    sheet = (STATIC / "character-sheet.js").read_text(encoding="utf-8")
+    page = (STATIC / "character-sheet.html").read_text(encoding="utf-8")
+
+    def keys(start, end="\n};"):
+        block = sheet.split(start, 1)[1].split(end, 1)[0]
+        return re.findall(r"^  (\w+): \{ name:", block, re.M)
+
+    options = {"leftArm": keys("const LEFT_ARM = {"), "leftHand": keys("const LEFT_HAND = {")}
+    options["rightArm"], options["rightHand"] = options["leftArm"], options["leftHand"]
+    for part in ("body", "upper", "head", "legs"):
+        block = sheet.split(f"  {part}: {{ name:", 1)[1].split("\n  } },", 1)[0]
+        options[part] = re.findall(r"^    (\w+): \{ name:", block, re.M)
+    assert len(options["leftArm"]) == 14 and len(options["leftHand"]) == 8 and len(options["upper"]) == 8
+    assert len(options["head"]) == 9 and len(options["body"]) == 7 and len(options["legs"]) == 8
+    assert sum(len(found) for found in options.values()) == 7 + 8 + 9 + 14 * 2 + 8 * 2 + 8  # 부위별 선택지 76개
+    base = dict(re.findall(r'(\w+): "(\w+)"', sheet.split("const BASE = {", 1)[1].split("};", 1)[0]))
+    presets = sheet.split("const PRESETS = {", 1)[1].split("\n};", 1)[0]
+    found = re.findall(r"^  (\w+): \{ name: \"[^\"]+\", parts: \{ \.\.\.BASE, (.*?) \} \},", presets, re.M | re.S)
+    assert len(found) == 10
+    for name, body in found:
+        chosen = {**base, **dict(re.findall(r'(\w+): "(\w+)"', body))}
+        assert set(chosen) == set(options), name  # 모든 부위를 정함
+        for part, key in chosen.items():
+            assert key in options[part], (name, part, key)
+    # 손가락 뼈 이름은 VRM 사람 모양 뼈(ALL_BONES가 만드는 이름)
+    for finger in ("Thumb", "Index", "Middle", "Ring", "Little"):
+        assert f'curl("{finger}"' in sheet or finger == "Thumb"
+    assert "leftThumbMetacarpal: [0, a[0], a[1]]" in sheet and "[`left${finger}Proximal`]" in sheet
+    # 예시 그림(손은 손을 들어 가까이), 자세 보정, 자세 JSON, 그리는 뼈 자리와 잘림 방지
+    for code in ("function renderOption(", "function showGallery(", "function fixArms()", "function insideTorso(", "function poseJson()",
+                 "function readPoseJson(", 'poseState[arm] = "wave"', "humanoid.getRawBoneNode(name)", "object.frustumCulled = false"):
+        assert code in sheet, code
+    for element in ('id="part-gallery"', 'id="gallery-items"', 'id="fix-arms"', 'id="pose-json"', 'accept=".vrma,.vpd,.json"'):
+        assert element in page, element
+    assert "debugBones" not in sheet and "handZoom" not in sheet  # 확인용 도구는 남기지 않음

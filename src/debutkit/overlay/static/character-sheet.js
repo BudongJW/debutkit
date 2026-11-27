@@ -20,15 +20,56 @@ const LEFT_ARM = {
   wave: { name: "손 흔들기", bones: { leftUpperArm: [0, -0.35, -0.6], leftLowerArm: [0, 0, 2.05], leftHand: [0, 0, 0.2] } },
   up: { name: "만세", bones: { leftUpperArm: [0, 0, 1.1], leftLowerArm: [0, 0, 0.15] } },
   front: { name: "앞으로 모음", bones: { leftUpperArm: [0, -0.55, -1.15], leftLowerArm: [0, -1.25, 0], leftHand: [0, 0, -0.1] } },
+  // 손을 얼굴로: 내린 팔은 x(앞뒤)로 팔꿈치를 앞으로 보내고 아래팔을 접음(y로 돌리면 내린 팔이 제자리에서 비틀리기만 함)
+  cheek: { name: "볼에 손", bones: { leftUpperArm: [-0.8, 0, -1.2], leftLowerArm: [0, -2.4, 0], leftHand: [0, 0, 0.3] } },
+  mouth: { name: "입 가리기", bones: { leftUpperArm: [-1.2, -0.3, -1.3], leftLowerArm: [0, -2.55, 0], leftHand: [-0.6, 0, 0.6] } },
+  chest: { name: "가슴에 손", bones: { leftUpperArm: [0, -0.3, -1.2], leftLowerArm: [0, -2.0, 0], leftHand: [0, 0.4, 0.1] } },
+  mic: { name: "마이크 잡기", bones: { leftUpperArm: [-1.4, 0, -1.3], leftLowerArm: [0, -2.3, 0], leftHand: [0, 0, 0.5] } },
+  peace: { name: "얼굴 옆 브이", bones: { leftUpperArm: [-0.5, 0, -1.2], leftLowerArm: [0, -2.5, 0], leftHand: [0, 0.3, 0.3] } },
+  behind: { name: "뒷짐", bones: { leftUpperArm: [0.45, 0, -1.25], leftLowerArm: [0, 1.0, 0], leftHand: [0, 0, 0] } },
+  pointUp: { name: "위를 가리킴", bones: { leftUpperArm: [0, -0.25, 0.75], leftLowerArm: [0, -0.15, 0.25] } },
+  reach: { name: "앞으로 뻗기", bones: { leftUpperArm: [0, -1.25, -0.35], leftLowerArm: [0, -0.1, 0] } },
+};
+//: 손 모양(손가락). 왼손 기준 정규화 뼈: 손가락은 +X로 뻗고 손바닥은 아래(-Y), 엄지는 앞(+Z). 구부림은 z(-), 벌림은 y
+const curl = (finger, a, b, c, spread = 0) => ({ [`left${finger}Proximal`]: [0, spread, -a], [`left${finger}Intermediate`]: [0, 0, -b], [`left${finger}Distal`]: [0, 0, -c] });
+const thumb = (a, b, c) => ({ leftThumbMetacarpal: [0, a[0], a[1]], leftThumbProximal: [0, b[0], b[1]], leftThumbDistal: [0, c[0], c[1]] });
+const FIST = { ...curl("Index", 1.4, 1.6, 1.1), ...curl("Middle", 1.45, 1.6, 1.1), ...curl("Ring", 1.5, 1.6, 1.1), ...curl("Little", 1.55, 1.6, 1.1) };
+const THUMB_IN = thumb([0.35, -0.2], [0.5, -0.3], [0.45, -0.25]);
+const LEFT_HAND = {
+  relax: { name: "자연스럽게", bones: { ...curl("Index", 0.15, 0.25, 0.15), ...curl("Middle", 0.2, 0.3, 0.2), ...curl("Ring", 0.25, 0.35, 0.2),
+    ...curl("Little", 0.3, 0.4, 0.25), ...thumb([0.1, -0.05], [0.15, -0.1], [0.1, -0.1]) } },
+  open: { name: "쫙 펴기", bones: { ...curl("Index", 0, 0, 0, -0.18), ...curl("Ring", 0, 0, 0, 0.12), ...curl("Little", 0, 0, 0, 0.26),
+    ...thumb([-0.15, 0.1], [-0.1, 0.05], [0, 0]) } },
+  fist: { name: "주먹", bones: { ...FIST, ...THUMB_IN } },
+  peace: { name: "브이", bones: { ...FIST, ...curl("Index", 0, 0, 0, -0.16), ...curl("Middle", 0, 0, 0, 0.14), ...THUMB_IN } },
+  point: { name: "가리키기", bones: { ...FIST, ...curl("Index", 0, 0, 0), ...THUMB_IN } },
+  thumbsUp: { name: "엄지 척", bones: { ...FIST, ...thumb([-0.2, 0.25], [-0.1, 0.1], [0, 0]) } },
+  cat: { name: "고양이 손", bones: { ...curl("Index", 0.9, 1.25, 0.9), ...curl("Middle", 0.9, 1.25, 0.9), ...curl("Ring", 0.95, 1.25, 0.9),
+    ...curl("Little", 1.0, 1.25, 0.9), ...thumb([0.25, -0.15], [0.35, -0.2], [0.3, -0.2]) } },
+  ok: { name: "오케이", bones: { ...curl("Index", 0.9, 1.0, 0.6), ...curl("Middle", 0.05, 0.05, 0, 0.05), ...curl("Ring", 0.1, 0.1, 0.05, 0.14),
+    ...curl("Little", 0.15, 0.15, 0.1, 0.26), ...thumb([0.3, -0.25], [0.4, -0.3], [0.3, -0.2]) } },
 };
 const mirrorArm = (options) => Object.fromEntries(Object.entries(options).map(([key, item]) => [key, { name: item.name,
   bones: Object.fromEntries(Object.entries(item.bones).map(([bone, [x, y, z]]) => [bone.replace("left", "right"), [x, -y, -z]])) }]));
 const PARTS = {
-  body: { name: "몸", options: {
+  body: { name: "허리", options: {
     straight: { name: "바로", bones: {} },
     turn: { name: "살짝 돌기", bones: { hips: [0, 0.2, 0.02], spine: [0.03, -0.07, -0.03], chest: [0, -0.06, -0.02] } },
     lean: { name: "기울이기", bones: { hips: [0, 0.1, -0.04], spine: [0, 0, 0.07], chest: [0, 0, 0.05] } },
     bow: { name: "살짝 숙이기", bones: { spine: [0.12, 0, 0], chest: [0.08, 0, 0] } },
+    twist: { name: "허리 비틀기", bones: { hips: [0, -0.15, 0], spine: [0, 0.12, 0], chest: [0, 0.1, 0] } },
+    hipPop: { name: "엉덩이 빼기", bones: { hips: [0, 0.05, 0.09], spine: [0, 0, -0.08], chest: [0, 0, -0.04] } },
+    back: { name: "뒤로 젖히기", bones: { spine: [-0.1, 0, 0], chest: [-0.06, 0, 0] } },
+  } },
+  upper: { name: "상체", options: {
+    auto: { name: "허리 따라", bones: {} },
+    proud: { name: "가슴 펴기", bones: { chest: [-0.1, 0, 0], leftShoulder: [0, 0.08, 0], rightShoulder: [0, -0.08, 0] } },
+    hunch: { name: "웅크리기", bones: { chest: [0.16, 0, 0], leftShoulder: [0, -0.15, 0.05], rightShoulder: [0, 0.15, -0.05] } },
+    twistLeft: { name: "왼쪽으로 돌기", bones: { chest: [0, 0.22, 0] } },
+    twistRight: { name: "오른쪽으로 돌기", bones: { chest: [0, -0.22, 0] } },
+    sideLeft: { name: "왼쪽으로 기울기", bones: { chest: [0, 0, 0.12] } },
+    sideRight: { name: "오른쪽으로 기울기", bones: { chest: [0, 0, -0.12] } },
+    shrug: { name: "어깨 으쓱", bones: { leftShoulder: [0, 0, 0.18], rightShoulder: [0, 0, -0.18] } },
   } },
   head: { name: "머리", options: {
     front: { name: "정면", bones: {} },
@@ -36,23 +77,43 @@ const PARTS = {
     tiltOther: { name: "반대로 갸웃", bones: { neck: [0, 0.04, -0.04], head: [0.05, 0.08, -0.1] } },
     down: { name: "내려다보기", bones: { neck: [0.08, 0, 0], head: [0.15, 0, 0] } },
     up: { name: "올려다보기", bones: { neck: [-0.06, 0, 0], head: [-0.14, 0, 0] } },
+    lookLeft: { name: "왼쪽 보기", bones: { neck: [0, 0.12, 0], head: [0.02, 0.28, 0.03] } },
+    lookRight: { name: "오른쪽 보기", bones: { neck: [0, -0.12, 0], head: [0.02, -0.28, -0.03] } },
+    shy: { name: "고개 숙여 갸웃", bones: { neck: [0.1, 0, 0.05], head: [0.2, -0.08, 0.12] } },
+    sassy: { name: "턱 들고 갸웃", bones: { neck: [-0.05, 0, -0.04], head: [-0.12, 0.1, -0.12] } },
   } },
   leftArm: { name: "왼팔", options: LEFT_ARM },
   rightArm: { name: "오른팔", options: mirrorArm(LEFT_ARM) },
+  leftHand: { name: "왼손", options: LEFT_HAND },
+  rightHand: { name: "오른손", options: mirrorArm(LEFT_HAND) },
   legs: { name: "다리", options: {
     stand: { name: "차렷", bones: {} },
     contra: { name: "짝다리", bones: { leftUpperLeg: [0, 0, 0.04], rightUpperLeg: [-0.14, 0, -0.06], rightLowerLeg: [0.26, 0, 0], rightFoot: [-0.1, 0, 0] } },
     wide: { name: "벌리기", bones: { leftUpperLeg: [0, 0, 0.12], rightUpperLeg: [0, 0, -0.12], leftFoot: [0, 0, -0.1], rightFoot: [0, 0, 0.1] } },
     step: { name: "한 발 앞으로", bones: { leftUpperLeg: [-0.3, 0, 0.02], leftLowerLeg: [0.18, 0, 0], leftFoot: [0.1, 0, 0], rightUpperLeg: [0.12, 0, 0] } },
+    knees: { name: "무릎 살짝 굽힘", bones: { leftUpperLeg: [-0.18, 0, 0], leftLowerLeg: [0.34, 0, 0], leftFoot: [-0.16, 0, 0],
+      rightUpperLeg: [-0.18, 0, 0], rightLowerLeg: [0.34, 0, 0], rightFoot: [-0.16, 0, 0] } },
+    inward: { name: "안짱다리", bones: { leftUpperLeg: [-0.06, -0.12, -0.04], leftLowerLeg: [0.16, 0, 0], rightUpperLeg: [-0.06, 0.12, 0.04],
+      rightLowerLeg: [0.16, 0, 0], leftFoot: [0, -0.2, 0], rightFoot: [0, 0.2, 0] } },
+    cross: { name: "다리 꼬기", bones: { rightUpperLeg: [-0.08, 0, 0.14], rightLowerLeg: [0.12, 0, 0], leftUpperLeg: [0, 0, 0.02] } },
+    liftBack: { name: "한 발 뒤로 들기", bones: { rightUpperLeg: [0.12, 0, -0.02], rightLowerLeg: [1.25, 0, 0], rightFoot: [0.3, 0, 0] } },
   } },
 };
 //: 추천 자세: 부위별 고른 값. 고른 뒤 부위를 바꾸면 직접 조합
+const BASE = { upper: "auto", leftHand: "relax", rightHand: "relax" };
 const PRESETS = {
-  relaxed: { name: "편하게 서기", parts: { body: "turn", head: "tilt", leftArm: "relaxed", rightArm: "relaxed", legs: "contra" } },
-  wave: { name: "손 인사", parts: { body: "turn", head: "tiltOther", leftArm: "relaxed", rightArm: "wave", legs: "contra" } },
-  hip: { name: "허리에 손", parts: { body: "lean", head: "tilt", leftArm: "hip", rightArm: "relaxed", legs: "contra" } },
-  cheer: { name: "만세", parts: { body: "straight", head: "up", leftArm: "up", rightArm: "up", legs: "wide" } },
-  a: { name: "A 자세(정면 확인용)", parts: { body: "straight", head: "front", leftArm: "down", rightArm: "down", legs: "stand" } },
+  relaxed: { name: "편하게 서기", parts: { ...BASE, body: "turn", head: "tilt", leftArm: "relaxed", rightArm: "relaxed", legs: "contra" } },
+  wave: { name: "손 인사", parts: { ...BASE, body: "turn", head: "tiltOther", leftArm: "relaxed", rightArm: "wave", legs: "contra", rightHand: "open" } },
+  hip: { name: "허리에 손", parts: { ...BASE, body: "lean", head: "tilt", leftArm: "hip", rightArm: "relaxed", legs: "contra" } },
+  cheer: { name: "만세", parts: { ...BASE, body: "straight", head: "up", leftArm: "up", rightArm: "up", legs: "wide", leftHand: "open", rightHand: "open" } },
+  peace: { name: "브이", parts: { ...BASE, body: "turn", head: "tilt", leftArm: "relaxed", rightArm: "peace", legs: "contra", rightHand: "peace" } },
+  sing: { name: "노래하기", parts: { ...BASE, body: "back", upper: "proud", head: "up", leftArm: "wave", rightArm: "mic", legs: "step", leftHand: "open",
+    rightHand: "fist" } },
+  think: { name: "입 가리고 웃기", parts: { ...BASE, body: "straight", head: "tiltOther", leftArm: "front", rightArm: "mouth", legs: "cross" } },
+  cat: { name: "고양이 손", parts: { ...BASE, body: "bow", head: "tilt", leftArm: "cheek", rightArm: "cheek", legs: "inward", leftHand: "cat", rightHand: "cat" } },
+  shy: { name: "부끄러움", parts: { ...BASE, body: "straight", upper: "hunch", head: "shy", leftArm: "chest", rightArm: "front", legs: "inward" } },
+  a: { name: "A 자세(정면 확인용)", parts: { ...BASE, body: "straight", head: "front", leftArm: "down", rightArm: "down", legs: "stand", leftHand: "open",
+    rightHand: "open" } },
 };
 const poseState = { ...PRESETS.relaxed.parts };
 
@@ -96,6 +157,8 @@ async function load(id) {
   lib.VRMUtils.removeUnnecessaryVertices(gltf.scene);
   if (lib.VRMUtils.combineSkeletons) lib.VRMUtils.combineSkeletons(gltf.scene);
   lib.VRMUtils.rotateVRM0(vrm);
+  // 피부 메시의 경계 구는 처음 자세 기준이라, 손이나 얼굴만 가까이 찍으면 몸 메시(손 포함)가 화면 밖으로 잘못 판정되어 빠짐
+  vrm.scene.traverse((object) => { if (object.isMesh) object.frustumCulled = false; });
   if (current) scene.remove(current.vrm.scene);
   scene.add(vrm.scene);
   if (vrm.lookAt) vrm.lookAt.target = camera;
@@ -156,8 +219,10 @@ function express(values) {
   vrm.update(0);
 }
 
+// 뼈의 화면 속 자리: 그려지는 원래 뼈(raw). 정규화 뼈는 VRM 0.x를 돌려 세운 장면 밖이라 좌우가 바뀔 수 있음(손 예시 틀이 어긋나던 문제)
 function bone(name) {
-  const node = current.vrm.humanoid && current.vrm.humanoid.getNormalizedBoneNode(name);
+  const humanoid = current.vrm.humanoid;
+  const node = humanoid && (humanoid.getRawBoneNode(name) || humanoid.getNormalizedBoneNode(name));
   const point = new THREE.Vector3();
   if (node) node.getWorldPosition(point);
   return node ? point : null;
@@ -446,7 +511,13 @@ function buildPoseControls() {
     box.type = "checkbox";
     box.addEventListener("change", () => (locks[part] = box.checked));
     lock.append(box, document.createTextNode(" 잠금"));
-    row.append(name, select, lock);
+    const example = document.createElement("button");
+    example.type = "button";
+    example.className = "secondary small";
+    example.textContent = "예시";
+    example.setAttribute("aria-label", `${item.name} 예시 그림`);
+    example.addEventListener("click", () => showGallery(part));
+    row.append(name, select, example, lock);
     return row;
   }));
   $("pose-face").replaceChildren(...FACES.map(([key, title]) => new Option(title, key)));
@@ -583,7 +654,10 @@ $("pose-file").addEventListener("change", async () => {
   vrma = null;
   vpd = null;
   try {
-    if (/\.vpd$/i.test(file.name)) {
+    if (/\.json$/i.test(file.name)) {  // three-vrm VRMPose JSON(debutkit 자세 파일 저장도 이 형식)
+      filePose = readPoseJson(await file.text());
+      fileState(`자세 JSON 뼈 ${Object.keys(filePose).length}개를 적용함`);
+    } else if (/\.vpd$/i.test(file.name)) {
       const buffer = await file.arrayBuffer();
       let text;  // MMD가 저장한 VPD는 Shift_JIS, 다른 도구는 UTF-8도 있음
       try { text = new TextDecoder("utf-8", { fatal: true }).decode(buffer); } catch { text = new TextDecoder("shift_jis").decode(buffer); }
@@ -779,6 +853,13 @@ window.debutkitSheet = {
     applyPose();
     return renderPose(width, height, background, face).toDataURL("image/png");
   },
+  option(part, key, width = 120, height = 150) {  // 부위 예시 그림(문서, 시험)
+    dropFilePose();
+    return renderOption(part, key, width, height).toDataURL("image/png");
+  },
+  fix: () => fixArms(),
+  parts: PARTS,  // 부위별 자세 표(문서, 시험)
+  json: () => poseJson(),
   sheet(preset) {
     dropFilePose();
     Object.assign(poseState, PRESETS[preset].parts);
@@ -865,4 +946,164 @@ fetch("/character/sheet/list").then((response) => response.json()).then((data) =
     if (window.debutkitUi) $("empty").replaceChildren(window.debutkitUi.mascot("dessaengi", "아직 VRM 캐릭터가 없음. 설정 마법사의 캐릭터 단계에서 VRM을 추가하거나 VRoid Studio로 만들기"));
   }
   else if (wanted) draw();
+});
+
+// ---------------------------------------------------------------- 부위 예시 그림: 부위의 선택지마다 작은 그림(손은 손만, 머리는 얼굴만 가까이)
+function renderOption(part, key, width, height) {
+  const saved = poseState[part];
+  const arm = part.replace("Hand", "Arm");
+  const savedArm = poseState[arm];
+  poseState[part] = key;
+  if (/Hand$/.test(part)) poseState[arm] = "wave";  // 손 예시는 손을 들어 손가락이 보이게
+  applyPose();
+  let picture;
+  if (/Hand$/.test(part)) {
+    express({});
+    const side = part.replace("Hand", "");
+    const wrist = bone(part), knuckle = bone(`${side}MiddleProximal`) || wrist.clone().add(new THREE.Vector3(0, 0.08, 0));
+    const toward = knuckle.clone().sub(wrist);  // 손등 방향과 크기(손가락을 접어도 틀 크기가 같게)
+    frame(wrist.clone().addScaledVector(toward, 1.2), Math.max(0.12, toward.length() * 4.4), Number($("pose-angle").value), width, height);
+    const out = document.createElement("canvas");
+    out.width = width;
+    out.height = height;
+    out.getContext("2d").drawImage(shot(width, height), 0, 0);
+    picture = out;
+  } else if (part === "head") {
+    express({});
+    const center = bone("head");
+    const reach = headSize().size;
+    center.y += reach * 0.35;
+    frame(center, reach * 2.2, Number($("pose-angle").value), width, height);
+    const out = document.createElement("canvas");
+    out.width = width;
+    out.height = height;
+    out.getContext("2d").drawImage(shot(width, height), 0, 0);
+    picture = out;
+  } else if (/Arm$/.test(part) || part === "upper") {  // 팔, 상체: 머리에서 엉덩이까지
+    express({});
+    const head = bone("head"), hips = bone("hips");
+    const span = Math.max(0.3, head.y - hips.y);
+    frame(new THREE.Vector3((head.x + hips.x) / 2, (head.y + hips.y) / 2 + span * 0.12, (head.z + hips.z) / 2), span * 1.75,
+      Number($("pose-angle").value), width, height);
+    const out = document.createElement("canvas");
+    out.width = width;
+    out.height = height;
+    out.getContext("2d").drawImage(shot(width, height), 0, 0);
+    picture = out;
+  } else {
+    picture = renderPose(width, height, false, "neutral");
+  }
+  poseState[part] = saved;
+  poseState[arm] = savedArm;
+  return picture;
+}
+
+function showGallery(part) {
+  const box = $("part-gallery");
+  if (!current || (!box.hidden && box.dataset.part === part)) {
+    box.hidden = true;
+    return;
+  }
+  box.dataset.part = part;
+  $("gallery-title").textContent = `${PARTS[part].name}: 그림을 눌러 고름`;
+  const items = Object.entries(PARTS[part].options).map(([key, option]) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "option" + (poseState[part] === key ? " chosen" : "");
+    const image = new Image();
+    image.alt = "";
+    image.src = renderOption(part, key, 120, 150).toDataURL("image/png");
+    const label = document.createElement("span");
+    label.textContent = option.name;
+    button.append(image, label);
+    button.addEventListener("click", () => {
+      dropFilePose();
+      poseState[part] = key;
+      for (const other of $("gallery-items").children) other.classList.toggle("chosen", other === button);
+      syncParts();
+      redraw();
+    });
+    return button;
+  });
+  applyPose();
+  $("gallery-items").replaceChildren(...items);
+  box.hidden = false;
+}
+
+// ---------------------------------------------------------------- 자세 보정: 팔꿈치나 손목이 몸통 안에 묻히면 위팔을 조금씩 바깥으로(관절 돌리기 값에 더함)
+function insideTorso(point, torso) {
+  if (!point || point.y < torso.bottom || point.y > torso.top) return false;
+  const f = (point.y - torso.bottom) / Math.max(0.01, torso.top - torso.bottom);
+  const cx = torso.low.x + (torso.high.x - torso.low.x) * f, cz = torso.low.z + (torso.high.z - torso.low.z) * f;
+  const dx = point.x - cx, dz = point.z - cz;
+  const u = dx * torso.across.x + dz * torso.across.z;  // 어깨 방향
+  const v = dx * -torso.across.z + dz * torso.across.x;  // 앞뒤 방향
+  return (u / torso.rx) ** 2 + (v / torso.rz) ** 2 < 1;
+}
+
+function fixArms() {
+  applyPose();
+  const left = bone("leftUpperArm"), right = bone("rightUpperArm"), hips = bone("hips"), neck = bone("neck") || bone("head");
+  if (!left || !right || !hips || !neck) return "팔과 몸 뼈가 없는 모델";
+  const shoulders = left.distanceTo(right);
+  const across = new THREE.Vector3(left.x - right.x, 0, left.z - right.z).normalize();
+  const torso = { low: hips, high: neck, bottom: hips.y - shoulders * 0.2, top: neck.y, across, rx: shoulders * 0.42, rz: shoulders * 0.3 };
+  const moved = [];
+  for (const side of ["left", "right"]) {
+    let turned = 0;
+    for (let step = 0; step < 14; step += 1) {
+      applyPose();
+      const buried = [bone(`${side}LowerArm`), bone(`${side}Hand`)].some((point) => insideTorso(point, torso));
+      if (!buried) break;
+      const values = tweaks[`${side}UpperArm`] || [0, 0, 0];
+      tweaks[`${side}UpperArm`] = [values[0], values[1], values[2] + 0.06];  // 같은 값이면 양쪽 모두 바깥(거울)
+      turned += 0.06;
+    }
+    if (turned) moved.push(`${side === "left" ? "왼팔" : "오른팔"} ${Math.round((turned * 180) / Math.PI)}°`);
+  }
+  applyPose();
+  return moved.length ? `바깥으로: ${moved.join(", ")}(관절 직접 돌리기의 위팔 값)` : "몸에 묻힌 팔 없음";
+}
+
+// ---------------------------------------------------------------- 자세 JSON(three-vrm VRMPose: 뼈 이름 -> { rotation: [x, y, z, w] }, VRM 1.0 방향)
+function poseJson() {
+  applyPose();
+  const { vrm, flip } = current;
+  const pose = {};
+  for (const name of ALL_BONES) {
+    const node = vrm.humanoid.getNormalizedBoneNode(name);
+    if (!node) continue;
+    const q = node.quaternion;
+    if (Math.abs(q.w) > 0.99999) continue;  // 돌리지 않은 뼈는 뺌
+    pose[name] = { rotation: [q.x * flip, q.y, q.z * flip, q.w].map((value) => Math.round(value * 1e5) / 1e5) };
+  }
+  return pose;
+}
+
+function readPoseJson(text) {
+  const data = JSON.parse(text);
+  const pose = {};
+  for (const [name, value] of Object.entries(data && typeof data === "object" ? data : {})) {
+    const rotation = Array.isArray(value) ? value : value && value.rotation;
+    if (!ALL_BONES.includes(name) || !Array.isArray(rotation) || rotation.length !== 4 || !rotation.every(Number.isFinite)) continue;
+    const q = new THREE.Quaternion(...rotation).normalize();
+    pose[name] = [q.x, q.y, q.z, q.w];
+  }
+  if (!Object.keys(pose).length) throw new Error("JSON에서 VRM 뼈 회전을 찾지 못함(three-vrm VRMPose 형식)");
+  return pose;
+}
+
+$("fix-arms").addEventListener("click", () => {
+  if (!current) return;
+  $("fix-state").textContent = fixArms();
+  showJoint();
+  redraw();
+});
+$("pose-json").addEventListener("click", () => {
+  if (!current) return;
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(new Blob([JSON.stringify(poseJson(), null, 1)], { type: "application/json" }));
+  link.download = "debutkit-pose.json";
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(link.href), 5000);
 });

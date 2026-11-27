@@ -35,7 +35,14 @@
     canvas.pose-shot { width: 100%; height: auto; border-radius: 4px; display: block;
       background: repeating-conic-gradient(#e9e4dd 0% 25%, #f6f2ee 0% 50%) 0 0 / 20px 20px; }
     .parts { display: grid; gap: 8px; }
-    .part { display: grid; grid-template-columns: 56px 1fr auto; gap: 8px; align-items: center; }
+    .part { display: grid; grid-template-columns: 56px 1fr auto auto; gap: 8px; align-items: center; }
+    button.small { padding: 3px 9px; font-size: 13px; }
+    .gallery { margin-top: 10px; border: 1px solid var(--line); border-radius: 4px; padding: 8px 10px; }
+    .gallery-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 6px; margin-top: 6px; }
+    .gallery-items button.option { background: #fff; color: var(--text); border: 1px solid var(--line); border-radius: 4px; padding: 4px; font-weight: 500;
+      display: grid; gap: 2px; font-size: 12px; }
+    .gallery-items button.option.chosen { border-color: var(--text); box-shadow: 0 0 0 2px var(--text) inset; }
+    .gallery-items img { width: 100%; aspect-ratio: 4 / 5; object-fit: contain; background: repeating-conic-gradient(#e9e4dd 0% 25%, #f6f2ee 0% 50%) 0 0 / 14px 14px; }
     .part span { font-weight: 600; }
     label.check { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: var(--dim); }
     [hidden] { display: none !important; }
@@ -91,13 +98,17 @@
         <canvas class="pose-shot" id="pose-shot" width="480" height="720"></canvas>
         <div>
           <div class="parts" id="parts"></div>
+          <div class="gallery" id="part-gallery" hidden><p class="state" id="gallery-title"></p><div class="gallery-items" id="gallery-items"></div></div>
           <div class="row" style="margin-top: 10px">
             <button type="button" id="random">랜덤 포즈</button>
             <label>표정 <select id="pose-face"></select></label>
             <label>각도 <select id="pose-angle"></select></label>
             <label class="check"><input type="checkbox" id="pose-bg" checked> 무대 배경</label>
           </div>
-          <div class="row" style="margin-top: 10px"><button type="button" class="secondary" id="save-pose" disabled>PNG 저장(1024x1536)</button></div>
+          <div class="row" style="margin-top: 10px"><button type="button" class="secondary" id="save-pose" disabled>PNG 저장(1024x1536)</button>
+            <button type="button" class="secondary" id="fix-arms">자세 보정(몸에 묻힌 팔 빼기)</button>
+            <button type="button" class="secondary" id="pose-json">자세 파일 저장(JSON)</button></div>
+          <p class="state" id="fix-state"></p>
           <details class="tool">
             <summary>관절 직접 돌리기</summary>
             <div class="row"><select id="joint-bone" aria-label="돌릴 관절"></select>
@@ -108,8 +119,8 @@
             <label class="slider"><span id="joint-z-name">옆으로</span><input type="range" id="joint-z" min="-90" max="90" value="0"><output id="joint-z-out">0°</output></label>
           </details>
           <details class="tool">
-            <summary>자세 파일 불러오기(VRMA, VPD)</summary>
-            <div class="row"><input type="file" id="pose-file" accept=".vrma,.vpd" aria-label="자세 파일">
+            <summary>자세 파일 불러오기(VRMA, VPD, JSON)</summary>
+            <div class="row"><input type="file" id="pose-file" accept=".vrma,.vpd,.json" aria-label="자세 파일">
               <button type="button" class="secondary" id="pose-file-off" disabled>파일 자세 끄기</button></div>
             <label class="slider" id="vrma-time-row" hidden>동작 시점<input type="range" id="vrma-time" min="0" max="1000" value="0"><output id="vrma-time-out">0.0초</output></label>
             <label class="slider" id="vpd-arm-row" hidden>MMD 팔 각도<input type="range" id="vpd-arm" min="0" max="50" value="35"><output id="vpd-arm-out">35°</output></label>
@@ -133,9 +144,13 @@
             <p class="state" id="vmc-state"></p>
           </details>
           <ul class="tips">
-            <li>부위(몸, 머리, 왼팔, 오른팔, 다리)마다 골라 조합. 위의 추천 자세를 고르면 모든 부위가 그 자세로</li>
+            <li>부위(허리, 상체, 머리, 왼팔, 오른팔, 왼손, 오른손, 다리)마다 골라 조합. 위의 추천 자세를 고르면 모든 부위가 그 자세로</li>
+            <li>예시: 그 부위의 선택지를 그림으로(손은 손만, 머리는 얼굴만 가까이). 그림을 누르면 고름</li>
+            <li>자세 보정: 팔꿈치나 손목이 몸에 묻힌 팔을 바깥으로 조금씩 돌림(관절 직접 돌리기의 위팔 값에 더함)</li>
+            <li>자세 파일 저장(JSON): three-vrm 자세 형식(뼈 이름과 회전). 다른 VRM에도 불러오기</li>
             <li>관절 직접 돌리기: 고른 자세 위에 관절 하나씩 더 돌림(손목, 어깨, 무릎 등)</li>
-            <li>자세 파일: VRMA(VRoid 공식 동작 등, 원하는 시점의 자세)와 MMD 포즈 파일 VPD. 파일은 이 브라우저 안에서만 읽음</li>
+            <li>자세 파일: VRMA(VRoid 공식 동작 등, 원하는 시점의 자세), MMD 포즈 파일 VPD, 자세 JSON. 파일은 이 브라우저 안에서만 읽음</li>
+            <li>VRoid Studio 포즈 파일(.vroidpose)은 공개 형식 문서를 찾지 못해 읽지 않음</li>
             <li>MMD 팔 각도: MMD 모델은 팔을 내린 자세가 기준이라 그 각도만큼 고쳐서 적용(팔이 너무 올라가거나 내려가면 조절)</li>
             <li>VMC로 자세 보내기: Warudo, VSeeFace, VMagicMirror의 VMC 받기(포트 39539)를 켜고 같은 VRM을 불러 두면 지금 자세와 표정이 그대로. 자세를 바꾸면 바로 반영</li>
             <li>얼굴 추적 VMC 송신(<a href="/vmc">/vmc</a>)이 켜져 있으면 머리와 표정은 얼굴 추적 값. 이 화면을 닫으면 20초 안에 멈춤</li>
