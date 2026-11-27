@@ -5,8 +5,8 @@
   <img alt="debutkit" src="assets/brand/lockup/horizontal_light-bg.svg" width="360">
 </picture>
 
-버튜버 방송 준비용 오픈소스 소프트웨어<br>
-PC 점검, OBS 장면 구성, 통합 채팅창과 후원 알림, 방송 중 자동 클립
+버튜버 방송 준비용 오픈소스 소프트웨어(무상, Apache-2.0)<br>
+PC 점검, OBS 장면 구성, 통합 채팅창과 후원 알림, 방송 연출, 방송 이미지 제작, 자동 클립
 
 <a href="LICENSE"><img alt="license" src="https://img.shields.io/badge/license-Apache--2.0-1E2327?style=flat-square"></a>
 <img alt="version" src="https://img.shields.io/badge/version-1.0.0rc20-BF3B68?style=flat-square">
@@ -19,21 +19,25 @@ PC 점검, OBS 장면 구성, 통합 채팅창과 후원 알림, 방송 중 자�
 
 ## 개요
 
-- 신규 버튜버의 방송 전 준비 작업(PC 점검, 장면 구성, 채팅 연결)을 하나의 프로그램으로 제공
+- 대상: 방송을 처음 준비하는 버튜버
+- 범위: 방송 전 준비(PC 점검, 장면 구성, 채팅 연결), 방송 중 연출(후원 추첨, 뽑기판, 후원 벽, 참여 레이스, 주사위 판), 방송 이미지와 캐릭터 그림 제작
 - 지원 플랫폼: 치지직, SOOP, Twitch, YouTube
-- 트래킹(VTube Studio 등)과 송출(OBS Studio)은 기존 프로그램을 사용하고, 프로그램 사이의 설정과 연결을 담당. OBS 없이 송출 화면을 바로 보내는 토크 방송용 송출도 제공(Windows)
+- 역할 분담: 트래킹(VTube Studio 등)과 송출(OBS Studio)은 기존 프로그램 이용, debutkit은 프로그램 사이의 설정과 연결 담당
+- 토크 방송용 직접 송출(Windows): OBS 없이 송출 화면을 플랫폼으로 전송
 
 ## 기능
 
 | 기능 | 명령 | 내용 |
 |---|---|---|
-| 설정 마법사 | `debutkit-gui` | PC 점검, 캐릭터, OBS 장면, 채팅과 알림, 마무리의 5단계 안내. 모든 기능을 창에서 사용 |
+| 설정 마법사 | `debutkit-gui` | PC 점검, 캐릭터, OBS 장면, 채팅과 알림, 마무리의 5단계 안내. 모든 기능을 창에서 이용 |
 | 방송 시작 버튼 | `debutkit launch` | 세팅별로 켤 것(프로그램, 바로가기, 폴더, 사이트)을 차례로 켜고 방해되는 프로그램(메신저, 게임 런처)은 먼저 끔. 이미 켜진 것 건너뛰기, 창 자리와 크기 기억(듀얼 모니터), 다시 켜짐 알림, 방송 끝에 꺼 둔 프로그램 다시 켜기. 운영체제와 보안 프로그램은 끄지 않음 |
 | PC 점검 | `debutkit doctor` | 메모리, CPU, 그래픽카드, 저장 공간, 마이크, 웹캠, OBS, 트래킹 프로그램, ffmpeg 점검 및 조치 안내. 아바타 모델(VRM) 사용 조건 확인, 업로드 속도 측정 |
-| 캐릭터 | `debutkit character`, `debutkit motion` | PNGTuber, 3D(VRM, GLB, FBX), Live2D 등록과 사용 조건 확인. PNGTuber와 3D는 debutkit 캐릭터 화면으로 방송(OBS 마이크 음량으로 입 움직임, 웹캠 얼굴 추적, 아이폰 얼굴 추적 `debutkit phone`, 퍼펙트 싱크). 얼굴 추적 값을 VMC 프로토콜로 Warudo, VSeeFace, VMagicMirror에 보내기(`debutkit vmc`). 3D 캐릭터 동작(VRMA, Mixamo 등의 FBX, GLB)으로 기본 동작과 후원 반응. Live2D는 VTube Studio로 보내기, 모델 불러오기, 후원 시 단축키 실행(`debutkit vts`) |
+| 캐릭터 | `debutkit character`, `debutkit motion` | 기본 캐릭터 데비(PNGTuber, 3D VRM) 제공. PNGTuber, 3D(VRM, GLB, FBX), Live2D 등록과 사용 조건 확인. PNGTuber와 3D는 debutkit 캐릭터 화면으로 방송(OBS 마이크 음량으로 입 움직임, 웹캠 얼굴 추적, 아이폰 얼굴 추적 `debutkit phone`, 퍼펙트 싱크). 얼굴 추적 값을 VMC 프로토콜로 Warudo, VSeeFace, VMagicMirror에 보내기(`debutkit vmc`). 3D 캐릭터 동작(VRMA, Mixamo 등의 FBX, GLB)으로 기본 동작과 후원 반응. Live2D는 VTube Studio로 보내기, 모델 불러오기, 후원 시 단축키 실행(`debutkit vts`) |
+| 캐릭터 그림 만들기 | `/character/sheet` | VRM 표정 시트와 PNGTuber 4상태(투명 1024px) 제작과 등록. 포즈 그림: 부위 8개(허리, 상체, 머리, 팔, 손, 다리)와 선택지 76개, 손 모양 8종, 추천 자세 10종, 관절 조정, 자세 보정, VRMA, MMD VPD, 자세 JSON 불러오기, 내 자세 저장, VMC로 자세 전송, 투명 PNG. 모델 점검(표정, 텍스처 용량)과 경량 사본 |
+| 방송 이미지 만들기 | `/decor` | 프로필 사진(움짤 포함), 체키, 다시보기 썸네일, 쇼츠 커버, YouTube, Twitch 배너, SOOP 방송국 배너와 연결 배너(3장, 6장 분할, 장당 200KB 이하), 네컷 사진, 방셀 액자 10종, 시그니처 풍선 그림(후원 벽 등록), 원하는 크기. 완성 프리셋 9종, 테두리 12종, 파티클 9종, 자막 10종, 손그림 펜, 움짤과 영상 입력 |
 | OBS 장면 구성 | `debutkit scenes`, `debutkit camera` | 대기 화면, 본방송, 토크, 자리 비움, 엔딩 장면 생성. 아바타 투명 배경 캡처, 채팅창과 후원 알림 연결. 게임 패키지 배치(`--game`)와 프레임(`--frames`). 휴대폰 카메라 영상(SRT, 암호)을 받는 OBS 소스와 휴대폰 앱 연결 QR |
 | 채팅창과 후원 알림 | `debutkit overlay`, `debutkit draw`, `debutkit raffle` | OBS 브라우저 소스용 통합 채팅창과 후원 알림. 채팅창 표시 형태 6종(방송 스타일 카드 포함)과 이름 색, 등장, 정렬. 알림 꾸미기(`/alerts/control`: 배치 6종, 위치 9곳, 문구, 효과음, 금액 구간별 그림과 강조 효과). 후원 추첨 연출 7종(카드 뒤집기, 룰렛, 캡슐 뽑기, 즉석 복권, 티켓 출력, 추첨기, 타로, 상품과 확률표, 금액별 추첨 횟수). 시청자 참여 추첨(채팅 !참가로 모집, 당첨자 뽑기, 순서 정하기). 스트리머, 매니저 채팅 명령. 휴대폰 조작 화면(`debutkit remote`, QR 등록과 PC 승인, 요청 서명) |
-| 방송 연출 | `debutkit pick`, `debutkit wall`, `debutkit race` | 뽑기판(당첨 칸은 조작 화면에서만, 채팅과 후원으로 시청자가 열기, 배치 공정성 확인), 후원 벽(단위별 카드 벽지, 시그니처 그림, 목표 게이지, 후원 순위), 참여 레이스(구슬 레이스, 달리기 경주, 서바이벌). 방송 화면 미리보기(`/stage`), 방송 색(모든 화면의 색 맞춤), 방송 스타일 16종(파스텔, 네온, 레트로 픽셀, 유리 등 일반 8종과 택티컬, 마법 금장, 선술집 카드 등 게임 장르 8종)과 글꼴(설치한 글꼴, 내 글꼴 올리기). 게임 패키지 10종(발로란트, 리그 오브 레전드, 오버워치, 하스스톤 등: 장르 스타일, 색, 그 게임의 HUD를 피한 배치)과 프레임(캐릭터 테두리, 대기, 자리 비움, 엔딩 화면). 모든 방송 화면이 공유 연결 하나를 쓰고 가운데 연출은 차례로 |
+| 방송 연출 | `debutkit pick`, `debutkit wall`, `debutkit race`, `/board` | 뽑기판(디자인 8종, 칸 덮개 18종, 당첨 칸은 조작 화면에서만, 채팅과 후원으로 시청자가 열기, 배치 공정성 확인), 후원 벽(단위별 카드 벽지, 시그니처 그림, 목표 게이지, 후원 순위), 참여 레이스(구슬 레이스 코스 4종, 달리기 경주, 수영, 서바이벌, 후원 참가자 한마디), 주사위 판(칸 미션 말판 게임, 특별한 칸과 행운 카드, 차례인 시청자의 채팅 굴리기). 후원 추첨 연출 모양 32종. 방송 화면 미리보기(`/stage`), 방송 색(모든 화면의 색 맞춤), 방송 스타일 16종(파스텔, 네온, 레트로 픽셀, 유리 등 일반 8종과 택티컬, 마법 금장, 선술집 카드 등 게임 장르 8종)과 공통 글꼴 목록(함께 배포한 한글 글꼴 18종, 설치한 글꼴, 내 글꼴 올리기). 게임 패키지 10종(발로란트, 리그 오브 레전드, 오버워치, 하스스톤 등: 장르 스타일, 색, 그 게임의 HUD를 피한 배치)과 프레임(캐릭터 테두리, 대기, 자리 비움, 엔딩 화면). 모든 방송 화면이 공유 연결 하나를 쓰고 가운데 연출은 차례로 |
 | 디스코드 합방 | 시작하기 화면의 팬과 함께 | 디스코드 공식 음성 위젯을 방송 스타일로 꾸미기(참여자별 캐릭터 그림, 말하는 사람만 밝게)와 웹훅 방송 알림(방송 시작, 끝 요약) |
 | 팬 커뮤니티 | `debutkit community` | 트게더처럼 스트리머마다 자기 커뮤니티(공지, 방송 일정, 자유, 팬아트, 질문, 클립 게시판, 댓글, 출석과 포인트, 등급, 순위). 스트리머 본인의 Cloudflare 무료 계정에 debutkit이 올림. 방송 채팅 `!인증 숫자`로 가입(치지직, SOOP, YouTube, Twitch), `!출석` 포인트, 방송에 띄우기, 참여 추첨 연결, 신고 처리와 데이터 내보내기 |
 | 휴대폰 앱 | `mobile/` | 안드로이드(APK, MediaPipe), 아이폰(ARKit, 소스 빌드) 얼굴 추적과 카메라 영상(WebRTC, OBS 브라우저 소스로 직접 전송) 앱. 같은 QR로 등록하고 PC에서 승인, 서명된 요청과 값만 사용. 안드로이드는 PC 없이 바로 방송(캐릭터 화면 또는 카메라 영상을 치지직, SOOP, YouTube, Twitch로 송출) 지원. [mobile/README.md](mobile/README.md) |
@@ -47,14 +51,14 @@ PC 점검, OBS 장면 구성, 통합 채팅창과 후원 알림, 방송 중 자�
 ### Windows
 
 - [릴리스 페이지](https://github.com/BudongJW/debutkit/releases/latest)에서 설치 프로그램(`debutkit-버전-windows-x64-setup.exe`) 실행. 시작 메뉴에 debutkit 등록
-- 설치 없이 사용하는 경우 `debutkit-버전-windows-x64.zip` 압축 해제 후 `debutkit-gui.exe` 실행
+- 설치 프로그램 없이 이용 시: `debutkit-버전-windows-x64.zip` 압축 해제 후 `debutkit-gui.exe` 실행
 - 관리자 권한과 파이썬 설치 불필요. 자동 클립용 ffmpeg는 설치 과정 또는 설정 마법사에서 다운로드
 
 ### macOS, Linux
 
 - macOS(Apple Silicon): `debutkit-버전-macos-arm64.zip` 압축 해제 후 debutkit.app 실행. 공증하지 않은 프로그램이므로 첫 실행은 Finder에서 우클릭 후 열기
 - Linux(x64): `debutkit-버전-linux-x64.tar.gz` 압축 해제 후 `debutkit/debutkit-gui` 실행. Qt 실행에 `libxcb-cursor0` 등 그래픽 라이브러리 필요
-- 파이썬 패키지로 설치하는 경우(Python 3.10 이상)
+- 파이썬 패키지 설치(Python 3.10 이상)
 
 ```bash
 pip install "debutkit[gui] @ git+https://github.com/BudongJW/debutkit"
@@ -84,16 +88,18 @@ debutkit launch add 방송 "C:/Program Files/obs-studio/bin/64bit/obs64.exe" && 
 debutkit clip shorts 클립.mp4 --mode crop --focus 0.8   # 세로 쇼츠
 ```
 
-- 방송 화면 미리보기: http://127.0.0.1:8790/stage (모든 방송 화면을 겹쳐 보기, 시험 후원, 방송 색, 방송 스타일, 글꼴)
+- 방송 화면 미리보기: http://127.0.0.1:8790/stage (모든 방송 화면 겹쳐 보기, 시험 후원, 방송 색, 방송 스타일, 글꼴)
 - 알림 꾸미기: http://127.0.0.1:8790/alerts/control
 - 팬 커뮤니티 만들기와 연동: http://127.0.0.1:8790/community/control
+- 주사위 판: http://127.0.0.1:8790/board/control
+- 캐릭터 그림 만들기: http://127.0.0.1:8790/character/sheet, 방송 이미지 만들기: http://127.0.0.1:8790/decor
 
 - OBS 장면 생성 전 OBS의 도구 메뉴에서 WebSocket 서버 사용 설정 필요
 - 시작하기 화면: http://127.0.0.1:8790 (방송 준비 목록, 방송 화면마다 OBS에 넣기, 채팅창 표시 형태, 미리보기, 시험 메시지)
 - 디스코드 합방: http://127.0.0.1:8790/discord/control (합방 참여자 화면 꾸미기, 디스코드 방송 알림)
-- 본인 치지직 채널은 공식 API 사용 권장(`debutkit chzzk login` 실행 후 `debutkit overlay --chzzk-api`)
-- YouTube 채팅은 스트리밍 방식(연결 1회 5 단위)을 우선 사용하고, 사용할 수 없으면 요청 방식으로 자동 전환
-- 리플레이 버퍼를 처음 설정한 경우 OBS 재시작 후 사용 가능
+- 본인 치지직 채널: 공식 API 권장(`debutkit chzzk login` 실행 후 `debutkit overlay --chzzk-api`)
+- YouTube 채팅: 스트리밍 방식(연결 1회 5 단위) 우선, 불가 시 요청 방식으로 자동 전환
+- 리플레이 버퍼 최초 설정 시 OBS 재시작 필요
 - 설정 마법사와 `--save`는 채널 주소와 선택 항목을 이 PC에 저장(API 키, 비밀번호 제외). `debutkit settings`로 확인, `--clear`로 삭제
 - 클립 저장 위치: `동영상/debutkit-clips` (`--clip-dir`로 변경)
 
@@ -103,16 +109,17 @@ debutkit clip shorts 클립.mp4 --mode crop --focus 0.8   # 세로 쇼츠
 
 | 항목 | 내용 |
 |---|---|
-| 무상 공개 | 모든 기능을 Apache-2.0으로 공개. 소속 프로그램 참여 여부와 무관 |
-| 정보 수집 없음 | 사용 통계 미전송. 오버레이는 이 PC(127.0.0.1)에서만 접속 가능, 채팅 미저장 |
-| 공식 API 우선 | 치지직과 YouTube는 공식 API 사용. 비공식 수신은 다른 채널 시험 용도 |
-| 기존 프로그램 활용 | 트래킹(VTube Studio, VSeeFace 등)과 송출(OBS Studio)은 기존 프로그램 사용 |
+| 무상 공개 | 모든 기능을 Apache-2.0으로 공개. 소속 의향서 제출 여부와 무관 |
+| 정보 수집 없음 | 이용 통계 미전송. 오버레이는 이 PC(127.0.0.1)에서만 접속, 채팅 미저장 |
+| 공식 API 우선 | 치지직과 YouTube는 공식 API 이용. 비공식 수신은 다른 채널 시험 용도 |
+| 기존 프로그램 활용 | 트래킹(VTube Studio, VSeeFace 등)과 송출(OBS Studio)은 기존 프로그램 이용 |
 
 ## 소속 버튜버 프로그램
 
-- 운영 팀이 버튜버 소속사(엔터테인먼트) 사업을 함께 준비 중
-- 소속 의향 등록은 희망자에 한해 별도 접수. 미등록 사용자에게도 모든 기능을 동일하게 제공
-- 등록은 계약이 아니며 언제든 철회 가능
+- 운영 팀의 버튜버 소속사(엔터테인먼트) 사업 준비 중
+- 소속 의향서: 희망자에 한해 별도 접수. 미제출 이용자에게도 모든 기능 동일 제공
+- 의향서 제출은 계약 아님. 언제든 철회 가능
+- 참여 유형(프로그램 이용, 개발 기여, 실사용 환경 검증, 소속 의향서 제출)별 개별 신청, 다른 유형의 의무 없음
 - 운영 원칙: [docs/MEMBERSHIP.md](docs/MEMBERSHIP.md), [참여 안내](https://budongjw.github.io/debutkit/join.html)
 
 ## 문서
@@ -137,10 +144,11 @@ pytest -q && ruff check .
 ```
 
 - Windows 실행 파일: `pip install -e ".[gui,build]"` 후 `python packaging/build_windows.py`. 생성한 프로그램을 파이썬 없이 실행해 동작 확인. `--installer` 지정 시 설치 프로그램도 생성(Inno Setup 6 필요)
+- 함께 배포하는 한글 글꼴: `python packaging/build_fonts.py 받은_TTF_폴더`(google/fonts OFL 글꼴을 2,350자 woff2로 축소)
 - macOS, Linux 실행 파일: `python packaging/build_app.py`(각 운영체제에서 실행)
 - 릴리스: [docs/RELEASING.md](docs/RELEASING.md). `v*` 태그 push 시 GitHub Actions가 운영체제별 배포 파일을 만들어 첨부하고, Windows, macOS, Linux의 실제 OBS 검증(`verify.yml`)을 실행
 - 프로젝트 사이트: `site/` 수정 후 `python packaging/build_site.py`로 확인. main 반영 시 GitHub Pages에 자동 배포
 
 ## 라이선스
 
-[Apache-2.0](LICENSE). 연동하는 외부 프로그램(OBS Studio, VTube Studio 등)에는 각 프로그램의 라이선스 적용. 함께 배포하는 외부 코드의 출처와 라이선스는 `src/debutkit/overlay/static/vendor/README.txt`, `src/debutkit/vendor/README.txt`
+[Apache-2.0](LICENSE). 연동하는 외부 프로그램(OBS Studio, VTube Studio 등)에는 각 프로그램의 라이선스 적용. 함께 배포하는 외부 코드와 글꼴(SIL OFL)의 출처와 라이선스: `src/debutkit/overlay/static/vendor/README.txt`, `src/debutkit/vendor/README.txt`

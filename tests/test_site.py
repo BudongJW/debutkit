@@ -104,6 +104,26 @@ def test_writing_style(path):
     assert not found, "\n".join(found)
 
 
+#: 사이트와 README는 공문서 개조식(CONTRIBUTING.md 표기 원칙의 번역체, AI 투 표): 서술형 종결과 AI 투 표현 사용 안 함
+OFFICIAL = {
+    "서술형 종결": r"(?:합니다|입니다|습니다)(?=[.\s,)]|$)",
+    "수량 예고": r"(?:두|세|네|다섯|여섯|일곱|여덟|아홉|열|\d+)\s?가지(?:입니다|이며|로 나뉩|가 있습)",
+    "각 ~은 서로": r"각\s?\S+[은는]\s?서로",
+    "~이 발생": r"(?:의무|문제|비용|오류)[가이는은]?\s?발생",
+    "이음말": r"또한|뿐만 아니라|이를 통해|이를 바탕으로",
+    "막연한 수식어": r"다양한|원활한|최적의|간편하게",
+    "할 수 있습니다": r"할 수 있습니다",
+    "호칭": r"여러분|당신",
+}
+
+
+@pytest.mark.parametrize("path", [ROOT / "README.md", *PAGES], ids=lambda p: str(p.relative_to(ROOT)))
+def test_official_style(path):
+    prose = _prose(path)
+    found = [f"{kind}: {line.strip()[:80]}" for kind, pattern in OFFICIAL.items() for line in prose.splitlines() if re.search(pattern, line)]
+    assert not found, "\n".join(found)
+
+
 @pytest.mark.parametrize("path", DOCS + PAGES, ids=lambda p: str(p.relative_to(ROOT)))
 def test_no_exclamation_or_slogan_headings(path):
     prose = _prose(path)

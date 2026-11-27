@@ -1960,115 +1960,262 @@
 
   // ---------------------------------------------------------------- 수영: 위에서 본 수영 선수(오른쪽으로 헤엄). cy는 줄 가운데, L은 줄 높이
   function drawSwimmer(g, P, x, cy, L, color, phase, pose, t, number, font) {
-    const u = L * 0.42;  // 몸 길이의 반
-    const stroke = phase * 0.9;
-    const suit = color.fill || color, edge = color.dark || "rgba(30, 35, 39, 0.55)", mark = color.text || "#ffffff";  // 참가자 색
-    g.save();
-    if (pose === "dive") g.globalAlpha = 0.45;  // 잠영: 물속이라 흐리게
-    // 물보라와 물결(헤엄치는 중)
-    if (pose === "run" || pose === "sprint" || pose === "wave") {
-      g.save();
-      g.globalAlpha = pose === "wave" ? 0.85 : 0.55;
-      g.strokeStyle = "rgba(255, 255, 255, 0.85)";
-      g.lineWidth = Math.max(1.5, L * 0.03);
-      for (let k = 1; k <= 3; k++) {  // 뒤로 퍼지는 물결
-        const back = x - u * (1.2 + k * 0.7);
-        const spread = u * (0.25 + k * 0.12);
-        g.beginPath();
-        g.moveTo(back + u * 0.35, cy - spread * 0.5);
-        g.quadraticCurveTo(back, cy, back + u * 0.35, cy + spread * 0.5);
-        g.stroke();
-      }
-      g.fillStyle = "#ffffff";
-      for (let k = 0; k < (pose === "wave" ? 9 : 5); k++) {  // 발차기 물방울
-        const a = stroke * 2 + k * 1.7;
-        const r = L * (0.03 + 0.025 * Math.abs(Math.sin(a)));
-        g.beginPath();
-        g.arc(x - u * (1.45 + 0.25 * Math.sin(a * 1.3)), cy + Math.sin(a) * u * 0.28, r, 0, TAU);
-        g.fill();
-      }
-      g.restore();
-    }
-    if (pose === "dive") {  // 공기 방울
-      g.fillStyle = "rgba(255, 255, 255, 0.9)";
-      for (let k = 0; k < 4; k++) {
-        const b = (t * 1.7 + k * 0.27) % 1;
-        g.beginPath();
-        g.arc(x - u * (0.2 + b * 1.4), cy - u * 0.2 + Math.sin(k + t * 4) * u * 0.18, L * 0.025 * (1 + b), 0, TAU);
-        g.fill();
-      }
-    }
-    // 팔(자유형): 두 팔이 번갈아 앞으로 뻗었다가 뒤로
-    const shoulderX = x - u * 0.15;
-    const arm = (side, angle) => {
-      const reach = pose === "idle" ? 1 : Math.cos(angle);
-      const hx = shoulderX + u * (0.15 + 0.85 * reach);
-      const hy = cy + side * u * (0.3 + 0.12 * Math.abs(Math.sin(angle)));
-      g.strokeStyle = "#f2c9a8";
-      g.lineWidth = L * 0.09;
+    // 위에서 본 자유형 선수(오른쪽으로 헤엄). s는 줄 높이 1/100 단위. 물속 부분(다리, 끌어당기는 팔)은 물빛을 덮어 흐리게
+    const s = L / 100;
+    x -= 32 * s;  // 앞으로 뻗은 손끝이 경기 위치(결승 벽에 손이 닿게)
+    const suit = color.fill || color, suitDark = color.dark || "#1e2327", suitLight = color.light || "#ffffff", mark = color.text || "#ffffff";
+    const SKIN = "#f3c9a5", SKIN_DARK = "#d9a27c", water = P.design === "metal" ? "rgba(12, 60, 90, 0.42)" : "rgba(40, 150, 200, 0.38)";
+    const swimming = pose === "run" || pose === "sprint" || pose === "wave" || pose === "limp";
+    const stroke = swimming ? phase * 0.9 : 0;
+    const roll = swimming ? Math.sin(stroke) : 0;  // 몸 돌림(-1에서 1): 위로 올라온 쪽이 밝음
+    const sx = x + 2 * s;  // 어깨 줄
+    const hx = x + 19 * s;  // 머리 가운데
+    const limb = (points, width, fill) => {  // 끝이 둥근 팔다리(관절 점들)
+      g.strokeStyle = fill;
+      g.lineWidth = width;
       g.lineCap = "round";
+      g.lineJoin = "round";
       g.beginPath();
-      g.moveTo(shoulderX, cy + side * u * 0.26);
-      g.lineTo(hx, hy);
+      points.forEach(([px, py], index) => g[index ? "lineTo" : "moveTo"](px, py));
       g.stroke();
     };
-    if (pose === "cheer") {  // 도착: 한 팔을 들어 흔듦
-      arm(-1, Math.PI);
-      g.strokeStyle = "#f2c9a8";
-      g.lineWidth = L * 0.09;
+    g.save();
+    if (pose === "dive") g.globalAlpha = 0.55;  // 잠영: 물속
+
+    // 그림자(물 밑)
+    g.fillStyle = "rgba(0, 40, 70, 0.16)";
+    g.beginPath();
+    g.ellipse(x - 10 * s, cy + 6 * s, 40 * s, 12 * s, 0, 0, TAU);
+    g.fill();
+
+    // 물결: 뒤로 퍼지는 V자와 발차기 거품
+    if (swimming) {
+      g.strokeStyle = "rgba(255, 255, 255, 0.55)";
+      g.lineWidth = Math.max(1.2, 1.8 * s);
+      for (let k = 0; k < 3; k++) {
+        const back = x - (68 + k * 16) * s;
+        const open = (14 + k * 7) * s;
+        g.globalAlpha = (pose === "dive" ? 0.3 : 0.7) - k * 0.18;
+        g.beginPath();
+        g.moveTo(back + 12 * s, cy - open);
+        g.quadraticCurveTo(back, cy, back + 12 * s, cy + open);
+        g.stroke();
+      }
+      g.globalAlpha = pose === "dive" ? 0.55 : 1;
+      g.fillStyle = "rgba(255, 255, 255, 0.9)";
+      const kicks = pose === "limp" ? 2 : pose === "wave" ? 12 : 7;
+      for (let k = 0; k < kicks; k++) {
+        const a = stroke * 2.2 + k * 1.9;
+        g.beginPath();
+        g.arc(x - (60 + 8 * Math.abs(Math.sin(a * 0.7))) * s, cy + Math.sin(a) * 9 * s, (1.4 + 1.6 * Math.abs(Math.cos(a))) * s, 0, TAU);
+        g.fill();
+      }
+    }
+
+    // 다리(물속, 번갈아 차기): 반투명으로 물이 비쳐 보이게
+    g.save();
+    g.globalAlpha *= 0.72;
+    for (const side of [-1, 1]) {
+      const kick = pose === "limp" && side > 0 ? 0 : swimming ? Math.sin(stroke * 2.2 + (side > 0 ? 0 : Math.PI)) * 4 * s : 0;
+      const hip = [x - 30 * s, cy + side * 5.5 * s];
+      const knee = [x - 45 * s, cy + side * 6.5 * s + kick * 0.5];
+      const foot = [x - 58 * s, cy + side * 6 * s + kick];
+      limb([hip, knee, foot], 8.5 * s, SKIN_DARK);
+      limb([hip, knee, foot], 6.5 * s, SKIN);
+      g.fillStyle = SKIN;
       g.beginPath();
-      g.moveTo(shoulderX, cy - u * 0.26);
-      g.lineTo(shoulderX + u * 0.2, cy - u * (0.75 + 0.1 * Math.sin(t * 8)));
+      g.ellipse(foot[0] - 3 * s, foot[1], 4.5 * s, 2.6 * s, 0, 0, TAU);
+      g.fill();
+    }
+    g.restore();
+
+    // 팔: 물속으로 당기는 팔(흐림)과 물 위로 돌아오는 팔(팔꿈치 높이)
+    const arm = (side, a) => {
+      const shoulder = [sx, cy + side * 14 * s * (1 - 0.12 * side * roll)];
+      if (pose === "idle" || pose === "dive") {  // 출발 전, 잠영: 두 팔을 앞으로 모음
+        const hand = [x + 42 * s, cy + side * 3 * s];
+        limb([shoulder, [x + 22 * s, cy + side * 7 * s], hand], 7 * s, SKIN_DARK);
+        limb([shoulder, [x + 22 * s, cy + side * 7 * s], hand], 5.4 * s, SKIN);
+        return;
+      }
+      const cycle = ((a % TAU) + TAU) % TAU;
+      if (cycle < Math.PI) {  // 당기기(물속)
+        const f = cycle / Math.PI;
+        const hand = [lerp(x + 40 * s, x - 24 * s, f), cy + side * lerp(7, 12, Math.sin(f * Math.PI)) * s];
+        const elbow = [(shoulder[0] + hand[0]) / 2, cy + side * (15 + 4 * Math.sin(f * Math.PI)) * s];
+        g.save();
+        g.globalAlpha *= 0.5;  // 물속이라 흐림
+        limb([shoulder, elbow, hand], 6.4 * s, SKIN_DARK);
+        limb([shoulder, elbow, hand], 5 * s, SKIN);
+        g.restore();
+      } else {  // 돌아오기(물 위, 팔꿈치를 높게)
+        const f = (cycle - Math.PI) / Math.PI;
+        const hand = [lerp(x - 22 * s, x + 40 * s, f), cy + side * (17 - 6 * Math.sin(f * Math.PI)) * s];
+        const elbow = [lerp(x - 4 * s, x + 16 * s, f), cy + side * (23 + 3 * Math.sin(f * Math.PI)) * s];
+        g.save();
+        g.shadowColor = "rgba(0, 40, 70, 0.3)";
+        g.shadowBlur = 4 * s;
+        g.shadowOffsetY = 3 * s;
+        limb([shoulder, elbow, hand], 7.5 * s, SKIN_DARK);
+        g.restore();
+        limb([shoulder, elbow, hand], 5.8 * s, SKIN);
+        g.fillStyle = SKIN;
+        g.beginPath();
+        g.ellipse(hand[0] + 2 * s, hand[1], 4.6 * s, 3.4 * s, 0, 0, TAU);
+        g.fill();
+        if (f > 0.82 && swimming) {  // 손이 물에 들어가는 물보라
+          g.fillStyle = "rgba(255, 255, 255, 0.95)";
+          for (let k = 0; k < 5; k++) {
+            const angle = (k / 5) * TAU + stroke;
+            g.beginPath();
+            g.arc(hand[0] + 6 * s + Math.cos(angle) * 5 * s, hand[1] + Math.sin(angle) * 4 * s, 1.6 * s, 0, TAU);
+            g.fill();
+          }
+        }
+      }
+    };
+    const pulling = (a) => (((a % TAU) + TAU) % TAU) < Math.PI;
+    const arms = [[-1, stroke], [1, stroke + Math.PI]];
+    for (const [side, a] of arms) if (pulling(a) || pose === "idle" || pose === "dive") arm(side, a);  // 물속 팔 먼저
+
+    // 몸통(등): 둥근 어깨에서 허리로 좁아지고 엉덩이에서 조금 넓어짐. 돌림에 따라 한쪽 어깨가 올라와 밝고 넓게
+    const w = (side) => 1 + 0.08 * side * roll;  // 올라온 쪽 어깨가 조금 넓게 보임
+    const torso = new Path2D();
+    torso.moveTo(sx + 7 * s, cy - 5 * s);  // 목
+    torso.quadraticCurveTo(sx + 6 * s, cy - 13 * s * w(-1), sx + 1 * s, cy - 16 * s * w(-1));  // 왼쪽 어깨
+    torso.bezierCurveTo(sx - 5 * s, cy - 18 * s * w(-1), x - 14 * s, cy - 12 * s, x - 21 * s, cy - 9.5 * s);  // 겨드랑이, 허리
+    torso.bezierCurveTo(x - 27 * s, cy - 9 * s, x - 32 * s, cy - 11 * s, x - 36 * s, cy - 6 * s);  // 엉덩이
+    torso.quadraticCurveTo(x - 39 * s, cy, x - 36 * s, cy + 6 * s);
+    torso.bezierCurveTo(x - 32 * s, cy + 11 * s, x - 27 * s, cy + 9 * s, x - 21 * s, cy + 9.5 * s);
+    torso.bezierCurveTo(x - 14 * s, cy + 12 * s, sx - 5 * s, cy + 18 * s * w(1), sx + 1 * s, cy + 16 * s * w(1));
+    torso.quadraticCurveTo(sx + 6 * s, cy + 13 * s * w(1), sx + 7 * s, cy + 5 * s);
+    torso.closePath();
+    const back = g.createLinearGradient(0, cy - 18 * s, 0, cy + 18 * s);  // 등의 빛(올라온 쪽이 밝음)
+    back.addColorStop(0, roll < 0 ? "#fbe0c8" : SKIN_DARK);
+    back.addColorStop(0.5, SKIN);
+    back.addColorStop(1, roll < 0 ? SKIN_DARK : "#fbe0c8");
+    g.save();
+    g.shadowColor = "rgba(0, 40, 70, 0.28)";
+    g.shadowBlur = 5 * s;
+    g.shadowOffsetY = 3 * s;
+    g.fillStyle = back;
+    g.fill(torso);
+    g.restore();
+    g.save();
+    g.clip(torso);
+    const suitShade = g.createLinearGradient(0, cy - 14 * s, 0, cy + 14 * s);  // 수영복(등 가운데부터 엉덩이까지)
+    suitShade.addColorStop(0, roll < 0 ? suitLight : suitDark);
+    suitShade.addColorStop(0.5, suit);
+    suitShade.addColorStop(1, roll < 0 ? suitDark : suitLight);
+    g.fillStyle = suitShade;
+    g.beginPath();
+    g.moveTo(sx - 9 * s, cy - 20 * s);
+    g.quadraticCurveTo(sx - 15 * s, cy, sx - 9 * s, cy + 20 * s);
+    g.lineTo(x - 45 * s, cy + 20 * s);
+    g.lineTo(x - 45 * s, cy - 20 * s);
+    g.closePath();
+    g.fill();
+    g.strokeStyle = suitDark;  // 어깨끈
+    g.lineWidth = 2.4 * s;
+    for (const side of [-1, 1]) {
+      g.beginPath();
+      g.moveTo(sx + 2 * s, cy + side * 6 * s);
+      g.quadraticCurveTo(sx - 4 * s, cy + side * 8 * s, sx - 10 * s, cy + side * 7 * s);
       g.stroke();
-    } else if (pose === "idle") {
-      arm(-1, 0);
-      arm(1, 0);
-    } else {
-      arm(-1, stroke);
-      arm(1, stroke + Math.PI);
     }
-    // 몸(수영복 색)과 다리
-    g.fillStyle = "#f2c9a8";
-    for (const side of [-1, 1]) {
+    const sink = g.createLinearGradient(x - 40 * s, 0, x - 22 * s, 0);  // 엉덩이 쪽은 물에 잠겨 물빛으로
+    sink.addColorStop(0, water);
+    sink.addColorStop(1, "rgba(40, 150, 200, 0)");
+    g.fillStyle = sink;
+    g.fillRect(x - 42 * s, cy - 20 * s, 22 * s, 40 * s);
+    g.restore();
+    g.strokeStyle = "rgba(120, 70, 40, 0.45)";
+    g.lineWidth = Math.max(1, 1.2 * s);
+    g.stroke(torso);
+
+    // 물 위로 돌아오는 팔
+    for (const [side, a] of arms) if (!pulling(a) && pose !== "idle" && pose !== "dive") arm(side, a);
+
+    // 도착: 한 팔을 들어 흔듦(위에서 보면 짧아 보이는 팔과 주먹, 둘레 물결)
+    if (pose === "cheer") {
+      const wave = Math.sin(t * 8) * 3 * s;
+      const fist = [sx + 8 * s + wave, cy - 26 * s];
+      limb([[sx, cy - 14 * s], fist], 7.5 * s, SKIN_DARK);
+      limb([[sx, cy - 14 * s], fist], 5.8 * s, SKIN);
+      g.fillStyle = SKIN;
       g.beginPath();
-      g.ellipse(x - u * 1.05, cy + side * u * 0.13 + (pose === "limp" ? 0 : Math.sin(stroke * 2 + side) * u * 0.04), u * 0.38, u * 0.09, 0, 0, TAU);
+      g.arc(fist[0], fist[1], 5 * s, 0, TAU);
       g.fill();
+      g.strokeStyle = "rgba(255, 255, 255, 0.7)";
+      g.lineWidth = 1.6 * s;
+      g.beginPath();
+      g.ellipse(fist[0], fist[1] + 4 * s, 11 * s, 5 * s, 0, 0, TAU);
+      g.stroke();
     }
-    g.fillStyle = suit;
+
+    // 머리 앞 물결(뱃머리 물결)
+    if (swimming) {
+      g.strokeStyle = "rgba(255, 255, 255, 0.8)";
+      g.lineWidth = 2.2 * s;
+      g.beginPath();
+      g.moveTo(hx + 4 * s, cy - 15 * s);
+      g.quadraticCurveTo(hx + 18 * s, cy, hx + 4 * s, cy + 15 * s);
+      g.stroke();
+    }
+
+    // 머리: 수영모(참가자 색, 윗면 빛), 물안경(끈과 렌즈), 숨 쉴 때 고개를 옆으로
+    const breathe = swimming && Math.sin(stroke) > 0.85 ? 4 * s : 0;
+    const cap = g.createRadialGradient(hx - 3 * s, cy - 4 * s + breathe, 1 * s, hx, cy + breathe, 13 * s);
+    cap.addColorStop(0, suitLight);
+    cap.addColorStop(0.45, suit);
+    cap.addColorStop(1, suitDark);
+    g.fillStyle = cap;
     g.beginPath();
-    g.ellipse(x - u * 0.45, cy, u * 0.62, u * 0.3, 0, 0, TAU);
+    g.ellipse(hx, cy + breathe, 12.5 * s, 10.5 * s, 0, 0, TAU);
     g.fill();
-    g.strokeStyle = edge;
-    g.lineWidth = 1.5;
+    g.strokeStyle = suitDark;
+    g.lineWidth = Math.max(1, 1.4 * s);
     g.stroke();
-    // 머리(수영모와 물안경)
-    g.fillStyle = suit;
+    g.strokeStyle = "#20262c";  // 물안경 끈
+    g.lineWidth = 2 * s;
     g.beginPath();
-    g.arc(x + u * 0.2, cy, u * 0.27, 0, TAU);
-    g.fill();
+    g.ellipse(hx + 1 * s, cy + breathe, 11.5 * s, 10 * s, 0, -0.9, 0.9);
     g.stroke();
-    g.fillStyle = "rgba(255, 255, 255, 0.55)";
-    g.beginPath();
-    g.arc(x + u * 0.14, cy - u * 0.1, u * 0.08, 0, TAU);
-    g.fill();
-    g.fillStyle = "#1e2327";
-    for (const side of [-1, 1]) {
+    for (const side of [-1, 1]) {  // 렌즈
+      g.fillStyle = "#20262c";
       g.beginPath();
-      g.arc(x + u * 0.36, cy + side * u * 0.11, u * 0.06, 0, TAU);
+      g.ellipse(hx + 10 * s, cy + breathe + side * 4.6 * s, 2.6 * s, 3.4 * s, 0, 0, TAU);
+      g.fill();
+      g.fillStyle = "rgba(255, 255, 255, 0.85)";
+      g.beginPath();
+      g.arc(hx + 10.6 * s, cy + breathe + side * 4.6 * s - 1.2 * s, 0.9 * s, 0, TAU);
       g.fill();
     }
-    if (pose === "limp") {  // 다리 쥐: 땀방울
-      g.fillStyle = "#7cc6f2";
-      g.beginPath();
-      g.arc(x + u * 0.5, cy - u * 0.45, u * 0.08, 0, TAU);
-      g.fill();
-    }
-    if (L >= 40) {  // 수영모의 번호
+    if (L >= 40) {  // 수영모 뒤쪽 번호
       g.fillStyle = mark;
-      g.font = `${Math.round(u * 0.26)}px ${font}`;
+      g.font = `${Math.round(9 * s)}px ${font}`;
       g.textAlign = "center";
       g.textBaseline = "middle";
-      g.fillText(String(number), x + u * 0.12, cy + u * 0.02);
+      g.fillText(String(number), hx - 3 * s, cy + breathe + 0.5 * s);
+    }
+    if (pose === "dive") {  // 공기 방울
+      g.fillStyle = "rgba(255, 255, 255, 0.95)";
+      for (let k = 0; k < 5; k++) {
+        const b = (t * 1.6 + k * 0.23) % 1;
+        g.beginPath();
+        g.arc(hx - (10 + b * 60) * s, cy - 8 * s + Math.sin(k * 2 + t * 4) * 7 * s, (1.4 + b * 1.8) * s, 0, TAU);
+        g.fill();
+      }
+    }
+    if (pose === "limp") {  // 다리 쥐: 종아리 옆 찌릿 표시
+      g.strokeStyle = "#ffd84d";
+      g.lineWidth = 2 * s;
+      g.beginPath();
+      g.moveTo(x - 46 * s, cy + 14 * s);
+      g.lineTo(x - 42 * s, cy + 19 * s);
+      g.lineTo(x - 47 * s, cy + 21 * s);
+      g.lineTo(x - 43 * s, cy + 27 * s);
+      g.stroke();
     }
     g.restore();
   }

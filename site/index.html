@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>debutkit - 버튜버 방송 준비 소프트웨어</title>
-<meta name="description" content="버튜버 방송 준비용 오픈소스 소프트웨어. PC 점검, OBS 장면 구성, 치지직 SOOP Twitch YouTube 통합 채팅창과 후원 알림, 캐릭터 방송, 방송 중 자동 클립.">
+<meta name="description" content="버튜버 방송 준비용 오픈소스 소프트웨어. PC 점검, OBS 장면 구성, 치지직 SOOP Twitch YouTube 통합 채팅창과 후원 알림, 캐릭터 방송, 방송 연출, 방송 중 자동 클립.">
 <meta name="theme-color" content="#ffffff">
 <meta property="og:type" content="website">
 <meta property="og:title" content="debutkit - 버튜버 방송 준비 소프트웨어">
@@ -151,7 +151,7 @@
         <p class="maker">BudongJW 오픈소스 프로젝트</p>
         <h1 id="product-name">debutkit</h1>
         <p class="kind">버튜버 방송 준비 소프트웨어</p>
-        <p class="price">무료</p>
+        <p class="price">무상</p>
         <p class="price-note">모든 기능 무상 공개, Apache-2.0</p>
         <dl class="meta">
           <dt>버전</dt><dd>0.9.0. 1.0 후보 1.0.0rc20 사전 릴리스</dd>
@@ -175,7 +175,7 @@
           <a class="btn secondary" href="guide.html">사용 설명서</a>
           <a class="btn secondary" href="https://github.com/BudongJW/debutkit">GitHub</a>
         </div>
-        <p class="card-note">코드 서명 미적용으로 첫 실행 시 경고가 표시될 수 있습니다. <a href="signing.html">코드 서명 정책</a></p>
+        <p class="card-note">코드 서명 미적용. 첫 실행 시 경고 표시 가능. <a href="signing.html">코드 서명 정책</a></p>
       </aside>
     </div>
 
@@ -190,42 +190,45 @@
 
       <section class="part" id="about">
         <h2>설명</h2>
-        <p>버튜버 방송 준비용 오픈소스 소프트웨어. 첫 방송 전에 필요한 PC 점검, OBS 장면 구성, 채팅창과 후원 알림 연결, 캐릭터 방송, 방송 중 자동 클립을 하나의 프로그램으로 제공합니다.</p>
+        <p>버튜버 방송 준비용 오픈소스 소프트웨어. 첫 방송 전 PC 점검, OBS 장면 구성, 채팅창과 후원 알림 연결, 캐릭터 방송, 방송 연출, 방송 중 자동 클립을 프로그램 하나로 제공</p>
 
-        <h3 class="mark">사용 대상</h3>
+        <h3 class="mark">이용 대상</h3>
         <ul>
           <li>첫 방송을 준비하는 개인 버튜버</li>
           <li>치지직, SOOP, Twitch, YouTube에 동시 송출하는 스트리머</li>
-          <li>별도 아바타 프로그램 없이 PNGTuber나 3D 캐릭터로 방송하는 경우</li>
-          <li>OBS 장면과 오버레이를 처음 설정하는 경우</li>
-          <li>기획사 소속 활동 예정으로 아바타 모델의 법인 사용 조건 확인이 필요한 경우</li>
+          <li>별도 아바타 프로그램 없이 PNGTuber나 3D 캐릭터로 방송하는 스트리머</li>
+          <li>OBS 장면과 오버레이를 처음 설정하는 스트리머</li>
+          <li>기획사 소속 활동 예정으로 아바타 모델의 법인 사용 조건 확인이 필요한 버튜버</li>
         </ul>
 
         <h3 class="mark">주요 기능</h3>
         <ul class="features">
           <li><b>PC 점검</b> 메모리, CPU, 그래픽카드, 저장 공간, 마이크, 웹캠, OBS, 트래킹 프로그램, ffmpeg 점검과 조치 안내. 업로드 속도 측정과 비트레이트 추천 <code>doctor</code></li>
-          <li><b>OBS 장면 구성</b> 대기 화면, 본방송, 토크, 자리 비움, 엔딩 장면 생성. 아바타 투명 배경 캡처, 채팅창과 후원 알림 연결, 기존 장면 유지 <code>scenes</code></li>
+          <li><b>OBS 장면 구성</b> 대기 화면, 본방송, 토크, 자리 비움, 엔딩 장면 생성. 아바타 투명 배경 캡처, 채팅창과 후원 알림 연결, 기존 장면 유지. 후원 벽, 뽑기판, 참여 레이스, 주사위 판은 숨긴 채로 추가 <code>scenes</code></li>
           <li><b>채팅창과 후원 알림</b> 치지직, SOOP, Twitch, YouTube 채팅을 OBS 브라우저 소스 하나에 표시. 후원, 구독, 슈퍼챗, 멤버십 알림. 채팅창 표시 형태 6종과 이름 색, 등장, 정렬. 알림 꾸미기(배치 6종, 위치 9곳, 문구, 효과음, 금액 구간별 그림과 효과) <code>overlay</code></li>
-          <li><b>시청자 참여 추첨</b> 채팅에 <code>!참가</code>를 입력한 시청자(선택 시 후원자 포함)를 모아 당첨자를 뽑거나 순서를 정하고 방송 화면에 당첨 카드, 순서표로 표시 <code>raffle</code></li>
-          <li><b>채팅 명령</b> 스트리머와 매니저가 채팅으로 캐릭터 동작, VTube Studio 단축키, 참여 추첨을 조작(<code>!동작</code>, <code>!단축키</code>, <code>!모집</code>, <code>!추첨</code>)</li>
-          <li><b>후원 추첨 연출</b> 후원이 오면 상품표에서 확률대로 뽑아 카드 뒤집기, 룰렛, 캡슐 뽑기, 즉석 복권, 티켓 출력, 추첨기, 타로로 표시. 금액별 추첨 횟수, 희귀 상품 강조, 대본 새 창, OBS 독용 조작 화면 <code>draw</code></li>
-          <li><b>뽑기판</b> 칸을 눌러 여는 방송용 뽑기판. 당첨 칸은 조작 화면에서만 보이고 채팅 명령이나 후원으로 시청자가 열기(선택). 배치의 SHA-256 값을 먼저 공개하는 공정성 확인 <code>pick</code></li>
+          <li><b>시청자 참여 추첨</b> 채팅에 <code>!참가</code>를 입력한 시청자(선택 시 후원자 포함) 모집, 당첨자 추첨과 순서 정하기, 방송 화면의 당첨 카드와 순서표. 후원 뒤 한마디(후원 참가자가 5분 안에 처음 쓴 채팅을 당첨 카드 말풍선으로) <code>raffle</code></li>
+          <li><b>채팅 명령</b> 스트리머와 매니저의 채팅 조작. 캐릭터 동작, VTube Studio 단축키, 참여 추첨(<code>!동작</code>, <code>!단축키</code>, <code>!모집</code>, <code>!추첨</code>)</li>
+          <li><b>후원 추첨 연출</b> 후원 시 상품표의 확률대로 추첨. 연출 7종(카드 뒤집기, 룰렛, 캡슐 뽑기, 즉석 복권, 티켓 출력, 추첨기, 타로)과 연출 모양 32종. 금액별 추첨 횟수, 희귀 상품 강조, 대본 새 창, OBS 독용 조작 화면 <code>draw</code></li>
+          <li><b>뽑기판</b> 칸을 눌러 여는 방송용 뽑기판. 당첨 칸은 조작 화면에서만 표시, 채팅 명령이나 후원으로 시청자 열기(선택). 디자인 8종(풍선 터뜨리기 포함), 칸 덮개 18종. 배치의 SHA-256 값을 먼저 공개하는 공정성 확인 <code>pick</code></li>
           <li><b>후원 벽, 목표 게이지, 후원 순위</b> 4개 플랫폼의 후원을 단위별 칸에 카드로 쌓는 방송 벽지. 시그니처 금액 그림, 오라 단계, 등장 연출 10종. 닉네임은 이 PC에만 저장 <code>wall</code></li>
-          <li><b>참여 레이스</b> 참여 추첨 참가자가 겨루는 구슬 레이스, 달리기 경주, 수영, 서바이벌. 순위는 시작할 때 정해 모든 화면이 같은 결과 <code>race</code></li>
-          <li><b>주사위 판</b> 참가자가 주사위를 굴려 판을 돌며 칸의 미션을 하는 말판 게임. 행운 카드와 특별한 칸, 차례인 시청자가 채팅으로 굴리기 <code>/board</code></li>
-          <li><b>방송 화면 미리보기, 방송 색, 방송 스타일</b> 모든 방송 화면을 OBS 장면과 같은 자리에 겹쳐 보고 시험 후원으로 확인. 주 색과 강조 색 하나로 모든 화면의 색을 맞추고, 방송 스타일 16종(일반 8종과 게임 장르 8종)과 글꼴(설치한 글꼴, 내 글꼴 올리기)로 모양을 바꿈. 게임 패키지 10종(발로란트, 리그 오브 레전드, 오버워치, 하스스톤 등)은 그 게임의 HUD를 피한 배치와 프레임(캐릭터 테두리, 대기, 자리 비움, 엔딩 화면)까지 <code>/stage</code></li>
-          <li><b>OBS에 넣기</b> 시작하기 화면의 방송 준비 목록과 방송 화면마다 단추 하나로 OBS 장면에 넣기(크기, 자리, 알림 소리까지). 주소를 복사해 크기를 입력할 필요 없음</li>
-          <li><b>디스코드 합방</b> 디스코드 음성 위젯을 방송 스타일로 꾸미고 참여자별 캐릭터 그림으로, 웹훅 방송 알림</li>
-          <li><b>팬 커뮤니티</b> 트게더처럼 스트리머마다 자기 커뮤니티(공지, 방송 일정, 게시판, 팬아트, 출석과 포인트). 내 Cloudflare 무료 계정에 올리고 방송 채팅 <code>!인증</code>으로 가입, <code>!출석</code>, 방송에 띄우기 <code>community</code></li>
-          <li><b>캐릭터</b> PNGTuber, 3D(VRM, GLB, FBX), Live2D 등록과 사용 조건 확인. debutkit 캐릭터 화면으로 방송(마이크 음량으로 입 움직임, 눈 깜빡임, 웹캠 얼굴 추적). 기본 캐릭터 데비를 PNGTuber와 3D(VRM, CC0, 표정 18종) 두 가지로 포함 <code>character</code></li>
-          <li><b>방송 이미지 만들기</b> 프사(움짤 GIF 포함), 다시보기 썸네일, YouTube 채널 배너, Twitch 프로필 배너, SOOP 방송국 배너, 시그니처 풍선 그림(후원 벽에 바로 등록)을 방송 색과 캐릭터 그림으로. 원형과 안전 영역 안내선, SOOP 배너는 200KB 이하 JPEG <code>/decor</code></li>
-          <li><b>캐릭터 그림 만들기</b> VRM을 이 PC에서 그려 표정 시트, PNGTuber 4상태, 포즈 그림(몸, 머리, 팔, 다리 조합, 랜덤, 투명 PNG). 모델 점검(표정, 텍스처 무게)과 텍스처를 줄인 가벼운 사본 <code>/character/sheet</code></li>
+          <li><b>참여 레이스</b> 참여 추첨 참가자의 경주 게임. 구슬 레이스(코스 4종), 달리기 경주, 수영(위에서 보는 8레인 수영장, 조별 경기 뒤 결승 또는 30명까지 함께), 서바이벌. 순위는 시작 시 결정, 모든 화면에 같은 결과 <code>race</code></li>
+          <li><b>주사위 판</b> 참가자(8명까지)가 주사위를 굴려 정사각형 둘레 16~28칸을 돌며 칸의 미션을 수행하는 말판 게임. 특별한 칸과 행운 카드 6종, 칸 미션 직접 작성, 디자인 3종. 차례인 시청자의 채팅 굴리기(기본 <code>!주사위</code>) <code>/board</code></li>
+          <li><b>방송 화면 미리보기, 방송 색, 방송 스타일</b> 모든 방송 화면을 OBS 장면과 같은 자리에 겹쳐 보기, 시험 후원으로 확인. 주 색과 강조 색으로 모든 화면의 색 통일. 방송 스타일 16종(일반 8종, 게임 장르 8종). 게임 패키지 10종(발로란트, 리그 오브 레전드, 오버워치, 하스스톤 등)은 게임 HUD를 피한 배치와 프레임(캐릭터 테두리, 대기, 자리 비움, 엔딩 화면) 포함 <code>/stage</code></li>
+          <li><b>공통 글꼴</b> 함께 배포하는 한글 글꼴 18종(제목, 고딕, 손글씨, 명조, 도트. SIL OFL). 뽑기판, 후원 추첨, 참여 레이스, 방송 이미지 만들기, 방송 화면 꾸미기에 같은 글꼴 목록. 이 PC 기본 글꼴, 내 글꼴 올리기</li>
+          <li><b>OBS에 넣기</b> 시작하기 화면의 방송 준비 목록과 방송 화면마다 단추 하나로 OBS 장면에 추가(크기, 자리, 알림 소리 포함). 주소 복사와 크기 입력 불필요</li>
+          <li><b>디스코드 합방</b> 디스코드 음성 위젯(StreamKit)의 방송 스타일 꾸미기와 참여자별 캐릭터 그림. 웹훅 방송 알림</li>
+          <li><b>팬 커뮤니티</b> 트게더와 같은 스트리머별 커뮤니티(공지, 방송 일정, 게시판, 팬아트, 출석과 포인트). 본인 Cloudflare 무료 계정에 게시, 방송 채팅 <code>!인증</code>으로 가입, <code>!출석</code>, 방송 화면 표시 <code>community</code></li>
+          <li><b>캐릭터</b> PNGTuber, 3D(VRM, GLB, FBX), Live2D 등록과 사용 조건 확인. debutkit 캐릭터 화면으로 방송(마이크 음량으로 입 움직임, 눈 깜빡임, 웹캠 얼굴 추적). 기본 캐릭터 데비(PNGTuber, 3D VRM) 포함 <code>character</code></li>
+          <li><b>기본 3D 캐릭터 데비</b> CC0 VRM, 표정 18종. 내 VRM 없이 캐릭터 화면, 캐릭터 그림 만들기, 얼굴 추적 시험 가능</li>
+          <li><b>방송 이미지 만들기</b> 방송 색과 캐릭터 그림으로 프사, 다시보기 썸네일, YouTube 채널 배너, Twitch 프로필 배너, SOOP 방송국 배너, SOOP 연결 배너(720x150 3장), 쇼츠 커버(1080x1920), 네컷 사진, 방셀 꾸미기(액자 10종), 시그니처 풍선 그림(후원 벽에 바로 등록), 원하는 크기(64~4096px) 제작. 완성 프리셋 9종, 체키(폴라로이드), 테두리, 파티클, 자막 스타일, 손그림 펜. 모든 그림 종류의 움짤(GIF, WebP) 저장. 안전 영역 안내선, SOOP 배너는 JPEG 200KB 이하 <code>/decor</code></li>
+          <li><b>캐릭터 그림 만들기</b> VRM을 이 PC에서 그려 표정 시트, PNGTuber 4상태, 포즈 그림(투명 PNG) 제작. 모델 점검(표정, 텍스처 무게)과 텍스처를 줄인 가벼운 사본 <code>/character/sheet</code></li>
+          <li><b>포즈 그림</b> 부위 8개(허리, 상체, 머리, 왼팔, 오른팔, 왼손, 오른손, 다리)와 선택지 76개, 손 모양 8종, 추천 자세 10종, 관절 직접 돌리기. 자세 파일 불러오기(VRMA, MMD VPD), 자세 JSON 저장과 불러오기, 내 자세 저장. VMC로 자세 보내기(Warudo, VSeeFace, VMagicMirror)</li>
           <li><b>방송 로고 만들기</b> 함께 배포하는 아이콘(Fluent Emoji, Phosphor, MIT, 한국어 검색, 채널 색)과 기본 도형, 계정 없는 공개 모델 AI Horde, 공개 이미지 모델 Qwen-Image(ComfyUI 또는 Hugging Face) 또는 본인 API 키의 생성형 AI(Claude, OpenAI, Recraft) 심볼과 채널 이름(글꼴 윤곽선)으로 SVG, 투명 PNG 로고. 외곽선과 스티커 마감, 아이콘 출처와 AI 생성 표시, API 키 암호화 저장 <code>logo</code></li>
           <li><b>휴대폰 앱</b> 안드로이드, 아이폰 앞면 카메라로 얼굴 추적(MediaPipe, ARKit)해 표정 52개와 머리 움직임을 PC로 전송. 카메라 영상 모드는 WebRTC로 OBS에 직접 전송. QR 등록과 PC 승인. 안드로이드는 PC 없이 바로 방송(캐릭터 화면 또는 카메라 영상) <code>mobile</code></li>
           <li><b>휴대폰 조작 화면</b> 같은 Wi-Fi의 휴대폰 브라우저로 참여 추첨과 3D 캐릭터 동작 조작, 후원 추첨 결과 확인. QR 등록과 PC 승인, 요청 서명 <code>remote</code></li>
           <li><b>휴대폰 카메라 영상</b> 휴대폰 카메라 영상(실사, 손 캠)을 같은 Wi-Fi로 받는 OBS 소스. 암호 연결, Larix Broadcaster QR 가져오기 <code>camera</code></li>
           <li><b>OBS 없이 바로 방송</b> 캐릭터, 채팅, 후원 알림, 추첨 연출을 모은 송출 화면을 치지직, SOOP, YouTube, Twitch로 바로 송출. 하드웨어 H.264, 스트림 키 암호화 저장. Windows, 토크 방송용 <code>broadcast</code></li>
-          <li><b>휴대폰 얼굴 추적</b> 아이폰 앱(iFacialMocap, VTube Studio)의 ARKit 표정 52개와 머리 움직임을 같은 Wi-Fi로 받아 캐릭터에 반영. 퍼펙트 싱크 모델은 얼굴 전체가 움직임 <code>phone</code></li>
+          <li><b>휴대폰 얼굴 추적</b> 아이폰 앱(iFacialMocap, VTube Studio)의 ARKit 표정 52개와 머리 움직임을 같은 Wi-Fi로 받아 캐릭터에 반영. 퍼펙트 싱크 모델은 얼굴 전체 반영 <code>phone</code></li>
           <li><b>3D 캐릭터 동작</b> VRMA, Mixamo 등의 FBX, GLB 동작 등록. 대기 중 반복하는 기본 동작과 후원 반응 <code>motion</code></li>
           <li><b>VTube Studio 연동</b> Live2D 모델 보내기와 불러오기, 후원 시 단축키 실행. VRM은 Warudo로 보내기 <code>vts</code></li>
           <li><b>방송 중 자동 클립</b> 채팅이 평소보다 크게 증가하거나 스트리머, 매니저가 <code>!clip</code>을 입력하면 OBS 리플레이 버퍼를 클립으로 저장. 동시 송출 시 전 플랫폼 채팅 합산. 클립마다 움짤과 세로 쇼츠(선택) <code>overlay --clip</code>, <code>clip</code></li>
@@ -233,9 +236,9 @@
           <li><b>VMC 송신</b> debutkit 얼굴 추적 값(웹캠, 휴대폰, 표정 52개)을 Warudo, VSeeFace, VMagicMirror로 <code>vmc</code></li>
           <li><b>공식 API 연동</b> 치지직 Open API 로그인(본인 채널의 채팅, 후원, 구독), YouTube Data API 라이브 채팅 <code>chzzk login</code></li>
         </ul>
-        <p class="note">설정 마법사에서 모든 기능을 사용할 수 있으며, 같은 기능을 명령줄로도 제공합니다.</p>
+        <p class="note">설정 마법사에서 모든 기능 이용 가능. 같은 기능을 명령줄로도 제공</p>
 
-        <h3 class="mark">이용 환경</h3>
+        <h3 class="mark">지원 환경</h3>
         <ul>
           <li>Windows 64비트(Windows 11에서 검증), macOS 11 이상(Apple Silicon), Linux x64(Ubuntu 22.04 이상 기준)</li>
           <li>OBS Studio 28 이상. 장면 생성과 자동 클립에는 OBS WebSocket 서버 사용 설정 필요</li>
@@ -245,22 +248,22 @@
 
         <h3 class="mark">가격</h3>
         <ul>
-          <li>무료. 모든 기능을 Apache-2.0으로 공개</li>
+          <li>무상. 모든 기능을 Apache-2.0으로 공개</li>
           <li>소속 프로그램 참여 여부와 무관하게 같은 기능 제공(<a href="join.html">참여 안내</a>)</li>
         </ul>
       </section>
 
       <section class="part" id="debi">
-        <h2>데비와 함께 보는 debutkit</h2>
+        <h2>기본 캐릭터 데비와 소개 그림</h2>
         <ul>
-          <li>데비: 첫 방송을 준비하는 신인 버튜버. debutkit 기본 캐릭터(PNGTuber, 3D VRM)이자 화면 곳곳의 안내 역할</li>
-          <li>아래 그림의 데비는 함께 배포하는 기본 3D 캐릭터를 캐릭터 그림 만들기의 추천 자세로 그린 것. 화면은 실제 debutkit 화면</li>
+          <li>데비: 첫 방송을 준비하는 신인 버튜버 설정의 debutkit 기본 캐릭터(PNGTuber, 3D VRM). 프로그램 화면의 안내 역할</li>
+          <li>아래 그림: 함께 배포하는 기본 3D 캐릭터를 캐릭터 그림 만들기의 추천 자세로 그린 데비와 실제 debutkit 화면의 합성</li>
         </ul>
         <ul class="scenes promo">
-          <li><figure><img src="assets/promo/live.jpg" alt="방송 중. 게임 화면 위에 데비 캐릭터, 통합 채팅창, 후원 알림을 겹친 방송 화면" width="1600" height="900" loading="lazy"><figcaption>방송 중: 채팅, 후원, 캐릭터를 방송 화면 하나에</figcaption></figure></li>
-          <li><figure><img src="assets/promo/prep.jpg" alt="방송 준비. 시작하기 화면의 방송 준비 목록 옆에 허리에 손을 얹은 데비" width="1600" height="900" loading="lazy"><figcaption>방송 준비: 할 일을 순서대로</figcaption></figure></li>
-          <li><figure><img src="assets/promo/character.jpg" alt="캐릭터. 세 가지 자세의 3D 데비" width="1600" height="900" loading="lazy"><figcaption>캐릭터: PNGTuber부터 3D 캐릭터까지</figcaption></figure></li>
-          <li><figure><img src="assets/promo/fun.jpg" alt="방송 연출. 후원 추첨 카드와 룰렛 옆에서 만세 하는 데비" width="1600" height="900" loading="lazy"><figcaption>방송 연출: 후원과 채팅으로 함께 노는 방송</figcaption></figure></li>
+          <li><figure><img src="assets/promo/live.jpg" alt="방송 중. 게임 화면 위에 데비 캐릭터, 통합 채팅창, 후원 알림을 겹친 방송 화면" width="1600" height="900" loading="lazy"><figcaption>방송 중: 채팅, 후원, 캐릭터를 겹친 방송 화면</figcaption></figure></li>
+          <li><figure><img src="assets/promo/prep.jpg" alt="방송 준비. 시작하기 화면의 방송 준비 목록 옆에 허리에 손을 얹은 데비" width="1600" height="900" loading="lazy"><figcaption>방송 준비: 시작하기 화면의 방송 준비 목록</figcaption></figure></li>
+          <li><figure><img src="assets/promo/character.jpg" alt="캐릭터. 세 가지 자세의 3D 데비" width="1600" height="900" loading="lazy"><figcaption>캐릭터: PNGTuber와 3D 캐릭터 지원</figcaption></figure></li>
+          <li><figure><img src="assets/promo/fun.jpg" alt="방송 연출. 후원 추첨 카드와 룰렛 옆에서 만세 하는 데비" width="1600" height="900" loading="lazy"><figcaption>방송 연출: 후원 추첨과 채팅 참여 게임</figcaption></figure></li>
         </ul>
       </section>
 
@@ -272,19 +275,19 @@
               <tr><th scope="row">배포 형태</th><td>Windows 설치 프로그램(setup.exe)과 압축 파일(zip), macOS 앱(debutkit.app), Linux 압축 파일(tar.gz). 설정 마법사와 명령줄 도구 포함</td></tr>
               <tr><th scope="row">설치 방식</th><td>현재 사용자 계정에 설치, 시작 메뉴 등록. 관리자 권한과 파이썬 불필요</td></tr>
               <tr><th scope="row">선택 구성 요소</th><td>ffmpeg(자동 클립용). 설치 과정 또는 설정 마법사에서 다운로드</td></tr>
-              <tr><th scope="row">코드 서명</th><td>Windows 미적용(SmartScreen 경고가 표시될 수 있음). macOS 임시 서명, 공증 미적용(첫 실행 시 Gatekeeper 경고). <a href="signing.html">코드 서명 정책</a></td></tr>
-              <tr><th scope="row">파이썬 패키지</th><td>모든 운영체제에서 사용 가능. Python 3.10 이상</td></tr>
+              <tr><th scope="row">코드 서명</th><td>Windows 미적용(SmartScreen 경고 표시 가능). macOS 임시 서명, 공증 미적용(첫 실행 시 Gatekeeper 경고). <a href="signing.html">코드 서명 정책</a></td></tr>
+              <tr><th scope="row">파이썬 패키지</th><td>모든 운영체제 지원. Python 3.10 이상</td></tr>
             </tbody>
           </table>
         </div>
         <h3>설치 절차(Windows)</h3>
         <ol class="procedure">
           <li><a href="https://github.com/BudongJW/debutkit/releases/latest">릴리스 페이지</a>에서 <code>debutkit-버전-windows-x64-setup.exe</code> 다운로드</li>
-          <li>설치 프로그램 실행. 자동 클립을 사용할 경우 ffmpeg 다운로드 선택</li>
+          <li>설치 프로그램 실행. 자동 클립 이용 시 ffmpeg 다운로드 선택</li>
           <li>시작 메뉴에서 debutkit 실행</li>
-          <li>설정 마법사의 단계별 안내에 따라 진행</li>
+          <li>설정 마법사의 단계별 안내대로 진행</li>
         </ol>
-        <p class="note">설치 없이 사용하려면 <code>debutkit-버전-windows-x64.zip</code>의 압축을 해제한 뒤 <code>debutkit-gui.exe</code>를 실행합니다. macOS와 Linux 설치 방법은 <a href="guide.html#install-unix">사용 설명서</a>에 있습니다.</p>
+        <p class="note">압축 파일 이용(별도 설치 불필요): <code>debutkit-버전-windows-x64.zip</code> 압축 해제 후 <code>debutkit-gui.exe</code> 실행. macOS와 Linux 설치 방법: <a href="guide.html#install-unix">사용 설명서</a></p>
         <h3>파이썬 패키지</h3>
         <pre class="wrap"><code>pip install "debutkit[gui] @ git+https://github.com/BudongJW/debutkit"
 debutkit-gui</code></pre>
@@ -296,9 +299,9 @@ debutkit-gui</code></pre>
           <table>
             <tbody>
               <tr><th scope="row">무상 공개</th><td>모든 기능을 Apache-2.0으로 공개. 소속 프로그램 참여 여부와 무관</td></tr>
-              <tr><th scope="row">정보 수집 없음</th><td>사용 통계 미전송. 오버레이는 이 PC(127.0.0.1)에서만 접속 가능하며 채팅을 저장하지 않음. 업로드 속도 측정과 새 버전 확인만 실행 시 외부 서버에 연결</td></tr>
+              <tr><th scope="row">정보 수집 없음</th><td>이용 통계 미전송. 오버레이는 이 PC(127.0.0.1)에서만 접속 가능, 채팅 저장 없음. 외부 서버 연결은 업로드 속도 측정과 새 버전 확인 실행 시에만</td></tr>
               <tr><th scope="row">공식 API 우선</th><td>치지직과 YouTube는 공식 API 사용. 비공식 수신은 다른 채널 시험 용도</td></tr>
-              <tr><th scope="row">기존 프로그램 활용</th><td>트래킹(VTube Studio, VSeeFace 등)과 송출(OBS Studio)은 기존 프로그램을 사용하고, 프로그램 간 설정과 연결을 담당</td></tr>
+              <tr><th scope="row">기존 프로그램 활용</th><td>트래킹(VTube Studio, VSeeFace 등)과 송출(OBS Studio)은 기존 프로그램 이용. debutkit은 프로그램 간 설정과 연결 담당</td></tr>
             </tbody>
           </table>
         </div>
@@ -343,7 +346,7 @@ debutkit-gui</code></pre>
             <img src="assets/shots/character-3d-debi.png" alt="" width="1200" height="640" loading="lazy">
             <span class="label">문서</span>
             <strong>사용 설명서</strong>
-            <span class="desc">설치, 설정 마법사, 캐릭터(기본 3D 캐릭터 데비와 공개 3D 모델), OBS 장면, 채팅과 알림, 자동 클립 사용 방법</span>
+            <span class="desc">설치, 설정 마법사, 캐릭터(기본 3D 캐릭터 데비와 공개 3D 모델), OBS 장면, 채팅과 알림, 자동 클립 이용 방법</span>
           </a>
         </li>
         <li>
@@ -367,7 +370,7 @@ debutkit-gui</code></pre>
             <img src="assets/shots/wizard-chat.png" alt="" width="1200" height="965" loading="lazy">
             <span class="label">안내</span>
             <strong>참여 안내</strong>
-            <span class="desc">프로그램 사용, 개발 참여, 실제 환경 확인, 소속 버튜버 의향 등록</span>
+            <span class="desc">프로그램 이용, 개발 기여, 실사용 환경 검증, 소속 의향서 제출</span>
           </a>
         </li>
       </ul>
@@ -389,7 +392,7 @@ debutkit-gui</code></pre>
     <a href="https://github.com/BudongJW/debutkit/blob/main/CHANGELOG.md">변경 내역</a>
     <a href="https://github.com/BudongJW/debutkit/blob/main/LICENSE">라이선스</a>
     <a href="signing.html">코드 서명 정책</a>
-    <p>Apache-2.0 오픈소스 소프트웨어. 본 페이지는 Google Fonts 서체를 사용합니다.</p>
+    <p>Apache-2.0 오픈소스 소프트웨어. 이 페이지의 서체: Google Fonts</p>
   </div>
 </footer>
 </body>
