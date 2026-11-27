@@ -413,6 +413,7 @@ function redraw(all = true) {  // 부위를 바꾸면 시트, 4상태, 포즈 �
       drawStates();
     }
     drawPose();
+    if (vmcOn) vmcSend();
   }, 120);
 }
 
@@ -660,7 +661,9 @@ async function loadMyPoses(select = "") {
 $("my-pose-save").addEventListener("click", async () => {
   const name = $("my-pose-name").value.trim();
   if (!name) return poseNote("자세 이름을 입력", true);
-  const body = { name, parts: { ...poseState }, tweaks: { ...tweaks }, file: filePose };
+  const round = (values) => values.map((value) => Math.round(value * 1e5) / 1e5);
+  const file = filePose && Object.fromEntries(Object.entries(filePose).map(([bone, values]) => [bone, round(values)]));
+  const body = { name, parts: { ...poseState }, tweaks: { ...tweaks }, file };
   const response = await fetch("/character/poses", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   const data = await response.json();
   if (!response.ok) return poseNote(data.error || "저장하지 못함", true);
@@ -695,6 +698,74 @@ $("my-pose-remove").addEventListener("click", async () => {
   poseNote(`지움: ${name}`);
 });
 loadMyPoses().catch(() => {});
+
+// ---------------------------------------------------------------- VMC로 자세 보내기(서버가 Unity 좌표로 바꿔 초당 30번 보냄)
+let vmcOn = false;
+let vmcKeep = 0;
+
+function vmcNote(text, error = false) {
+  $("vmc-state").textContent = text;
+  $("vmc-state").classList.toggle("error", error);
+}
+
+// 지금 자세의 정규화 뼈: [회전 x, y, z, w, 위치 x, y, z](VRM 1.0 방향, VRM 0.x는 x, z 부호를 바꿈)
+function vmcBones() {
+  applyPose();
+  const { vrm, flip } = current;
+  const bones = {};
+  for (const bone of ALL_BONES) {
+    const node = vrm.humanoid.getNormalizedBoneNode(bone);
+    if (!node) continue;
+    const { quaternion: q, position: p } = node;
+    bones[bone] = [q.x * flip, q.y, q.z * flip, q.w, p.x * flip, p.y, p.z * flip].map((value) => Math.round(value * 1e5) / 1e5);
+  }
+  return bones;
+}
+
+function vmcStop(note = "멈춤") {
+  vmcOn = false;
+  clearInterval(vmcKeep);
+  $("vmc-send").textContent = "보내기 시작";
+  vmcNote(note);
+}
+
+async function vmcSend() {
+  if (!vmcOn || !current) return;
+  const body = { host: $("vmc-host").value.trim(), port: Number($("vmc-port").value), bones: vmcBones(),
+    expression: $("vmc-face").checked ? $("pose-face").value : null };
+  try {
+    const response = await fetch("/vmc/pose", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "보내지 못함");
+    if (!vmcOn) return;  // 기다리는 사이 멈춤을 누름
+    vmcNote(`보내는 중: ${data.host}:${data.port}, 뼈 ${data.bones}개${data.face ? "(머리와 표정은 얼굴 추적 VMC 송신 값)" : ""}${data.error ? `, ${data.error}` : ""}`);
+  } catch (error) {
+    vmcStop(error.message);
+    $("vmc-state").classList.add("error");
+  }
+}
+
+$("vmc-send").addEventListener("click", () => {
+  if (vmcOn) {
+    vmcStop();
+    fetch("/vmc/pose/stop", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }).catch(() => {});
+    return;
+  }
+  if (!current) return vmcNote("먼저 캐릭터를 그림", true);
+  vmcOn = true;
+  $("vmc-send").textContent = "보내기 멈춤";
+  vmcKeep = setInterval(vmcSend, 5000);  // 자세가 그대로여도 계속 보내라고 알림(화면을 닫으면 20초 안에 서버가 멈춤)
+  vmcSend();
+});
+$("vmc-face").addEventListener("change", vmcSend);
+window.addEventListener("pagehide", () => {
+  if (vmcOn) fetch("/vmc/pose/stop", { method: "POST", keepalive: true, headers: { "Content-Type": "application/json" }, body: "{}" });
+});
+fetch("/vmc/status").then((response) => response.json()).then((data) => {  // 얼굴 추적 송신에 저장한 받는 곳을 기본값으로
+  const pose = data.pose || {};
+  if (pose.host) $("vmc-host").value = pose.host;
+  if (pose.port) $("vmc-port").value = String(pose.port);
+}).catch(() => {});
 
 // 문서 그림용(packaging/build_screens.py, build_promo.py가 헤드리스 브라우저로 부름): 추천 자세, 각도(0, 0.3, 0.62),
 // 표정(VRM 표정 이름, 눈 감음 blink 포함)을 정해 그림을 PNG 주소로

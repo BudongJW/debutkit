@@ -175,4 +175,4 @@ def make_feature(context: feature.Context) -> feature.Feature:
                            get={"/character/sheet/list": listing, "/character/sheet/check": check, "/character/poses": poses},
                            post={"/character/pngtuber": save, "/character/lighten": lighten,
                                  "/character/poses": save_pose, "/character/poses/remove": remove_pose},
-                           body_limit={"/character/pngtuber": 4 * MAX_IMAGE * 4 // 3 + 65536})
+                           body_limit={"/character/pngtuber": 4 * MAX_IMAGE * 4 // 3 + 65536, "/character/poses": 65536})

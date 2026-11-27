@@ -260,3 +260,14 @@ def test_pose_maker_joints_pose_files_and_saved_poses():
     # 저장: 이 PC 서버(/character/poses). 추천 자세나 부위를 고르면 파일 자세는 꺼짐
     assert '"/character/poses"' in sheet and '"/character/poses/remove"' in sheet and sheet.count("dropFilePose();") >= 6
     assert "innerHTML" not in sheet and "https://" not in sheet
+
+
+def test_pose_maker_sends_the_pose_over_vmc():
+    """VMC로 자세 보내기: 지금 자세의 정규화 뼈를 서버(/vmc/pose)로, 자세가 바뀌면 바로, 5초마다 계속 알림, 화면을 닫으면 멈춤."""
+    sheet = (STATIC / "character-sheet.js").read_text(encoding="utf-8")
+    page = (STATIC / "character-sheet.html").read_text(encoding="utf-8")
+    for element in ('id="vmc-host"', 'id="vmc-port"', 'id="vmc-face"', 'id="vmc-send"', 'id="vmc-state"', 'href="/vmc"'):
+        assert element in page, element
+    assert '"/vmc/pose"' in sheet and '"/vmc/pose/stop"' in sheet and "keepalive: true" in sheet and "setInterval(vmcSend, 5000)" in sheet
+    assert "if (vmcOn) vmcSend();" in sheet  # 다시 그릴 때(부위, 관절, 자세 파일, 표정) 같이 보냄
+    assert "[q.x * flip, q.y, q.z * flip, q.w, p.x * flip, p.y, p.z * flip]" in sheet  # VRM 0.x도 VRM 1.0 방향으로

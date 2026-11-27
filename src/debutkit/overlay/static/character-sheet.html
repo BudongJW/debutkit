@@ -20,7 +20,7 @@
     h2 { font-size: 16px; margin: 0 0 8px; }
     ul.tips { margin: 6px 0 0; padding-left: 18px; color: var(--dim); font-size: 13px; }
     .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-    select, input[type=text] { padding: 6px 8px; border: 1px solid #c9c3bd; border-radius: 3px; font: inherit; background: #fff; }
+    select, input[type=text], input[type=number] { padding: 6px 8px; border: 1px solid #c9c3bd; border-radius: 3px; font: inherit; background: #fff; }
     button { background: var(--text); color: #fff; border: 1px solid var(--text); border-radius: 3px; padding: 6px 13px; font: inherit; font-weight: 600; cursor: pointer; }
     button.secondary { background: #fff; color: var(--text); border-color: #c9c3bd; }
     button:disabled { opacity: 0.45; cursor: default; }
@@ -124,11 +124,21 @@
               <button type="button" class="secondary" id="my-pose-remove">지우기</button></div>
             <p class="state" id="my-pose-state"></p>
           </details>
+          <details class="tool">
+            <summary>VMC로 자세 보내기</summary>
+            <div class="row"><input type="text" id="vmc-host" value="127.0.0.1" aria-label="받는 곳 IP 주소" style="width: 150px">
+              <input type="number" id="vmc-port" value="39539" min="1024" max="65535" aria-label="받는 포트" style="width: 96px">
+              <label class="check"><input type="checkbox" id="vmc-face" checked> 표정도</label>
+              <button type="button" class="secondary" id="vmc-send">보내기 시작</button></div>
+            <p class="state" id="vmc-state"></p>
+          </details>
           <ul class="tips">
             <li>부위(몸, 머리, 왼팔, 오른팔, 다리)마다 골라 조합. 위의 추천 자세를 고르면 모든 부위가 그 자세로</li>
             <li>관절 직접 돌리기: 고른 자세 위에 관절 하나씩 더 돌림(손목, 어깨, 무릎 등)</li>
             <li>자세 파일: VRMA(VRoid 공식 동작 등, 원하는 시점의 자세)와 MMD 포즈 파일 VPD. 파일은 이 브라우저 안에서만 읽음</li>
             <li>MMD 팔 각도: MMD 모델은 팔을 내린 자세가 기준이라 그 각도만큼 고쳐서 적용(팔이 너무 올라가거나 내려가면 조절)</li>
+            <li>VMC로 자세 보내기: Warudo, VSeeFace, VMagicMirror의 VMC 받기(포트 39539)를 켜고 같은 VRM을 불러 두면 지금 자세와 표정이 그대로. 자세를 바꾸면 바로 반영</li>
+            <li>얼굴 추적 VMC 송신(<a href="/vmc">/vmc</a>)이 켜져 있으면 머리와 표정은 얼굴 추적 값. 이 화면을 닫으면 20초 안에 멈춤</li>
             <li>잠금: 마음에 드는 부위는 두고 나머지만 랜덤</li>
             <li>왼팔, 오른팔은 캐릭터 기준(정면 그림에서는 왼팔이 화면 오른쪽)</li>
             <li>무대 배경을 끄면 투명 PNG(썸네일, 방송 화면 꾸미기에)</li>

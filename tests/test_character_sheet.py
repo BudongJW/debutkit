@@ -144,3 +144,16 @@ def test_saved_poses_have_a_limit(server, monkeypatch):
     status, data = request(server, "POST", "/character/poses", {"name": "셋"})
     assert status == 400 and "2개까지" in json.loads(data)["error"]
     assert request(server, "POST", "/character/poses", {"name": "하나", "parts": {"body": "turn"}})[0] == 200  # 같은 이름 바꾸기는 됨
+
+
+def test_saved_pose_with_a_whole_file_pose_fits(server):
+    """VRMA에서 받은 자세(뼈 52개)도 저장(요청 본문 기본 제한 4KB를 넘음)."""
+    from debutkit.overlay import vmc
+
+    file = {bone: [0.12345678901234568, -0.12345678901234568, 0.12345678901234568, 0.9753120000000001] for bone in vmc.UNITY_BONES}
+    pose = {"name": "VRMA 한 장면", "file": file, "tweaks": {"head": [0.1, 0.2, 0.3]}}
+    assert len(json.dumps(pose)) > 4096
+    status, body = request(server, "POST", "/character/poses", pose)
+    assert status == 200, body
+    saved = json.loads(request(server, "GET", "/character/poses")[1])["poses"][0]
+    assert len(saved["file"]) == 52 and saved["file"]["leftThumbMetacarpal"] == [0.12346, -0.12346, 0.12346, 0.97531]
