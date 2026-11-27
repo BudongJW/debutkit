@@ -6,6 +6,9 @@
 - 저장 설정과 캐릭터 보관함은 임시 폴더 사용(이 PC에 등록한 캐릭터, 저장 설정이 이미지에 나오지 않음)
 - 오버레이 설정 화면, 채팅창 표시 형태, 후원 알림: 예시 채팅을 넣은 오버레이 서버를 열고
   Chrome 또는 Edge 헤드리스 모드로 촬영(DEBUTKIT_BROWSER로 다른 브라우저 지정 가능)
+- 사이트 소개 그림(intro-*.jpg): 방송 연출과 방송 이미지 만들기의 그림 견본(?sample)을 촬영해 기능별로 모아 붙임
+
+    python packaging/build_screens.py --only intro   # 사이트 소개 그림만
 """
 
 from __future__ import annotations
@@ -383,13 +386,178 @@ def shrink(path: Path, width: int = 1200) -> None:
     image.save(path, optimize=True)
 
 
+#: 사이트 소개 그림의 견본 화면(예시 이름과 기본 설정. 견본 주소라 OBS와 다른 화면에는 나가지 않음)
+#: 참여 레이스: (게임, 멈출 경기 시각 초, 기다릴 초). 구슬 레이스는 코스 계산이 길어 오래 기다림
+RACE_SHOTS = (("marble", 9, 16), ("run", 6, 6), ("swim", 7, 6), ("survival", 8, 6))
+#: 후원 추첨 연출: 결과가 다 열린 뒤 촬영
+DRAW_SHOTS = ("card", "capsule", "scratch", "ticket", "drum", "tarot")
+#: 뽑기판: (디자인, 칸 덮개)
+PICK_SHOTS = (("card", "number"), ("balloon", "stars"), ("ticket", "dots"), ("envelope", "hearts"))
+#: 방송 이미지 만들기: 줄마다 (그림 종류, 완성 프리셋)
+DECOR_SHOTS = ((("thumbnail", "night"), ("profile", "heart"), ("shorts", "music")),
+               (("cheki", "spring"), ("signature", "xmas"), ("twitch", "neon")))
+INTRO_WIDTH = 1400
+INTRO_BACK = (241, 237, 233)  # 사이트 화면 모음 배경(#f1ede9)
+
+
+def _content_box(image, tolerance: int = 14):
+    """왼쪽 위 색(배경)과 다른 부분의 영역."""
+    from PIL import Image, ImageChops
+
+    back = Image.new("RGB", image.size, image.getpixel((0, 0)))
+    return ImageChops.difference(image, back).convert("L").point(lambda value: 255 if value > tolerance else 0).getbbox()
+
+
+def _blank(image) -> bool:
+    """거의 한 색인 그림(견본이 그려지기 전에 찍힘)."""
+    box = _content_box(image)
+    return box is None or (box[2] - box[0]) * (box[3] - box[1]) < image.width * image.height * 0.01
+
+
+def trim(image, margin: int = 24):
+    """배경을 잘라 내용만(사방 margin 여백)."""
+    box = _content_box(image)
+    if box is None:
+        return image
+    left, top, right, bottom = box
+    return image.crop((max(0, left - margin), max(0, top - margin), min(image.width, right + margin), min(image.height, bottom + margin)))
+
+
+def _card(image, radius: int):
+    """둥근 모서리 그림(RGBA)과 옅은 그림자."""
+    from PIL import Image, ImageDraw, ImageFilter
+
+    mask = Image.new("L", image.size, 0)
+    ImageDraw.Draw(mask).rounded_rectangle((0, 0, image.width - 1, image.height - 1), radius, fill=255)
+    card = image.convert("RGBA")
+    card.putalpha(mask)
+    shadow = Image.new("RGBA", (image.width + 40, image.height + 40), (0, 0, 0, 0))
+    shadow.paste((30, 35, 39, 60), (20, 26), mask)
+    return card, shadow.filter(ImageFilter.GaussianBlur(10))
+
+
+def sheet(rows: list[list], width: int = INTRO_WIDTH, gap: int = 20, pad: int = 36, background: tuple = INTRO_BACK, radius: int = 10):
+    """줄마다 같은 높이로 맞춰 가로를 채운 모음 그림(그림 비율 그대로, 둥근 모서리와 옅은 그림자)."""
+    from PIL import Image
+
+    inner = width - pad * 2
+    placed, y = [], float(pad)
+    for row in rows:
+        height = (inner - gap * (len(row) - 1)) / sum(image.width / image.height for image in row)
+        x = float(pad)
+        for image in row:
+            w = image.width * height / image.height
+            placed.append((image.resize((round(w), round(height)), Image.Resampling.LANCZOS), (round(x), round(y))))
+            x += w + gap
+        y += height + gap
+    out = Image.new("RGBA", (width, round(y - gap + pad)), (*background, 255))
+    for image, (x, top) in placed:
+        card, shadow = _card(image, radius)
+        out.alpha_composite(shadow, (max(0, x - 20), max(0, top - 20)))
+        out.alpha_composite(card, (x, top))
+    return out.convert("RGB")
+
+
+def save_intro(image, name: str) -> Path:
+    path = OUT / name
+    image.save(path, quality=86, optimize=True, progressive=True)
+    return path
+
+
+def intro_shots(browsers: list[str]) -> list[Path]:
+    """사이트 소개 그림(docs/images/intro-*.jpg): 참여 레이스, 후원 추첨 연출, 뽑기판, 주사위 판, 후원 벽, 방송 화면 미리보기,
+    방송 이미지 만들기."""
+    import base64
+    import io
+    import json
+
+    from PIL import Image
+
+    server = overlay_server()
+    saved: list[Path] = []
+    try:
+        base = server.url
+        with tempfile.TemporaryDirectory() as folder:
+            numbers = iter(range(1000))
+
+            def shot(path: str, size: tuple[int, int], wait: float):
+                for extra in (0, 6):  # 견본이 그려지기 전에 찍힌 빈 그림은 더 기다려 다시 촬영
+                    out = capture(browsers, f"{base}/{path}", Path(folder) / f"{next(numbers)}.png", size, wait=wait + extra)
+                    with Image.open(out) as opened:
+                        image = opened.convert("RGB")
+                    if not _blank(image):
+                        return image
+                raise SystemExit(f"그림 견본이 그려지지 않음: {path}")
+
+            # 방송 화면 미리보기를 먼저: 앞선 촬영의 실시간 연결이 남아 있으면 겹쳐 보기의 채팅창이 비어 찍힘
+            stage = shot("stage", (1440, 1000), 8).crop((0, 0, 1440, 745))  # 위쪽 메뉴, 추천 조합, 겹쳐 보기(아래 주소 줄 제외)
+            saved.append(save_intro(sheet([[stage]], pad=28), "intro-stage.jpg"))
+
+            races = [shot(f"race?sample={game}&still&t={at}&mute", (1920, 1080), wait) for game, at, wait in RACE_SHOTS]
+            saved.append(save_intro(sheet([races[:2], races[2:]]), "intro-race.jpg"))
+
+            draws = [shot(f"draw?sample={style}&mute", (960, 800), 9) for style in DRAW_SHOTS]
+            boxes = [_content_box(image) for image in draws]
+            union = (max(0, min(b[0] for b in boxes) - 30), max(0, min(b[1] for b in boxes) - 30),
+                     min(960, max(b[2] for b in boxes) + 30), min(800, max(b[3] for b in boxes) + 30))
+            draws = [image.crop(union) for image in draws]  # 여섯 연출을 같은 크기로
+            saved.append(save_intro(sheet([draws[:3], draws[3:]]), "intro-draw.jpg"))
+
+            picks = [trim(shot(f"pick?sample&mute&theme={theme}&cover={cover}", (1920, 1080), 7), 40) for theme, cover in PICK_SHOTS]
+            saved.append(save_intro(sheet([picks[:2], picks[2:]]), "intro-pick.jpg"))
+
+            board = trim(shot("board?sample&mute", (1920, 1080), 6), 40)
+            saved.append(save_intro(sheet([[board]]), "intro-board.jpg"))
+
+            wall = shot("wall?sample", (1920, 1080), 6)
+            wall = trim(wall.crop((0, 0, wall.width, 300)), 40)  # 단위별 첫 줄(칸 이름과 첫 카드)
+            saved.append(save_intro(sheet([[wall]]), "intro-wall.jpg"))
+
+        pictures: dict[str, bytes] = {}
+
+        def work(call) -> None:
+            call("Page.navigate", url=f"{base}/decor")
+            evaluate = lambda expression: call("Runtime.evaluate", expression=expression, returnByValue=True, awaitPromise=True).get("result", {}).get("value")  # noqa: E731
+            end = time.monotonic() + 60
+            while not evaluate("Boolean(window.debutkitDecor)"):
+                if time.monotonic() > end:
+                    raise SystemExit("방송 이미지 만들기 화면이 열리지 않음")
+                time.sleep(0.5)
+            time.sleep(4)  # 캐릭터 그림과 글꼴
+            for row in DECOR_SHOTS:
+                for key, preset in row:
+                    evaluate(f"window.debutkitDecor.preset({json.dumps(preset)})")
+                    time.sleep(1.5)
+                    url = evaluate(f"window.debutkitDecor.draw({json.dumps(key)}, 0.25)")
+                    pictures[key] = base64.b64decode(url.split(",", 1)[1])
+
+        if not any(_devtools(browser, (1440, 1000), work) and pictures for browser in browsers):
+            raise SystemExit("방송 이미지 촬영 실패")
+        rows = [[Image.open(io.BytesIO(pictures[key])).convert("RGB") for key, _ in row] for row in DECOR_SHOTS]
+        saved.append(save_intro(sheet(rows), "intro-decor.jpg"))
+    finally:
+        server.stop()
+    return saved
+
+
 def main() -> int:
+    import argparse
+
+    parser = argparse.ArgumentParser(description="사이트와 문서용 화면 이미지 만들기")
+    parser.add_argument("--only", choices=["intro"], help="intro: 사이트 소개 그림(intro-*.jpg)만")
+    args = parser.parse_args()
     OUT.mkdir(parents=True, exist_ok=True)
     scratch = tempfile.mkdtemp(prefix="debutkit-screens-")
     os.environ["DEBUTKIT_SETTINGS"] = str(Path(scratch) / "settings.json")
-    shots = wizard_shots() + overlay_shots(find_browsers())
+    browsers = find_browsers()
+    if args.only == "intro":
+        shots = intro_shots(browsers)
+    else:
+        shots = wizard_shots() + overlay_shots(browsers)
+        for path in shots:
+            shrink(path)
+        shots += intro_shots(browsers)
     for path in shots:
-        shrink(path)
         print(f"{path.relative_to(ROOT)}  ({path.stat().st_size / 1024:.0f} KB)")
     return 0
 

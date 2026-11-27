@@ -134,6 +134,17 @@ def test_no_exclamation_or_slogan_headings(path):
     assert not colon_titles, "\n".join(colon_titles)
 
 
+def test_home_gallery_css_covers_every_slide():
+    """홈 화면 모음: 라디오 버튼마다 화면 표시와 썸네일 강조 선택자가 있어야 모든 화면이 열림(7번부터 안 열리던 문제 재발 방지)."""
+    page = (ROOT / "site" / "index.html").read_text(encoding="utf-8")
+    css = (ROOT / "site" / "css" / "site.css").read_text(encoding="utf-8")
+    count = len(re.findall(r'name="shot" id="shot-\d+"', page))
+    assert count == len(re.findall(r'<figure class="slide" id="slide-\d+">', page)) >= 2
+    for number in range(1, count + 1):
+        assert f"#shot-{number}:checked ~ .slides #slide-{number}" in css, number
+        assert f'#shot-{number}:checked ~ .thumbs label[for="shot-{number}"]' in css, number
+
+
 def test_pages_do_not_point_at_the_account_blog():
     for path in PAGES + SOURCES:
         text = path.read_text(encoding="utf-8")
